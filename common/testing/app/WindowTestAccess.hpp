@@ -13,10 +13,12 @@ namespace loka
   {
     namespace testing
     {
-      /** Test-only access to publish a native window-frame fact. */
+      /** Test-only access to Window projection and completion primitives. */
       class WindowTestAccess
       {
       public:
+        static void reconcileFocus(::Window &window) { window.reconcileFocus(); }
+
         static void storeNativeFrame(::Window &window, const loka::core::Frame &frame)
         {
           window.storeNativeFrame(frame);

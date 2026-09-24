@@ -64,6 +64,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeMatchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneOwnershipTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneFocusTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/FocusPublisherTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/PhaseGuardTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LifecycleDetachTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NativeLifetimeTests.cpp

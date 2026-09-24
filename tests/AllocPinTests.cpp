@@ -20,6 +20,9 @@
 // for the full census table and family breakdown.
 
 #include "support/AllocCensus.hpp"
+#include "app/core/App.hpp"
+#include "platform/null/NullWindow.hpp"
+#include "platform/null/NullPlatformContext.hpp"
 #include "app/style/AttributedString.hpp"
 #include "support/TestVerify.hpp"
 
@@ -493,4 +496,70 @@ void allocpin::RunAttributedStringEqualsAllocPin()
   std::fprintf(stderr, "AttributedString equal 10-segment values: allocations=%lu\n", allocations);
   LOKA_VERIFY(equal);
   LOKA_VERIFY(allocations == 0);
+}
+
+namespace
+{
+  class FocusAllocRoot : public loka::app::scene::BoundaryNodeFor<FocusAllocRoot>
+  {
+  public:
+    explicit FocusAllocRoot(const loka::app::scene::BoundaryPropsFor<FocusAllocRoot> &props)
+        : loka::app::scene::BoundaryNodeFor<FocusAllocRoot>(props) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &) {}
+  };
+  class FocusAllocController : public NullScenePlatformController
+  {
+  public:
+    unsigned reads;
+    FocusAllocController() : reads(0) {}
+    virtual bool readNativeFocus(loka::app::scene::NodeContext *&out)
+    {
+      ++this->reads;
+      return NullScenePlatformController::readNativeFocus(out);
+    }
+  };
+  class FocusAllocApp : public App
+  {
+  public:
+    FocusAllocApp() : App(0)
+    {
+      this->group_ = new AppComponentGroup(std::vector<AppComponent *>());
+    }
+    void adopt(Window *window) { this->group_->adopt(window); }
+    void settle() { this->flushWindowInvalidations(); }
+    virtual void quit() {}
+  };
+}
+
+void allocpin::RunFocusCompletionAllocPin()
+{
+  NullPlatformContext context;
+  FocusAllocController controllers[8];
+  FocusAllocApp app;
+  for (unsigned i = 0; i < 8; ++i)
+  {
+    WindowProps props;
+    props.scene(new loka::app::scene::Scene(loka::app::scene::Boundary<FocusAllocRoot>()));
+    app.adopt(new NullWindow(&context, props, &controllers[i]));
+    if (i != 2 && i != 7)
+      continue;
+    app.settle();
+    app.reconcileFocus();
+    for (int capture = 0; capture != 2; ++capture)
+    {
+      unsigned before[8];
+      for (unsigned n = 0; n <= i; ++n)
+        before[n] = controllers[n].reads;
+      BeginCapture(capture);
+      for (int completion = 0; completion != 4; ++completion)
+        app.reconcileFocus();
+      EndCapture();
+      const unsigned long allocations = CaptureAllocCount(capture);
+      std::fprintf(stderr, "Focus completion: windows=%u capture=%d completions=4 allocations=%lu\n",
+                   i + 1, capture, allocations);
+      for (unsigned n = 0; n <= i; ++n)
+        LOKA_VERIFY(controllers[n].reads == before[n] + 4);
+      LOKA_VERIFY(allocations == 0);
+    }
+  }
 }

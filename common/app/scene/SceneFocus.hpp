@@ -60,6 +60,16 @@ namespace loka
         friend struct SceneFocusTestAccess;
       };
 
+      template <typename RowT> struct FocusRowTypeTokenStorage
+      {
+        static const char value_;
+      };
+      template <typename RowT> const char FocusRowTypeTokenStorage<RowT>::value_ = 0;
+      template <typename RowT> const void *FocusRowTypeToken()
+      {
+        return &FocusRowTypeTokenStorage<RowT>::value_;
+      }
+
       /** Kernel membership and two independent edges; contains no app state. */
       class FocusRow
       {
@@ -73,6 +83,8 @@ namespace loka
         {
         }
         virtual ~FocusRow();
+        /** Optional extension identity; bare kernel rows have no app type. */
+        virtual const void *focusRowTypeKey() const { return 0; }
 
       protected:
         /** Living detach extension. Reclamation never calls this hook. */

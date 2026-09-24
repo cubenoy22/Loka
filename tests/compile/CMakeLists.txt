@@ -381,3 +381,18 @@ loka_compile_pin(request-binding-sourceless-editor-command
   REFUSES pins/refuses_request-binding-sourceless-editor-command.cpp
   ACCEPTS pins/accepts_request-binding-sourceless-editor-command.cpp
 )
+
+loka_compile_pin(focus-string
+  REFUSES pins/refuses_focus-string.cpp
+  ACCEPTS pins/accepts_focus-string.cpp
+)
+
+loka_compile_pin(focus-unregistered
+  REFUSES pins/refuses_focus-unregistered.cpp
+  ACCEPTS pins/accepts_focus-unregistered.cpp
+)
+
+loka_compile_pin(focus-window-entry
+  REFUSES pins/refuses_focus-window-entry.cpp
+  ACCEPTS pins/accepts_focus-window-entry.cpp
+)

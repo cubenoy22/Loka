@@ -621,6 +621,8 @@ protected:
 
 private:
   friend class App;
+  /** App completion only, after admission has left its flushing gate. */
+  void reconcileFocus();
   /** Rails without deferred dialog delivery carry no transport storage. */
   virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return 0; }
   virtual void closeDialogResults() {}

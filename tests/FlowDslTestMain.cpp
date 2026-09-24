@@ -1,3 +1,4 @@
+#include "FocusPublisherTests.hpp"
 #ifdef __APPLE__
 #include "MacTextEditorTests.hpp"
 #endif

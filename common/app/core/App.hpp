@@ -39,6 +39,8 @@ public:
   virtual ~App();
 
   virtual void run();
+  /** Rail completion entry; enumerates current live windows after App work. */
+  void reconcileFocus();
   virtual void quit() = 0;
   /** Detaches a Window immediately and queues its silent reclaim for the App clock boundary. */
   void requestWindowClose(Window *window);

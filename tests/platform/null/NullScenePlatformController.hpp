@@ -9,6 +9,7 @@ namespace loka { namespace app { class TextWidthSource; } }
 #include <vector>
 
 #include "app/RectSurface.hpp"
+#include "app/FocusParticipant.hpp"
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
@@ -146,6 +147,25 @@ public:
     return synthetic;
   }
   virtual ~NullScenePlatformController();
+  virtual bool readNativeFocus(loka::app::scene::NodeContext *&out)
+  {
+    loka::app::FocusParticipant *row =
+        loka::app::FocusParticipant::from(this->focusSource_.peerRow());
+    out = row ? row->context() : 0;
+    return true;
+  }
+#ifdef TEST_BUILD
+  void simulateNativeFocus(loka::app::scene::NodeContext *context)
+  {
+    this->focusSource_.cut();
+    loka::app::scene::Node *node = context ? context->owner() : 0;
+    loka::app::FocusParticipant *row = node
+        ? loka::app::FocusParticipant::from(node->asFocusParticipant()) : 0;
+    if (row)
+      row->connectSource(this->focusSource_);
+  }
+  void clearSimulatedFocus() { this->focusSource_.cut(); }
+#endif
 
   virtual void onChange(loka::app::scene::Node *rootNode,
                         loka::app::scene::NodeDirtyFlags flags,
@@ -319,6 +339,7 @@ private:
   void appendEvent(EventKind kind, int handleId);
   void recordWindowDisposed();
 
+  loka::app::scene::FocusLink focusSource_;
   const loka::app::TextShaping textShaping_;
 
   /** Synthetic viewport input, replaced by an explicit fixture projection. */
