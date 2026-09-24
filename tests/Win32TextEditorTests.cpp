@@ -847,6 +847,19 @@ namespace
         LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
       }
       fixture.context->onPropsApplied();
+      {
+        RECT after = {0};
+        SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&after));
+        const Trace &rows = Trace::instance();
+        std::fprintf(stderr,
+                     "decline: kind=%d rows=%u admission=%d/%d count=%u pending=%u slotNone=%d rect=%ld..%ld first=%ld\n",
+                     static_cast<int>(fixture.commands.reply().state()->get().kind()), rows.size(),
+                     rows.size() ? static_cast<int>(rows.at(rows.size() - 1).admission[0]) : -1,
+                     rows.size() ? static_cast<int>(rows.at(rows.size() - 1).admission[1]) : -1,
+                     rows.size() ? rows.at(rows.size() - 1).count : 0u, fixture.commands.pending(),
+                     fixture.commands.state()->get().isNone() ? 1 : 0, static_cast<long>(after.top),
+                     static_cast<long>(after.bottom), static_cast<long>(SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0)));
+      }
       LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
       LOKA_VERIFY(fixture.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
       LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(target).id, 2));
