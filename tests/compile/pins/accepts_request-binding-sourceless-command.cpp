@@ -1,4 +1,5 @@
 #include "request_command.hpp"
+#include "app/scene/state/RequestSettlement.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 
 using namespace loka::app;
@@ -22,3 +23,6 @@ void acceptsSourcelessCaretAndQueuedCommandBinding(const WriteSeat<LineCursor> &
   binding = copy;
   (void)caret;
 }
+
+// p4: instantiate every runner door with an unrelated request and fact.
+template class loka::app::scene::SeatRunner<TestCommand, LineCursor>;

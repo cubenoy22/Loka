@@ -34,3 +34,7 @@ void testSettleTwoSeatProbeOrder();
 void testSettleTwoSeatProbeFailedArm();
 void testSettleTwoSeatProbeRetirement();
 #endif
+
+void testSettleTwoSeatEmptyEpilogue();
+void testSettleHeterogeneousTraceCapture();
+void testSettleEmptySeatZeroCandidate();
