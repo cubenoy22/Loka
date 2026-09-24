@@ -390,7 +390,17 @@ public:
       return scene::RequestApplication<LineCursor>(target, result);
     const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
     if (applied.result() == EDITOR_OK)
-      SendMessageW(c.hwnd_, EM_SCROLLCARET, 0, 0);
+    {
+      // Scroll by an explicit line delta: EM_SCROLLCARET does nothing for a
+      // window that is not visible (hosted CI), while EM_LINESCROLL moves the
+      // formatting frame regardless of visibility.
+      const LRESULT row = SendMessageW(c.hwnd_, EM_LINEFROMCHAR, static_cast<WPARAM>(-1), 0);
+      const LRESULT first = SendMessageW(c.hwnd_, EM_GETFIRSTVISIBLELINE, 0, 0);
+      const LRESULT last = first + static_cast<LRESULT>(visibleLines) - 1;
+      const LRESULT delta = row < first ? row - first : row > last ? row - last : 0;
+      if (delta)
+        SendMessageW(c.hwnd_, EM_LINESCROLL, 0, static_cast<LPARAM>(delta));
+    }
     return applied;
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
