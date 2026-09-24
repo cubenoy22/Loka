@@ -2299,7 +2299,7 @@ void testTextEditorCommandCaretPriority()
   QueueReplies caretReplies(f.carets);
   bool supplied = false, opened = false;
   for (unsigned short i = 0; i < 3; ++i)
-    LOKA_VERIFY(f.carets.post(f.at(i)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.carets.post(f.at(static_cast<unsigned short>(i))) == POST_ACCEPTED);
   LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
   LOKA_VERIFY(Input::probeAdmission(*f.context, true, false, supplied, opened) == ADMISSION_DEFERRED);
   LOKA_VERIFY(supplied && !opened);
@@ -2509,7 +2509,7 @@ void testTextEditorCommandTraceMerge()
   CommandFixture f;
   for (unsigned short i = 0; i < 2; ++i)
   {
-    LOKA_VERIFY(f.carets.post(f.at(i)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.carets.post(f.at(static_cast<unsigned short>(i))) == POST_ACCEPTED);
     LOKA_VERIFY(f.commands.post(i == 0 ? pageDown : pageUp) == POST_ACCEPTED);
     f.context->onPropsApplied();
   }
@@ -2527,7 +2527,7 @@ void testTextEditorCommandTraceMerge()
       LOKA_VERIFY(value.find(i == 1 ? " seat=command requested=PAGE_DOWN" : " seat=command requested=PAGE_UP")
                   != std::string::npos);
     else
-      LOKA_VERIFY(value.find("requested=" + loka::scenario_tests::SettleCursorText(f.at(i / 2))) != std::string::npos);
+      LOKA_VERIFY(value.find("requested=" + loka::scenario_tests::SettleCursorText(f.at(static_cast<unsigned short>(i / 2)))) != std::string::npos);
   }
   LOKA_VERIFY(!audit.record.has("settle.9.4"));
   EditorCapture::clear();
