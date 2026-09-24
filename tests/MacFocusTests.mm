@@ -212,10 +212,17 @@ void testMacFocusReadAndCompletion()
     [foreign release];
 
     // Native mouse delivery selects the field; only completion publishes.
+#if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101200)
+    const NSEventType mouseUpType = NSEventTypeLeftMouseUp;
+    const NSEventType mouseDownType = NSEventTypeLeftMouseDown;
+#else
+    const NSEventType mouseUpType = NSLeftMouseUp;
+    const NSEventType mouseDownType = NSLeftMouseDown;
+#endif
     first = field(firstNode);
     [first setFrame:NSMakeRect(10, 10, 160, 24)];
     const NSPoint point = [first convertPoint:NSMakePoint(8, 12) toView:nil];
-    NSEvent *up = [NSEvent mouseEventWithType:NSLeftMouseUp
+    NSEvent *up = [NSEvent mouseEventWithType:mouseUpType
                                      location:point
                                 modifierFlags:0
                                     timestamp:0
@@ -225,7 +232,7 @@ void testMacFocusReadAndCompletion()
                                    clickCount:1
                                      pressure:0];
     [NSApp postEvent:up atStart:YES];
-    NSEvent *down = [NSEvent mouseEventWithType:NSLeftMouseDown
+    NSEvent *down = [NSEvent mouseEventWithType:mouseDownType
                                        location:point
                                   modifierFlags:0
                                       timestamp:0
