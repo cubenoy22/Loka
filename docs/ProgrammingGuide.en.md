@@ -366,8 +366,10 @@ if (this->queue.post(LineCursor(this->lines.at(0).id, 0)) == scene::POST_QUEUE_F
 
 `post()` returns `POST_ACCEPTED`, `POST_QUEUE_FULL` when no waiting space
 remains, or `POST_INVALID` for `None`. A refused post changes nothing.
-Each taken post receives one reply, observed through `queue.reply()`. Caret
-priority can delay commands indefinitely. Binding changes or detach cancel
+Each taken post receives one reply, observed through `queue.reply()`, unless
+the editor's binding changes while the post is being taken; such a post is
+dropped without a reply, like cancelled work. Caret priority can delay
+commands indefinitely. Binding changes or detach cancel
 pending work without replies or an exact dropped count, so the reply-per-post
 promise ends there.
 
