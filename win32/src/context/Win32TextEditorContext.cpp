@@ -220,13 +220,17 @@ public:
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
   }
+  /** Taking can notify an owner edit. Repair before asking EDIT for offsets
+      or geometry, so both seats measure the reconciled projection. */
+  scene::FollowUp ensureProjection(scene::Node &base)
+  {
+    Win32TextEditorContext &c = context(base);
+    return c.projection_.current(*c.node_) ? scene::FOLLOW_NONE : c.replaceProjection();
+  }
   virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
   {
     Win32TextEditorContext &c = context(base);
-    scene::FollowUp follow = scene::FOLLOW_NONE;
-    // Taking can notify an owner edit. Repair before asking EDIT for offsets.
-    if (!c.projection_.current(*c.node_))
-      follow = c.replaceProjection();
+    const scene::FollowUp follow = this->ensureProjection(base);
     if (c.phase_ != COMMIT || c.status_ != EDITOR_OK)
       return scene::RequestApplication<LineCursor>(pending, c.status_, follow);
     const int row = c.node_->props.lines_->find(pending.line);
@@ -382,12 +386,13 @@ public:
     Win32TextEditorContext &c = *static_cast<Win32TextEditorContext *>(base.getContext());
     unsigned visibleLines = 0;
     LineCursor target;
+    const scene::FollowUp follow = this->rail_.ensureProjection(base);
     if (!c.queryVisibleLines(visibleLines))
-      return scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE);
+      return scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE, follow);
     const EditorResult result =
         static_cast<TextEditorNode &>(base).seam(c.key_).pageTarget(pending, visibleLines, target);
     if (result != EDITOR_OK)
-      return scene::RequestApplication<LineCursor>(target, result);
+      return scene::RequestApplication<LineCursor>(target, result, follow);
     const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
     if (applied.result() == EDITOR_OK)
     {

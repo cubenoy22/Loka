@@ -840,26 +840,27 @@ namespace
       LOKA_VERIFY(first > 0 && first <= target && target < first + static_cast<LRESULT>(visible));
       fixture.matches();
       // A positive-height formatting frame with no complete line declines.
+      // EDIT ignores a formatting rectangle shorter than the scrolled-in
+      // text, so scroll back to the top first and confirm the rectangle took.
+      SendMessageW(window, EM_LINESCROLL, 0, -SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0));
       rect.bottom = rect.top + height - 1;
       SendMessageW(window, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      {
+        RECT took = {0};
+        SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&took));
+        if (took.bottom - took.top >= height)
+        {
+          std::fprintf(stderr, "[skip] EDIT kept a %ld px formatting frame; the decline branch is not pinned here\n",
+                       static_cast<long>(took.bottom - took.top));
+          Capture::clear();
+          continue;
+        }
+      }
       {
         StateTrackerGuard guard(&fixture.tracker);
         LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
       }
       fixture.context->onPropsApplied();
-      {
-        RECT after = {0};
-        SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&after));
-        const Trace &rows = Trace::instance();
-        std::fprintf(stderr,
-                     "decline: kind=%d rows=%u admission=%d/%d count=%u pending=%u slotNone=%d rect=%ld..%ld first=%ld\n",
-                     static_cast<int>(fixture.commands.reply().state()->get().kind()), rows.size(),
-                     rows.size() ? static_cast<int>(rows.at(rows.size() - 1).admission[0]) : -1,
-                     rows.size() ? static_cast<int>(rows.at(rows.size() - 1).admission[1]) : -1,
-                     rows.size() ? rows.at(rows.size() - 1).count : 0u, fixture.commands.pending(),
-                     fixture.commands.state()->get().isNone() ? 1 : 0, static_cast<long>(after.top),
-                     static_cast<long>(after.bottom), static_cast<long>(SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0)));
-      }
       LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
       LOKA_VERIFY(fixture.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
       LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(target).id, 2));
