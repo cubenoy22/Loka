@@ -48,4 +48,5 @@ void testTextEditorCommandTraceMerge();
 void testTextEditorNullAdmissionOrder();
 void testTextEditorCommandSceneContinuation();
 void testTextEditorCommandBindingChecks();
+void testTextEditorCommandLinesReplacement();
 #endif

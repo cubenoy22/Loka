@@ -2655,3 +2655,31 @@ void testTextEditorCommandBindingChecks()
     f.apply(next);
   }
 }
+void testTextEditorCommandLinesReplacement()
+{
+  CommandFixture f;
+  ObservableList<String> nextLines;
+  LOKA_VERIFY(nextLines.attach(&f.tracker, 4) == ATTACH_OK);
+  LOKA_VERIFY(nextLines.insert(0, String("new")) == EDIT_OK);
+  CommandReplies commands(f.commands);
+  QueueReplies carets(f.carets);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageUp) == POST_ACCEPTED);
+  LOKA_VERIFY(f.carets.post(f.at(1)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.carets.post(f.at(2)) == POST_ACCEPTED);
+  const LineCursor before = f.cursor.state()->get();
+  const TextEditorProps original = f.node.props;
+  TextEditorProps next(nextLines, f.cursor);
+  next.moveCaretTo(f.carets).command(f.commands);
+  LOKA_VERIFY(next.command_.same(original.command_) && next.moveCaretTo_.same(original.moveCaretTo_));
+  f.apply(next);
+  LOKA_VERIFY(f.commands.state()->get().isNone() && f.commands.pending() == 0);
+  LOKA_VERIFY(f.carets.state()->get().isNone() && f.carets.pending() == 0);
+  LOKA_VERIFY(commands.values.empty() && carets.values.empty() && f.cursor.state()->get() == before);
+  const LineCursor after(nextLines.at(0).id, 1);
+  LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(f.node).moveCaret(after) == EDITOR_OK);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(commands.values.empty() && carets.values.empty() && f.cursor.state()->get() == after);
+  LOKA_VERIFY(Input::caret(*f.context) == after && Input::buffer(*f.context) == "new");
+  f.apply(original);
+}
