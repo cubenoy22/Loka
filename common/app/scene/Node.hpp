@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_HPP
 
 #include "core/diag/LifecycleAudit.hpp"
+#include "app/scene/SceneFocus.hpp"
 
 #include <cassert>
 
@@ -523,6 +524,11 @@ namespace loka
         {
           return 0;
         }
+        /** Optional leaf focus membership; the row belongs to the node. */
+        virtual FocusRow *asFocusParticipant()
+        {
+          return 0;
+        }
         virtual IStateOwner *asStateOwner()
         {
           return 0;
@@ -697,7 +703,10 @@ namespace loka
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door
             (NotifySubtreeNode*), and the retire door (retire/teardown paths)
-            — reclaim never writes lifecycle state. */
+            — reclaim never writes lifecycle state. Focus source cuts precede
+            the living publication hook; terminal membership removal follows it.
+            In ~Node virtual dispatch is base-only: the derived row has already
+            silently unlinked, so that final RETIRED write cannot touch it. */
         void applyLifecycleFact(NodeLifecycleFact next)
         {
           if (lifecycleFact_ == next)
@@ -711,6 +720,20 @@ namespace loka
           }
           const NodeLifecycleFact previous = lifecycleFact_;
           lifecycleFact_ = next;
+          FocusRow *focusRow = this->asFocusParticipant();
+          if (focusRow)
+          {
+            if (previous == NODE_FACT_ATTACHED)
+            {
+              // Any row may be a read source; only a Scene member can be
+              // published, so the living hook skips rows that never joined
+              // (e.g. a leaf whose owner attach was refused).
+              focusRow->source_.cut();
+              if (focusRow->owner_)
+                focusRow->leaveAttached();
+            }
+            if (next == NODE_FACT_RETIRED) focusRow->unlink();
+          }
           this->onLifecycleFactChanged(previous, next);
         }
         static void MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact);

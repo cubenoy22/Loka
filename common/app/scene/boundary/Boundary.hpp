@@ -2292,6 +2292,8 @@ namespace loka
             nodeContext.setNodeStorage(boundary ? 0 : parentContext.nodeStorage());
             nodeContext.setPlatformController(parentContext.platformController());
             Scene *scene = nextBoundary ? nextBoundary->getScene() : 0;
+            if (event == COMPOSE_EVENT_ATTACH && scene && !boundary && !composable && !nestable)
+              JoinSceneFocus(*scene, *node);
             nodeContext.setScene(scene);
             nodeContext.setWindow(parentContext.window());
             nodeContext.setDirtyFlags(parentContext.dirtyFlags());
@@ -2401,6 +2403,7 @@ namespace loka
         }
 
       private:
+        static void JoinSceneFocus(Scene &scene, Node &node);
         template <class T> NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);

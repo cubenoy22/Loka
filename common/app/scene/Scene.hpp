@@ -511,6 +511,15 @@ namespace loka
           return this->nextTickTracker_.inProgress();
         }
 
+        /** Focus membership survives parking and is emptied by composition teardown. */
+        SceneFocus &focus() { return this->focus_; }
+
+        /** Admission and close reclamation exclude both running phases. */
+        bool isBusy() const
+        {
+          return this->isRunInProgress() || this->focus_.isPublishing();
+        }
+
         bool hasPendingInvalidation() const
         {
           return nextTickTracker_.hasPendingRequest();
@@ -551,6 +560,7 @@ namespace loka
         loka::core::MutableState<SceneLifecycle> lifecycle_;
         loka::core::MutableState<bool> attached_;
         loka::core::OwnedDef<NodeDefinitionBase> rootDefinition_;
+        SceneFocus focus_;
         Node *rootNode_;
         IPlatformController *platformController_;
         Window *window_;
@@ -993,6 +1003,7 @@ namespace loka
         {
           if (!rootNode_)
           {
+            this->focus_.disconnectAll();
             return;
           }
           Node::MarkSubtreeLifecycleFact(rootNode_, NODE_FACT_RETIRED);
@@ -1010,6 +1021,7 @@ namespace loka
           // Gate-created root or plain-new RootBoundaryWrapper; never arena.
           DestroyHeapNode(rootNode_);
           rootNode_ = 0;
+          this->focus_.disconnectAll();
         }
 
         static size_t countLiveNodes(Node *node)
