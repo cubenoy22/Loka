@@ -8,6 +8,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "support/Headless.hpp"
@@ -43,11 +44,14 @@ namespace
     explicit FocusRoot(const BoundaryPropsFor<FocusRoot> &p) : BoundaryNodeFor<FocusRoot>(p) {}
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Button());
-      c.declare(EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(1))));
-      c.declare(EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(2))));
-      c.declare(TextEditor(TextEditorProps(composingFacts->lines, composingFacts->cursor)
-                               .focusedAs(composingFacts->focus, static_cast<unsigned short>(3))));
+      // A top-level declare() sets the composition root, so the four controls
+      // are one Column; its children are the tab order field(0..3) walks.
+      c.declare(Column()
+                << Button()
+                << EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(1)))
+                << EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(2)))
+                << TextEditor(TextEditorProps(composingFacts->lines, composingFacts->cursor)
+                                  .focusedAs(composingFacts->focus, static_cast<unsigned short>(3))));
     }
   };
   struct Fixture
@@ -76,7 +80,9 @@ namespace
     }
     Node *field(unsigned index)
     {
-      Node *node = loka::dsl::testing::SceneTestAccess::rootBoundary(*this->window.scene())->childrenHead();
+      BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(*this->window.scene());
+      LOKA_VERIFY(root && root->childrenHead() && root->childrenHead()->asNestable());
+      Node *node = root->childrenHead()->asNestable()->childrenHead();
       while (index-- && node)
         node = node->nextInComposition;
       LOKA_VERIFY(node);
