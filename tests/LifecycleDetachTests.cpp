@@ -2305,3 +2305,145 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
   g_detachWindowFalseCounts = 0;
   g_detachWindowTrueCounts = 0;
 }
+
+// F1 repro: a definition is allowed to refuse retained props application.
+#include "app/nodes/nestable/Show.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
+#include <cstdio>
+#include <cstdlib>
+
+namespace loka { namespace app { namespace testing {
+  void failLocalRebuildProbeProps(unsigned count);
+  bool consumeLocalRebuildProbePropsFailure();
+} } }
+
+namespace
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  struct StrandObservation
+  {
+    Node *tail;
+    bool destroyed;
+    bool retiredBeforeDestructor;
+    StrandObservation() : tail(0), destroyed(false), retiredBeforeDestructor(false) {}
+  };
+  StrandObservation *strandObservation = 0;
+  loka::core::MutableState<bool> *strandVisible = 0;
+
+  class StrandTextNode : public TextNode
+  {
+  public:
+    explicit StrandTextNode(const TextProps &props) : TextNode(props) {}
+    virtual ~StrandTextNode()
+    {
+      if (strandObservation && strandObservation->tail == this)
+      {
+        strandObservation->destroyed = true;
+        strandObservation->retiredBeforeDestructor = this->lifecycleFact() == NODE_FACT_RETIRED;
+        std::fprintf(stderr, "F1 tail destructor: retired=%d context_present=%d\n",
+                     strandObservation->retiredBeforeDestructor, this->getContext() != 0);
+      }
+    }
+  };
+
+  struct RefusingRetainedFragment : FragmentDefinition
+  {
+    virtual NodeDefinitionBase *clone() const { return new RefusingRetainedFragment(*this); }
+    virtual bool applyPropsToNode(Node *node) const
+    {
+      if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
+      {
+        std::fprintf(stderr, "F1 refusing compatible retained definition: compatible=%d\n",
+                     this->isCompatibleWithNode(node));
+        return false;
+      }
+      return FragmentDefinition::applyPropsToNode(node);
+    }
+  };
+
+  class StrandBoundary;
+  typedef BoundaryPropsFor<StrandBoundary> StrandProps;
+  class StrandBoundary : public BoundaryNodeFor<StrandBoundary>
+  {
+  public:
+    explicit StrandBoundary(const StrandProps &props) : BoundaryNodeFor<StrandBoundary>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      FragmentDefinition prefix;
+      prefix.tag(7101);
+      RefusingRetainedFragment refusal;
+      refusal.tag(7102);
+      NodeDefinition<TextProps, StrandTextNode> tail((TextProps("tail")));
+      tail.tag(7103);
+      composition.declare(Show(*strandVisible) << prefix << refusal << tail);
+    }
+  };
+
+  Node *findStrandTag(Node *node, NodeTag tag)
+  {
+    if (!node || node->nodeTag() == tag)
+      return node;
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0;
+         child; child = child->nextInComposition)
+    {
+      Node *found = findStrandTag(child, tag);
+      if (found) return found;
+    }
+    return 0;
+  }
+}
+
+void testLocalRebuildRefusalKeepsLaterNodesOwnedOrRetired()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  StrandObservation observation;
+  loka::core::MutableState<bool> visible(true);
+  strandObservation = &observation;
+  strandVisible = &visible;
+  bool ownedOrRetired = false;
+  {
+    NullScenePlatformController platform;
+    {
+      Scene scene((Boundary<StrandBoundary>()));
+      scene.mount(&platform);
+      SceneTestAccess::updateAttached(scene, true);
+      observation.tail = findStrandTag(SceneTestAccess::rootNode(scene), 7103);
+      LOKA_VERIFY(observation.tail && observation.tail->getContext());
+      {
+        loka::core::StateTrackerGuard transaction(visible.trackerOwner());
+        visible.set(false);
+      }
+      scene.flushInvalidation();
+      LOKA_VERIFY(!observation.destroyed);
+      // Fail-count injection lives in TestingHooks.cpp. Keep refusal armed
+      // through the complete run so internal retries cannot hide the defect.
+      loka::app::testing::failLocalRebuildProbeProps(
+          std::getenv("F1_REPRO_NO_REFUSAL") ? 0 : 100);
+      {
+        loka::core::StateTrackerGuard transaction(visible.trackerOwner());
+        visible.set(true);
+      }
+      scene.flushInvalidation();
+      loka::app::testing::failLocalRebuildProbeProps(0);
+      LOKA_VERIFY(!observation.destroyed);
+      const bool reachable = findStrandTag(SceneTestAccess::rootNode(scene), 7103) == observation.tail;
+      const bool retired = observation.tail->lifecycleFact() == NODE_FACT_RETIRED;
+      ownedOrRetired = reachable || retired;
+      std::fprintf(stderr, "F1 after refusal: reachable=%d retired=%d context_present=%d arena=%d\n",
+                   reachable, retired, observation.tail->getContext() != 0,
+                   observation.tail->isArenaAllocated());
+      SceneTestAccess::unmount(scene);
+    }
+    std::fprintf(stderr, "F1 after Scene destruction: destroyed=%d retired_before_destructor=%d\n",
+                 observation.destroyed, observation.retiredBeforeDestructor);
+  }
+  strandObservation = 0;
+  strandVisible = 0;
+  // Diagnostic-only mode lets process exit normally for LeakSanitizer after
+  // recording the same failed invariant; normal registered runs must fail.
+  if (!std::getenv("F1_REPRO_OBSERVE_ONLY"))
+    LOKA_VERIFY(ownedOrRetired && "every old node must remain reachable or be retired after refusal");
+}

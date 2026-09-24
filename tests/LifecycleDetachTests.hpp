@@ -25,4 +25,7 @@ void testDirectRootBoundaryReRegistersObservedStateAcrossReattach();
 void testSceneTeardownReleasesBothConditionalBranchContextsOnce();
 void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch();
 
+void testLocalRebuildRefusalKeepsLaterNodesOwnedOrRetired();
+
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
+
