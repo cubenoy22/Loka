@@ -194,12 +194,23 @@ public:
   }
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
+    const scene::Admission admission = this->enterTake(base, static_cast<TextEditorNode &>(base).props.moveCaretTo_);
+    if (admission != scene::ADMISSION_DEFERRED)
+      request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    return admission;
+  }
+  template <class Request>
+  scene::Admission enterTake(scene::Node &base,
+                             const scene::RequestBinding<Request> &request,
+                             const scene::RequestBinding<LineCursor> *priority = 0)
+  {
     ToolboxTextEditorContext &c = context(base);
     if (c.phase_ != IDLE || !c.node_)
       return scene::ADMISSION_DEFERRED;
-    request = c.node_->props.moveCaretTo_;
     if (!request.isValid() || request.state()->get().isNone())
       return scene::ADMISSION_EMPTY;
+    if (priority && priority->isValid() && !priority->state()->get().isNone())
+      return scene::ADMISSION_DEFERRED;
     // Missing TE/unavailable status still takes, then refuses in resolve.
     this->binding_ = c.node_->props;
     c.phase_ = INPUT;
@@ -207,11 +218,17 @@ public:
   }
   virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
   {
-    TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
-           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.moveCaretTo_.same(request);
+  }
+  bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.command_.same(request);
   }
   virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    return this->resolveBinding(base, request);
+  }
+  template <class Request> EditorResult resolveBinding(scene::Node &base, const scene::RequestBinding<Request> &request)
   {
     ToolboxTextEditorContext &c = context(base);
     if (!this->current(base, request))
@@ -227,6 +244,20 @@ public:
       return EDITOR_UNAVAILABLE;
     return request.usesTracker(owner) ? EDITOR_OK : EDITOR_OWNER_MISMATCH;
   }
+  /** Arm cleanup at the pre-command viewport unless a refused key already
+      did: a refused report must leave the view where the entry found it. */
+  void armCommandScroll(scene::Node &base)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (!this->follow_.contains(scene::SCROLL_CLEANUP) && c.te_)
+      this->restoreScroll((**c.te_).destRect);
+  }
+  void keepCommandScroll(scene::Node &base)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (this->follow_.contains(scene::SCROLL_CLEANUP) && c.te_)
+      this->scroll_ = (**c.te_).destRect;
+  }
   virtual EditorResult validate(scene::Node &base, const LineCursor &pending)
   {
     TextEditorNode &node = static_cast<TextEditorNode &>(base);
@@ -235,7 +266,7 @@ public:
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
   }
-  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
+  scene::FollowUp prepareApply(scene::Node &base)
   {
     ToolboxTextEditorContext &c = context(base);
     scene::FollowUp follow = scene::FOLLOW_NONE;
@@ -247,6 +278,12 @@ public:
       if (c.phase_ == RECONCILE)
         c.phase_ = INPUT;
     }
+    return follow;
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    const scene::FollowUp follow = this->prepareApply(base);
     if (c.status_ != EDITOR_OK)
       return scene::RequestApplication<LineCursor>(pending, c.status_, follow);
     const short offset = c.offsetOf(pending);
@@ -308,6 +345,12 @@ public:
   }
 #endif
 private:
+  bool currentBinding(scene::Node &base) const
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState();
+  }
   static ToolboxTextEditorContext &context(scene::Node &node)
   {
     return *static_cast<ToolboxTextEditorContext *>(node.getContext());
@@ -319,6 +362,151 @@ private:
   const LineCursor before_;
 #endif
 };
+/** Plain TE has fixed-height visual lines. Count CR-delimited groups only
+    when every wrapped visual line is inside the editor's unclipped frame. */
+bool ToolboxTextEditorContext::queryVisibleLines(unsigned &lines) const
+{
+  lines = 0;
+  if (!this->te_ || (**this->te_).lineHeight <= 0)
+    return false;
+  TextLock text(this->te_);
+  if (!text.bytes())
+    return false;
+  const TERec &te = **this->te_;
+  const long height = te.lineHeight;
+  short first = 0;
+  for (short end = 1; end <= te.nLines; ++end)
+  {
+    const short offset = te.lineStarts[end];
+    if (end != te.nLines && (offset == 0 || text.bytes()[offset - 1] != '\r'))
+      continue;
+    if (te.destRect.top + first * height >= this->rect_.top && te.destRect.top + end * height <= this->rect_.bottom)
+      ++lines;
+    first = end;
+  }
+  // TE's nLines excludes the empty visual line after a final CR (and empty text).
+  if ((te.teLength == 0 || text.bytes()[te.teLength - 1] == '\r')
+      && (te.nLines == 0 || te.lineStarts[te.nLines - 1] < te.teLength)
+      && te.destRect.top + te.nLines * height >= this->rect_.top
+      && te.destRect.top + (te.nLines + 1L) * height <= this->rect_.bottom)
+    ++lines;
+  return lines != 0;
+}
+void ToolboxTextEditorContext::scrollTo(LineCursor target)
+{
+  const short offset = this->offsetOf(target);
+  const TERec &te = **this->te_;
+  short visual = 0;
+  while (visual < te.nLines && te.lineStarts[visual + 1] <= offset)
+    ++visual;
+  // The sentinel is a visual line only for empty text or a trailing CR.
+  if (visual == te.nLines && visual && offset && target.column != 0)
+    --visual;
+  const long top = te.destRect.top + static_cast<long>(visual) * te.lineHeight;
+  const long bottom = top + te.lineHeight;
+  const long delta = top < this->rect_.top         ? this->rect_.top - top
+                     : bottom > this->rect_.bottom ? this->rect_.bottom - bottom
+                                                   : 0;
+  if (delta)
+    TEScroll(0, static_cast<short>(delta), this->te_);
+}
+/** The command seat borrows the entry's caret pipeline and completion owner. */
+class ToolboxTextEditorContext::CommandOperation : public scene::SeatOperation<EditorCommand, LineCursor>
+{
+public:
+  explicit CommandOperation(RailOperation &rail)
+      : rail_(rail)
+  {
+  }
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<EditorCommand> &request)
+  {
+    const TextEditorProps &props = static_cast<TextEditorNode &>(base).props;
+    const scene::Admission admission = this->rail_.enterTake(base, props.command_, &props.moveCaretTo_);
+    if (admission != scene::ADMISSION_DEFERRED)
+      request = props.command_;
+    return admission;
+  }
+  virtual bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.current(base, request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.resolveBinding(base, request);
+  }
+  virtual EditorResult validate(scene::Node &base, const EditorCommand &)
+  {
+    ToolboxTextEditorContext &c = *static_cast<ToolboxTextEditorContext *>(base.getContext());
+    return static_cast<TextEditorNode &>(base).seam(c.key_).availability();
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const EditorCommand &pending)
+  {
+    ToolboxTextEditorContext &c = *static_cast<ToolboxTextEditorContext *>(base.getContext());
+    unsigned visibleLines = 0;
+    LineCursor target;
+    const scene::FollowUp follow = this->rail_.prepareApply(base);
+    if (c.status_ != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(target, c.status_, follow);
+    if (!c.queryVisibleLines(visibleLines))
+      return scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE, follow);
+    const EditorResult result =
+        static_cast<TextEditorNode &>(base).seam(c.key_).pageTarget(pending, visibleLines, target);
+    if (result != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(target, result, follow);
+    const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
+    if (applied.result() == EDITOR_OK)
+    {
+      this->rail_.armCommandScroll(base);
+      c.scrollTo(applied.value());
+    }
+    return applied;
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return this->rail_.report(base, applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<EditorCommand> &reply,
+                                     const scene::RequestApplication<LineCursor> &applied)
+  {
+    const scene::Reply<LineCursor> caretReply = reply.kind() == scene::Reply<EditorCommand>::REFUSED
+                                                    ? scene::Reply<LineCursor>::Refused(applied.value(), reply.reason())
+                                                    : scene::Reply<LineCursor>::Granted(applied.value());
+    const scene::FollowUp follow = this->rail_.finishTake(base, caretReply, applied);
+    if (reply.kind() == scene::Reply<EditorCommand>::GRANTED)
+      this->rail_.keepCommandScroll(base);
+    return follow;
+  }
+
+private:
+  RailOperation &rail_;
+};
+#ifdef TEST_BUILD
+scene::Admission loka::testing::ToolboxTextEditorAdmission::probe(
+    ToolboxTextEditorContext &c, bool command, bool busy, bool &supplied, bool &opened)
+{
+  const ToolboxTextEditorContext::Phase before = c.phase_;
+  c.phase_ = busy ? ToolboxTextEditorContext::RECONCILE : ToolboxTextEditorContext::IDLE;
+  ToolboxTextEditorContext::RailOperation rail(c.node_);
+  scene::Admission admission;
+  if (command)
+  {
+    ToolboxTextEditorContext::CommandOperation op(rail);
+    scene::RequestBinding<EditorCommand> binding;
+    admission = op.admit(*c.node_, binding);
+    supplied = binding.same(c.node_->props.command_);
+  }
+  else
+  {
+    scene::RequestBinding<LineCursor> binding;
+    admission = rail.admit(*c.node_, binding);
+    supplied = binding.same(c.node_->props.moveCaretTo_);
+  }
+  opened = c.phase_ == ToolboxTextEditorContext::INPUT;
+  c.phase_ = before;
+  return admission;
+}
+#endif
 void ToolboxTextEditorContext::settle(scene::Settlement stimulus)
 {
   RailOperation op(this->node_);
@@ -326,9 +514,12 @@ void ToolboxTextEditorContext::settle(scene::Settlement stimulus)
 }
 void ToolboxTextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
+  CommandOperation command(op);
   scene::RequestSettlement<LineCursor>::settle(this->node_,
                                                this,
                                                op,
+                                               op,
+                                               command,
                                                stimulus
 #ifdef TEST_BUILD
                                                ,

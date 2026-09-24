@@ -19,18 +19,31 @@ using namespace loka::core;
 using loka::testing::ToolboxTextEditorAccess;
 namespace
 {
-  struct Fixture : loka::app::testing::TextEditorStateOwner
+  struct Fixture : HeadlessStateOwner
   {
+    PushStateTracker &tracker;
+    Reported<LineCursor> cursor;
+    RequestWithReply<LineCursor> request;
+    Request<LineCursor> otherRequest;
+    RequestQueue<LineCursor, 4> queue;
+    RequestQueue<EditorCommand, 4> commands;
     ObservableList<String> lines;
     ToolboxWindow window;
     ToolboxScenePlatformController controller;
     TextEditorNode node;
     ToolboxTextEditorContext *context;
     Fixture(unsigned short count = 3, const std::string &text = "abcd", unsigned short capacity = 256)
-        : controller(&window),
-          node(TextEditorProps(lines, cursor).moveCaretTo(request)),
+        : tracker(*HeadlessStateOwner::tracker()->asPushTracker()),
+          controller(&window),
+          node(TextEditorProps(lines, cursor)),
           context(0)
     {
+      StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->request, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->otherRequest, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->queue, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->commands, EditorCommand::None());
+      this->node.props = TextEditorProps(lines, cursor).moveCaretTo(request).command(commands);
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
@@ -75,6 +88,35 @@ namespace
       return ToolboxTextEditorAccess::restores(*context);
     }
   };
+  struct CommandObserver
+  {
+    Fixture &f;
+    unsigned replies;
+    explicit CommandObserver(Fixture &fixture)
+        : f(fixture),
+          replies(0)
+    {
+      f.commands.reply().state()->bind(&changed, this, false);
+    }
+    ~CommandObserver()
+    {
+      f.commands.reply().state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      CommandObserver &o = *static_cast<CommandObserver *>(data);
+      ++o.replies;
+      LOKA_VERIFY(o.f.commands.reply().state()->get().kind() == Reply<EditorCommand>::GRANTED);
+    }
+  };
+  template <unsigned Length> void wrapOnCommandTake(void *data)
+  {
+    Fixture &f = *static_cast<Fixture *>(data);
+    if (!f.commands.state()->get().isNone())
+      return;
+    for (unsigned short i = 0; i < f.lines.size(); ++i)
+      LOKA_VERIFY(f.lines.update(f.lines.at(i).id, String(std::string(Length, 'a'))) == EDIT_OK);
+  }
   // Run the same key through an isolated fake TE before the rail sees it.
   // Expectations come from native text/selection, never offsetOf/cursorAt.
   void nativeKey(Fixture &f, char key)
@@ -725,6 +767,191 @@ int main(int argc, char **argv)
     else
       LOKA_VERIFY(false && "unknown request test");
     return 0;
+  }
+
+  {
+    Fixture f(30);
+    CommandObserver observer(f);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.commands.state()->get().isNone() && f.commands.pending() == 0);
+    LOKA_VERIFY(observer.replies == 2);
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(8).id, 2));
+    LOKA_VERIFY((**f.te()).selStart == 42 && (**f.te()).selEnd == 42);
+    LOKA_VERIFY((**f.te()).destRect.top < 20);
+    pin("two command posts take twice; native selection equals reported cursor and scrolls");
+  }
+  {
+    Fixture f(30);
+    // Begin on the last fully visible row so the page target requires scrolling.
+    post(f, LineCursor(f.lines.at(4).id, 2));
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.context->key(static_cast<char>(0x80)) == EDITOR_NON_ASCII);
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(8).id, 2));
+    LOKA_VERIFY((**f.te()).destRect.top == -26);
+    LOKA_VERIFY(f.restores() == 1);
+    pin("refused key cleanup adopts Granted page destination instead of restoring pre-key destRect");
+  }
+  {
+    Fixture f(30);
+    // The last fully visible row makes PAGE_DOWN move the native viewport.
+    post(f, LineCursor(f.lines.at(4).id, 2));
+    f.context->onPropsApplied();
+    const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+        new loka::app::testing::TextEditorReportRefusal(f.request)));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    f.context->onPropsApplied();
+    const LineCursor before = f.cursor.state()->get();
+    const short beforeTop = (**f.te()).destRect.top;
+    LOKA_VERIFY(before == LineCursor(f.lines.at(4).id, 2));
+    LOKA_VERIFY(beforeTop == (**f.te()).viewRect.top);
+    // Arm the existing report-refusal string without leaving a caret request.
+    // Row zero is read by availability, but not by pageTarget's row-eight lookup.
+    post(f, before);
+    post(f, LineCursor::None());
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    const Reply<EditorCommand> reply = f.commands.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == Reply<EditorCommand>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY((**f.te()).destRect.top == beforeTop);
+    pin("refused report after granted native page move restores pre-command viewport");
+  }
+  {
+    toolbox_host::failNew = 1;
+    Fixture f;
+    LOKA_VERIFY(!f.te());
+    const LineCursor before = f.cursor.state()->get();
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.commands.state()->get().isNone());
+    LOKA_VERIFY(f.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
+    LOKA_VERIFY(f.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    pin("missing TE consumes command with UNAVAILABLE and leaves fact unchanged");
+  }
+
+  {
+    Fixture f(30, std::string(40, 'a'));
+    unsigned visible = 0;
+    LOKA_VERIFY(ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 2);
+    SetRect(&f.controller.projectionClip, 30, 30, 80, 60);
+    LayoutState state;
+    state.x = 10;
+    state.y = 20;
+    state.width = 200;
+    state.height = 80;
+    f.context->layout(&f.controller, state);
+    f.context->render(&f.controller);
+    LOKA_VERIFY(ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 2);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 2));
+    (**f.te()).destRect.top -= 1;
+    (**f.te()).destRect.bottom -= 1;
+    LOKA_VERIFY(ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 1);
+    state.height = 10;
+    f.context->layout(&f.controller, state);
+    LOKA_VERIFY(!ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 0);
+    pin("wrapped logical rows must fit completely; clipped view does not shrink page unit; zero declines");
+  }
+  {
+    Fixture f(1, "");
+    unsigned visible = 0;
+    LOKA_VERIFY(ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 1);
+    LOKA_VERIFY(f.lines.insert(1, String("")) == EDIT_OK);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(ToolboxTextEditorAccess::visibleLines(*f.context, visible) && visible == 2);
+    pin("empty document row and trailing empty logical row count once");
+  }
+
+  {
+    Fixture f(30);
+    f.commands.state()->bind(&wrapOnCommandTake<40>, &f, false);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    f.commands.state()->unbind(&wrapOnCommandTake<40>, &f);
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 2));
+    LOKA_VERIFY((**f.te()).selStart == 43);
+    pin("command take subscriber changes wrapping: repair precedes geometry query");
+  }
+  {
+    Fixture f(30);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    {
+      RepostingObserver observer(f, -1);
+      post(f, LineCursor(f.lines.at(1).id, 1));
+      f.context->onPropsApplied();
+      LOKA_VERIFY(!f.request.get().isNone() && !f.commands.state()->get().isNone());
+      LOKA_VERIFY(f.commands.reply().state()->get().kind() == Reply<EditorCommand>::NO_REPLY);
+    }
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.request.get().isNone() && f.commands.state()->get().isNone());
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(5).id, 1));
+    pin("pending caret feed defers command; draining caret permits command in same settle");
+  }
+
+  {
+    Fixture f;
+    typedef loka::testing::ToolboxTextEditorAdmission Gate;
+    bool supplied = false, opened = false;
+    LOKA_VERIFY(Gate::probe(*f.context, false, true, supplied, opened) == ADMISSION_DEFERRED);
+    LOKA_VERIFY(!supplied && !opened);
+    LOKA_VERIFY(Gate::probe(*f.context, false, false, supplied, opened) == ADMISSION_EMPTY);
+    LOKA_VERIFY(supplied && !opened);
+    LOKA_VERIFY(Gate::probe(*f.context, true, true, supplied, opened) == ADMISSION_DEFERRED);
+    LOKA_VERIFY(!supplied && !opened);
+    LOKA_VERIFY(Gate::probe(*f.context, true, false, supplied, opened) == ADMISSION_EMPTY);
+    LOKA_VERIFY(supplied && !opened);
+    post(f, LineCursor(f.lines.at(1).id, 0));
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    LOKA_VERIFY(Gate::probe(*f.context, false, true, supplied, opened) == ADMISSION_DEFERRED);
+    LOKA_VERIFY(!supplied && !opened);
+    LOKA_VERIFY(Gate::probe(*f.context, false, false, supplied, opened) == ADMISSION_TAKE);
+    LOKA_VERIFY(supplied && opened);
+    LOKA_VERIFY(Gate::probe(*f.context, true, false, supplied, opened) == ADMISSION_DEFERRED);
+    LOKA_VERIFY(!supplied && !opened);
+    post(f, LineCursor::None());
+    LOKA_VERIFY(Gate::probe(*f.context, true, false, supplied, opened) == ADMISSION_TAKE);
+    LOKA_VERIFY(supplied && opened);
+    f.context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_DETACHED_RETAINED);
+    LOKA_VERIFY(!f.te());
+    // Native absence is resolved after taking, never by the admission gate.
+    LOKA_VERIFY(Gate::probe(*f.context, true, false, supplied, opened) == ADMISSION_TAKE);
+    LOKA_VERIFY(supplied && opened);
+    pin("Toolbox gate: phase before empty, priority before exclusion, no binding on deferral, resources in resolve");
+  }
+
+  {
+    Fixture f;
+    Fixture foreign;
+    const TextEditorProps original = f.node.props;
+    const LineCursor before = f.cursor.state()->get();
+    f.node.props.command(foreign.commands);
+    LOKA_VERIFY(foreign.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(foreign.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
+    LOKA_VERIFY(foreign.commands.reply().state()->get().reason() == EDITOR_OWNER_MISMATCH);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    f.node.props = original;
+    pin("command resolve checks its own endpoint tracker against document owner");
+  }
+
+  {
+    Fixture f(30);
+    const LineCursor before = f.cursor.state()->get();
+    const unsigned invalidations = toolbox_host::invalidations;
+    f.commands.state()->bind(&wrapOnCommandTake<200>, &f, false);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    f.commands.state()->unbind(&wrapOnCommandTake<200>, &f);
+    LOKA_VERIFY(f.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
+    LOKA_VERIFY(f.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY(toolbox_host::invalidations > invalidations);
+    pin("projection repair repaint survives command geometry decline when no complete row fits");
   }
 
   for (int atEnd = 0; atEnd < 2; ++atEnd)

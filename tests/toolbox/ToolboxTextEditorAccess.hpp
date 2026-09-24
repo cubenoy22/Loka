@@ -9,6 +9,10 @@ namespace loka
     class ToolboxTextEditorAccess
     {
     public:
+      static bool visibleLines(ToolboxTextEditorContext &c, unsigned &lines)
+      {
+        return c.queryVisibleLines(lines);
+      }
       static TEHandle te(ToolboxTextEditorContext &c)
       {
         return c.te_;

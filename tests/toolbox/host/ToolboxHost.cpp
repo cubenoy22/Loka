@@ -183,6 +183,7 @@ TEHandle TENew(const Rect *dest, const Rect *view)
   (**te).autoView = false;
   (**te).active = false;
   (**te).idleCalls = 0;
+  TECalText(te);
   return te;
 }
 namespace
@@ -215,6 +216,7 @@ void TESetText(const void *bytes, long length, TEHandle te)
   }
   (**te).text.assign(static_cast<const char *>(bytes), length);
   (**te).teLength = static_cast<short>(length);
+  TECalText(te);
 }
 Handle TEGetText(TEHandle te)
 {
@@ -247,6 +249,7 @@ void TEKey(char key, TEHandle te)
     t.text.insert(t.selStart++, 1, key);
   t.selEnd = t.selStart;
   t.teLength = static_cast<short>(t.text.size());
+  TECalText(te);
 }
 void TEClick(Point p, bool, TEHandle te)
 {
@@ -262,7 +265,29 @@ void TEAutoView(bool value, TEHandle te)
 {
   (**te).autoView = value;
 }
-void TECalText(TEHandle) {}
+void TECalText(TEHandle te)
+{
+  TERec &t = **te;
+  t.nLines = 0;
+  const int capacity = std::max(1, (t.destRect.right - t.destRect.left) / 6);
+  int column = 0;
+  t.lineStarts[0] = 0;
+  for (short i = 0; i < t.teLength; ++i)
+  {
+    ++column;
+    if (t.text[i] == '\r' || (column == capacity && i + 1 < t.teLength && t.text[i + 1] != '\r'))
+    {
+      t.lineStarts[++t.nLines] = i + 1;
+      column = 0;
+    }
+  }
+  if (column)
+    t.lineStarts[++t.nLines] = t.teLength;
+}
+void TEScroll(short horizontal, short vertical, TEHandle te)
+{
+  OffsetRect(&(**te).destRect, horizontal, vertical);
+}
 void TEUpdate(const Rect *, TEHandle)
 {
   ++toolbox_host::updates;

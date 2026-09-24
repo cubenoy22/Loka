@@ -10,6 +10,7 @@ namespace loka
   namespace testing
   {
     class ToolboxTextEditorAccess;
+    struct ToolboxTextEditorAdmission;
   }
 } // namespace loka
 /** Plain whole-document projection. The controller's edit ledger owns TE;
@@ -40,6 +41,7 @@ public:
 
 private:
   friend class loka::testing::ToolboxTextEditorAccess;
+  friend struct loka::testing::ToolboxTextEditorAdmission;
   enum Phase
   {
     IDLE,
@@ -56,6 +58,9 @@ private:
     STRUCTURE_CHANGE
   };
   class RailOperation;
+  class CommandOperation;
+  bool queryVisibleLines(unsigned &) const;
+  void scrollTo(loka::app::LineCursor);
   loka::app::EditorResult finishInput(loka::app::EditorResult, Change, RailOperation &);
   loka::app::scene::FollowUp restoreCommittedProjection();
   loka::app::scene::FollowUp project();
@@ -76,5 +81,19 @@ private:
   loka::app::EditorResult status_;
   unsigned restores_;
 };
+#ifdef TEST_BUILD
+namespace loka
+{
+  namespace testing
+  {
+    /** Test-only observation of the private gate, including deferred extraction. */
+    struct ToolboxTextEditorAdmission
+    {
+      static app::scene::Admission
+      probe(ToolboxTextEditorContext &, bool command, bool busy, bool &supplied, bool &opened);
+    };
+  } // namespace testing
+} // namespace loka
+#endif
 bool RegisterToolboxTextEditorNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &);
 #endif

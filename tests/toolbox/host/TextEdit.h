@@ -11,6 +11,7 @@ struct TERec
 {
   Rect destRect, viewRect;
   short teLength, selStart, selEnd;
+  short nLines, lineStarts[8194];
   short txFont, txSize, lineHeight, fontAscent;
   std::string text;
   char *data;
@@ -32,6 +33,7 @@ void TEIdle(TEHandle);
 bool PtInRect(Point, const Rect *);
 void TEAutoView(bool, TEHandle);
 void TECalText(TEHandle);
+void TEScroll(short, short, TEHandle);
 void TEUpdate(const Rect *, TEHandle);
 void HLock(Handle);
 void HUnlock(Handle);
