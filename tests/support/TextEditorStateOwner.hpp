@@ -17,6 +17,7 @@ namespace loka
         scene::RequestWithReply<LineCursor> request;
         scene::Request<LineCursor> otherRequest;
         scene::RequestQueue<LineCursor, 4> queue;
+        scene::RequestQueue<EditorCommand, 4> commands;
         TextEditorStateOwner()
             : scene::HeadlessStateOwner(),
               tracker(*scene::HeadlessStateOwner::tracker()->asPushTracker()),
@@ -27,6 +28,7 @@ namespace loka
           scene::StateBatchBase::CreateImmediateState(this, this->request, LineCursor::None());
           scene::StateBatchBase::CreateImmediateState(this, this->otherRequest, LineCursor::None());
           scene::StateBatchBase::CreateImmediateState(this, this->queue, LineCursor::None());
+          scene::StateBatchBase::CreateImmediateState(this, this->commands, EditorCommand::None());
         }
       };
     } // namespace testing

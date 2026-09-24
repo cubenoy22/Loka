@@ -85,6 +85,8 @@ private:
   static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
   void captureSelection();
   class RailOperation;
+  class CommandOperation;
+  bool queryVisibleLines(unsigned &lines) const;
   void syncFromNode(loka::app::scene::Settlement stimulus = loka::app::scene::SETTLE_PROPS);
   void settle(loka::app::scene::Settlement stimulus);
   void settle(loka::app::scene::Settlement stimulus, RailOperation &op);
