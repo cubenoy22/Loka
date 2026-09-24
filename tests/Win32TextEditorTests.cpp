@@ -832,6 +832,11 @@ namespace
       LOKA_VERIFY(offset >= 0);
       expectSelection(fixture, static_cast<DWORD>(offset + 2));
       const LRESULT first = SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0);
+      std::fprintf(stderr,
+                   "commands: repair=%d first=%ld target=%u visible=%u rect=%ld..%ld height=%ld lines=%u\n",
+                   repair, static_cast<long>(first), static_cast<unsigned>(target), visible,
+                   static_cast<long>(rect.top), static_cast<long>(rect.bottom), static_cast<long>(height),
+                   static_cast<unsigned>(fixture.lines.size()));
       LOKA_VERIFY(first > 0 && first <= target && target < first + static_cast<LRESULT>(visible));
       fixture.matches();
       // A positive-height formatting frame with no complete line declines.
