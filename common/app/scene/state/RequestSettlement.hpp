@@ -2,12 +2,18 @@
 #define LOKA_APP_SCENE_STATE_REQUEST_SETTLEMENT_HPP
 #include "app/scene/Node.hpp"
 #include "app/scene/state/Request.hpp"
+#ifdef TEST_BUILD
+#include <climits>
+#endif
 namespace loka
 {
   namespace app
   {
     namespace scene
     {
+#ifdef TEST_BUILD
+      template <class Fact> class RequestSettlement;
+#endif
       /** The stimulus whose outer operation is completing. */
       enum Settlement
       {
@@ -144,19 +150,86 @@ namespace loka
 #ifdef TEST_BUILD
     namespace testing
     {
+      template <class Fact> class SettleTraceCapture;
+      /** Emitted-row ordering across every trace of one fact type.
+          Only the walk advances it; a capture reset starts a new history.
+          Saturation marks the capture incomplete instead of wrapping. */
+      template <class Fact> class SettleTraceClock
+      {
+        friend class scene::RequestSettlement<Fact>;
+        friend class SettleTraceCapture<Fact>;
+        static unsigned current() { return sequence_; }
+        static void advance()
+        {
+          if (sequence_ != UINT_MAX)
+            ++sequence_;
+        }
+        static void clear() { sequence_ = 0; }
+        static bool overwritten() { return sequence_ == UINT_MAX; }
+        static unsigned sequence_;
+      };
+      template <class Fact> unsigned SettleTraceClock<Fact>::sequence_ = 0;
+
+      /** One reset/overflow boundary for the static histories of a fact type. */
+      template <class Fact> class SettleTraceCapture
+      {
+        template <class Request, class Value> friend class SettleTrace;
+        /** Intrusive registration follows the static trace's lifetime. */
+        class Trace
+        {
+          friend class SettleTraceCapture<Fact>;
+        public:
+          virtual void clear() = 0;
+          virtual unsigned overwritten() const = 0;
+        protected:
+          Trace() : next_(traces()) { traces() = this; }
+          virtual ~Trace()
+          {
+            Trace **link = &traces();
+            while (*link != this)
+              link = &(*link)->next_;
+            *link = this->next_;
+          }
+        private:
+          Trace(const Trace &);
+          Trace &operator=(const Trace &);
+          Trace *next_;
+        };
+        static Trace *&traces()
+        {
+          static Trace *head = 0;
+          return head;
+        }
+      public:
+        static void clear()
+        {
+          for (Trace *trace = traces(); trace; trace = trace->next_)
+            trace->clear();
+          SettleTraceClock<Fact>::clear();
+        }
+        static bool overwritten()
+        {
+          bool lost = SettleTraceClock<Fact>::overwritten();
+          for (Trace *trace = traces(); trace; trace = trace->next_)
+            lost = trace->overwritten() != 0 || lost;
+          return lost;
+        }
+      };
       /** Bounded diagnostic history. Overflow overwrites the oldest row explicitly. */
-      template <typename T> struct SettleTraceRow
+      template <class Request, class Fact = Request> struct SettleTraceRow
       {
         scene::Settlement stimulus;
         scene::Admission admission[2];
         // Two ordinary takes and at most one follow-up-failure refusal.
-        scene::Reply<T> takes[3];
+        scene::Reply<Request> takes[3];
         EditorResult seam[3];
         unsigned count;
-        T before, after;
-        SettleTraceRow(scene::Settlement kind, const T &fact)
+        unsigned seq;
+        Fact before, after;
+        SettleTraceRow(scene::Settlement kind, const Fact &fact)
             : stimulus(kind),
               count(0),
+              seq(0),
               before(fact),
               after(fact)
         {
@@ -164,7 +237,7 @@ namespace loka
           seam[0] = seam[1] = seam[2] = EDITOR_OK;
         }
       };
-      template <typename T> class SettleTrace
+      template <class Request, class Fact = Request> class SettleTrace : private SettleTraceCapture<Fact>::Trace
       {
       public:
         enum
@@ -176,7 +249,8 @@ namespace loka
           static SettleTrace trace;
           return trace;
         }
-        void clear()
+        /** Clear only this history; the capture owns resetting the shared clock. */
+        virtual void clear()
         {
           this->begin_ = this->size_ = this->overwritten_ = 0;
         }
@@ -184,34 +258,36 @@ namespace loka
         {
           return this->size_;
         }
-        unsigned overwritten() const
+        virtual unsigned overwritten() const
         {
           return this->overwritten_;
         }
-        const SettleTraceRow<T> &at(unsigned index) const
+        const SettleTraceRow<Request, Fact> &at(unsigned index) const
         {
           assert(index < this->size_);
           return this->rows_[(this->begin_ + index) % CAPACITY];
         }
-        void append(const SettleTraceRow<T> &row)
+        /** Return whether a row was emitted, so only emitted rows advance the clock. */
+        bool append(const SettleTraceRow<Request, Fact> &row)
         {
           if (!row.count && !(row.before != row.after))
-            return;
+            return false;
           if (this->size_ == CAPACITY)
           {
             this->begin_ = (this->begin_ + 1) % CAPACITY;
             --this->size_;
             ++this->overwritten_;
           }
-          static_cast<SettleTraceRow<T> &>(this->rows_[(this->begin_ + this->size_++) % CAPACITY]) = row;
+          static_cast<SettleTraceRow<Request, Fact> &>(this->rows_[(this->begin_ + this->size_++) % CAPACITY]) = row;
+          return true;
         }
 
       private:
         // Rows are values; no trace retains an owner, node, context or state handle.
-        struct Row : SettleTraceRow<T>
+        struct Row : SettleTraceRow<Request, Fact>
         {
           Row()
-              : SettleTraceRow<T>(scene::SETTLE_ATTACH, T())
+              : SettleTraceRow<Request, Fact>(scene::SETTLE_ATTACH, Fact())
           {
           }
         };
@@ -243,7 +319,7 @@ namespace loka
 #ifdef TEST_BUILD
         /** Close this row and return its entry fact for the preceding row. */
         virtual Fact finalize(const Fact &after) = 0;
-        virtual void append() const = 0;
+        virtual bool append(unsigned seq) = 0;
 #endif
       };
       /** Owns the binding snapshot and diagnostic row for one borrowed seat. */
@@ -299,7 +375,7 @@ namespace loka
           EditorResult result = this->op_.resolve(*this->node_, this->binding_);
           if (result == EDITOR_OK)
             result = this->op_.validate(*this->node_, pending);
-          RequestApplication<Fact> applied(pending, result);
+          RequestApplication<Fact> applied(Fact(), result);
           if (result == EDITOR_OK)
             applied = this->op_.apply(*this->node_, pending);
           if (!settlementAlive(this->node_, this->identity_))
@@ -350,12 +426,17 @@ namespace loka
 #ifdef TEST_BUILD
         virtual Fact finalize(const Fact &after)
         {
+          if (!this->contributesTrace())
+            return after;
           this->row_.after = after;
           return this->row_.before;
         }
-        virtual void append() const
+        virtual bool append(unsigned seq)
         {
-          loka::app::testing::SettleTrace<Request>::instance().append(this->row_);
+          if (!this->contributesTrace())
+            return false;
+          this->row_.seq = seq;
+          return loka::app::testing::SettleTrace<Request, Fact>::instance().append(this->row_);
         }
 #endif
       private:
@@ -365,7 +446,11 @@ namespace loka
         FollowUps &follow_;
         RequestBinding<Request> binding_;
 #ifdef TEST_BUILD
-        loka::app::testing::SettleTraceRow<Request> row_;
+        bool contributesTrace() const
+        {
+          return !this->entryFact_ || this->row_.count != 0;
+        }
+        loka::app::testing::SettleTraceRow<Request, Fact> row_;
         SettleOwner<Fact> *const entryFact_;
 #endif
       };
@@ -474,7 +559,8 @@ namespace loka
           for (unsigned i = count; i != 0; --i)
             after = seats[i - 1]->finalize(after);
           for (unsigned i = 0; i < count; ++i)
-            seats[i]->append();
+            if (seats[i]->append(loka::app::testing::SettleTraceClock<Fact>::current()))
+              loka::app::testing::SettleTraceClock<Fact>::advance();
 #endif
           return armed;
         }

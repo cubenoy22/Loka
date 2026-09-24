@@ -1636,10 +1636,28 @@ void testSettleTwoSeatProbeOrder()
   LOKA_VERIFY(row0.before == before && row1.before == a);
   LOKA_VERIFY(row0.after == a && row1.after == after);
   LOKA_VERIFY(row0.count == 1 && row1.count == 1);
+  LOKA_VERIFY(row0.seq < row1.seq);
   LOKA_VERIFY(row0.takes[0].requested() == a && row1.takes[0].requested() == b);
   LOKA_VERIFY(row0.takes[0].kind() == CaretReply::GRANTED && row1.takes[0].kind() == CaretReply::GRANTED);
   LOKA_VERIFY(row0.admission[0] == ADMISSION_TAKE && row1.admission[0] == ADMISSION_TAKE);
   LOKA_VERIFY(row0.admission[1] == ADMISSION_EMPTY && row1.admission[1] == ADMISSION_EMPTY);
+}
+void testSettleTwoSeatEmptyEpilogue()
+{
+  Fixture f;
+  const LineCursor before = f.cursor.state()->get();
+  const LineCursor applied(f.lines.at(1).id, 1), after(f.lines.at(2).id, 2);
+  EpilogueSettlementProbe first(after);
+  OtherSettlementSeat second(f, ADMISSION_TAKE);
+  f.request.set(applied);
+  Trace::instance().clear();
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+              == FOLLOW_UP_NONE);
+  // p1: the empty trailing seat must not absorb the owner's epilogue delta.
+  LOKA_VERIFY(Trace::instance().size() == 1);
+  const loka::app::testing::SettleTraceRow<LineCursor> &row = Trace::instance().at(0);
+  LOKA_VERIFY(row.count == 1 && row.before == before && row.after == after);
+  LOKA_VERIFY(row.takes[0].requested() == applied);
 }
 void testSettleTwoSeatProbeFailedArm()
 {
@@ -1969,4 +1987,131 @@ void testRequestQueueDetachCannotReplayRing()
   LifecycleFactTestAccess::DeliverFacts(&f.node);
   f.context->readLifecycleFactOnAttach();
   LOKA_VERIFY(f.queue.state()->get().isNone() && f.queue.pending() == 0 && replies.values.empty());
+}
+
+namespace
+{
+  typedef loka::app::testing::SettleTrace<TestCommand, LineCursor> CommandTrace;
+  typedef loka::app::testing::SettleTraceCapture<LineCursor> CursorCapture;
+
+  /** An unrelated command acknowledges a no-op at the current cursor fact. */
+  class NoOpCommandSeat : public SeatOperation<TestCommand, LineCursor>
+  {
+  public:
+    explicit NoOpCommandSeat(RequestQueueBase<TestCommand> &queue)
+        : binding_(QueuePropsAccess::command(queue))
+    {
+    }
+    virtual Admission admit(Node &, RequestBinding<TestCommand> &binding)
+    {
+      binding = this->binding_;
+      return binding.state()->get().isNone() ? ADMISSION_EMPTY : ADMISSION_TAKE;
+    }
+    virtual EditorResult resolve(Node &, const RequestBinding<TestCommand> &binding)
+    {
+      return this->binding_.same(binding) ? EDITOR_OK : EDITOR_UNAVAILABLE;
+    }
+    virtual EditorResult validate(Node &, const TestCommand &) { return EDITOR_OK; }
+    virtual RequestApplication<LineCursor> apply(Node &base, const TestCommand &)
+    {
+      return RequestApplication<LineCursor>(static_cast<TextEditorNode &>(base).props.cursorState()->get(), EDITOR_OK);
+    }
+    virtual EditorResult report(Node &base, const LineCursor &value)
+    {
+      return loka::app::testing::TextEditorAccess::document(static_cast<TextEditorNode &>(base)).moveCaret(value);
+    }
+    virtual bool current(Node &, const RequestBinding<TestCommand> &binding)
+    {
+      return this->binding_.same(binding);
+    }
+    virtual FollowUp finishTake(Node &, const Reply<TestCommand> &, const RequestApplication<LineCursor> &)
+    {
+      return FOLLOW_NONE;
+    }
+  private:
+    const RequestBinding<TestCommand> binding_;
+  };
+}
+
+void testSettleHeterogeneousTraceCapture()
+{
+  Fixture f;
+  HeadlessStateOwner commandOwner;
+  RequestQueue<TestCommand, 2> queue;
+  StateBatchBase::CreateImmediateState(&commandOwner, queue, TestCommand::None());
+  SettlementProbe first(SettlementProbe::OPEN);
+  NoOpCommandSeat second(queue);
+  CursorCapture::clear();
+  for (unsigned i = 0; i != 2; ++i)
+  {
+    const LineCursor before = f.cursor.state()->get();
+    const LineCursor wanted(f.lines.at(static_cast<unsigned short>(i + 1)).id, static_cast<unsigned short>(i));
+    TestCommand command;
+    command.value = i + 1;
+    f.request.set(wanted);
+    LOKA_VERIFY(queue.post(command) == POST_ACCEPTED);
+    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+                == FOLLOW_UP_NONE);
+    LOKA_VERIFY(Trace::instance().size() == i + 1 && CommandTrace::instance().size() == i + 1);
+    const loka::app::testing::SettleTraceRow<LineCursor> &caret = Trace::instance().at(i);
+    const loka::app::testing::SettleTraceRow<TestCommand, LineCursor> &verb = CommandTrace::instance().at(i);
+    // p2: order spans distinct histories and successive settles; a taken no-op stays.
+    LOKA_VERIFY(caret.seq == 2 * i && verb.seq == 2 * i + 1);
+    LOKA_VERIFY(caret.count == 1 && caret.before == before && caret.after == wanted);
+    LOKA_VERIFY(verb.count == 1 && verb.before == wanted && verb.after == wanted);
+    LOKA_VERIFY(verb.takes[0].kind() == Reply<TestCommand>::GRANTED);
+    LOKA_VERIFY(!(verb.takes[0].requested() != command));
+  }
+  LOKA_VERIFY(!CursorCapture::overwritten());
+  // Clearing one history must leave the other history and the shared clock intact.
+  Trace::instance().clear();
+  LOKA_VERIFY(Trace::instance().size() == 0 && CommandTrace::instance().size() == 2);
+  const LineCursor wanted(f.lines.at(0).id, 1);
+  f.request.set(wanted);
+  LOKA_VERIFY(first.run(f) == FOLLOW_UP_NONE);
+  LOKA_VERIFY(Trace::instance().at(0).seq == 4);
+  // p3: both histories are registered even though their request types differ.
+  CursorCapture::clear();
+  LOKA_VERIFY(Trace::instance().size() == 0 && CommandTrace::instance().size() == 0);
+  LOKA_VERIFY(!CursorCapture::overwritten());
+  f.request.set(wanted);
+  LOKA_VERIFY(first.run(f) == FOLLOW_UP_NONE);
+  LOKA_VERIFY(Trace::instance().at(0).seq == 0);
+
+  const loka::app::testing::SettleTraceRow<LineCursor> caret = Trace::instance().at(0);
+  for (unsigned i = 0; i != Trace::CAPACITY; ++i)
+    LOKA_VERIFY(Trace::instance().append(caret));
+  LOKA_VERIFY(CursorCapture::overwritten());
+  CursorCapture::clear();
+  loka::app::testing::SettleTraceRow<TestCommand, LineCursor> verb(SETTLE_DEFERRED, wanted);
+  verb.count = 1;
+  for (unsigned i = 0; i != CommandTrace::CAPACITY + 1; ++i)
+    LOKA_VERIFY(CommandTrace::instance().append(verb));
+  LOKA_VERIFY(CursorCapture::overwritten());
+  CursorCapture::clear();
+  LOKA_VERIFY(!CursorCapture::overwritten());
+  LOKA_VERIFY(Trace::instance().size() == 0 && CommandTrace::instance().size() == 0);
+}
+
+void testSettleEmptySeatZeroCandidate()
+{
+  Fixture f;
+  const LineCursor before = f.cursor.state()->get(), after(f.lines.at(2).id, 2);
+  EpilogueSettlementProbe first(after);
+  OtherSettlementSeat second(f, ADMISSION_TAKE);
+  CursorCapture::clear();
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+              == FOLLOW_UP_NONE);
+  LOKA_VERIFY(Trace::instance().size() == 1);
+  LOKA_VERIFY(Trace::instance().at(0).count == 0 && Trace::instance().at(0).seq == 0);
+  LOKA_VERIFY(Trace::instance().at(0).before == before && Trace::instance().at(0).after == after);
+  Trace::instance().clear();
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, after)
+              == FOLLOW_UP_NONE);
+  LOKA_VERIFY(Trace::instance().size() == 0);
+  // Suppressed rows must not use sequence numbers.
+  f.request.set(after);
+  LOKA_VERIFY(first.run(f) == FOLLOW_UP_NONE);
+  LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).seq == 1);
+  CursorCapture::clear();
 }

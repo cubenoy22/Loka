@@ -33,4 +33,7 @@ void testRequestQueueDetachCannotReplayRing();
 void testSettleTwoSeatProbeOrder();
 void testSettleTwoSeatProbeFailedArm();
 void testSettleTwoSeatProbeRetirement();
+void testSettleTwoSeatEmptyEpilogue();
+void testSettleHeterogeneousTraceCapture();
+void testSettleEmptySeatZeroCandidate();
 #endif

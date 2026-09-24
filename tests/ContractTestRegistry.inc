@@ -1,3 +1,6 @@
+LOKA_TEST(testSettleEmptySeatZeroCandidate)
+LOKA_TEST(testSettleHeterogeneousTraceCapture)
+LOKA_TEST(testSettleTwoSeatEmptyEpilogue)
 LOKA_TEST(testSettleTwoSeatProbeOrder)
 LOKA_TEST(testSettleTwoSeatProbeFailedArm)
 LOKA_TEST(testSettleTwoSeatProbeRetirement)
