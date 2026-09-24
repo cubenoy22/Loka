@@ -145,7 +145,7 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY([native makeFirstResponder:first]);
     LOKA_VERIFY([first currentEditor] != nil);
     LOKA_VERIFY(rail->readNativeFocus(read) && read == firstNode->getContext());
-    LOKA_VERIFY(facts.focus.state()->get() == Fact::none());
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
     // A foreign field cannot acquire the participant mark by borrowing a delegate.
     NSTextField *foreignField = [[NSTextField alloc] initWithFrame:NSZeroRect];
     [foreignField setDelegate:[first delegate]];
@@ -157,36 +157,36 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY(MacEditTextContext::fromNativeFocus(first) == 0);
     [first setDelegate:firstDelegate];
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(1u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(1u)));
 
     // Drive the field editor's Tab command through AppKit's key-view loop.
     [first setNextKeyView:second];
     [(NSTextView *)[first currentEditor] insertTab:nil];
     LOKA_VERIFY([second currentEditor] != nil);
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(1u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(1u)));
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(2u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(2u)));
 
     // Exercise today's native capture/restore without replacing the Scene.
     LOKA_VERIFY([native makeFirstResponder:first]);
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(1u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(1u)));
     LOKA_VERIFY([native makeFirstResponder:second]);
     rail->onChange(root, NODE_DIRTY_LAYOUT, true);
     LOKA_VERIFY([field(secondNode) currentEditor] != nil);
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(2u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(2u)));
 
     [native resignKeyWindow];
     LOKA_VERIFY(![native isKeyWindow]);
     LOKA_VERIFY([native makeFirstResponder:nil]);
     LOKA_VERIFY(!rail->readNativeFocus(read));
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(2u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(2u)));
     [native makeKeyWindow];
     LOKA_VERIFY([native isKeyWindow]);
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact::none());
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
 
     textEditor = editor((NSView *)NativeAccess::contentView(*window), editorNode->getContext());
     LOKA_VERIFY(textEditor && [native makeFirstResponder:textEditor]);
@@ -196,7 +196,7 @@ void testMacFocusReadAndCompletion()
     [textEditor setDelegate:editorDelegate];
     LOKA_VERIFY(rail->readNativeFocus(read) && read == editorNode->getContext());
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(3u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(3u)));
 
     // A foreign view carrying the genuine delegate still lacks the typed mark.
     NSTextView *foreign = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, 80, 24)];
@@ -206,7 +206,7 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY(rail->readNativeFocus(read) && read == 0);
     [foreign setDelegate:nil];
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact::none());
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
     [native makeFirstResponder:nil];
     [foreign removeFromSuperview];
     [foreign release];
@@ -236,9 +236,9 @@ void testMacFocusReadAndCompletion()
                                        pressure:1];
     [native sendEvent:down];
     LOKA_VERIFY([first currentEditor] != nil);
-    LOKA_VERIFY(facts.focus.state()->get() == Fact::none());
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
     app.flushInvalidationsTick();
-    LOKA_VERIFY(facts.focus.state()->get() == Fact(1u));
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact(1u)));
 
     // AppKit may outlive the logical contexts; retained native objects lose owners.
     [first retain];
@@ -251,7 +251,7 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY(NativeAccess::nativeWindow(*window) == 0);
     LOKA_VERIFY(MacEditTextContext::fromNativeFocus(first) == 0);
     LOKA_VERIFY(MacTextEditorContext::fromNativeFocus(textEditor) == 0);
-    LOKA_VERIFY(facts.focus.state()->get() == Fact::none());
+    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
     [first release];
     [textEditor release];
   }
