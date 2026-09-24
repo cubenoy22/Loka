@@ -40,7 +40,8 @@ namespace loka
         out = SmirkBenchEditorRecord("text-editor-plain", tick, false);
         return SCENARIO_ADVANCE_DRIVER_COMPLETION_READY;
       }
-      trace.clear();
+      // Both request histories and the clock reset at the step boundary.
+      app::testing::SettleTraceCapture<app::LineCursor>::clear();
       app::scene::Node *node = 0;
       dsl::FlowError error;
       bool ok = scene

@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_TEXT_EDITOR_DOCUMENT_HPP
 #define LOKA_APP_TEXT_EDITOR_DOCUMENT_HPP
 #include "app/style/LineCursor.hpp"
+#include "app/nodes/controls/EditorCommand.hpp"
 #include "core/String.hpp"
 namespace loka
 {
@@ -36,6 +37,10 @@ namespace loka
           RowCursor::None() publishes no caret; the row's ItemId is resolved after commit. */
       EditorResult applyReplace(LineCursor from, LineCursor to, const char *bytes, std::size_t length, RowCursor after);
       EditorResult moveCaret(LineCursor after);
+      /** Logical-row page target, without publication or goal-column memory.
+          Step is max(1, visibleLines - 1), saturated at the document ends.
+          Zero visible lines is unavailable; None/stale caret is refused. */
+      EditorResult pageTarget(EditorCommand command, unsigned visibleLines, LineCursor &out) const;
       /** Bounded serialization for projections. No publication. */
       EditorResult project(std::string &out) const;
       /** Serialize into caller-reserved storage; never grow the destination. */

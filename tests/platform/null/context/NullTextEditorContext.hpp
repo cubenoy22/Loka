@@ -10,6 +10,10 @@ namespace loka
   namespace testing
   {
     class TextEditorInput;
+#ifdef TEST_BUILD
+    void failNullTextEditorVisibleLines(unsigned count);
+    bool declineNullTextEditorVisibleLines();
+#endif
   }
 } // namespace loka
 /** Fake native control. Bytes are tentative only inside INPUT; reconciliation
@@ -37,6 +41,12 @@ private:
   };
   loka::app::EditorResult input(const std::string &bytes, bool join, const loka::app::LineCursor *move);
   class RailOperation;
+  class CommandOperation;
+  bool queryVisibleLines(unsigned &lines) const;
+  enum
+  {
+    kNullVisibleLines = 4
+  };
   void settle(loka::app::scene::Settlement stimulus
 #ifdef TEST_BUILD
               , loka::app::LineCursor before
@@ -61,6 +71,10 @@ namespace loka
     class TextEditorInput
     {
     public:
+#ifdef TEST_BUILD
+      static app::scene::Admission
+      probeAdmission(NullTextEditorContext &c, bool command, bool busy, bool &supplied, bool &opened);
+#endif
       static app::EditorResult type(NullTextEditorContext &c, char value)
       {
         return c.input(std::string(1, value), false, 0);

@@ -34,6 +34,7 @@ namespace loka
       };
       core::ObservableList<core::String> *lines_;
       scene::RequestBinding<LineCursor> moveCaretTo_;
+      scene::RequestBinding<EditorCommand> command_;
 
     private:
       friend class TextEditorDocument;
@@ -44,6 +45,7 @@ namespace loka
       TextEditorProps()
           : lines_(0),
             moveCaretTo_(),
+            command_(),
             cursor_(),
             highlighter_(0)
       {
@@ -51,6 +53,7 @@ namespace loka
       TextEditorProps(core::ObservableList<core::String> &lines, scene::Reported<LineCursor> &cursor)
           : lines_(&lines),
             moveCaretTo_(),
+            command_(),
             cursor_(this->reportSeat(cursor)),
             highlighter_(0)
       {
@@ -70,6 +73,13 @@ namespace loka
       TextEditorProps &moveCaretTo(scene::RequestQueueBase<LineCursor> &value)
       {
         this->moveCaretTo_ = scene::RequestBinding<LineCursor>(this->requestSeat(value), this->replySeat(value), value);
+        return *this;
+      }
+      /** Commands execute after the caret slot drains; a continuing caret feed
+          can delay them indefinitely. Replies acknowledge verbs, cursor is the fact. */
+      TextEditorProps &command(scene::RequestQueueBase<EditorCommand> &value)
+      {
+        this->command_ = scene::RequestBinding<EditorCommand>(this->requestSeat(value), this->replySeat(value), value);
         return *this;
       }
       /** Committed logical caret; this does not promise a native selection. */
@@ -97,6 +107,8 @@ namespace loka
           return this->cursor_.state() < other.cursor_.state();
         if (!this->moveCaretTo_.same(other.moveCaretTo_))
           return this->moveCaretTo_ < other.moveCaretTo_;
+        if (!this->command_.same(other.command_))
+          return this->command_ < other.command_;
         return this->highlighter_ < other.highlighter_;
       }
     };
@@ -111,9 +123,20 @@ namespace loka
       friend struct scene::NodePropsApplier<TextEditorNode, TextEditorProps>;
       TextEditorDocument document;
 
-      void discardPendingRequest()
+      void discardPendingRequest(bool command = true, bool caret = true)
       {
-        this->props.moveCaretTo_.discard();
+        if (command)
+          this->props.command_.clearRing();
+        if (caret)
+          this->props.moveCaretTo_.clearRing();
+        const EditorCommand oldCommand =
+            this->props.command_.isValid() ? this->props.command_.state()->get() : EditorCommand::None();
+        const LineCursor oldCaret =
+            this->props.moveCaretTo_.isValid() ? this->props.moveCaretTo_.state()->get() : LineCursor::None();
+        if (command)
+          this->props.command_.cancelFrom(oldCommand);
+        if (caret)
+          this->props.moveCaretTo_.cancelFrom(oldCaret);
       }
 
       bool applyProps(const TextEditorProps &next)
@@ -126,8 +149,9 @@ namespace loka
         const TextEditorNode *previous = transitioning;
         transitioning = this;
 #endif
-        if (this->props.lines_ != next.lines_ || !this->props.moveCaretTo_.same(next.moveCaretTo_))
-          this->discardPendingRequest();
+        this->discardPendingRequest(this->props.lines_ != next.lines_ || !this->props.command_.same(next.command_),
+                                    this->props.lines_ != next.lines_
+                                        || !this->props.moveCaretTo_.same(next.moveCaretTo_));
         // A repost from cancellation is admitted to next. Do not clear again.
         this->props = next;
 #ifndef NDEBUG
@@ -183,6 +207,8 @@ namespace loka
           registrar.markDirtyOnChange(this->props.cursorState(), scene::NODE_DIRTY_PROPS);
         if (this->props.moveCaretTo_.isValid())
           registrar.markDirtyOnChange(this->props.moveCaretTo_.state(), scene::NODE_DIRTY_PROPS);
+        if (this->props.command_.isValid())
+          registrar.markDirtyOnChange(this->props.command_.state(), scene::NODE_DIRTY_PROPS);
       }
     };
     namespace scene
@@ -223,6 +249,11 @@ namespace loka
       TextEditorDefinition &moveCaretTo(scene::RequestQueueBase<LineCursor> &value)
       {
         this->props.moveCaretTo(value);
+        return *this;
+      }
+      TextEditorDefinition &command(scene::RequestQueueBase<EditorCommand> &value)
+      {
+        this->props.command(value);
         return *this;
       }
       TextEditorDefinition &highlighter(const LineHighlighter &value)

@@ -425,7 +425,9 @@ void testSmirkBenchPlainEditorQueueAudit()
   const LineCursor first(editor->props.lines_->at(0).id, 0);
   const LineCursor last(first.line, 2);
   Trace &trace = Trace::instance();
-  trace.clear();
+  // Both request histories: a command trace left by an earlier test in the
+  // same process would otherwise merge into this audit.
+  app::testing::SettleTraceCapture<LineCursor>::clear();
   LOKA_VERIFY(fixture.mainNode->queueCaretRoundTripForTesting());
   drainSmirkBench(fixture.scene);
   LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 2);

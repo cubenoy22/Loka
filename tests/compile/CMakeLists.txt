@@ -361,3 +361,23 @@ loka_compile_pin(request-binding-sourceless-command
   REFUSES pins/refuses_request-binding-sourceless-command.cpp
   ACCEPTS pins/accepts_request-binding-sourceless-command.cpp
 )
+
+loka_compile_pin(request-wall-direct-editor-command
+  REFUSES pins/refuses_request-wall-direct-editor-command.cpp
+  ACCEPTS pins/accepts_request-wall-direct-editor-command.cpp
+)
+
+loka_compile_pin(request-wall-batch-editor-command
+  REFUSES pins/refuses_request-wall-batch-editor-command.cpp
+  ACCEPTS pins/accepts_request-wall-batch-editor-command.cpp
+)
+
+loka_compile_pin(request-wall-immediate-editor-command
+  REFUSES pins/refuses_request-wall-immediate-editor-command.cpp
+  ACCEPTS pins/accepts_request-wall-immediate-editor-command.cpp
+)
+
+loka_compile_pin(request-binding-sourceless-editor-command
+  REFUSES pins/refuses_request-binding-sourceless-editor-command.cpp
+  ACCEPTS pins/accepts_request-binding-sourceless-editor-command.cpp
+)
