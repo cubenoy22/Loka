@@ -150,7 +150,7 @@ public:
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out)
   {
     loka::app::FocusParticipant *row =
-        static_cast<loka::app::FocusParticipant *>(this->focusSource_.peerRow());
+        loka::app::FocusParticipant::from(this->focusSource_.peerRow());
     out = row ? row->context() : 0;
     return true;
   }
@@ -160,7 +160,7 @@ public:
     this->focusSource_.cut();
     loka::app::scene::Node *node = context ? context->owner() : 0;
     loka::app::FocusParticipant *row = node
-        ? static_cast<loka::app::FocusParticipant *>(node->asFocusParticipant()) : 0;
+        ? loka::app::FocusParticipant::from(node->asFocusParticipant()) : 0;
     if (row)
       row->connectSource(this->focusSource_);
   }

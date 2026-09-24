@@ -1,3 +1,4 @@
+LOKA_TEST(testFocusForeignRow)
 LOKA_TEST(testFocusSameFact)
 LOKA_TEST(testFocusAcrossFacts)
 LOKA_TEST(testFocusUnpublished)

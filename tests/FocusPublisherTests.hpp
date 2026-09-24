@@ -29,4 +29,5 @@ void testFocusObserverRebindsTarget();
 void testFocusObserverCutsEdge();
 void testFocusAppReenumerates();
 void testFocusNullCompletion();
+void testFocusForeignRow();
 #endif

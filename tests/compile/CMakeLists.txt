@@ -391,3 +391,8 @@ loka_compile_pin(focus-unregistered
   REFUSES pins/refuses_focus-unregistered.cpp
   ACCEPTS pins/accepts_focus-unregistered.cpp
 )
+
+loka_compile_pin(focus-window-entry
+  REFUSES pins/refuses_focus-window-entry.cpp
+  ACCEPTS pins/accepts_focus-window-entry.cpp
+)

@@ -621,6 +621,8 @@ protected:
 
 private:
   friend class App;
+  /** App completion only, after admission has left its flushing gate. */
+  void reconcileFocus();
   /** Rails without deferred dialog delivery carry no transport storage. */
   virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return 0; }
   virtual void closeDialogResults() {}
@@ -639,8 +641,6 @@ private:
 public:
   /** Flushes current Scene/platform work; never admits seat requests or reclaims scenes. */
   bool flushSceneInvalidation();
-  /** Reads focus only after Scene and seat work have completed. */
-  void reconcileFocus();
   bool hasPendingSceneInvalidation() const
   {
     const loka::app::scene::Scene *current = this->scene();

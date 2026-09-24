@@ -29,13 +29,13 @@ namespace loka
           return;
         for (scene::FocusRow *row = current.head_; row; row = row->next_)
         {
-          const FocusParticipant &other = *static_cast<FocusParticipant *>(row);
-          assert((&other == &target || !attached(other) || !target.binding_.same(other.binding_))
+          const FocusParticipant *other = FocusParticipant::from(row);
+          assert((!other || other == &target || !attached(*other) || !target.binding_.same(other->binding_))
                  && "duplicate focus fact and key");
         }
         for (scene::SceneFocus *focus = scene::SceneFocus::registryHead(); focus; focus = focus->registryNext_)
         {
-          const FocusParticipant *other = static_cast<FocusParticipant *>(focus->published_.peerRow());
+          const FocusParticipant *other = FocusParticipant::from(focus->published_.peerRow());
           assert((focus == &current || !other || !target.binding_.sameFact(other->binding_))
                  && "focus fact published across windows");
         }
@@ -68,10 +68,10 @@ namespace loka
         if (!answered)
           return;
         scene::Node *node = context ? context->owner() : 0;
-        FocusParticipant *target = node ? static_cast<FocusParticipant *>(node->asFocusParticipant()) : 0;
+        FocusParticipant *target = node ? FocusParticipant::from(node->asFocusParticipant()) : 0;
         if (target && (target->owner_ != &current || !attached(*target) || !target->binding_.state()))
           target = 0;
-        FocusParticipant *previous = static_cast<FocusParticipant *>(current.published_.peerRow());
+        FocusParticipant *previous = FocusParticipant::from(current.published_.peerRow());
         if (previous == target)
           return;
         if (target)

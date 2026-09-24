@@ -11,8 +11,8 @@ namespace loka
   {
     /** App leaf row. The node owns this after its placement-stable props; both
         references remain valid through living detach. Reclamation is silent.
-        App leaves that expose asFocusParticipant() return this row type;
-        bare FocusRow is only the kernel membership/edge mechanism. */
+        App publication accepts only rows carrying this extension type token;
+        bare kernel rows may coexist in the same Scene membership. */
     class FocusParticipant : public scene::FocusRow
     {
     public:
@@ -20,6 +20,16 @@ namespace loka
           : node_(node),
             binding_(binding)
       {
+      }
+      virtual const void *focusRowTypeKey() const
+      {
+        return scene::FocusRowTypeToken<FocusParticipant>();
+      }
+      /** Checked app extension conversion, without RTTI or per-row storage. */
+      static FocusParticipant *from(scene::FocusRow *row)
+      {
+        return row && row->focusRowTypeKey() == scene::FocusRowTypeToken<FocusParticipant>()
+                   ? static_cast<FocusParticipant *>(row) : 0;
       }
       void rebind(const FocusBinding &previous);
       /** Native read-source edge; independent of membership and publication. */
