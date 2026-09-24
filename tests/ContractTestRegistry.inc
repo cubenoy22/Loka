@@ -1,3 +1,5 @@
+LOKA_TEST(testFocusAppVisitedSpill)
+LOKA_TEST(testFocusAppReenumeratesMultipleRemovals)
 LOKA_TEST(testFocusForeignRow)
 LOKA_TEST(testFocusSameFact)
 LOKA_TEST(testFocusAcrossFacts)

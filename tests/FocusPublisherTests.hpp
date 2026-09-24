@@ -30,4 +30,6 @@ void testFocusObserverCutsEdge();
 void testFocusAppReenumerates();
 void testFocusNullCompletion();
 void testFocusForeignRow();
+void testFocusAppReenumeratesMultipleRemovals();
+void testFocusAppVisitedSpill();
 #endif

@@ -902,15 +902,30 @@ namespace
   class BorrowedCloseApp : public WindowAdmissionTestApp
   {
   public:
-    BorrowedCloseApp(Window &first, Window &second)
+    BorrowedCloseApp(Window &first, Window &second, Window *third = 0)
         : WindowAdmissionTestApp(first, &second)
     {
+      if (third)
+        this->group_->adopt(third);
     }
+    void add(Window &window) { this->group_->adopt(&window); }
     ~BorrowedCloseApp()
     {
       this->flush();
     }
     virtual void windowClosed(Window *) {}
+  };
+  struct ClosePairObserver
+  {
+    App *app;
+    Window *first;
+    Window *second;
+    static void changed(void *data)
+    {
+      ClosePairObserver &p = *static_cast<ClosePairObserver *>(data);
+      p.app->requestWindowClose(p.first);
+      p.app->requestWindowClose(p.second);
+    }
   };
   struct CloseObserver
   {
@@ -937,6 +952,30 @@ void testFocusAppReenumerates()
   const unsigned reads = first.platform.reads;
   app.reconcileFocus();
   LOKA_VERIFY(first.platform.reads == reads);
+}
+
+void testFocusAppReenumeratesMultipleRemovals()
+{
+  Fixture first, second, third;
+  BorrowedCloseApp app(first.window, second.window, &third.window);
+  first.platform.simulateNativeFocus(first.height.getContext());
+  second.platform.simulateNativeFocus(second.weight.getContext());
+  third.platform.simulateNativeFocus(third.height.getContext());
+  ClosePairObserver observer = {&app, &first.window, &second.window};
+  second.facts.first.state()->bind(&ClosePairObserver::changed, &observer, false);
+  const unsigned firstReads = first.platform.reads;
+  const unsigned secondReads = second.platform.reads;
+  const unsigned thirdReads = third.platform.reads;
+  app.reconcileFocus();
+  second.facts.first.state()->unbind(&ClosePairObserver::changed, &observer);
+  LOKA_VERIFY(third.facts.first.state()->get().is(FOCUS_HEIGHT));
+  LOKA_VERIFY(first.platform.reads == firstReads + 1);
+  LOKA_VERIFY(second.platform.reads == secondReads + 1);
+  LOKA_VERIFY(third.platform.reads == thirdReads + 1);
+  app.reconcileFocus();
+  LOKA_VERIFY(first.platform.reads == firstReads + 1);
+  LOKA_VERIFY(second.platform.reads == secondReads + 1);
+  LOKA_VERIFY(third.platform.reads == thirdReads + 2);
 }
 
 namespace
@@ -1038,4 +1077,32 @@ void testFocusForeignRow()
   LifecycleFactTestAccess::MarkSubtreeRetired(&foreign);
   LifecycleFactTestAccess::MarkSubtreeRetired(&field);
   field.setContext(0);
+}
+
+void testFocusAppVisitedSpill()
+{
+  Fixture *windows[10];
+  unsigned before[10];
+  for (unsigned i = 0; i != 10; ++i)
+  {
+    windows[i] = new Fixture();
+    windows[i]->platform.simulateNativeFocus(windows[i]->height.getContext());
+    before[i] = windows[i]->platform.reads;
+  }
+  {
+    BorrowedCloseApp app(windows[0]->window, windows[1]->window);
+    for (unsigned i = 2; i != 10; ++i)
+      app.add(windows[i]->window);
+    for (unsigned completion = 1; completion != 3; ++completion)
+    {
+      app.reconcileFocus();
+      for (unsigned i = 0; i != 10; ++i)
+      {
+        LOKA_VERIFY(windows[i]->platform.reads == before[i] + completion);
+        LOKA_VERIFY(windows[i]->facts.first.state()->get().is(FOCUS_HEIGHT));
+      }
+    }
+  }
+  for (unsigned i = 0; i != 10; ++i)
+    delete windows[i];
 }

@@ -46,6 +46,7 @@ namespace allocpin
   void RunLazyFlexPageFlipAllocPin();
   void RunAttributedStringEqualsAllocPin();
   void RunZeroAllocPin();
+  void RunFocusCompletionAllocPin();
   void RunFloppyBirdSurfaceAllocPin();
   void RunFloppyBirdScoreAllocPin();
 } // namespace allocpin

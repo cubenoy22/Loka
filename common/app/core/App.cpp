@@ -403,16 +403,54 @@ void App::reconcileFocus()
 {
   if (this->flushingWindowWork_ || !this->group_)
     return;
-  // Re-read the live group after each observer; callbacks may remove windows.
-  size_t index = 0;
-  while (index < this->group_->getComponents().size())
+  /** Each completion walks live App-owned windows (w), never foreign rows.
+      Repeated scans visit O(w^2) group entries; linear visited lookups cost
+      O(w^3) pointer comparisons in the worst case. Local storage is O(1)
+      through eight windows and O(w) beyond that; only the overflow allocates.
+      Visited pointers are identities only and are never dereferenced. If a
+      new window reuses a visited address, the next completion picks it up. */
+  class VisitedWindows
   {
-    AppComponent *component = this->group_->getComponents()[index];
-    Window *window = component ? component->asWindow() : 0;
-    if (window && !this->isWindowClosePending(window))
-      window->reconcileFocus();
-    if (index < this->group_->getComponents().size()
-        && this->group_->getComponents()[index] == component)
-      ++index;
+  public:
+    VisitedWindows() : inlineCount_(0) {}
+    bool contains(Window *window) const
+    {
+      return std::find(this->inline_, this->inline_ + this->inlineCount_, window)
+                 != this->inline_ + this->inlineCount_
+             || std::find(this->spill_.begin(), this->spill_.end(), window) != this->spill_.end();
+    }
+    void add(Window *window)
+    {
+      if (this->inlineCount_ < INLINE_CAPACITY)
+        this->inline_[this->inlineCount_++] = window;
+      else
+        this->spill_.push_back(window);
+    }
+
+  private:
+    enum { INLINE_CAPACITY = 8 };
+    Window *inline_[INLINE_CAPACITY];
+    size_t inlineCount_;
+    std::vector<Window *> spill_;
+  };
+  VisitedWindows visited;
+  for (;;)
+  {
+    Window *next = 0;
+    const std::vector<AppComponent *> &components = this->group_->getComponents();
+    for (size_t i = 0; i < components.size(); ++i)
+    {
+      Window *window = components[i] ? components[i]->asWindow() : 0;
+      if (window && !this->isWindowClosePending(window)
+          && !visited.contains(window))
+      {
+        next = window;
+        break;
+      }
+    }
+    if (!next)
+      return;
+    visited.add(next);
+    next->reconcileFocus();
   }
 }
