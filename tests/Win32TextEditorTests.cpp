@@ -751,6 +751,137 @@ namespace
       expectSelection(fixture, 5);
     }
   }
+  /** Reentrant native input forces finishTake to repair the projection. */
+  struct CommandRepair
+  {
+    Fixture &fixture;
+    std::vector<LRESULT> visible;
+    explicit CommandRepair(Fixture &value)
+        : fixture(value)
+    {
+      this->fixture.cursor.state()->bind(&changed, this, false);
+    }
+    ~CommandRepair()
+    {
+      this->fixture.cursor.state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      CommandRepair &self = *static_cast<CommandRepair *>(data);
+      const HWND window = self.fixture.context->hwnd();
+      self.visible.push_back(SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0));
+      SendMessageW(window, WM_KEYDOWN, VK_RIGHT, 1);
+    }
+  };
+  void testWin32TextEditorCommands()
+  {
+    typedef loka::app::testing::SettleTrace<EditorCommand, LineCursor> Trace;
+    typedef loka::app::testing::SettleTraceCapture<LineCursor> Capture;
+    // Both ordinary completion and a post-report projection repair must retain
+    // the page viewport. The latter discriminates the finishTake cache refresh.
+    for (int repair = 0; repair < 2; ++repair)
+    {
+      Fixture fixture(128);
+      const HWND window = fixture.context->hwnd();
+      LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+          fixture.node,
+          TextEditorProps(fixture.lines, fixture.cursor).moveCaretTo(fixture.request).command(fixture.commands))));
+      RECT rect = {0};
+      SendMessageW(window, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&rect));
+      HDC dc = GetDC(window);
+      LOKA_VERIFY(dc);
+      const HFONT font = reinterpret_cast<HFONT>(SendMessageW(window, WM_GETFONT, 0, 0));
+      LOKA_VERIFY(font);
+      const HGDIOBJ old = SelectObject(dc, font);
+      TEXTMETRICW metrics = {0};
+      LOKA_VERIFY(GetTextMetricsW(dc, &metrics));
+      SelectObject(dc, old);
+      ReleaseDC(window, dc);
+      const LONG height = metrics.tmHeight + metrics.tmExternalLeading;
+      LOKA_VERIFY(height > 0);
+      const unsigned visible = static_cast<unsigned>((rect.bottom - rect.top) / height);
+      LOKA_VERIFY(visible > 1 && 2 * (visible - 1) < fixture.lines.size());
+      const unsigned short target = static_cast<unsigned short>(2 * (visible - 1));
+      Capture::clear();
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+      }
+      if (repair)
+      {
+        CommandRepair observer(fixture);
+        fixture.context->onPropsApplied();
+        LOKA_VERIFY(observer.visible.size() == 2 && observer.visible.back() > 0);
+        LOKA_VERIFY(SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0) == observer.visible.back());
+        LOKA_VERIFY(EditorAccess::restores(*fixture.context) == 0);
+      }
+      else
+        fixture.context->onPropsApplied();
+      const Trace &trace = Trace::instance();
+      LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 2);
+      for (unsigned i = 0; i < 2; ++i)
+      {
+        LOKA_VERIFY(trace.at(0).takes[i].kind() == Reply<EditorCommand>::GRANTED);
+        LOKA_VERIFY(trace.at(0).takes[i].requested().kind() == EditorCommand::PAGE_DOWN);
+        LOKA_VERIFY(trace.at(0).seam[i] == EDITOR_OK);
+      }
+      LOKA_VERIFY(fixture.commands.state()->get().isNone() && fixture.commands.pending() == 0);
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(target).id, 2));
+      const LRESULT offset = SendMessageW(window, EM_LINEINDEX, static_cast<WPARAM>(target), 0);
+      LOKA_VERIFY(offset >= 0);
+      expectSelection(fixture, static_cast<DWORD>(offset + 2));
+      const LRESULT first = SendMessageW(window, EM_GETFIRSTVISIBLELINE, 0, 0);
+      LOKA_VERIFY(first > 0 && first <= target && target < first + static_cast<LRESULT>(visible));
+      fixture.matches();
+      // A positive-height formatting frame with no complete line declines.
+      rect.bottom = rect.top + height - 1;
+      SendMessageW(window, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
+      }
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::REFUSED);
+      LOKA_VERIFY(fixture.commands.reply().state()->get().reason() == EDITOR_UNAVAILABLE);
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(target).id, 2));
+      // One complete line plus a partial line is a one-line page (step one).
+      rect.bottom = rect.top + height + height / 2;
+      SendMessageW(window, EM_SETRECTNP, 0, reinterpret_cast<LPARAM>(&rect));
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_UP)) == POST_ACCEPTED);
+      }
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(fixture.commands.reply().state()->get().kind() == Reply<EditorCommand>::GRANTED);
+      LOKA_VERIFY(fixture.cursor.state()->get()
+                  == LineCursor(fixture.lines.at(static_cast<unsigned short>(target - 1)).id, 2));
+      Capture::clear();
+    }
+    {
+      Fixture fixture(128);
+      LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+          fixture.node,
+          TextEditorProps(fixture.lines, fixture.cursor).moveCaretTo(fixture.queue).command(fixture.commands))));
+      Capture::clear();
+      {
+        StateTrackerGuard guard(&fixture.tracker);
+        for (unsigned short row = 1; row <= 3; ++row)
+          LOKA_VERIFY(fixture.queue.post(LineCursor(fixture.lines.at(row).id, 2)) == POST_ACCEPTED);
+        LOKA_VERIFY(fixture.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+      }
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(Trace::instance().size() == 0);
+      LOKA_VERIFY(!fixture.commands.state()->get().isNone());
+      LOKA_VERIFY(fixture.cursor.state()->get() == LineCursor(fixture.lines.at(2).id, 2));
+      fixture.context->onPropsApplied();
+      LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 1);
+      LOKA_VERIFY(Trace::instance().at(0).takes[0].kind() == Reply<EditorCommand>::GRANTED);
+      LOKA_VERIFY(fixture.commands.state()->get().isNone());
+      LOKA_VERIFY(fixture.lines.find(fixture.cursor.state()->get().line) > 3);
+      Capture::clear();
+    }
+  }
   void testWin32TextEditorCaretRequests()
   {
     {
@@ -1105,6 +1236,7 @@ void testWin32TextEditorConversion()
 }
 void testWin32TextEditorActionsUseLineQueries()
 {
+  testWin32TextEditorCommands();
   testWin32TextEditorCaretRequests();
   testWin32TextEditorSettlement();
   testWin32TextEditorReverseBoundaryCaret();
