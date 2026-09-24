@@ -132,6 +132,18 @@ target_compile_definitions(${LOKA_WINDOW_CLAMP_TARGET} PRIVATE TEST_BUILD LOKA_D
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
 set_property(TARGET ${LOKA_WINDOW_CLAMP_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 
+# Production runner cost, with no TEST_BUILD trace or native editing in the interval.
+set(LOKA_SETTLE_PROBE_TARGET "LokaSettleProbe${LOKA_CLASSIC_TARGET_SUFFIX}")
+loka_add_toolbox_test_application(
+  ${LOKA_SETTLE_PROBE_TARGET}
+  LokaAppleToolboxCore
+  src/SettleProbeStandaloneMain.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/WindowClampSize.r
+)
+target_include_directories(${LOKA_SETTLE_PROBE_TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/tests)
+set_property(TARGET ${LOKA_SETTLE_PROBE_TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
+set_property(TARGET ${LOKA_SETTLE_PROBE_TARGET}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+
 # Value-only #827 cost probes; same 512K preferred / 384K minimum as AppRecycle.
 configure_file(
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
