@@ -209,3 +209,27 @@ namespace loka
 } // namespace loka
 
 #endif // TEST_BUILD
+
+#ifdef TEST_BUILD
+namespace loka
+{
+  namespace testing
+  {
+    namespace
+    {
+      unsigned g_nullVisibleLineFailures = 0;
+    }
+    void failNullTextEditorVisibleLines(unsigned count)
+    {
+      g_nullVisibleLineFailures = count;
+    }
+    bool declineNullTextEditorVisibleLines()
+    {
+      if (!g_nullVisibleLineFailures)
+        return false;
+      --g_nullVisibleLineFailures;
+      return true;
+    }
+  } // namespace testing
+} // namespace loka
+#endif

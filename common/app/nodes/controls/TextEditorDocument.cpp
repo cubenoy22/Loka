@@ -404,6 +404,42 @@ namespace loka
       ReplaceOpCursor ops(lines, first, last, payloads, breaks);
       return this->commit(ops, caret);
     }
+    EditorResult TextEditorDocument::pageTarget(EditorCommand command, unsigned visibleLines, LineCursor &out) const
+    {
+      if (!visibleLines || !this->props_.lines_ || !this->props_.cursorState())
+        return EDITOR_UNAVAILABLE;
+      const LineCursor caret = this->props_.cursorState()->get();
+      if (caret.isNone())
+        return EDITOR_INVALID_CURSOR;
+      const core::ObservableList<core::String> &lines = *this->props_.lines_;
+      const int found = lines.find(caret.line);
+      if (found < 0)
+        return EDITOR_STALE_ID;
+      const unsigned row = static_cast<unsigned>(found);
+      const unsigned last = lines.size() - 1;
+      const unsigned step = visibleLines > 1 ? visibleLines - 1 : 1;
+      unsigned target = row;
+      switch (command.kind())
+      {
+      case EditorCommand::NONE:
+        return EDITOR_UNAVAILABLE;
+      case EditorCommand::PAGE_UP:
+        target = step > row ? 0 : row - step;
+        break;
+      case EditorCommand::PAGE_DOWN:
+        target = step > last - row ? last : row + step;
+        break;
+      }
+      const LineBytes line(lines.at(static_cast<unsigned short>(target)).value);
+      if (line.result() != EDITOR_OK)
+        return line.result();
+      const LineCursor::Column column = caret.column < 0 ? 0
+                                                         : (static_cast<std::size_t>(caret.column) > line.size()
+                                                                ? static_cast<LineCursor::Column>(line.size())
+                                                                : caret.column);
+      out = LineCursor(lines.at(static_cast<unsigned short>(target)).id, column);
+      return EDITOR_OK;
+    }
     EditorResult TextEditorDocument::moveCaret(LineCursor after)
     {
       if (!this->props_.lines_)

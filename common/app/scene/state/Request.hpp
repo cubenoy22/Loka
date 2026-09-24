@@ -16,6 +16,13 @@ namespace loka
       {
         enum { coalescable = 1 };
       };
+      template <> struct RequestTraits<EditorCommand>
+      {
+        enum
+        {
+          coalescable = 0
+        };
+      };
       /** Plain slots are only meaningful for explicitly coalescable values. */
       template <typename T> struct RequestDeclarationWall
       {
@@ -179,8 +186,10 @@ namespace loka
         Reported<Reply<T> > reply_;
       };
       /** App-owned FIFO endpoint. Borrow by reference without extending its lifetime.
-          Accepted posts receive one reply unless binding change or detach discards
-          them. Cancellation gives neither per-item replies nor an exact drop count.
+          POST_ACCEPTED promises one reply per taken post. Binding change or detach
+          may discard pending posts, without replies or an exact drop count.
+          TextEditor admits caret before command; a nonempty caret slot at every
+          command admission can delay commands indefinitely.
           Storage is supplied by RequestQueue; no queue operation allocates. */
       template <typename T> class RequestQueueBase
       {
@@ -322,12 +331,19 @@ namespace loka
             this->request_.set(T::None());
           return taken;
         }
-        void discard() const
+        /** First cancellation pass: ring storage only, with no publication. */
+        void clearRing() const
         {
           if (this->source_)
             this->source_->clearRing();
-          if (this->request_.isValid() && !this->request_.state()->get().isNone())
-            this->request_.set(T::None());
+        }
+        /** Second pass: preserve a changed slot, otherwise promote new queued
+            work or publish None. A plain cross-post equal to snapshot is cleared. */
+        void cancelFrom(const T &snapshot) const
+        {
+          if (!this->request_.isValid() || this->request_.state()->get() != snapshot)
+            return;
+          (void)this->consume();
         }
         WriteSeat<T> request_;
         WriteSeat<Reply<T> > reply_;

@@ -192,23 +192,42 @@ class NullTextEditorContext::RailOperation : public scene::RailOperation<LineCur
 public:
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
-    NullTextEditorContext &c = context(base);
     request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    this->capture(base);
+    return this->enterTake(base, request);
+  }
+  void capture(scene::Node &base)
+  {
     this->binding_ = static_cast<TextEditorNode &>(base).props;
+  }
+  template <class Request>
+  scene::Admission enterTake(scene::Node &base,
+                             const scene::RequestBinding<Request> &request,
+                             const scene::RequestBinding<LineCursor> *priority = 0)
+  {
+    NullTextEditorContext &c = context(base);
     if (c.phase_ != IDLE || !c.node_)
       return scene::ADMISSION_DEFERRED;
     if (!request.isValid() || request.state()->get().isNone())
       return scene::ADMISSION_EMPTY;
+    if (priority && priority->isValid() && !priority->state()->get().isNone())
+      return scene::ADMISSION_DEFERRED;
     c.phase_ = INPUT;
     return scene::ADMISSION_TAKE;
   }
   virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
   {
-    TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
-           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.moveCaretTo_.same(request);
+  }
+  bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.command_.same(request);
   }
   virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    return this->resolveBinding(base, request);
+  }
+  template <class Request> EditorResult resolveBinding(scene::Node &base, const scene::RequestBinding<Request> &request)
   {
     if (!this->current(base, request))
       return EDITOR_OWNER_MISMATCH;
@@ -238,6 +257,7 @@ public:
              .value.requiredUnits(loka::core::StringEncodingUtf8, length))
       return scene::RequestApplication<LineCursor>(pending, EDITOR_UNAVAILABLE);
     const LineCursor applied(pending.line, std::max(0, std::min(pending.column, static_cast<int>(length))));
+    context(base).caret_ = applied;
     return scene::RequestApplication<LineCursor>(applied, EDITOR_OK);
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
@@ -266,12 +286,114 @@ public:
   }
 #endif
 private:
+  bool currentBinding(scene::Node &base) const
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState();
+  }
   static NullTextEditorContext &context(scene::Node &node)
   {
     return *static_cast<NullTextEditorContext *>(node.getContext());
   }
   TextEditorProps binding_;
 };
+bool NullTextEditorContext::queryVisibleLines(unsigned &lines) const
+{
+#ifdef TEST_BUILD
+  if (loka::testing::declineNullTextEditorVisibleLines())
+    return false;
+#endif
+  lines = kNullVisibleLines;
+  return true;
+}
+/** The command seat borrows the entry's caret pipeline and completion owner. */
+class NullTextEditorContext::CommandOperation : public scene::SeatOperation<EditorCommand, LineCursor>
+{
+public:
+  explicit CommandOperation(RailOperation &rail)
+      : rail_(rail)
+  {
+  }
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<EditorCommand> &request)
+  {
+    const TextEditorProps &props = static_cast<TextEditorNode &>(base).props;
+    request = props.command_;
+    this->rail_.capture(base);
+    if (!request.isValid() || request.state()->get().isNone())
+      return scene::ADMISSION_EMPTY;
+    return this->rail_.enterTake(base, request, &props.moveCaretTo_);
+  }
+  virtual bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.current(base, request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.resolveBinding(base, request);
+  }
+  virtual EditorResult validate(scene::Node &base, const EditorCommand &)
+  {
+    NullTextEditorContext &c = *static_cast<NullTextEditorContext *>(base.getContext());
+    return static_cast<TextEditorNode &>(base).seam(c.key_).availability();
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const EditorCommand &pending)
+  {
+    NullTextEditorContext &c = *static_cast<NullTextEditorContext *>(base.getContext());
+    unsigned visibleLines = 0;
+    LineCursor target;
+    if (!c.queryVisibleLines(visibleLines))
+      return scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE);
+    const EditorResult result =
+        static_cast<TextEditorNode &>(base).seam(c.key_).pageTarget(pending, visibleLines, target);
+    if (result != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(target, result);
+    const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
+    return scene::RequestApplication<LineCursor>(applied.value(), applied.result(), scene::REPAINT);
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return this->rail_.report(base, applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<EditorCommand> &reply,
+                                     const scene::RequestApplication<LineCursor> &applied)
+  {
+    const scene::Reply<LineCursor> caretReply = reply.kind() == scene::Reply<EditorCommand>::REFUSED
+                                                    ? scene::Reply<LineCursor>::Refused(applied.value(), reply.reason())
+                                                    : scene::Reply<LineCursor>::Granted(applied.value());
+    return this->rail_.finishTake(base, caretReply, applied);
+  }
+
+private:
+  RailOperation &rail_;
+};
+#ifdef TEST_BUILD
+scene::Admission loka::testing::TextEditorInput::probeAdmission(
+    NullTextEditorContext &c, bool command, bool busy, bool &supplied, bool &opened)
+{
+  const NullTextEditorContext::Phase before = c.phase_;
+  c.phase_ = busy ? NullTextEditorContext::RECONCILE : NullTextEditorContext::IDLE;
+  NullTextEditorContext::RailOperation rail;
+  scene::Admission admission;
+  if (command)
+  {
+    NullTextEditorContext::CommandOperation op(rail);
+    scene::RequestBinding<EditorCommand> binding;
+    admission = op.admit(*c.node_, binding);
+    supplied = binding.same(c.node_->props.command_);
+  }
+  else
+  {
+    scene::RequestBinding<LineCursor> binding;
+    admission = rail.admit(*c.node_, binding);
+    supplied = binding.same(c.node_->props.moveCaretTo_);
+  }
+  opened = c.phase_ == NullTextEditorContext::INPUT;
+  c.phase_ = before;
+  return admission;
+}
+#endif
 void NullTextEditorContext::settle(scene::Settlement stimulus
 #ifdef TEST_BUILD
                                    ,
@@ -280,9 +402,12 @@ void NullTextEditorContext::settle(scene::Settlement stimulus
 )
 {
   RailOperation op;
+  CommandOperation command(op);
   scene::RequestSettlement<LineCursor>::settle(this->node_,
                                                this,
                                                op,
+                                               op,
+                                               command,
                                                stimulus
 #ifdef TEST_BUILD
                                                ,

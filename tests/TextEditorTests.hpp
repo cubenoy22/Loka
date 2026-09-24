@@ -36,4 +36,16 @@ void testSettleTwoSeatProbeRetirement();
 void testSettleTwoSeatEmptyEpilogue();
 void testSettleHeterogeneousTraceCapture();
 void testSettleEmptySeatZeroCandidate();
+void testTextEditorCommandTwoPages();
+void testTextEditorCommandCaretPriority();
+void testTextEditorCommandEdges();
+void testTextEditorCommandRefusals();
+void testTextEditorCommandReentrant();
+void testTextEditorCommandDiscardCrossPosts();
+void testTextEditorCommandSeatReplacement();
+void testTextEditorCommandQueueFull();
+void testTextEditorCommandTraceMerge();
+void testTextEditorNullAdmissionOrder();
+void testTextEditorCommandSceneContinuation();
+void testTextEditorCommandBindingChecks();
 #endif

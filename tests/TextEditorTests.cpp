@@ -3,6 +3,7 @@
 #include "support/TextEditorAccess.hpp"
 #include "support/TextEditorReportRefusal.hpp"
 #include "TextEditorTests.hpp"
+#include "scenarios/TextEditorSettleAudit.hpp"
 #include "compile/pins/request_command.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
@@ -2114,4 +2115,543 @@ void testSettleEmptySeatZeroCandidate()
   LOKA_VERIFY(first.run(f) == FOLLOW_UP_NONE);
   LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).seq == 1);
   CursorCapture::clear();
+}
+
+namespace
+{
+  typedef Reply<EditorCommand> CommandReply;
+  typedef loka::app::testing::SettleTrace<EditorCommand, LineCursor> EditorCommandTrace;
+  typedef loka::app::testing::SettleTraceCapture<LineCursor> EditorCapture;
+  const EditorCommand pageDown(EditorCommand::PAGE_DOWN), pageUp(EditorCommand::PAGE_UP);
+  struct CommandFixture : HeadlessStateOwner
+  {
+    PushStateTracker &tracker;
+    RequestQueue<EditorCommand, 2> commands;
+    RequestQueue<EditorCommand, 2> otherCommands;
+    RequestQueue<LineCursor, 4> carets;
+    Request<LineCursor> plainCaret;
+    Reported<LineCursor> cursor;
+    ObservableList<String> lines;
+    NullScenePlatformController platform;
+    TextEditorNode node;
+    NullTextEditorContext *context;
+    CommandFixture()
+        : tracker(*HeadlessStateOwner::tracker()->asPushTracker()),
+          node(TextEditorProps(lines, cursor)),
+          context(0)
+    {
+      StateBatchBase::CreateImmediateState(this, this->commands, EditorCommand::None());
+      StateBatchBase::CreateImmediateState(this, this->otherCommands, EditorCommand::None());
+      StateBatchBase::CreateImmediateState(this, this->carets, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->plainCaret, LineCursor::None());
+      StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
+      LOKA_VERIFY(this->lines.attach(&this->tracker, 16) == ATTACH_OK);
+      for (unsigned short i = 0; i < 12; ++i)
+        LOKA_VERIFY(this->lines.insert(i, String("abcdef")) == EDIT_OK);
+      this->node.props = TextEditorProps(this->lines, this->cursor).moveCaretTo(this->carets).command(this->commands);
+      this->node.setPropsTypeId(TextEditorProps::staticTypeId());
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(this->node).moveCaret(this->at(0, 5)) == EDITOR_OK);
+      LayoutState bounds;
+      bounds.width = 200;
+      bounds.height = 100;
+      this->platform.projectLayoutForTesting(&this->node, bounds);
+      this->context = static_cast<NullTextEditorContext *>(this->node.getContext());
+      LOKA_VERIFY(this->context);
+      EditorCapture::clear();
+    }
+    ~CommandFixture()
+    {
+      EditorCapture::clear();
+      loka::testing::failNullTextEditorVisibleLines(0);
+    }
+    LineCursor at(unsigned short row, int column = 5) const
+    {
+      return LineCursor(this->lines.at(row).id, column);
+    }
+    void apply(const TextEditorProps &props)
+    {
+      LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(&this->node, props)));
+    }
+    void move(LineCursor target)
+    {
+      LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(this->node).moveCaret(target) == EDITOR_OK);
+      this->context->onPropsApplied();
+      EditorCapture::clear();
+    }
+  };
+  struct CommandReplies
+  {
+    RequestQueueBase<EditorCommand> &queue;
+    std::vector<CommandReply> values;
+    explicit CommandReplies(RequestQueueBase<EditorCommand> &q)
+        : queue(q)
+    {
+      q.reply().state()->bind(&changed, this, false);
+    }
+    ~CommandReplies()
+    {
+      this->queue.reply().state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      CommandReplies &self = *static_cast<CommandReplies *>(data);
+      self.values.push_back(self.queue.reply().state()->get());
+    }
+  };
+  struct CommandSubscriber
+  {
+    enum Action
+    {
+      COUNT,
+      NESTED_INPUT,
+      POST_QUEUE,
+      POST_PLAIN,
+      POST_EQUAL_PLAIN,
+      POST_COMMAND,
+      REPLACE_COMMAND
+    };
+    CommandFixture &fixture;
+    Action action;
+    unsigned calls;
+    EditorResult nested;
+    CommandSubscriber(CommandFixture &f, Action a)
+        : fixture(f),
+          action(a),
+          calls(0),
+          nested(EDITOR_OK)
+    {
+      if (a == COUNT || a == NESTED_INPUT)
+        f.cursor.state()->bind(&changed, this, false);
+      else if (a == POST_COMMAND)
+        f.carets.state()->bind(&changed, this, false);
+      else
+        f.commands.state()->bind(&changed, this, false);
+    }
+    ~CommandSubscriber()
+    {
+      if (this->action == COUNT || this->action == NESTED_INPUT)
+        this->fixture.cursor.state()->unbind(&changed, this);
+      else if (this->action == POST_COMMAND)
+        this->fixture.carets.state()->unbind(&changed, this);
+      else
+        this->fixture.commands.state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      CommandSubscriber &self = *static_cast<CommandSubscriber *>(data);
+      CommandFixture &f = self.fixture;
+      if (self.action != COUNT && self.calls)
+        return;
+      ++self.calls;
+      switch (self.action)
+      {
+      case COUNT:
+        break;
+      case NESTED_INPUT:
+        // The native projection must be written before cursor publication.
+        LOKA_VERIFY(Input::caret(*f.context) == f.cursor.state()->get());
+        self.nested = Input::type(*f.context, 'Z');
+        break;
+      case POST_QUEUE:
+        LOKA_VERIFY(f.commands.state()->get().isNone());
+        LOKA_VERIFY(f.carets.state()->get() == f.at(1) && f.carets.pending() == 0);
+        LOKA_VERIFY(f.carets.post(f.at(4)) == POST_ACCEPTED);
+        break;
+      case POST_PLAIN:
+        f.plainCaret.set(f.at(4));
+        break;
+      case POST_EQUAL_PLAIN:
+        f.plainCaret.set(f.at(1));
+        break;
+      case POST_COMMAND:
+        LOKA_VERIFY(f.commands.post(pageUp) == POST_ACCEPTED);
+        break;
+      case REPLACE_COMMAND:
+      {
+        TextEditorProps next = f.node.props;
+        next.command(f.otherCommands);
+        f.apply(next);
+      }
+      break;
+      }
+    }
+  };
+} // namespace
+void testTextEditorCommandTwoPages()
+{
+  CommandFixture f;
+  CommandReplies replies(f.commands);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == f.at(6));
+  LOKA_VERIFY(Input::caret(*f.context) == f.at(6));
+  LOKA_VERIFY(replies.values.size() == 2);
+  for (unsigned i = 0; i < 2; ++i)
+    LOKA_VERIFY(replies.values[i].kind() == CommandReply::GRANTED && !(replies.values[i].requested() != pageDown));
+  LOKA_VERIFY(EditorCommandTrace::instance().size() == 1 && EditorCommandTrace::instance().at(0).count == 2);
+  LOKA_VERIFY(f.commands.state()->get().isNone() && f.commands.pending() == 0);
+}
+void testTextEditorCommandCaretPriority()
+{
+  CommandFixture f;
+  CommandReplies replies(f.commands);
+  QueueReplies caretReplies(f.carets);
+  bool supplied = false, opened = false;
+  for (unsigned short i = 0; i < 3; ++i)
+    LOKA_VERIFY(f.carets.post(f.at(i)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, false, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(caretReplies.values.size() == 2 && replies.values.empty());
+  LOKA_VERIFY(f.carets.state()->get() == f.at(2) && f.cursor.state()->get() == f.at(1));
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, false, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(caretReplies.values.size() == 3 && replies.values.size() == 1);
+  LOKA_VERIFY(replies.values[0].kind() == CommandReply::GRANTED && f.cursor.state()->get() == f.at(5));
+  LOKA_VERIFY(Trace::instance().size() == 2 && EditorCommandTrace::instance().size() == 1);
+  LOKA_VERIFY(Trace::instance().at(1).seq < EditorCommandTrace::instance().at(0).seq);
+}
+void testTextEditorCommandEdges()
+{
+  CommandFixture f;
+  CommandReplies replies(f.commands);
+  LOKA_VERIFY(f.lines.update(f.lines.at(11).id, String("xy")) == EDIT_OK);
+  f.move(f.at(10));
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == f.at(11, 2));
+  LOKA_VERIFY(replies.values.back().kind() == CommandReply::GRANTED);
+  f.move(f.at(0));
+  LOKA_VERIFY(f.commands.post(pageUp) == POST_ACCEPTED);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == f.at(0));
+  LOKA_VERIFY(replies.values.back().kind() == CommandReply::GRANTED);
+  LOKA_VERIFY(EditorCommandTrace::instance().size() == 1 && EditorCommandTrace::instance().at(0).count == 1);
+  TextEditorDocument &document = loka::app::testing::TextEditorAccess::document(f.node);
+  CommandSubscriber subscriber(f, CommandSubscriber::COUNT);
+  LineCursor target;
+  LOKA_VERIFY(document.pageTarget(pageDown, 1, target) == EDITOR_OK && target == f.at(1));
+  LOKA_VERIFY(document.pageTarget(pageDown, ~0u, target) == EDITOR_OK && target == f.at(11, 2));
+  LOKA_VERIFY(document.pageTarget(pageUp, ~0u, target) == EDITOR_OK && target == f.at(0));
+  target = f.at(7);
+  LOKA_VERIFY(document.pageTarget(pageDown, 0, target) == EDITOR_UNAVAILABLE && target == f.at(7));
+  LOKA_VERIFY(document.pageTarget(EditorCommand::None(), 4, target) == EDITOR_UNAVAILABLE);
+  LOKA_VERIFY(subscriber.calls == 0 && f.cursor.state()->get() == f.at(0));
+}
+void testTextEditorCommandRefusals()
+{
+  for (unsigned mode = 0; mode < 3; ++mode)
+  {
+    CommandFixture f;
+    CommandReplies replies(f.commands);
+    if (mode == 0)
+      loka::testing::failNullTextEditorVisibleLines(2);
+    else if (mode == 1)
+      f.move(LineCursor::None());
+    else
+    {
+      LOKA_VERIFY(f.lines.reset() == EDIT_OK);
+      LOKA_VERIFY(f.lines.insert(0, String("new")) == EDIT_OK);
+    }
+    const LineCursor before = f.cursor.state()->get();
+    CommandSubscriber subscriber(f, CommandSubscriber::COUNT);
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(replies.values.size() == 2 && subscriber.calls == 0);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    for (unsigned i = 0; i < 2; ++i)
+    {
+      LOKA_VERIFY(replies.values[i].kind() == CommandReply::REFUSED);
+      LOKA_VERIFY(replies.values[i].reason()
+                  == (mode == 0   ? EDITOR_UNAVAILABLE
+                      : mode == 1 ? EDITOR_INVALID_CURSOR
+                                  : EDITOR_STALE_ID));
+    }
+  }
+}
+void testTextEditorCommandReentrant()
+{
+  CommandFixture f;
+  CommandReplies replies(f.commands);
+  CommandSubscriber subscriber(f, CommandSubscriber::NESTED_INPUT);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(subscriber.calls == 1 && subscriber.nested == EDITOR_REENTRANT);
+  LOKA_VERIFY(replies.values.size() == 2 && f.cursor.state()->get() == f.at(6));
+  LOKA_VERIFY(replies.values[0].kind() == CommandReply::GRANTED && replies.values[1].kind() == CommandReply::GRANTED);
+  LOKA_VERIFY(Input::caret(*f.context) == f.at(6));
+  LOKA_VERIFY(Input::buffer(*f.context).find('Z') == std::string::npos);
+}
+void testTextEditorCommandDiscardCrossPosts()
+{
+  for (unsigned mode = 0; mode < 4; ++mode)
+  {
+    CommandFixture f;
+    if (mode == 1 || mode == 2)
+    {
+      TextEditorProps props = f.node.props;
+      props.moveCaretTo(f.plainCaret);
+      f.apply(props);
+      f.plainCaret.set(f.at(1));
+    }
+    else
+    {
+      LOKA_VERIFY(f.carets.post(f.at(1)) == POST_ACCEPTED);
+      LOKA_VERIFY(f.carets.post(f.at(2)) == POST_ACCEPTED);
+    }
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+    CommandReplies replies(f.commands);
+    QueueReplies caretReplies(f.carets);
+    CommandSubscriber subscriber(f,
+                                 mode == 0   ? CommandSubscriber::POST_QUEUE
+                                 : mode == 1 ? CommandSubscriber::POST_PLAIN
+                                 : mode == 2 ? CommandSubscriber::POST_EQUAL_PLAIN
+                                             : CommandSubscriber::POST_COMMAND);
+    // Detach cancels both seats while retaining their endpoints for reattach.
+    NotifySubtreeNodeDetached(&f.node);
+    LifecycleFactTestAccess::DeliverFacts(&f.node);
+    LOKA_VERIFY(subscriber.calls == 1 && replies.values.empty() && caretReplies.values.empty());
+    if (mode == 0)
+      LOKA_VERIFY(f.carets.state()->get() == f.at(4) && f.carets.pending() == 0);
+    if (mode == 1)
+      LOKA_VERIFY(f.plainCaret.get() == f.at(4));
+    if (mode == 2)
+    {
+      // Instrumented equal-value cross-post: one subscriber call, no distinct slot
+      // value at pass 2. This known plain-slot edge is intentionally cleared.
+      LOKA_VERIFY(f.plainCaret.get().isNone());
+    }
+    NotifySubtreeNodeAttached(&f.node);
+    LifecycleFactTestAccess::DeliverFacts(&f.node);
+    f.context->onPropsApplied();
+    if (mode < 2)
+      LOKA_VERIFY(f.cursor.state()->get() == f.at(4));
+    if (mode == 0)
+      LOKA_VERIFY(caretReplies.values.size() == 1 && caretReplies.values[0].kind() == CaretReply::GRANTED);
+    if (mode == 2)
+      LOKA_VERIFY(f.cursor.state()->get() == f.at(0));
+    if (mode == 3)
+      LOKA_VERIFY(replies.values.size() == 1 && replies.values[0].kind() == CommandReply::GRANTED);
+  }
+}
+void testTextEditorCommandSeatReplacement()
+{
+  CommandFixture f;
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.carets.post(f.at(1)) == POST_ACCEPTED);
+  LOKA_VERIFY(f.carets.post(f.at(2)) == POST_ACCEPTED);
+  TextEditorProps next = f.node.props;
+  next.command(f.otherCommands);
+  LOKA_VERIFY((next < f.node.props) != (f.node.props < next));
+  f.apply(next);
+  LOKA_VERIFY(f.commands.state()->get().isNone() && f.commands.pending() == 0);
+  LOKA_VERIFY(f.carets.state()->get() == f.at(1) && f.carets.pending() == 1);
+  LOKA_VERIFY(f.otherCommands.post(pageDown) == POST_ACCEPTED);
+  next.moveCaretTo(f.plainCaret);
+  f.apply(next);
+  LOKA_VERIFY(f.carets.state()->get().isNone() && f.carets.pending() == 0);
+  LOKA_VERIFY(!f.otherCommands.state()->get().isNone());
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == f.at(3));
+}
+void testTextEditorCommandQueueFull()
+{
+  CommandFixture f;
+  LOKA_VERIFY(f.commands.post(EditorCommand::None()) == POST_INVALID);
+  for (unsigned i = 0; i < 3; ++i)
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(f.commands.post(pageUp) == POST_QUEUE_FULL);
+  LOKA_VERIFY(f.commands.pending() == 2 && !(f.commands.state()->get() != pageDown));
+  CommandReplies replies(f.commands);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.commands.pending() == 0 && !(f.commands.state()->get() != pageDown));
+  f.context->onPropsApplied();
+  LOKA_VERIFY(replies.values.size() == 3 && f.cursor.state()->get() == f.at(9));
+}
+namespace
+{
+  class CommandAudit : public loka::dsl::testing::ScenarioAuditSink
+  {
+  public:
+    loka::dsl::SnapRecord record;
+    virtual bool recordStep(const loka::dsl::testing::ScenarioStepTerminal &)
+    {
+      return true;
+    }
+    virtual bool recordMatch(const loka::dsl::testing::ScenarioMatchSelection &)
+    {
+      return true;
+    }
+    virtual bool recordSubstep(const loka::dsl::testing::ScenarioSubstepTerminal &)
+    {
+      return true;
+    }
+    virtual bool recordTerminal(loka::dsl::testing::ScenarioAuditTerminalStatus)
+    {
+      return true;
+    }
+    virtual bool recordVerdict(const loka::dsl::SnapRecord &value)
+    {
+      this->record = value;
+      return true;
+    }
+  };
+} // namespace
+void testTextEditorCommandTraceMerge()
+{
+  CommandFixture f;
+  for (unsigned short i = 0; i < 2; ++i)
+  {
+    LOKA_VERIFY(f.carets.post(f.at(i)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(i == 0 ? pageDown : pageUp) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+  }
+  LOKA_VERIFY(Trace::instance().size() == 2 && EditorCommandTrace::instance().size() == 2);
+  CommandAudit audit;
+  LOKA_VERIFY(loka::scenario_tests::RecordTextEditorSettleAudit(9, Trace::instance(), audit));
+  for (unsigned i = 0; i < 4; ++i)
+  {
+    char key[32];
+    std::snprintf(key, sizeof key, "settle.9.%u", i);
+    std::string value;
+    LOKA_VERIFY(audit.record.get(key, value));
+    LOKA_VERIFY((value.find(" seat=command") != std::string::npos) == (i % 2 == 1));
+    if (i % 2)
+      LOKA_VERIFY(value.find(i == 1 ? " seat=command requested=PAGE_DOWN" : " seat=command requested=PAGE_UP")
+                  != std::string::npos);
+    else
+      LOKA_VERIFY(value.find("requested=" + loka::scenario_tests::SettleCursorText(f.at(i / 2))) != std::string::npos);
+  }
+  LOKA_VERIFY(!audit.record.has("settle.9.4"));
+  EditorCapture::clear();
+}
+void testTextEditorNullAdmissionOrder()
+{
+  CommandFixture f;
+  bool supplied = false, opened = false;
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, true, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, false, supplied, opened) == ADMISSION_EMPTY);
+  LOKA_VERIFY(supplied && !opened);
+  // Commands have the frozen empty-before-phase rule; caret keeps its old order.
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, true, supplied, opened) == ADMISSION_EMPTY);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, true, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(f.carets.post(f.at(1)) == POST_ACCEPTED);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, false, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, true, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, false, supplied, opened) == ADMISSION_TAKE);
+  LOKA_VERIFY(supplied && opened);
+  TextEditorProps next = f.node.props;
+  next.moveCaretTo_ = RequestBinding<LineCursor>();
+  f.apply(next);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, true, supplied, opened) == ADMISSION_DEFERRED);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, false, false, supplied, opened) == ADMISSION_EMPTY);
+  LOKA_VERIFY(supplied && !opened);
+  LOKA_VERIFY(Input::probeAdmission(*f.context, true, false, supplied, opened) == ADMISSION_TAKE);
+  LOKA_VERIFY(supplied && opened);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == f.at(3));
+}
+namespace
+{
+  class CommandSceneRoot : public BoundaryNodeFor<CommandSceneRoot>
+  {
+  public:
+    ObservableList<String> lines;
+    Reported<LineCursor> cursor;
+    RequestQueue<EditorCommand, 4> commands;
+    explicit CommandSceneRoot(const BoundaryPropsFor<CommandSceneRoot> &p)
+        : BoundaryNodeFor<CommandSceneRoot>(p)
+    {
+      this->declareStates(3).state(this->cursor, LineCursor::None()).state(this->commands, EditorCommand::None());
+    }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
+    {
+      return false;
+    }
+    virtual void attachNode(NodeComposition &)
+    {
+      StateTracker *owner = 0;
+      if (this->lines.queryMutationTracker(owner) == EDIT_OK)
+        return;
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 12) == ATTACH_OK);
+      for (unsigned short i = 0; i < 12; ++i)
+        LOKA_VERIFY(this->lines.insert(i, String("hello")) == EDIT_OK);
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(TextEditor(this->lines, this->cursor).command(this->commands));
+    }
+  };
+} // namespace
+void testTextEditorCommandSceneContinuation()
+{
+  EditorPresenter platform;
+  Scene scene((Boundary<CommandSceneRoot>()));
+  scene.mount(&platform);
+  CommandSceneRoot *root = static_cast<CommandSceneRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(root);
+  LayoutState bounds;
+  bounds.width = 200;
+  bounds.height = 100;
+  platform.projectLayoutForTesting(root, bounds);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  for (unsigned i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  TextEditorNode *node = static_cast<TextEditorNode *>(root->childrenHead());
+  LOKA_VERIFY(node && node->kind() == NODE_KIND_TEXT_EDITOR);
+  LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(*node).moveCaret(LineCursor(root->lines.at(0).id, 0))
+              == EDITOR_OK);
+  for (unsigned i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  CommandReplies replies(root->commands);
+  for (unsigned i = 0; i < 3; ++i)
+    LOKA_VERIFY(root->commands.post(pageUp) == POST_ACCEPTED);
+  for (unsigned i = 0; scene.hasPendingInvalidation() && i < 12; ++i)
+    LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(replies.values.size() == 3);
+  LOKA_VERIFY(root->cursor.state()->get() == LineCursor(root->lines.at(0).id, 0));
+  EditorCapture::clear();
+}
+void testTextEditorCommandBindingChecks()
+{
+  {
+    CommandFixture f;
+    CommandReplies replies(f.commands);
+    LOKA_VERIFY(f.commands.post(pageDown) == POST_ACCEPTED);
+    CommandSubscriber subscriber(f, CommandSubscriber::REPLACE_COMMAND);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(subscriber.calls == 1 && replies.values.empty());
+    LOKA_VERIFY(f.cursor.state()->get() == f.at(0));
+    LOKA_VERIFY(f.otherCommands.post(pageDown) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(f.cursor.state()->get() == f.at(3));
+  }
+  {
+    CommandFixture other;
+    CommandFixture f;
+    TextEditorProps next = f.node.props;
+    next.command(other.commands);
+    f.apply(next);
+    CommandReplies replies(other.commands);
+    LOKA_VERIFY(other.commands.post(pageDown) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    LOKA_VERIFY(replies.values.size() == 1 && replies.values[0].kind() == CommandReply::REFUSED);
+    LOKA_VERIFY(replies.values[0].reason() == EDITOR_OWNER_MISMATCH && f.cursor.state()->get() == f.at(0));
+    next.command(f.commands);
+    f.apply(next);
+  }
 }
