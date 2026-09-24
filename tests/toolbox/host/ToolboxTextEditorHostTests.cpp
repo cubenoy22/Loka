@@ -795,6 +795,31 @@ int main(int argc, char **argv)
     pin("refused key cleanup adopts Granted page destination instead of restoring pre-key destRect");
   }
   {
+    Fixture f(30);
+    // The last fully visible row makes PAGE_DOWN move the native viewport.
+    post(f, LineCursor(f.lines.at(4).id, 2));
+    f.context->onPropsApplied();
+    const String text = String::FromPlatform(Managed<loka::platform::String>::Wrap(
+        new loka::app::testing::TextEditorReportRefusal(f.request)));
+    LOKA_VERIFY(f.lines.update(f.lines.at(0).id, text) == EDIT_OK);
+    f.context->onPropsApplied();
+    const LineCursor before = f.cursor.state()->get();
+    const short beforeTop = (**f.te()).destRect.top;
+    LOKA_VERIFY(before == LineCursor(f.lines.at(4).id, 2));
+    LOKA_VERIFY(beforeTop == (**f.te()).viewRect.top);
+    // Arm the existing report-refusal string without leaving a caret request.
+    // Row zero is read by availability, but not by pageTarget's row-eight lookup.
+    post(f, before);
+    post(f, LineCursor::None());
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    f.context->onPropsApplied();
+    const Reply<EditorCommand> reply = f.commands.reply().state()->get();
+    LOKA_VERIFY(reply.kind() == Reply<EditorCommand>::REFUSED && reply.reason() == EDITOR_ALLOCATION);
+    LOKA_VERIFY(f.cursor.state()->get() == before);
+    LOKA_VERIFY((**f.te()).destRect.top == beforeTop);
+    pin("refused report after granted native page move restores pre-command viewport");
+  }
+  {
     toolbox_host::failNew = 1;
     Fixture f;
     LOKA_VERIFY(!f.te());
