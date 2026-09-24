@@ -14,7 +14,7 @@ ruling from the #879 review (2026-09-23).
 |---|---|---|---|
 | fact (`cursor`) | `Reported<LineCursor>` | the node's commit seam only (`TextEditorDocument::moveCaret` / `applyReplace`) | app, through `state()` |
 | request (`moveCaretTo`) | app-owned `Request<LineCursor>` (a private `NodeState<LineCursor>`) | app (`set`), rail (last-wins take: snapshot, then `None`) | rail |
-| queue endpoint ([#892](https://github.com/cubenoy22/Loka/issues/892)) | app-owned `RequestQueue<T, N>`: slot + reply + fixed ring | slot: app `post`, binding `consume`/`discard`; reply: rail; ring: endpoint `post`/advance/clear | slot: rail; reply: app; ring: endpoint only (rails never see it) |
+| queue endpoint ([#892](https://github.com/cubenoy22/Loka/issues/892)) | app-owned `RequestQueue<T, N>`: slot + reply + fixed ring | slot: app `post`, binding `consume`/`cancelFrom`; reply: rail; ring: endpoint `post`/advance/clear | slot: rail; reply: app; ring: endpoint only (rails never see it) |
 | reply (optional, `RequestWithReply<LineCursor>::reply()`) | `Reported<Reply<LineCursor>>` inside the request handle | rail, once per take, forced publish | app |
 
 `Reported<T>` has no `set` and no conversion to a mutable handle; Props extract
@@ -46,16 +46,17 @@ follow-up decision to the owner; they never settle or take requests themselves.
 One settle is one entry operation with one `SettleOwner<Fact>` and seats in a
 fixed order. The owner supplies `finishSettle` once and, under `TEST_BUILD`,
 `fact`; each `SeatOperation<Request, Fact>` supplies the seven take doors below.
-`RailOperation<T>` is the combined single-seat class the rails use, inheriting
+`RailOperation<T>` combines the caret seat and settle owner, inheriting
 `SeatOperation<T, T>` and `SettleOwner<T>`.
 `RequestSettlement<Fact>` builds `SeatRunner<Request, Fact>` values and their
 pointer array on its own stack and walks them; each runner holds its binding
 by value and, under `TEST_BUILD`, its trace row; `FollowUps` stays local to the
 driver. The existing
-single-seat entry and a two-seat overload share that walk; the command seat
-remains page 2b work.
+single-seat entry and a two-seat overload share that walk; TextEditor uses the
+two-seat overload for caret then command (#902).
 Sources: [#898, ruling items 1–3](https://github.com/cubenoy22/Loka/issues/898),
-[#900](https://github.com/cubenoy22/Loka/pull/900).
+[#900](https://github.com/cubenoy22/Loka/pull/900), and
+[#904](https://github.com/cubenoy22/Loka/pull/904).
 The stack `RailOperation<T>` holds no context reference. The driver retains
 `Node*` and a comparison-only context identity, checking
 `node->getContext() == identity` at each seat entry, after each publication,
@@ -67,7 +68,8 @@ The seven seat doors occur in this order; failed stages skip dependent work,
 not the completion path of a still-live take:
 
 1. `admit` re-evaluates phase, status, and ownership for each take; eligibility
-   is not a cached input. Supply the binding even when admission defers.
+   is not a cached input. Binding extraction on deferral follows the rail
+   gate contract described under [Command seat](#command-seat-902).
    Empty/deferred admission skips the take, but still reaches the epilogue.
    On admission, `consume()` snapshots the request, then clears a last-wins slot
    to `None` or advances a queued slot directly to its next value (or `None`
@@ -93,8 +95,8 @@ completion decision.
 The `formReply` overloads deduce their argument types: the same-type overload
 keeps `Granted`/`Clamped`/`Refused` selection; different request and fact types
 yield `Refused(pending, result)` on failure or `Granted(pending)` on success.
-This does not introduce heterogeneous reply or trace shapes; those remain
-page 2b work.
+Replies remain request-typed; #902 adds request/fact-typed trace rows, as
+described below.
 Sources: [#898, ruling item 5](https://github.com/cubenoy22/Loka/issues/898),
 [#900](https://github.com/cubenoy22/Loka/pull/900).
 
@@ -124,24 +126,27 @@ returns `FOLLOW_UP_NONE`. A binding discarded during consumption gets no reply
 
 Under `TEST_BUILD`, `testing::SettleTrace` stores a fixed-capacity history of
 value rows: stimulus, admissions, take results, seam results, and fact delta.
-Rows are per seat: only a seat that took a request or changed a fact contributes
-a row; an empty or deferred seat with neither contributes none. The failed-arm
+Rows are per seat: a later seat contributes only if it took a request; its
+untaken fact delta folds into the preceding candidate. Seat 0 is always a
+candidate, emitted only for a take or fact change. The failed-arm
 refusal shares that seat's row (at most two ordinary takes plus one refusal-only
 take). Seat 0's `before` is the caller's pre-entry snapshot, never a fresh sample
 at settle entry; later seats sample their entry fact after the preceding seat's
 publications. `after` finalization and row append happen after the epilogue and
-the failed-arm tail: seat k's `after` is the fact captured at seat k+1's entry,
-and the last seat's `after` is the owner's final fact.
+the failed-arm tail: each contributing candidate's `after` is the fact captured
+at the next contributing candidate's entry, and the last candidate's `after`
+is the owner's final fact.
+Untaken later seats fold backward rather than creating rows (#902 item 8).
 Sources: [#898, ruling item 4](https://github.com/cubenoy22/Loka/issues/898),
-[#900](https://github.com/cubenoy22/Loka/pull/900).
+[#900](https://github.com/cubenoy22/Loka/pull/900), and
+[#903](https://github.com/cubenoy22/Loka/pull/903).
 Golden records are grouped per scenario step under each rail's PNG approval;
 timer/retry counts are not golden expectations.
 
 The bound is per seat: **two ordinary takes (each may refuse) plus at most one
 failed-arm refusal-only take**. With one seat this is exactly the #892 bound,
-unchanged. For page 2b's future n-seat operation, the aggregate would be at most
-2n ordinary takes plus n failed-arm refusal-only takes; this is not a claim
-that the command seat exists.
+unchanged. TextEditor's two seats have an aggregate bound of four ordinary
+takes plus two failed-arm refusal-only takes (#902 item 6).
 Sources: [#898, ruling item 7](https://github.com/cubenoy22/Loka/issues/898),
 [#900](https://github.com/cubenoy22/Loka/pull/900).
 
@@ -167,25 +172,28 @@ it equals the taken value. Only an empty ring publishes `None`; a plain
 last-wins binding always clears to `None`. It touches no endpoint storage after
 publication and returns the local snapshot. A synchronous subscriber's post
 therefore follows older queued work. Both settlement sites use this door:
-the ordinary take and the failed-arm refusal-only take. `discard()` empties
-the ring first, unconditionally, then clears a nonempty slot. A cancellation
-subscriber's repost consequently enters the emptied endpoint. The caller is
+the ordinary take and the failed-arm refusal-only take. Cancellation uses
+`clearRing()` then `cancelFrom(snapshot)` across the selected seats, as described
+under [Command seat](#command-seat-902). A cancellation subscriber's repost
+consequently enters the emptied endpoint. The caller is
 `TextEditorNode::discardPendingRequest`, on binding change or detach.
 Sources: [#892](https://github.com/cubenoy22/Loka/issues/892),
 [#893](https://github.com/cubenoy22/Loka/pull/893).
 
 `post()` returns `POST_ACCEPTED`, `POST_QUEUE_FULL`, or `POST_INVALID` (`None`);
-refused posts change neither slot nor ring. `POST_ACCEPTED` promises one take
-and one reply per post until the binding changes or the node detaches.
+refused posts change neither slot nor ring. `POST_ACCEPTED` promises one reply
+per taken post; caret priority can delay commands indefinitely (#902 item 6).
 Discarded slot and ring entries receive no reply; cancellation loses reply
-correlation and provides no exact dropped count. The bound is **two ordinary
-takes (each may refuse) plus at most one failed-arm refusal-only take**.
-Remaining work is delivered by the next props apply within the same flush,
-using slot publication to mark props dirty, without a queue timer.
+correlation and provides no exact dropped count. The bound is per seat: **two
+ordinary takes (each may refuse) plus at most one failed-arm refusal-only take**.
+Remaining work gets its next delivery opportunity at the next props apply
+within the same flush, subject to admission and caret priority, using slot
+publication to mark props dirty, without a queue timer.
 Source: [#892](https://github.com/cubenoy22/Loka/issues/892),
 [#893](https://github.com/cubenoy22/Loka/pull/893).
 
-`RequestTraits<T>::coalescable` has no permissive primary; `LineCursor` opts in.
+`RequestTraits<T>::coalescable` has no permissive primary; `LineCursor` opts in,
+and `EditorCommand` explicitly opts out (#902 item 1).
 `RequestDeclarationWall<T>` refuses command-like or unspecialized types on all
 three plain declaration routes: `StateBatchBase::CreateImmediateState`,
 `ComposableNode::state`, and `NodeStateBatch::state`. This covers both
@@ -207,6 +215,125 @@ that cell emits a fact-changed row, including steps with no takes. This is the
 settle-trace golden record; desktop scenario registration remains a follow-up,
 not a claim of Win32/macOS scenario golden coverage.
 
+## Command seat (#902)
+
+The command ruling is [#902](https://github.com/cubenoy22/Loka/issues/902).
+The implementation series is [#903 (a0, runner and trace)](https://github.com/cubenoy22/Loka/pull/903),
+[#904 (a, common/Null)](https://github.com/cubenoy22/Loka/pull/904),
+[#907 (b, Toolbox)](https://github.com/cubenoy22/Loka/pull/907),
+[#906 (c, Win32)](https://github.com/cubenoy22/Loka/pull/906), and
+[#908 (d, macOS)](https://github.com/cubenoy22/Loka/pull/908).
+
+### Residents and app door
+
+`EditorCommand` has only `PAGE_UP` and `PAGE_DOWN` as executable residents;
+`NONE` denotes an empty slot. These verbs accumulate: two posts mean two page
+operations, so `RequestTraits<EditorCommand>::coalescable = 0` permits only
+`RequestQueue<EditorCommand, N>`, not either plain request handle or a sourceless
+binding. Undo/redo belongs to app history over app-owned lines; paste/cut/copy
+belongs to a clipboard seam; select/selectAll belongs to `Request<Selection>`;
+focus is separate page 3 work. Scroll-to-caret is idempotent and belongs to a
+last-wins scroll request family, not this command queue (#902 item 1).
+
+The Props door is `.command(queue)`, accepting
+`RequestQueueBase<EditorCommand> &` into `command_`. It participates in Props
+identity after `moveCaretTo_`, and its slot is a props dirty source. The reply
+is `Reply<EditorCommand>`: `Granted(pending)` means the verb executed and
+`Refused(pending, reason)` means it did not; this seat never produces `Clamped`.
+The effect is the existing `cursor` fact, including native clamping; read that
+fact to learn where the caret went (#902 items 2–3, PR a).
+
+### Page target and rail pipeline
+
+`TextEditorDocument::pageTarget(command, visibleLines, out)` computes a target
+without publishing. It moves in logical rows by `max(1, visibleLines - 1)`,
+saturates at either document end, and clamps the current column to the target
+row's length (and at least zero), with no goal-column memory. Zero visible
+lines or absent document/cursor storage returns `EDITOR_UNAVAILABLE`; a `None`
+caret returns `EDITOR_INVALID_CURSOR`, and a stale line identity returns
+`EDITOR_STALE_ID`. `NONE` is unavailable, and target-row decoding failures
+propagate. Reaching an end can therefore execute successfully without moving
+(#902 item 4, PR a).
+
+Each rail's `bool queryVisibleLines(unsigned &out)` answers the count of fully
+visible **logical** lines of the editor's unclipped frame, or declines; zero
+lines declines. Height divided by line height is only a capacity when wrapping
+is possible. Toolbox counts complete logical rows across TextEdit visual rows;
+macOS measures whole logical rows including their layout fragments. Win32 uses
+its formatting-frame height and font metrics with wrapping disabled. Null uses
+a four-line fixture and a test decline mode. Cross-rail caret equality is not
+claimed (#902 item 4, PRs a–d).
+
+The rail owns `CommandOperation : SeatOperation<EditorCommand, LineCursor>`
+and borrows its caret pipeline. Caret admission is split into binding extraction
+and `enterTake`: check phase eligibility, endpoint non-emptiness and priority,
+then open the rail's exclusion. Null and Toolbox open INPUT; Win32 opens COMMIT,
+retaining its RETRY follow-up; macOS captures `completion_` and opens INPUT.
+On phase deferral Null/Win32 supply the binding, while Toolbox/macOS do not.
+macOS extracts its binding before the later caret-priority check, so that
+priority deferral can still supply it. Resource and tracker refusals stay in
+`resolve`, using the command endpoint's own identity and tracker checks
+(#902 item 5, PRs a–d).
+
+Reconcile before geometry on every rail: Toolbox uses `prepareApply`, Win32
+and macOS use `ensureProjection`, so subscriber edits cannot leave geometry
+and the logical target on different snapshots. Null reads the current model
+and fixed fixture geometry without a native projection to reconcile. Then
+query geometry, compute `pageTarget`, reuse native selection application,
+report the native-clamped cursor through `moveCaret`, and pass a synthesized
+`Reply<LineCursor>` to the caret `finishTake`. Selection and viewport work
+remain under the rail's exclusion (#902 items 4–6, PRs a–d):
+
+- Toolbox uses `TESetSelect` and `TEScroll` to reveal the target. A Granted page
+  supersedes the saved viewport for `SCROLL_CLEANUP`, so cleanup from a refused
+  key in the same settle cannot undo it; a refused report retains the old view.
+- Win32 uses `EM_SETSEL` and an `EM_LINESCROLL` delta from the target row and
+  first/last visible rows. Only on Granted does command `finishTake` refresh
+  the selection/scroll cache before shared repair can call `restoreSelection`.
+- macOS uses `setSelectedRange` and `scrollRangeToVisible` inside APPLYING.
+
+### Priority and cancellation
+
+One settle visits caret then command, with two ordinary take opportunities and
+at most one failed-arm refusal-only take **per seat**. A command admission
+requires the caret slot to be drained: invalid or `None` counts as drained.
+Commands wait for the caret slot to drain; a continuous caret feed delays them.
+If the slot stays nonempty at every command admission, that delay is indefinite;
+`POST_ACCEPTED` promises one reply per taken post, not eventual admission
+(#902 item 6, PR a and PRs b–d).
+
+A document-list replacement or detach discards both seats; changing only one
+request binding discards that seat. `discardPendingRequest` uses two passes:
+first clear all selected rings without notification and snapshot slot values
+into locals; then cancel command before caret. `cancelFrom(snapshot)` leaves a
+changed slot untouched, preserving work posted by an earlier
+cancellation subscriber. Otherwise it advances to a new ring head with forced
+publication, or publishes `None` when empty. Cancellation therefore publishes
+`None` or the next queued value. Same-seat reposts after `None` enter the emptied
+endpoint (slot, then ring). A cross-seat post to a plain slot **equal to the
+snapshot** is indistinguishable from discarded work and is cleared: this is a
+known, pinned edge. Reposts are endpoint-relative; a repost into a replaced
+endpoint is not delivered. Discarded work gets no reply or exact dropped count
+(#902 item 7, `Request.hpp` / `TextEditor.hpp`, PR a).
+
+### Per-seat trace
+
+Under `TEST_BUILD`, `SettleTraceRow<Request, Fact = Request>` and
+`SettleTrace<Request, Fact = Request>` type takes by request and before/after
+by fact; `SettleTrace<LineCursor>` retains its name. The walk stamps `row.seq`
+at append through `SettleTraceClock<Fact>`; `SettleTraceCapture<Fact>` resets
+both histories and that clock together and reports overflow across them.
+`TextEditorSettleAudit.hpp` merges caret and command histories by `seq`, using
+the merged position in `settle.<step>.<row>`; command takes add, for example,
+`seat=command requested=PAGE_DOWN` (#902 items 8–9, PRs a0 and a).
+
+An untaken later seat contributes no row and folds its fact delta backward;
+seat 0 is always the candidate, emitted only when there was a take or fact
+change. Thus an epilogue or failed-arm tail that changes the fact cannot add
+an empty command row to a command-free settle. A taken no-op command keeps its
+row. Single-seat behavior and command-free golden records remain unchanged
+(#902 item 8, PRs a0 and a).
+
 ## From AGENTS.md
 
 - **Delivery sites.** A delivery site is the completion of an entry operation:
@@ -216,10 +343,11 @@ not a claim of Win32/macOS scenario golden coverage.
   never takes a request; it returns an outcome to its caller.
 - **Bound.** Per seat, two ordinary takes (each may refuse) plus at most one
   failed-arm refusal-only take, never another application. With one seat this
-  is exactly the #892 bound, unchanged; the future n-seat aggregate for page 2b
-  is stated separately above. Pending work stays in the slot
+  is exactly the #892 bound, unchanged; TextEditor now has caret and command
+  seats (#902). Pending work stays in the slot
   or endpoint ring; the consumption publication (last-wins `None` or direct
-  queue advance) marks props dirty, so the next props apply delivers it.
+  queue advance) marks props dirty, so the next props apply offers delivery
+  subject to admission and caret priority.
   Sources: [#892](https://github.com/cubenoy22/Loka/issues/892),
   [#898, ruling item 7](https://github.com/cubenoy22/Loka/issues/898),
   [#900](https://github.com/cubenoy22/Loka/pull/900).
@@ -229,9 +357,11 @@ not a claim of Win32/macOS scenario golden coverage.
   queued slot advances to the next value, or `None` when the ring is empty.
   Source: [#892](https://github.com/cubenoy22/Loka/issues/892).
 - **Binding change.** When the node's document binding changes (a different
-  list or request seat in new Props, the end of the node's attachment) the
-  pending request is discarded before the new binding is installed; there is
-  no replay on attach.
+  list or request seat in new Props, the end of the node's attachment), a list
+  change or detach discards both seats; a single request-binding change
+  discards only that seat before the new binding is installed. There is no
+  replay of discarded work on attach; cancellation subscribers can post new
+  endpoint-relative work through the two-pass protocol (#902 item 7).
 
 ## Where each rail consumes
 

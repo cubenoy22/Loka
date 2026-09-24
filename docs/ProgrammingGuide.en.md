@@ -317,8 +317,8 @@ if (this->request.reply()->get().kind() == scene::Reply<LineCursor>::REFUSED) { 
 ```
 
 A request is delivered at the rail's next completed operation: a props update,
-attachment, an outer input action, or a retry/deferred operation. Each delivery
-has two ordinary take opportunities (each may refuse), plus at most one
+attachment, an outer input action, or a retry/deferred operation. Each request
+seat in a delivery has two ordinary take opportunities (each may refuse), plus at most one
 refusal-only take if follow-up arming fails. Anything still pending stays
 in the slot for the next update that applies props; delivery does not drain
 requests indefinitely.
@@ -366,16 +366,51 @@ if (this->queue.post(LineCursor(this->lines.at(0).id, 0)) == scene::POST_QUEUE_F
 
 `post()` returns `POST_ACCEPTED`, `POST_QUEUE_FULL` when no waiting space
 remains, or `POST_INVALID` for `None`. A refused post changes nothing.
-Each accepted post is taken once and receives one reply, observed through
-`queue.reply()`, until the editor's binding changes or it detaches. Cancellation
-discards pending work without replies or an exact dropped count, so the
-reply-per-post promise ends there.
+Each taken post receives one reply, observed through `queue.reply()`, unless
+the editor's binding changes while the post is being taken; such a post is
+dropped without a reply, like cancelled work. Caret priority can delay
+commands indefinitely. Binding changes or detach cancel
+pending work without replies or an exact dropped count, so the reply-per-post
+promise ends there.
 
-Delivery has two ordinary takes per settle, each of which may refuse, plus at
-most one failed-arm refusal-only take. The rest reaches the next props apply
-within the same flush; no queue timer is needed. Requests are consumed on
+Delivery has two ordinary takes per request seat per settle, each of which may
+refuse, plus at most one failed-arm refusal-only take. The rest reaches the next
+props apply within the same flush, subject to caret priority; no queue timer
+is needed. Requests are consumed on
 refusal too, rather than retried until they succeed. The rail-side contract
 is in [Request delivery](RequestDeliveryDesign.md#endpoint-and-queue-892).
+
+#### TextEditor page commands
+
+Use an app-owned `RequestQueue<EditorCommand, 4>` for page up/down commands,
+declared through the same state door and on the same tracker as `lines`,
+`cursor`, and the caret request:
+
+```cpp
+// Members of the owning Node or Boundary, alongside lines and cursor:
+Request<LineCursor> caret;
+RequestQueue<EditorCommand, 4> pages;
+// In its state declarations:
+this->state(this->caret, LineCursor::None());
+this->state(this->pages, EditorCommand::None());
+// In compose:
+c << TextEditor(this->lines, this->cursor).moveCaretTo(this->caret).command(this->pages);
+// In an app action, with room for both posts:
+this->pages.post(EditorCommand(EditorCommand::PAGE_DOWN));
+this->pages.post(EditorCommand(EditorCommand::PAGE_DOWN));
+```
+
+The two posts request two page moves, rather than coalescing to one. When both
+execute, the caret moves two pages, stopping at the document end if necessary.
+Use `PAGE_UP` to move the other way. `pages.reply()` tells whether the verb
+executed (`GRANTED`) or was refused (`REFUSED`); `cursor` tells where the caret
+went. Commands wait for the caret slot to drain; a continuous caret feed delays
+them.
+
+Replacing the editor's document list or detaching it cancels pending caret and
+page requests; changing only one request binding cancels that binding's work.
+Cancellation on document replacement publishes `None` or the next queued value
+posted by a cancellation subscriber. Cancelled work receives no reply.
 
 ### `ObservableList` And `MirroredList`
 
