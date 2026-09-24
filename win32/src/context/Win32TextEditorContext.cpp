@@ -158,13 +158,26 @@ public:
   }
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
-    Win32TextEditorContext &c = context(base);
     request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
+    this->capture(base);
+    return this->enterTake(base, request);
+  }
+  void capture(scene::Node &base)
+  {
     this->binding_ = static_cast<TextEditorNode &>(base).props;
+  }
+  template <class Request>
+  scene::Admission enterTake(scene::Node &base,
+                             const scene::RequestBinding<Request> &request,
+                             const scene::RequestBinding<LineCursor> *priority = 0)
+  {
+    Win32TextEditorContext &c = context(base);
     if (!c.node_ || (c.phase_ != IDLE && !(c.phase_ == RETRY && c.status_ == EDITOR_UNAVAILABLE)))
       return scene::ADMISSION_DEFERRED;
     if (!request.isValid() || request.state()->get().isNone())
       return scene::ADMISSION_EMPTY;
+    if (priority && priority->isValid() && !priority->state()->get().isNone())
+      return scene::ADMISSION_DEFERRED;
     // Preserve the settle-scoped retry while opening COMMIT for refusal delivery.
     if (c.phase_ == RETRY)
       this->include(scene::RESTORE_QUEUED);
@@ -173,11 +186,17 @@ public:
   }
   virtual bool current(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
   {
-    TextEditorNode &node = static_cast<TextEditorNode &>(base);
-    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
-           && node.props.cursorState() == this->binding_.cursorState() && node.props.moveCaretTo_.same(request);
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.moveCaretTo_.same(request);
+  }
+  bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->currentBinding(base) && static_cast<TextEditorNode &>(base).props.command_.same(request);
   }
   virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<LineCursor> &request)
+  {
+    return this->resolveBinding(base, request);
+  }
+  template <class Request> EditorResult resolveBinding(scene::Node &base, const scene::RequestBinding<Request> &request)
   {
     Win32TextEditorContext &c = context(base);
     if (!this->current(base, request))
@@ -201,13 +220,17 @@ public:
       return ready;
     return node.props.lines_->find(pending.line) < 0 ? EDITOR_STALE_ID : EDITOR_OK;
   }
+  /** Taking can notify an owner edit. Repair before asking EDIT for offsets
+      or geometry, so both seats measure the reconciled projection. */
+  scene::FollowUp ensureProjection(scene::Node &base)
+  {
+    Win32TextEditorContext &c = context(base);
+    return c.projection_.current(*c.node_) ? scene::FOLLOW_NONE : c.replaceProjection();
+  }
   virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const LineCursor &pending)
   {
     Win32TextEditorContext &c = context(base);
-    scene::FollowUp follow = scene::FOLLOW_NONE;
-    // Taking can notify an owner edit. Repair before asking EDIT for offsets.
-    if (!c.projection_.current(*c.node_))
-      follow = c.replaceProjection();
+    const scene::FollowUp follow = this->ensureProjection(base);
     if (c.phase_ != COMMIT || c.status_ != EDITOR_OK)
       return scene::RequestApplication<LineCursor>(pending, c.status_, follow);
     const int row = c.node_->props.lines_->find(pending.line);
@@ -285,6 +308,12 @@ public:
   }
 #endif
 private:
+  bool currentBinding(scene::Node &base) const
+  {
+    TextEditorNode &node = static_cast<TextEditorNode &>(base);
+    return node.lifecycleFact() == scene::NODE_FACT_ATTACHED && node.props.lines_ == this->binding_.lines_
+           && node.props.cursorState() == this->binding_.cursorState();
+  }
   static Win32TextEditorContext &context(scene::Node &node)
   {
     return *static_cast<Win32TextEditorContext *>(node.getContext());
@@ -295,6 +324,114 @@ private:
   const LineCursor before_;
 #endif
 };
+bool Win32TextEditorContext::queryVisibleLines(unsigned &lines) const
+{
+  if (!this->hwnd_)
+    return false;
+  RECT rect = {0};
+  SendMessageW(this->hwnd_, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&rect));
+  HDC dc = GetDC(this->hwnd_);
+  if (!dc)
+    return false;
+  const HFONT font = reinterpret_cast<HFONT>(SendMessageW(this->hwnd_, WM_GETFONT, 0, 0));
+  const HGDIOBJ previous = font ? SelectObject(dc, font) : NULL;
+  TEXTMETRICW metrics = {0};
+  const BOOL measured = GetTextMetricsW(dc, &metrics);
+  if (previous)
+    SelectObject(dc, previous);
+  ReleaseDC(this->hwnd_, dc);
+  const LONG lineHeight = metrics.tmHeight + metrics.tmExternalLeading;
+  if (!measured || lineHeight <= 0 || rect.bottom <= rect.top)
+    return false;
+  // ES_AUTOHSCROLL disables wrapping: each display row is one logical line.
+  // EM_GETRECT is the control's own formatting frame, not ancestor clipping.
+  const unsigned capacity = static_cast<unsigned>((rect.bottom - rect.top) / lineHeight);
+  if (!capacity)
+    return false;
+  lines = capacity;
+  return true;
+}
+/** The command seat borrows the entry's caret pipeline and completion owner. */
+class Win32TextEditorContext::CommandOperation : public scene::SeatOperation<EditorCommand, LineCursor>
+{
+public:
+  explicit CommandOperation(RailOperation &rail)
+      : rail_(rail)
+  {
+  }
+  virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<EditorCommand> &request)
+  {
+    const TextEditorProps &props = static_cast<TextEditorNode &>(base).props;
+    request = props.command_;
+    this->rail_.capture(base);
+    if (!request.isValid() || request.state()->get().isNone())
+      return scene::ADMISSION_EMPTY;
+    return this->rail_.enterTake(base, request, &props.moveCaretTo_);
+  }
+  virtual bool current(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.current(base, request);
+  }
+  virtual EditorResult resolve(scene::Node &base, const scene::RequestBinding<EditorCommand> &request)
+  {
+    return this->rail_.resolveBinding(base, request);
+  }
+  virtual EditorResult validate(scene::Node &base, const EditorCommand &)
+  {
+    Win32TextEditorContext &c = *static_cast<Win32TextEditorContext *>(base.getContext());
+    return static_cast<TextEditorNode &>(base).seam(c.key_).availability();
+  }
+  virtual scene::RequestApplication<LineCursor> apply(scene::Node &base, const EditorCommand &pending)
+  {
+    Win32TextEditorContext &c = *static_cast<Win32TextEditorContext *>(base.getContext());
+    unsigned visibleLines = 0;
+    LineCursor target;
+    const scene::FollowUp follow = this->rail_.ensureProjection(base);
+    if (!c.queryVisibleLines(visibleLines))
+      return scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE, follow);
+    const EditorResult result =
+        static_cast<TextEditorNode &>(base).seam(c.key_).pageTarget(pending, visibleLines, target);
+    if (result != EDITOR_OK)
+      return scene::RequestApplication<LineCursor>(target, result, follow);
+    const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
+    if (applied.result() == EDITOR_OK)
+    {
+      // Scroll by an explicit line delta: EM_SCROLLCARET does nothing for a
+      // window that is not visible (hosted CI), while EM_LINESCROLL moves the
+      // formatting frame regardless of visibility.
+      const LRESULT row = SendMessageW(c.hwnd_, EM_LINEFROMCHAR, static_cast<WPARAM>(-1), 0);
+      const LRESULT first = SendMessageW(c.hwnd_, EM_GETFIRSTVISIBLELINE, 0, 0);
+      const LRESULT last = first + static_cast<LRESULT>(visibleLines) - 1;
+      const LRESULT delta = row < first ? row - first : row > last ? row - last : 0;
+      if (delta)
+        SendMessageW(c.hwnd_, EM_LINESCROLL, 0, static_cast<LPARAM>(delta));
+    }
+    return applied;
+  }
+  virtual EditorResult report(scene::Node &base, const LineCursor &applied)
+  {
+    return this->rail_.report(base, applied);
+  }
+  virtual scene::FollowUp finishTake(scene::Node &base,
+                                     const scene::Reply<EditorCommand> &reply,
+                                     const scene::RequestApplication<LineCursor> &applied)
+  {
+    Win32TextEditorContext &c = *static_cast<Win32TextEditorContext *>(base.getContext());
+    // A report subscriber can require projection repair. Preserve the page's
+    // viewport before the shared finishTake calls restoreSelection (#902), but
+    // only for an accepted command: a refused report restores the pre-command
+    // live view, so the snapshot must still describe it.
+    if (reply.kind() == scene::Reply<EditorCommand>::GRANTED && applied.result() == EDITOR_OK && c.hwnd_)
+      c.captureSelection();
+    const scene::Reply<LineCursor> caretReply = reply.kind() == scene::Reply<EditorCommand>::REFUSED
+                                                    ? scene::Reply<LineCursor>::Refused(applied.value(), reply.reason())
+                                                    : scene::Reply<LineCursor>::Granted(applied.value());
+    return this->rail_.finishTake(base, caretReply, applied);
+  }
+
+private:
+  RailOperation &rail_;
+};
 void Win32TextEditorContext::settle(scene::Settlement stimulus)
 {
   RailOperation op(this->node_);
@@ -303,9 +440,12 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus)
 void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
   scene::Node *const liveNode = this->node_;
+  CommandOperation command(op);
   const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(liveNode,
                                                                                     this,
                                                                                     op,
+                                                                                    op,
+                                                                                    command,
                                                                                     stimulus
 #ifdef TEST_BUILD
                                                                                     ,
