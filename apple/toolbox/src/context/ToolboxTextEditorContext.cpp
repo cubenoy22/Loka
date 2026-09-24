@@ -244,6 +244,14 @@ public:
       return EDITOR_UNAVAILABLE;
     return request.usesTracker(owner) ? EDITOR_OK : EDITOR_OWNER_MISMATCH;
   }
+  /** Arm cleanup at the pre-command viewport unless a refused key already
+      did: a refused report must leave the view where the entry found it. */
+  void armCommandScroll(scene::Node &base)
+  {
+    ToolboxTextEditorContext &c = context(base);
+    if (!this->follow_.contains(scene::SCROLL_CLEANUP) && c.te_)
+      this->restoreScroll((**c.te_).destRect);
+  }
   void keepCommandScroll(scene::Node &base)
   {
     ToolboxTextEditorContext &c = context(base);
@@ -447,7 +455,10 @@ public:
       return scene::RequestApplication<LineCursor>(target, result, follow);
     const scene::RequestApplication<LineCursor> applied = this->rail_.apply(base, target);
     if (applied.result() == EDITOR_OK)
+    {
+      this->rail_.armCommandScroll(base);
       c.scrollTo(applied.value());
+    }
     return applied;
   }
   virtual EditorResult report(scene::Node &base, const LineCursor &applied)
