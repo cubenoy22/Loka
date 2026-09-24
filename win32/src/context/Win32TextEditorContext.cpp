@@ -403,8 +403,10 @@ public:
   {
     Win32TextEditorContext &c = *static_cast<Win32TextEditorContext *>(base.getContext());
     // A report subscriber can require projection repair. Preserve the page's
-    // viewport before the shared finishTake calls restoreSelection (#902).
-    if (applied.result() == EDITOR_OK && c.hwnd_)
+    // viewport before the shared finishTake calls restoreSelection (#902), but
+    // only for an accepted command: a refused report restores the pre-command
+    // live view, so the snapshot must still describe it.
+    if (reply.kind() == scene::Reply<EditorCommand>::GRANTED && applied.result() == EDITOR_OK && c.hwnd_)
       c.captureSelection();
     const scene::Reply<LineCursor> caretReply = reply.kind() == scene::Reply<EditorCommand>::REFUSED
                                                     ? scene::Reply<LineCursor>::Refused(applied.value(), reply.reason())
