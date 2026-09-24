@@ -2045,7 +2045,7 @@ void testSettleHeterogeneousTraceCapture()
   for (unsigned i = 0; i != 2; ++i)
   {
     const LineCursor before = f.cursor.state()->get();
-    const LineCursor wanted(f.lines.at(i + 1).id, i);
+    const LineCursor wanted(f.lines.at(i + 1).id, static_cast<unsigned short>(i));
     TestCommand command;
     command.value = i + 1;
     f.request.set(wanted);
