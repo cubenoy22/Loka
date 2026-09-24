@@ -331,3 +331,10 @@ bool PtInRect(Point p, const Rect *r)
 {
   return p.h >= r->left && p.h < r->right && p.v >= r->top && p.v < r->bottom;
 }
+
+namespace toolbox_host { GrafPtr frontWindow = 0; }
+#include "ToolboxFocus.cpp"
+void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
+{
+  binding.textSeat.set(loka::core::String((**binding.te).text));
+}

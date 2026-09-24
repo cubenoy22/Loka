@@ -6,57 +6,6 @@
 #include "context/ToolboxEditTextContext.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
 
-bool ToolboxScenePlatformController::handleMouseDown(const Point &point)
-{
-  if (handleControlClick(point))
-  {
-    return false;
-  }
-  if (this->handleEditClick(point))
-    return true;
-  for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
-  {
-    EditHit &hit = hitLedger_.editHits_[i];
-    if (hit.text && PtInRect(point, &hit.rect))
-    {
-      focusedText_ = hit.text;
-      focusedRect_ = hit.rect;
-      hasFocusedRect_ = true;
-      return true;
-    }
-  }
-  focusedText_ = 0;
-  hasFocusedRect_ = false;
-  for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
-  {
-    PopupHit &hit = hitLedger_.popupHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  for (size_t i = 0; i < hitLedger_.cellHits_.size(); ++i)
-  {
-    CellHit &hit = hitLedger_.cellHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  for (size_t i = 0; i < hitLedger_.buttonHits_.size(); ++i)
-  {
-    ButtonHit &hit = hitLedger_.buttonHits_[i];
-    if (hit.context && PtInRect(point, &hit.rect) &&
-        hit.context->handleMouseDown(point, this))
-    {
-      return false;
-    }
-  }
-  return false;
-}
-
 void ToolboxScenePlatformController::recordButtonHit(const Rect &rect,
                                                      loka::core::EmitterState *emitter,
                                                      loka::core::State<bool> *enabled,
@@ -97,30 +46,6 @@ void ToolboxScenePlatformController::recordCellHit(const Rect &rect,
   hit.text = text;
   hitLedger_.cellHits_.push_back(hit);
   bindTextState(context->liveTextState());
-}
-
-void ToolboxScenePlatformController::recordEditHit(const Rect &rect,
-                                                   loka::core::State<loka::core::String> *text,
-                                                   loka::app::scene::BoundaryNode *boundary,
-                                                   ToolboxEditTextContext *context)
-{
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(rect, clipped))
-  {
-    return;
-  }
-  EditHit hit;
-  hit.context = context;
-  hit.rect = clipped;
-  hit.text = text;
-  hit.boundary = boundary;
-  hitLedger_.editHits_.push_back(hit);
-  bindTextState(text);
-  if (text && focusedText_ == text)
-  {
-    focusedRect_ = clipped;
-    hasFocusedRect_ = true;
-  }
 }
 
 void ToolboxScenePlatformController::recordTextHit(const Rect &rect,
