@@ -413,7 +413,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         HWND target = 0;
         if (node && node->asEditTextNode())
           target = static_cast<Win32EditTextContext *>(context)->hwnd();
-        else if (node && node->asTextEditorNode())
+        else if (node && node->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>())
           target = static_cast<Win32TextEditorContext *>(context)->hwnd();
         if (target && Win32FocusParticipant::read(target) == context)
         {
