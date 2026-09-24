@@ -13,4 +13,10 @@ void testMacTextEditorReplacementFailure();
 void testMacTextEditorHighlightAndLifecycle();
 void testMacTextEditorQueuedRequests();
 
+void testMacTextEditorPageCommands();
+void testMacTextEditorPageBindingReplacement();
+void testMacTextEditorPagePriority();
+void testMacTextEditorPageEmptyLine();
+void testMacTextEditorPageGeometryDeclinesWrappedLine();
+
 #endif

@@ -63,7 +63,9 @@ private:
   void projectHighlights();
   /** Restore the committed selection without replacing text or clearing undo. */
   void restoreSelectionFromFact();
+  bool queryVisibleLines(unsigned &) const;
   class RailOperation;
+  class CommandOperation;
   void settle(loka::app::scene::Settlement, RailOperation &);
   loka::app::scene::FollowUp prepareRestore();
   loka::app::EditorResult applyNativeChange(TextObservation source, std::size_t &caretOffset);

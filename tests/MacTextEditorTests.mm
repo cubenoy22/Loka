@@ -83,6 +83,30 @@ namespace loka
 }
 @end
 
+/** Discard the active command binding at the native selection callback seam. */
+@interface LokaCommandRebindingEditorView : LokaRequestEditorView
+{
+  loka::app::TextEditorNode *rebindNode_;
+}
+@property(nonatomic, assign) loka::app::TextEditorNode *rebindNode;
+@end
+@implementation LokaCommandRebindingEditorView
+@synthesize rebindNode = rebindNode_;
+- (void)setSelectedRange:(NSRange)range
+{
+  [super setSelectedRange:range];
+  loka::app::TextEditorNode *node = [self rebindNode];
+  [self setRebindNode:0];
+  if (node)
+  {
+    loka::app::TextEditorProps next = node->props;
+    next.command_ = loka::app::scene::RequestBinding<loka::app::EditorCommand>();
+    LOKA_VERIFY((loka::app::scene::NodePropsApplier<loka::app::TextEditorNode, loka::app::TextEditorProps>::apply(
+        node, next)));
+  }
+}
+@end
+
 namespace
 {
   using namespace loka::app;
@@ -381,9 +405,11 @@ namespace
             stack ? stack : "(no captured stack)");
   }
 
-  LokaRequestEditorView *instrumentSelection(Fixture &f)
+  LokaRequestEditorView *instrumentSelection(Fixture &f, bool commandRebind = false)
   {
-    LokaRequestEditorView *view = [[LokaRequestEditorView alloc] initWithFrame:[f.view frame]];
+    LokaRequestEditorView *view = commandRebind
+                                    ? [[LokaCommandRebindingEditorView alloc] initWithFrame:[f.view frame]]
+                                    : [[LokaRequestEditorView alloc] initWithFrame:[f.view frame]];
     [view setString:[f.view string]];
     [view setSelectedRange:[f.view selectedRange]];
     [view setDelegate:[f.view delegate]];
@@ -591,6 +617,160 @@ void testMacTextEditorQueuedRequests()
       LOKA_VERIFY(fixture.queue.pending() == 0 && fixture.queue.state()->get().isNone());
     }
   }
+}
+
+namespace
+{
+  struct PageObserver
+  {
+    Fixture &fixture;
+    unsigned reports;
+    explicit PageObserver(Fixture &f) : fixture(f), reports(0)
+    {
+      f.cursor.state()->bind(&changed, this, false);
+    }
+    ~PageObserver()
+    {
+      this->fixture.cursor.state()->unbind(&changed, this);
+    }
+    static void changed(void *data)
+    {
+      PageObserver &self = *static_cast<PageObserver *>(data);
+      ++self.reports;
+      LOKA_VERIFY(self.reports <= 2);
+      Fixture &f = self.fixture;
+      const LineCursor fact = f.cursor.state()->get();
+      // All rows in this fixture have four characters and one separator.
+      LOKA_VERIFY([f.view selectedRange].location == static_cast<NSUInteger>(f.lines.find(fact.line) * 5 + fact.column));
+      // A native notification during report must not open a nested take.
+      [[f.view delegate] textViewDidChangeSelection:
+          [NSNotification notificationWithName:NSTextViewDidChangeSelectionNotification object:f.view]];
+    }
+  };
+}
+
+void testMacTextEditorPageCommands()
+{
+  typedef loka::app::testing::SettleTrace<EditorCommand, LineCursor> Trace;
+  typedef loka::app::scene::Reply<EditorCommand> CommandReply;
+  Fixture f(80);
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditor(f.lines, f.cursor).moveCaretTo(f.queue).command(f.commands).props)));
+  f.context->onPropsApplied();
+  PageObserver observer(f);
+  const LineCursor before = f.cursor.state()->get();
+  const NSRect viewport = [f.scroll documentVisibleRect];
+  loka::app::testing::SettleTraceCapture<LineCursor>::clear();
+  {
+    StateTrackerGuard guard(&f.tracker);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+  }
+  f.context->onPropsApplied();
+  Trace &trace = Trace::instance();
+  LOKA_VERIFY(trace.size() == 1 && trace.overwritten() == 0);
+  LOKA_VERIFY(trace.at(0).count == 2 && trace.at(0).stimulus == SETTLE_PROPS);
+  LOKA_VERIFY(trace.at(0).before == before && trace.at(0).after == f.cursor.state()->get());
+  for (unsigned i = 0; i < 2; ++i)
+  {
+    LOKA_VERIFY(trace.at(0).takes[i].kind() == CommandReply::GRANTED);
+    LOKA_VERIFY(trace.at(0).takes[i].requested().kind() == EditorCommand::PAGE_DOWN);
+    LOKA_VERIFY(trace.at(0).seam[i] == EDITOR_OK);
+  }
+  LOKA_VERIFY(observer.reports == 2);
+  LOKA_VERIFY(f.lines.find(f.cursor.state()->get().line) > 1);
+  LOKA_VERIFY(f.commands.pending() == 0 && f.commands.state()->get().isNone());
+  LOKA_VERIFY(NSMinY([f.scroll documentVisibleRect]) > NSMinY(viewport));
+  char diagnostic[160];
+  snprintf(diagnostic, sizeof(diagnostic), "[MacTextEditor pages] row=%d column=%d reports=%u\n",
+           f.lines.find(f.cursor.state()->get().line), f.cursor.state()->get().column, observer.reports);
+  fputs(diagnostic, stderr);
+}
+
+void testMacTextEditorPageBindingReplacement()
+{
+  typedef loka::app::testing::SettleTrace<EditorCommand, LineCursor> Trace;
+  Fixture f(80);
+  LokaCommandRebindingEditorView *view = (LokaCommandRebindingEditorView *)instrumentSelection(f, true);
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditor(f.lines, f.cursor).moveCaretTo(f.queue).command(f.commands).props)));
+  f.context->onPropsApplied();
+  const LineCursor before = f.cursor.state()->get();
+  [view setRebindNode:&f.node];
+  loka::app::testing::SettleTraceCapture<LineCursor>::clear();
+  {
+    StateTrackerGuard guard(&f.tracker);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+  }
+  f.context->onPropsApplied();
+  LOKA_VERIFY([view rebindNode] == 0 && !f.node.props.command_.isValid());
+  LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 1);
+  LOKA_VERIFY(Trace::instance().at(0).takes[0].kind() == Reply<EditorCommand>::REFUSED);
+  LOKA_VERIFY(Trace::instance().at(0).seam[0] == EDITOR_OWNER_MISMATCH);
+  LOKA_VERIFY(f.cursor.state()->get() == before);
+}
+
+void testMacTextEditorPagePriority()
+{
+  typedef loka::app::testing::SettleTrace<EditorCommand, LineCursor> Trace;
+  Fixture f(80);
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditor(f.lines, f.cursor).moveCaretTo(f.queue).command(f.commands).props)));
+  f.context->onPropsApplied();
+  {
+    StateTrackerGuard guard(&f.tracker);
+    for (unsigned short row = 0; row < 3; ++row)
+      LOKA_VERIFY(f.queue.post(LineCursor(f.lines.at(row).id, 1)) == POST_ACCEPTED);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+  }
+  loka::app::testing::SettleTraceCapture<LineCursor>::clear();
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
+  LOKA_VERIFY(!f.queue.state()->get().isNone() && !f.commands.state()->get().isNone());
+  LOKA_VERIFY(Trace::instance().size() == 0);
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.queue.state()->get().isNone() && f.commands.state()->get().isNone());
+  LOKA_VERIFY(Trace::instance().size() == 1 && Trace::instance().at(0).count == 1);
+  LOKA_VERIFY(f.commands.reply().state()->get().kind() == Reply<EditorCommand>::GRANTED);
+  LOKA_VERIFY(f.lines.find(f.cursor.state()->get().line) > 2);
+}
+
+void testMacTextEditorPageEmptyLine()
+{
+  Fixture f(1, "");
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditor(f.lines, f.cursor).command(f.commands).props)));
+  f.context->onPropsApplied();
+  const LineCursor before = f.cursor.state()->get();
+  {
+    StateTrackerGuard guard(&f.tracker);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+  }
+  f.context->onPropsApplied();
+  LOKA_VERIFY(f.commands.reply().state()->get().kind() == Reply<EditorCommand>::GRANTED);
+  LOKA_VERIFY(f.cursor.state()->get() == before && f.commands.state()->get().isNone());
+  LOKA_VERIFY(NSEqualRanges([f.view selectedRange], NSMakeRange(0, 0)));
+}
+
+void testMacTextEditorPageGeometryDeclinesWrappedLine()
+{
+  Fixture f(3, std::string(2000, 'w'));
+  LOKA_VERIFY((NodePropsApplier<TextEditorNode, TextEditorProps>::apply(
+      &f.node, TextEditor(f.lines, f.cursor).command(f.commands).props)));
+  f.context->onPropsApplied();
+  // Force wrapping through public AppKit doors; no logical row fits in this viewport.
+  [f.view setHorizontallyResizable:NO];
+  [[f.view textContainer] setWidthTracksTextView:YES];
+  [[f.view textContainer] setContainerSize:NSMakeSize([f.scroll contentSize].width, CGFLOAT_MAX)];
+  const LineCursor before = f.cursor.state()->get();
+  {
+    StateTrackerGuard guard(&f.tracker);
+    LOKA_VERIFY(f.commands.post(EditorCommand(EditorCommand::PAGE_DOWN)) == POST_ACCEPTED);
+  }
+  f.context->onPropsApplied();
+  const Reply<EditorCommand> reply = f.commands.reply().state()->get();
+  LOKA_VERIFY(reply.kind() == Reply<EditorCommand>::REFUSED && reply.reason() == EDITOR_UNAVAILABLE);
+  LOKA_VERIFY(f.cursor.state()->get() == before && f.commands.state()->get().isNone());
 }
 
 void testMacTextEditorRequests()
