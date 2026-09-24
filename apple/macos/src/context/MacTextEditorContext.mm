@@ -472,6 +472,27 @@ public:
   {
     return this->applySelection<EditorCommand>(base, target, seat, this->binding_.command_, true);
   }
+  /** Reconcile a projection a take subscriber made stale, under exclusion.
+      Both seats measure and apply against the reconciled native string. */
+  bool ensureProjection(loka::app::scene::Node &base, loka::app::scene::FollowUp &follow)
+  {
+    MacTextEditorContext &c = context(base);
+    Projection &p = *c.projection_;
+    NSTextView *view = (NSTextView *)[(NSScrollView *)c.scroll_ documentView];
+    if (p.validateDocument(*c.node_, c.key_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
+    {
+      p.phase = Projection::RECONCILE;
+      follow = c.syncFromNode(false);
+      if (base.getContext() != &c)
+        return false;
+      // An allocation refusal inside a take must close the next admission.
+      if (follow == loka::app::scene::SCHEDULE_RESTORE)
+        c.prepareRestore();
+      if (p.phase == Projection::RECONCILE)
+        p.phase = Projection::INPUT;
+    }
+    return true;
+  }
   template <class Request>
   loka::app::scene::RequestApplication<LineCursor> applySelection(
       loka::app::scene::Node &base, const LineCursor &pending,
@@ -482,18 +503,8 @@ public:
     Projection &p = *c.projection_;
     NSTextView *view = (NSTextView *)[(NSScrollView *)c.scroll_ documentView];
     loka::app::scene::FollowUp follow = loka::app::scene::FOLLOW_NONE;
-    if (p.validateDocument(*c.node_, c.key_) != EDITOR_OK || ![[view string] isEqualToString:p.committed])
-    {
-      p.phase = Projection::RECONCILE;
-      follow = c.syncFromNode(false);
-      if (base.getContext() != &c)
-        return loka::app::scene::RequestApplication<LineCursor>(pending, EDITOR_UNAVAILABLE, follow);
-      // An allocation refusal inside a take must close the next admission.
-      if (follow == loka::app::scene::SCHEDULE_RESTORE)
-        c.prepareRestore();
-      if (p.phase == Projection::RECONCILE)
-        p.phase = Projection::INPUT;
-    }
+    if (!this->ensureProjection(base, follow))
+      return loka::app::scene::RequestApplication<LineCursor>(pending, EDITOR_UNAVAILABLE, follow);
     if (!seat.current(base, request))
       return loka::app::scene::RequestApplication<LineCursor>(pending, EDITOR_OWNER_MISMATCH, follow);
     if (p.phase != Projection::INPUT)
@@ -727,8 +738,13 @@ public:
     MacTextEditorContext &c = *static_cast<MacTextEditorContext *>(base.getContext());
     unsigned visibleLines = 0;
     LineCursor target;
+    // Geometry and the page target must come from the same snapshot: a caret
+    // seat subscriber may have edited the list in this settle (bot P2, #908).
+    loka::app::scene::FollowUp follow = loka::app::scene::FOLLOW_NONE;
+    if (!this->rail_.ensureProjection(base, follow))
+      return loka::app::scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE, follow);
     if (!c.queryVisibleLines(visibleLines))
-      return loka::app::scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE);
+      return loka::app::scene::RequestApplication<LineCursor>(target, EDITOR_UNAVAILABLE, follow);
     const EditorResult result =
         static_cast<TextEditorNode &>(base).seam(c.key_).pageTarget(pending, visibleLines, target);
     if (result != EDITOR_OK)
