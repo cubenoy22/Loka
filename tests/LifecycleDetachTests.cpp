@@ -2380,13 +2380,27 @@ namespace
     }
   };
 
+  struct RebuildRefusalObservation
+  {
+    INestable &root;
+    size_t linkedChildren;
+    explicit RebuildRefusalObservation(INestable &value)
+        : root(value), linkedChildren(value.childrenCount()) {}
+    void record() { this->linkedChildren = this->root.childrenCount(); }
+  };
+
   struct RefusingRetainedFragment : FragmentDefinition
   {
+    RebuildRefusalObservation *observation;
+    explicit RefusingRetainedFragment(RebuildRefusalObservation *value = 0)
+        : observation(value) {}
     virtual NodeDefinitionBase *clone() const { return new RefusingRetainedFragment(*this); }
     virtual bool applyPropsToNode(Node *node) const
     {
       if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
       {
+        if (this->observation)
+          this->observation->record();
         return false;
       }
       return FragmentDefinition::applyPropsToNode(node);
@@ -2566,7 +2580,8 @@ namespace
     Node *root = owner.materialize(context, previous);
     LOKA_VERIFY(root);
     Node *oldFirst = root->asNestable()->childrenHead();
-    RefusingRetainedFragment refusal;
+    RebuildRefusalObservation observation(*root->asNestable());
+    RefusingRetainedFragment refusal(&observation);
     refusal.tag(7202);
     RebuildCandidate candidate((RebuildCandidateProps(&counts)));
     candidate.tag(before ? 7201 : 7204);
@@ -2579,6 +2594,8 @@ namespace
     const bool applied = owner.rebuild(context, *root, desired);
     loka::app::testing::failLocalRebuildProbeProps(0);
     LOKA_VERIFY(!applied);
+    LOKA_VERIFY(observation.linkedChildren == 0 &&
+                "plan entries must remain unlinked until all fallible work succeeds");
     LOKA_VERIFY(counts.destroyed == 1 && counts.alive == 0);
     LOKA_VERIFY(counts.attached == 0);
     const NodeTag tags[] = {7201, 7202, 7203};

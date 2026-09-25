@@ -1202,8 +1202,7 @@ namespace loka
             {
               if (this->root_)
               {
-                // No candidate has entered ATTACH yet. Restore the old owning
-                // edges before releasing the plan's uncommitted candidates.
+                // Candidates are never linked while this guard is armed.
                 this->root_->detachChildren();
                 for (size_t i = 0; i < this->oldChildren_->size(); ++i)
                   this->root_->addChild((*this->oldChildren_)[i]);
@@ -1279,9 +1278,14 @@ namespace loka
               }
               retainedChildren.push_back(plan.entries[i].node);
             }
-            root.addChild(plan.entries[i].node);
           }
           uncommittedGuard.disarm();
+
+          for (size_t i = 0; i < plan.entries.size(); ++i)
+          {
+            if (plan.entries[i].keepsLiveNode())
+              root.addChild(plan.entries[i].node);
+          }
 
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
