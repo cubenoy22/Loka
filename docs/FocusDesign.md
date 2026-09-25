@@ -1,11 +1,15 @@
 # Focus design
 
 > **Status:** Normative
+>
 > **Owns:** Focus fact ownership, participant lifetimes, publication and completion
+>
 > **Does not own:** Exact API signatures, native focus order, or focus requests
+>
 > **Code truth:** [SceneFocus.hpp](../common/app/scene/SceneFocus.hpp),
 > [FocusPublisher.cpp](../common/app/FocusPublisher.cpp),
 > [Window.cpp](../common/app/core/Window.cpp), [App.cpp](../common/app/core/App.cpp)
+>
 > **Verification:** [SceneFocusTests.cpp](../tests/SceneFocusTests.cpp),
 > [FocusPublisherTests.cpp](../tests/FocusPublisherTests.cpp),
 > [AllocPinTests.cpp](../tests/AllocPinTests.cpp),
@@ -16,19 +20,26 @@
 
 ## From AGENTS.md
 
-Keyboard focus is one app-owned `Reported<Focused<K> >` fact per screen
-(per Scene), with publication owned by that Scene. Rails read native focus at
-an admitted completion; native notifications never write the fact, and the
+Keyboard focus is reported into app-owned `Reported<Focused<K> >` facts, one
+per screen by convention; each Scene owns its single publication. Rails call
+`App::reconcileFocus` at their outer completion and read native focus at an
+admitted completion; native notifications never write the fact, and the
 Scene's publication is not duplicated in a rail-owned record.
 
 ## The fact
 
-The app declares one `Reported<Focused<K> >` for its screen. `Focused<K>` has
-an explicit `none()`; `is(key)` tests a held key, and `key()` requires a held
-value. Keys are app data: an enum, integer id, or `ItemId`, independent of a
-control's address. LazyFlex can recreate a control while its model identity
-survives; identifying an input for any later focus request would also need
-that stable identity.
+The app declares one `Reported<Focused<K> >` for its screen. A screen that
+mixes key types (an enum form beside an id-keyed list) needs one fact per key
+type; the Scene still publishes one input at a time, and a move between facts
+passes through none (see [Write rules](#write-rules)). Initialize the fact to
+`none()`: nothing writes it until an input of that fact is published, so an
+initial key would stay stale.
+
+`Focused<K>` has an explicit `none()`; `is(key)` tests a held key, and `key()`
+requires a held value. Keys are app data: an enum, integer id, or `ItemId`,
+independent of a control's address. LazyFlex can recreate a control while its
+model identity survives; identifying an input for any later focus request
+would also need that stable identity.
 
 [Focused.hpp](../common/app/Focused.hpp) owns the key wall. `FocusKeyTraits<K>`
 has no permissive primary: a mapping must be lossless and fit one machine word.
@@ -73,19 +84,20 @@ The controller owns the native read and, on Null/Toolbox, a read-source slot.
 
 ## Three links and their lifetimes
 
-Membership joins at `BoundaryNode::composeTree` ATTACH after `attachStateOwner`
-succeeds, through `Node::asFocusParticipant`. Only leaves are queried: no
-Boundary, composable or nestable node is admitted, including a Boundary used
-as a Scene root. Joining is idempotent and refuses RETIRED nodes and another
-live membership. A refused owner-attach subtree never joins.
-See [Boundary.hpp](../common/app/scene/boundary/Boundary.hpp),
+Membership joins at `BoundaryNode::composeTree` ATTACH after
+`attachStateOwner` succeeds, through `Node::asFocusParticipant`. Only leaves
+are queried for joining: no Boundary, composable or nestable node is admitted,
+including a Boundary used as a Scene root. Joining is idempotent and silently
+refuses RETIRED nodes. It also refuses another live membership (a debug
+assert; a no-op in release builds). A refused owner-attach subtree never
+joins. See [Boundary.hpp](../common/app/scene/boundary/Boundary.hpp),
 [Boundary.cpp](../common/app/scene/boundary/Boundary.cpp), and
 [Node.hpp](../common/app/scene/Node.hpp).
 
 Membership survives parking. RETIRED, the row destructor, and the unconditional
 `disconnectAll` at the end of `Scene::teardownComposition` unlink it. The
 rootless early return also disconnects. `SceneFocus` survives
-REQUEST_DETACH / REARM.
+`REQUEST_DETACH` / `REQUEST_REARM`.
 
 Publication and read source are separate noncopyable, two-ended, callback-free
 links; a row can carry both. Cutting is idempotent, and either endpoint's
@@ -97,6 +109,7 @@ The controller's source endpoint cuts on destruction.
 Row destruction, source destruction and teardown disconnect are no-write
 safety nets. Disconnect reads neither bindings nor surviving app facts;
 reclamation invokes no living detach hook.
+Debug builds assert only that no publication survives `SceneFocus` destruction.
 
 ## Reconcile: read, do not listen
 
@@ -116,11 +129,15 @@ remain active in release builds.
 three answers: cannot answer keeps the current publication and fact unchanged;
 answered none clears publication; answered context supplies a candidate. A
 candidate needs an app participant type, membership in the current Scene,
-logical ATTACHED status and a valid binding. Inactive native windows decline,
-so their last value is held.
+logical ATTACHED status and a valid binding. A context that fails any check —
+including a text input without `.focusedAs`, which is still a member and can
+be a read source, or a control that is not a participant — is treated as
+answered none. Inactive native windows decline, so their last value is held.
 
 Reporting occurs at the next admitted completion after the gates clear. A
-modal entered from a fact observer suspends reporting, not native focus.
+modal entered from a fact observer suspends that window's reporting and,
+through [Busy exclusion](#busy-exclusion), its admission and close; native
+focus still moves.
 
 | Rail | Typed participant mark | Completion point | Declared behavior change |
 |---|---|---|---|
@@ -129,11 +146,16 @@ modal entered from a fact observer suspends reporting, not native focus.
 | macOS | Class-checked first-responder hops through Loka's field/view and delegate owner | End of `MacApp::flushInvalidationsTick`, after admission and pending relayouts | No native behavior change; existing capture/restore still moves focus, then the read follows it. Non-key windows decline. |
 | Null | Test-selected `FocusParticipant` connected to the controller's source slot | Startup and scenario-pump completion call App; direct Window completion is available through test access | Simulated focus follows the same publication and source-lifetime rules; no native behavior. |
 
-No rail interprets untyped per-window user data as a participant. Table sources:
-[ToolboxFocus.cpp](../apple/toolbox/src/ToolboxFocus.cpp),
+No rail interprets untyped per-window user data as a participant. Table
+sources: [ToolboxFocus.cpp](../apple/toolbox/src/ToolboxFocus.cpp),
 [ToolboxPresent.cpp](../apple/toolbox/src/ToolboxPresent.cpp),
 [ToolboxEditTextBinding.cpp](../apple/toolbox/src/ToolboxEditTextBinding.cpp),
+[ToolboxTextEditorBinding.cpp](../apple/toolbox/src/ToolboxTextEditorBinding.cpp)
+(`handleEditClick`, where native focus cuts the fallback),
 [Win32FocusParticipant.hpp](../win32/src/context/Win32FocusParticipant.hpp),
+[Win32EditTextContext.cpp](../win32/src/context/Win32EditTextContext.cpp) and
+[Win32TextEditorContext.cpp](../win32/src/context/Win32TextEditorContext.cpp)
+(mark attach and detach),
 [Win32ScenePlatformController.cpp](../win32/src/Win32ScenePlatformController.cpp),
 [Win32App.cpp](../win32/src/Win32App.cpp),
 [Win32Window.cpp](../win32/src/Win32Window.cpp),
@@ -143,8 +165,9 @@ No rail interprets untyped per-window user data as a participant. Table sources:
 [MacApp.mm](../apple/macos/src/MacApp.mm),
 [NullScenePlatformController.hpp](../tests/platform/null/NullScenePlatformController.hpp),
 [NullApp.hpp](../tests/platform/null/NullApp.hpp),
-[AppTestAccess.hpp](../common/testing/app/AppTestAccess.hpp), and the Null
-completion pins in `FocusPublisherTests.cpp`.
+[AppTestAccess.hpp](../common/testing/app/AppTestAccess.hpp),
+[WindowTestAccess.hpp](../common/testing/app/WindowTestAccess.hpp) (direct
+Window completion), and the Null completion pins in `FocusPublisherTests.cpp`.
 
 ## Write rules
 
@@ -162,7 +185,8 @@ Observers may briefly see no holder, never two. Reconcile does not loop to
 stability: an observer's native focus change is read at the next completion.
 Across a Scene swap, a shared fact passes through none when the old published
 row leaves ATTACHED during teardown; the new Scene publishes at its first
-eligible completion. The stranded-row exception is in [Known limits](#known-limits).
+eligible completion. The stranded-row exception is in [Known
+limits](#known-limits).
 
 ## Participant lifecycle
 
@@ -191,9 +215,10 @@ flush; no separate busy flag is stored.
 An item keeps its fact and key for its structural lifetime. Content updates
 apply item Props without re-declaring its children, so they do not reapply a
 nested `.focusedAs`; change the key through structural replacement. Ordinary
-retirement on scroll-out reports none. App data retains the key, not the focus
-value, and returning does not restore focus. Parked Match/Show branches retain
-membership but lose publication and source.
+retirement on scroll-out reports none (except for #912; see [Known
+limits](#known-limits)). App data retains the key, not the focus value, and
+returning does not restore focus. Parked Match/Show branches retain membership
+but lose publication and source.
 
 ## App errors, audited not enforced (debug builds)
 
@@ -232,10 +257,10 @@ Costs below exclude observer work; debug audit costs are listed separately.
 | Door | Caller / frequency | Work and owner of rows visited |
 |---|---|---|
 | Join | Kernel, each eligible leaf ATTACH | One capability query; O(1) idempotent membership insert; no fact write |
-| Leave / retire | Lifecycle transition | O(1) endpoint cuts, at most one none write if published; O(1) membership unlink on RETIRED |
+| Leave / retire | Every node lifecycle-fact change, all node kinds | One capability query per node (`Node::asFocusParticipant`); for participant rows, O(1) endpoint cuts, at most one none write if published; O(1) membership unlink on RETIRED |
 | Teardown disconnect | End of each composition teardown | O(M) over this Scene's surviving members, normally empty; no writes |
 | Reconcile | Each eligible live window, once per completion | Gates, one native read and pointer/type checks; on change O(1) rewire and zero to two direct fact writes; no membership walk outside debug audit |
-| App enumeration | Each outer completion | Repeated scans of App-owned group entries; for W windows, O(W squared) group visits and O(W cubed) worst-case visited-identity comparisons, plus close-pending lookups. No allocation within `VisitedWindows::INLINE_CAPACITY`; overflow uses O(W) storage and allocates. Non-window group entries also participate in scans. |
+| App enumeration | Each outer completion | Repeated scans of App-owned group entries; for W windows, O(W squared) group visits and O(W cubed) worst-case visited-identity comparisons, plus close-pending lookups. No allocation within the inline visited capacity of `App::reconcileFocus`; overflow uses O(W) storage and allocates. Non-window group entries also participate in scans. |
 | Busy check | App admission/reclaim and close draining, per window | One focus-phase read beside the existing run check |
 | Binding replacement | Participant applier | O(1) exchange and zero to two direct writes when published |
 | Source replacement | Rail, on native/test source change | O(1) endpoint rewire; no fact writes |
@@ -245,6 +270,14 @@ Costs below exclude observer work; debug audit costs are listed separately.
 The allocation pin covers steady-state App enumeration within inline capacity;
 it does not certify arbitrary window counts or allocations made by observers.
 Exact storage capacity and representations remain in the code.
+
+## Rejected shapes
+
+- Writing the fact from native notifications: no rail delivers a complete set ([#911](https://github.com/cubenoy22/Loka/issues/911)).
+- One fact per input (`.focused(aFocused)`): "one of them" is not a type, and it dies with a LazyFlex item ([#911](https://github.com/cubenoy22/Loka/issues/911)).
+- `FocusScope` / `FocusField` seat nodes: a Keyed arm misses the enclosing scope, a wrapper is not layout-transparent, and finding the scope is a multi-hop traversal ([#911](https://github.com/cubenoy22/Loka/issues/911)).
+- A per-node "Scene resident" bit: it carries no Scene identity, so a prepared replacement's rows could not be rejected ([#911](https://github.com/cubenoy22/Loka/issues/911)).
+- A common virtual focus holder implemented once per rail: it repeats the common mechanism across four implementations ([#911](https://github.com/cubenoy22/Loka/issues/911)).
 
 ## Not covered here
 

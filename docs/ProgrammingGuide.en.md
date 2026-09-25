@@ -414,10 +414,10 @@ posted by a cancellation subscriber. Cancelled work receives no reply.
 
 #### Which input has focus
 
-Declare one app-owned `Reported<Focused<K> >` per screen and give each input a
-data key. For a BMI form like [HelloWorld](../example/HelloWorld/), height and
-weight share a fact keyed by an enum. Opt the enum into the key mapping in
-`loka::app`, before using it:
+Declare one app-owned `Reported<Focused<K> >` per screen (one per key type if
+a screen mixes key types) and give each input a data key. For a BMI form like
+[HelloWorld](../example/HelloWorld/), height and weight share a fact keyed by
+an enum. Opt the enum into the key mapping in `loka::app`, before using it:
 
 ```cpp
 enum BmiField { HEIGHT, WEIGHT };
@@ -426,8 +426,10 @@ template <> struct FocusKeyTraits<BmiField> : UnsignedFocusKeyTraits<BmiField> {
 } }
 ```
 
-Keep the fact in the form's owning Node or Boundary, alive for both inputs.
-Using the existing editable `heightInput` and `weightInput` members:
+Keep the fact in the form's owning Node or Boundary, alive for both inputs,
+and initialize it to `none()`. Using the owner's editable `NodeState<String>`
+members (HelloWorld's `MainNode` names them `heightInput_` and
+`weightInput_`):
 
 ```cpp
 // Member declaration:
@@ -436,12 +438,12 @@ loka::app::scene::Reported<loka::app::Focused<BmiField> > focusedField;
 this->state(this->focusedField, loka::app::Focused<BmiField>::none());
 // In compose, with using namespace loka::app:
 c.declare(Column()
-          << EditText(this->heightInput).focusedAs(this->focusedField, HEIGHT)
-          << EditText(this->weightInput).focusedAs(this->focusedField, WEIGHT));
+          << EditText(this->heightInput_).focusedAs(this->focusedField, HEIGHT)
+          << EditText(this->weightInput_).focusedAs(this->focusedField, WEIGHT));
 // Read the fact, or observe focusedField.state():
 const Focused<BmiField> focused = this->focusedField.state()->get();
 if (focused.is(HEIGHT)) { /* The height input was reported focused. */ }
-if (!(focused != Focused<BmiField>::none())) { /* Neither input. */ }
+if (!focused.is(HEIGHT) && !focused.is(WEIGHT)) { /* Neither input. */ }
 ```
 
 These are declaration and usage excerpts, not a complete form. The same
@@ -450,22 +452,23 @@ one-word mapping; strings are not focus keys. The unsigned helper above suits
 nonnegative enums; integer ids and `ItemId` already have built-in mappings.
 
 Native focus changes are reported after the platform's next completed loop
-iteration (the next timer completion on macOS), not synchronously with a click.
-Reporting waits while a screen update or an earlier focus report is still in
-progress. A move between two inputs sharing a fact is one change, with no
-intermediate none. Moving to an input of another fact can show none between
-clearing the old fact and setting the new one.
+iteration (on macOS, the next periodic update tick), not synchronously with a
+click. Reporting waits while a screen update or an earlier focus report is
+still in progress. A move between two inputs sharing a fact is one change,
+with no intermediate none. Moving to an input of another fact can show none
+between clearing the old fact and setting the new one.
 
 None means no participating input of that fact has focus: another control may
-have it, or no control may have it. Inactivity alone keeps the last value.
+have it, or no control may have it. An inactive window keeps its last value.
 Hiding or detaching the focused input reports none, and replacing the screen
 passes through none. On Win32, reactivating the window returns keyboard focus
 to the previously reported field if it remains attached; macOS likewise
 remembers the window's focused field.
 
 Avoid declaring the same fact and key on two inputs, or sharing one fact
-between two windows. The fact only reports: there is no request to move focus.
-See [Focus design](FocusDesign.md) for the contract and its failure limits.
+between two windows. Debug builds assert when such a conflict is published.
+The fact only reports: there is no request to move focus. See [Focus
+design](FocusDesign.md) for the contract and its failure limits.
 
 ### `ObservableList` And `MirroredList`
 
@@ -1001,19 +1004,20 @@ Inserting, removing, moving, or resetting items successfully replaces the entire
 LazyScope generation: none of that generation's item-local state survives.
 Put facts that must survive paging or structure changes in the model.
 
-Give each item's EditText the screen's one focus fact and a key from the item's
-model value: an app id, or `ItemId` (which has a built-in key mapping). Scrolling
-the focused item out reports none; returning does not restore focus. Keep the
-item's fact and key fixed for its lifetime: content edits do not change its
-nested `.focusedAs`; change them through a structural edit. Native focus
-behavior on scroll-out still awaits runtime verification.
+Give each item's EditText the screen's one focus fact and a key from the
+item's model value: an app id, or `ItemId` (which has a built-in key mapping).
+Scrolling the focused item out reports none; returning does not restore focus.
+Keep the item's fact and key fixed for its lifetime: content edits do not
+change its nested `.focusedAs`; change them through a structural edit. Native
+focus behavior on scroll-out and return still awaits runtime verification.
 
-This uncompiled excerpt follows [LazyList's CardNode](../example/LazyList/src/CardNode.hpp):
-the item Props names `NodeType`, and the component declares its children in
-`composeChildren`. Constructors, comparison and ordinary text-state setup are
-omitted; `text_` is the item's own declared editable state, and `id` comes from
-the model. The screen's fact outlives the items; this excerpt uses
-`using namespace loka::app`.
+This uncompiled excerpt follows [LazyList's
+CardNode](../example/LazyList/src/CardNode.hpp): the item Props names
+`NodeType`, and the component declares its children in `composeChildren`.
+Constructors, comparison and ordinary text-state setup are omitted; `text_` is
+the item's own declared editable state, and `id` comes from the model. The
+screen's fact outlives the items; this excerpt uses `using namespace
+loka::app`.
 
 ```cpp
 class EditableCardNode;
