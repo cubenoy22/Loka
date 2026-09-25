@@ -683,3 +683,168 @@ void testPartialTreeEmptyDeclarationComposesOnce()
   LOKA_VERIFY(freshInvariant(scene, platform, "empty-refresh"));
   assert(data.declarations == 1 && data.bindings == 1 && data.factoryAttempts == 0);
 }
+
+// Retained-props refusal (fail count), defined in tests/TestingHooks.cpp.
+namespace loka { namespace app { namespace testing {
+  void failLocalRebuildProbeProps(unsigned count);
+  bool consumeLocalRebuildProbePropsFailure();
+} } }
+
+namespace
+{
+  /** Retained arm member whose props application refuses while the
+      local-rebuild fail-count hook is armed. */
+  struct PropsRefusingFragment : FragmentDefinition
+  {
+    virtual NodeDefinitionBase *clone() const
+    {
+      return new PropsRefusingFragment(*this);
+    }
+    virtual bool applyPropsToNode(Node *node) const
+    {
+      if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
+        return false;
+      return FragmentDefinition::applyPropsToNode(node);
+    }
+  };
+
+  /** Outer Conditional seat whose Fragment arm holds a nested Conditional
+      seat (arm root tag 1, a RefusedChild) and, when the fixture declares
+      two members, a retained sibling (tag 2). A refused nested arm at mount
+      leaves the Boundary's seat ledger with exactly one row: the outer
+      seat's. */
+  class NestedSeatRoot : public BoundaryNodeFor<NestedSeatRoot>
+  {
+  public:
+    explicit NestedSeatRoot(const BoundaryPropsFor<NestedSeatRoot> &props)
+        : BoundaryNodeFor<NestedSeatRoot>(props)
+    {
+    }
+    /** Test-only reach to the protected recapture door. The new plan
+        generation leaves the outer row not current, so the next apply
+        reconciles that row's arm instead of returning early. */
+    void recaptureSeatPlan()
+    {
+      this->captureBranchSeatPlan();
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++fixture->declarations;
+      RefusedChild nestedArm;
+      nestedArm.tag(1);
+      FragmentDefinition empty;
+      FragmentDefinition outerArm;
+      outerArm << ConditionalDefinition(ConditionalProps(&fixture->condition, &nestedArm, &empty));
+      if (fixture->count == 2)
+      {
+        PropsRefusingFragment sibling;
+        sibling.tag(2);
+        outerArm << sibling;
+      }
+      composition.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &outerArm, &empty)));
+    }
+  };
+
+  /** Runtime rows, counted as lines of the existing seat dump. */
+  size_t seatRowCount(Scene &scene)
+  {
+    const std::string rows =
+        loka::dsl::testing::OwnershipDump::dumpSeatRuntime(*SceneTestAccess::rootBoundary(scene));
+    size_t count = 0;
+    for (size_t i = 0; i < rows.size(); ++i)
+      if (rows[i] == '\n')
+        ++count;
+    return count;
+  }
+
+  /** Mounts with the nested arm refused and recaptures the plan. The seat
+      ledger then holds one row at capacity one: the row was the ledger's
+      first push_back into an empty vector, and libstdc++, libc++ and the
+      MSVC STL all allocate room for exactly one element there. The healing
+      reconcile stages the nested row and reserves room for two; reserve(n)
+      reallocates whenever n > capacity() ([vector.capacity]), so the outer
+      row moves while applyBranchSeat still holds it. */
+  NestedSeatRoot *mountRecapturedWithOneSeatRow(Scene &scene,
+                                                PublicationObserver &platform,
+                                                PublicationFixture &data)
+  {
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    LOKA_VERIFY(check("nested-attach", scene, platform));
+    const bool oneRowAfterRefusedMount = seatRowCount(scene) == 1 && data.refusals == 1;
+    LOKA_VERIFY(oneRowAfterRefusedMount);
+    NestedSeatRoot *root = static_cast<NestedSeatRoot *>(SceneTestAccess::rootBoundary(scene));
+    root->recaptureSeatPlan();
+    data.refusing = false;
+    return root;
+  }
+} // namespace
+
+// #925: the healing reconcile of a not-current seat grows the seat ledger;
+// the applied stamp must land on the row's new home. Before the fix this was
+// a heap-use-after-free WRITE in applyBranchSeat under testing-asan.
+void testPartialTreeNestedReconcileGrowsSeatLedger925()
+{
+  PublicationFixture data(CONDITIONAL, 1, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<NestedSeatRoot>()));
+  NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
+  Node *outerArm = root->childrenHead();
+  LOKA_VERIFY(outerArm != 0);
+  refresh(scene);
+  bool valid = check("nested-healed", scene, platform);
+  const bool outerArmReconciledInPlace = root->childrenHead() == outerArm;
+  const bool nestedRowCommitted = seatRowCount(scene) == 2;
+  const bool healedPublished = platform.published == data.declared;
+  const bool healedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
+  const int healedAttempts = data.attempts;
+  refresh(scene);
+  valid = check("nested-settled", scene, platform) && valid;
+  LOKA_VERIFY(valid);
+  LOKA_VERIFY(outerArmReconciledInPlace);
+  LOKA_VERIFY(nestedRowCommitted);
+  LOKA_VERIFY(healedPublished);
+  LOKA_VERIFY(healedWhiteCleared);
+  const bool settledInPlace = root->childrenHead() == outerArm && seatRowCount(scene) == 2 &&
+                              data.attempts == healedAttempts && platform.published == data.declared;
+  LOKA_VERIFY(settledInPlace);
+  LOKA_VERIFY(data.declarations == 1);
+}
+
+// #925: the same reconcile grows the ledger while planning and then refuses
+// at the retained sibling, so the seat falls back to a full replacement,
+// which must read the row's new home. Before the fix this was a
+// heap-use-after-free READ in replaceSeatBranch under testing-asan.
+void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
+{
+  PublicationFixture data(CONDITIONAL, 2, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<NestedSeatRoot>()));
+  NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
+  loka::app::testing::failLocalRebuildProbeProps(1);
+  refresh(scene);
+  // Positive control: the reconcile reached the retained sibling (after the
+  // reserve that grows the ledger) and refused there.
+  const bool retainedRefusalReached = !loka::app::testing::consumeLocalRebuildProbePropsFailure();
+  loka::app::testing::failLocalRebuildProbeProps(0);
+  bool valid = check("nested-refusal-replaced", scene, platform);
+  const bool nestedRowCommitted = seatRowCount(scene) == 2;
+  const bool replacedPublished = platform.published == data.declared;
+  const bool replacedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
+  Node *replacedArm = root->childrenHead();
+  const int replacedAttempts = data.attempts;
+  refresh(scene);
+  valid = check("nested-refusal-settled", scene, platform) && valid;
+  LOKA_VERIFY(retainedRefusalReached);
+  LOKA_VERIFY(valid);
+  LOKA_VERIFY(nestedRowCommitted);
+  LOKA_VERIFY(replacedPublished);
+  LOKA_VERIFY(replacedWhiteCleared);
+  const bool settledInPlace = replacedArm != 0 && root->childrenHead() == replacedArm &&
+                              seatRowCount(scene) == 2 && data.attempts == replacedAttempts &&
+                              platform.published == data.declared;
+  LOKA_VERIFY(settledInPlace);
+  LOKA_VERIFY(data.declarations == 1);
+}
