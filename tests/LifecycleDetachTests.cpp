@@ -6,14 +6,24 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/context/ComponentContext.hpp"
+#include "app/scene/node/ComponentNode.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/NullWindow.hpp"
+#include "support/Headless.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "app/nodes/nestable/Keyed.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "testing/scene/SceneFocusTestAccess.hpp"
 
 namespace
 {
@@ -2306,13 +2316,7 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
   g_detachWindowTrueCounts = 0;
 }
 
-// F1 repro: a definition is allowed to refuse retained props application.
-#include "app/nodes/nestable/Show.hpp"
-#include "platform/null/NullScenePlatformController.hpp"
-#include <cstdio>
-#include "app/scene/node/ComponentNode.hpp"
-#include "app/nodes/nestable/PolicyScope.hpp"
-
+// Retained props refusal keeps later nodes owned or retired.
 namespace loka { namespace app { namespace testing {
   void failLocalRebuildProbeProps(unsigned count);
   bool consumeLocalRebuildProbePropsFailure();
@@ -2347,8 +2351,6 @@ namespace
         strandObservation->destroyed = true;
         strandObservation->retiredBeforeDestructor = this->lifecycleFact() == NODE_FACT_RETIRED;
         strandObservation->contextReleasedBeforeDestructor = this->getContext() == 0;
-        std::fprintf(stderr, "F1 tail destructor: retired=%d context_present=%d\n",
-                     strandObservation->retiredBeforeDestructor, this->getContext() != 0);
       }
     }
   };
@@ -2385,8 +2387,6 @@ namespace
     {
       if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
       {
-        std::fprintf(stderr, "F1 refusing compatible retained definition: compatible=%d\n",
-                     this->isCompatibleWithNode(node));
         return false;
       }
       return FragmentDefinition::applyPropsToNode(node);
@@ -2472,12 +2472,8 @@ void testLocalRebuildRefusalKeepsLaterNodesOwnedOrRetired()
       LOKA_VERIFY(observation.heapCandidatesDestroyed > 0);
       LOKA_VERIFY(observation.heapCandidatesCreated - observation.heapCandidatesDestroyed
                   == reachableHeapCandidates);
-      std::fprintf(stderr, "F1 after refusal: reachable=%d retired=%d context_released=%d\n",
-                   reachable, retired, contextReleased);
       SceneTestAccess::unmount(scene);
     }
-    std::fprintf(stderr, "F1 after Scene destruction: destroyed=%d retired_before_destructor=%d\n",
-                 observation.destroyed, observation.retiredBeforeDestructor);
   }
   LOKA_VERIFY(observation.heapCandidatesCreated == observation.heapCandidatesDestroyed);
   strandObservation = 0;
@@ -2635,13 +2631,6 @@ void testLocalRebuildNestedRefusalRestoresBothOrders()
   DestroyHeapNode(root);
 }
 
-#include "app/nodes/controls/EditText.hpp"
-#include "platform/null/NullWindow.hpp"
-#include "platform/null/NullPlatformContext.hpp"
-#include "support/WindowAdmissionTestApp.hpp"
-#include "support/Headless.hpp"
-#include "testing/scene/SceneFocusTestAccess.hpp"
-
 void testLocalRebuildLiveRefusalKeepsFocusReachable()
 {
   using namespace loka::core;
@@ -2701,10 +2690,6 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable()
   loka::app::testing::failLocalRebuildProbeProps(0);
   LOKA_VERIFY(!applied);
   const bool reachable = findStrandTag(SceneTestAccess::rootNode(scene), 7403) == editor;
-  std::fprintf(stderr, "live refusal: reachable=%d attached=%d published=%d held=%d\n",
-               reachable, editor->lifecycleFact() == NODE_FACT_ATTACHED,
-               SceneFocusTestAccess::published(*editor->asFocusParticipant()),
-               focus.state()->get().is(7u));
   LOKA_VERIFY(reachable);
   LOKA_VERIFY(editor->lifecycleFact() == NODE_FACT_ATTACHED);
   LOKA_VERIFY(SceneFocusTestAccess::published(*editor->asFocusParticipant()));
