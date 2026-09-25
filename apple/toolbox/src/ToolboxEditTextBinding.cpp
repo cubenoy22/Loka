@@ -58,6 +58,8 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     syncEditTextFromState(*binding);
     TEAutoView(true, binding->te);
   }
+  if (this->fallbackFocusContext() == ownerContext)
+    this->fallbackFocus_.cut();
   // A native EditText is a live String projection just like Text and the
   // fallback EditHit. Register it at the same seam so programmatic writes can
   // reach TESetText even when no render walk follows the write.

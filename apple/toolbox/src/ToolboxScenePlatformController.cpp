@@ -454,9 +454,6 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       pendingRootNode_(0),
       rectSurfaceExtentLedger_(),
       scrollBarLedger_(kNativePoolBucketDepthCap),
-      focusedText_(0),
-      focusedRect_(),
-      hasFocusedRect_(false),
       enabledStateBindingPath_(this),
       inBatchUpdate_(false),
       pendingFullInvalidate_(false),
@@ -1072,11 +1069,6 @@ void ToolboxScenePlatformController::retireNodeContext(loka::app::scene::NodeCon
       {
         loka::core::State<loka::core::String> *text = hitLedger_.editHits_[i].text;
         retiredTextStates.push_back(text);
-        if (hasFocusedRect_ && focusedText_ == text && EqualRect(&focusedRect_, &hitLedger_.editHits_[i].rect))
-        {
-          focusedText_ = 0;
-          hasFocusedRect_ = false;
-        }
         hitLedger_.editHits_.erase(hitLedger_.editHits_.begin() + i);
       }
       else
@@ -1158,12 +1150,6 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
       previousText = hit.text;
       hit.text = hit.context->projectedTextState();
       liveText = hit.text;
-      if (this->hasFocusedRect_ && this->focusedText_ == previousText && EqualRect(&this->focusedRect_, &hit.rect))
-      {
-        this->focusedText_ = liveText;
-        if (!liveText)
-          this->hasFocusedRect_ = false;
-      }
     }
     size_t editIndex = 0;
     if (this->editControls_.find(context, editIndex))
@@ -1466,32 +1452,6 @@ void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *em
   endBatchUpdate();
 }
 
-bool ToolboxScenePlatformController::handleKeyDown(char key)
-{
-  EditTextControlBinding *focusedEdit = editControls_.focused();
-  if (focusedEdit && focusedEdit->te)
-  {
-    if (focusedEdit->editor)
-    {
-      focusedEdit->editor->key(key);
-      return true;
-    }
-    beginBatchUpdate();
-    TEKey(key, focusedEdit->te);
-    updateStateFromEdit(*focusedEdit);
-    endBatchUpdate();
-    return true;
-  }
-  beginBatchUpdate();
-  if (!handleTextKey(key))
-  {
-    endBatchUpdate();
-    return false;
-  }
-  endBatchUpdate();
-  return true;
-}
-
 void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
                                                                loka::app::scene::BoundaryNode *,
                                                                loka::core::State<int> *selectedIndex,
@@ -1513,60 +1473,7 @@ void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
   endBatchUpdate();
 }
 
-bool ToolboxScenePlatformController::handleTextKey(char key)
-{
-  if (!focusedText_)
-  {
-    return false;
-  }
-  std::string utf8;
-  loka::platform::CollectUtf8(focusedText_->get(), utf8);
-  if (key == 8 || key == 0x7F)
-  {
-    if (!utf8.empty())
-    {
-      utf8.erase(utf8.size() - 1);
-    }
-  }
-  else if (key == 13)
-  {
-    return true;
-  }
-  else if (key >= 32)
-  {
-    utf8.push_back(key);
-  }
-  else
-  {
-    return false;
-  }
-  // This is the nullable Classic fallback: TENew refused, so the EditText was
-  // drawn from its hit alone and has no editControls_ binding. The hit's
-  // context carries the write seat; the focused native binding is only a
-  // second source when one exists.
-  loka::app::scene::WriteSeat<loka::core::String> seat;
-  for (size_t i = 0; i < hitLedger_.editHits_.size(); ++i)
-  {
-    const EditHit &hit = hitLedger_.editHits_[i];
-    if (hit.text == focusedText_ && hasFocusedRect_ && EqualRect(&hit.rect, &focusedRect_))
-    {
-      if (hit.context)
-        seat = hit.context->projectedWriteSeat();
-      break;
-    }
-  }
-  if (!seat.isValid())
-  {
-    EditTextControlBinding *focusedEdit = editControls_.focused();
-    if (!focusedEdit)
-      return false;
-    seat = focusedEdit->textSeat;
-  }
-  if (!seat.isValid())
-    return false;
-  seat.set(loka::core::String(utf8));
-  return true;
-}
+#include "ToolboxFocus.cpp"
 
 void ToolboxScenePlatformController::bindTextState(loka::core::State<loka::core::String> *text)
 {

@@ -450,6 +450,14 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxTextEditorTests)
   set_target_properties(LokaToolboxTextEditorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxTextEditorTests COMMAND LokaToolboxTextEditorTests)
+
+  add_executable(LokaToolboxFocusTests tests/toolbox/host/ToolboxFocusHostTests.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxFocusTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxFocusTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxFocusTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxFocusTests)
+  set_target_properties(LokaToolboxFocusTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxFocusTests COMMAND LokaToolboxFocusTests)
   foreach(_editor_request_case request report project input clear epilogue refuse clamp
       take-edit report-edit detach rebind nested retry endless five-reposts
       trace reply-clamp reply-stale empty-settle take-refused-edit reply-edit scroll-cleanup retire-render retire-key retire-click retire-paste refused-report)
