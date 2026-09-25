@@ -17,6 +17,8 @@
 #include "Quickdraw.h"
 #include "TextEdit.h"
 #include "ToolboxEditControlLedger.hpp"
+#include "ToolboxHitLedger.hpp"
+#include "app/FocusParticipant.hpp"
 class ToolboxTextEditorContext;
 #include "ToolboxCompositionReplay.hpp"
 #include "app/scene/projection/PlatformController.hpp"
@@ -73,17 +75,23 @@ public:
     return CAP_TEXT_EDIT;
   }
 };
+namespace toolbox_host { extern GrafPtr frontWindow; }
+inline GrafPtr FrontWindow() { return toolbox_host::frontWindow; }
 class ToolboxWindow
 {
 public:
   GrafPort port;
   ToolboxWindowContext context_;
-  ToolboxWindow()
+  void (*onFlush)(void *);
+  void *flushData;
+  ToolboxWindow() : onFlush(0), flushData(0)
   {
+    toolbox_host::frontWindow = &port;
     port.txFont = 3;
     port.txSize = 12;
     port.txFace = 0;
   }
+  void flushInvalidate() { if (this->onFlush) this->onFlush(this->flushData); }
   void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
   GrafPtr window()
   {
@@ -98,13 +106,37 @@ public:
 class ToolboxEditTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
+  explicit ToolboxEditTextContext(loka::app::EditTextNode *node = 0) { this->setOwner(node); }
   loka::app::scene::WriteSeat<loka::core::String> projectedWriteSeat() const
-  { return loka::app::scene::WriteSeat<loka::core::String>(); }
+  { return this->owner() ? this->owner()->asEditTextNode()->props.text_ : loka::app::scene::WriteSeat<loka::core::String>(); }
+  virtual loka::core::State<loka::core::String> *projectedTextState()
+  { return this->projectedWriteSeat().state(); }
   void invalidateNativePresentation() {}
 };
+class ToolboxButtonContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
+class ToolboxCellContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
+class ToolboxPopupMenuContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  typedef ToolboxHitLedger::EditHit EditHit;
+  typedef ToolboxHitLedger::ButtonHit ButtonHit;
+  typedef ToolboxHitLedger::CellHit CellHit;
+  typedef ToolboxHitLedger::PopupHit PopupHit;
+  ToolboxHitLedger hitLedger_;
+  loka::app::scene::FocusLink fallbackFocus_;
+  ToolboxEditTextContext *fallbackFocusContext() const;
+  virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
+  bool handleMouseDown(const Point &);
+  bool handleControlClick(const Point &) { return false; }
+  bool handleKeyDown(char);
+  bool handleTextKey(char);
+  void beginBatchUpdate() {}
+  void endBatchUpdate() {}
+  struct EditTextControlBinding;
+  void updateStateFromEdit(EditTextControlBinding &);
+  void recordEditHit(const Rect &, loka::core::State<loka::core::String> *,
+                     loka::app::scene::BoundaryNode *, ToolboxEditTextContext *);
   struct EditTextControlBinding
   {
     loka::app::scene::NodeContext *ownerContext;

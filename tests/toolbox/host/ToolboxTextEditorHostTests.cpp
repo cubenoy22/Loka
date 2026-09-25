@@ -980,6 +980,8 @@ int main(int argc, char **argv)
     Point inside = {21, 11}, outside = {0, 0};
     LOKA_VERIFY(!(**f.te()).active);
     LOKA_VERIFY(f.controller.handleEditClick(inside));
+    NodeContext *focused = 0;
+    LOKA_VERIFY(f.controller.readNativeFocus(focused) && focused == f.context);
     LOKA_VERIFY((**f.te()).active);
     f.controller.idleTextEdits();
     LOKA_VERIFY((**f.te()).idleCalls == 1);
