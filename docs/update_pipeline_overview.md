@@ -69,20 +69,25 @@ established declaration was consumed. A successful empty mount remains completed
 Child-clone refusal in an active composition window also fails that capture;
 definitions constructed outside a window have no Boundary result to report to.
 
-For an initial declaration **without branch seats**, factory refusal keeps its
-captured instructions and hands the unlinked partial root to `PendingSubtree` for
-retirement on the existing Boundary clock. White-flag refresh materializes those
-instructions again without re-running `composeNode` or its bindings. The arena
-is not cleared across those attempts while it owns queued candidates. The pins
-in `PartialTreePublicationTests.cpp` distinguish capture retries from factory
-retries, including first/middle/last child refusal and plain-root wrapping.
+Initial materialization accepts only a complete tree, including seat-bearing
+declarations. Completeness means no allocation refusal and no unmet Boundary
+plan requirement; an empty declaration is complete. It does not mean that later
+descendant ATTACH succeeded. A refused candidate stays unlinked and retires on
+the existing Boundary clock. The initial reset removes provisional runtime rows
+and declaration scopes while retaining the captured mount instructions and cold
+reservations. An external refresh retries without re-running the Boundary's
+successful declaration. A retirement-only run does not retry.
 
-This bounded factory guarantee does not yet cover seat-bearing declarations or
-refusal during descendant ATTACH. Seat acceptance still needs attempt-scoped
-declaration lifetime and isolated State/Flow/binding participation before partial
-seat candidates can be withdrawn and replayed safely. Descendant ATTACH still
-follows child linkage. `testExpectedRedPartialTree144` records that remaining
-publication gap; retained/parked reconciliation is also outside this guarantee.
+Factory-only candidate discard synchronously withdraws BindingToken callbacks
+opened during declaration, then drops Held edges and queues storage for reclaim.
+It does not invoke attach-resource detach hooks, undo immediate callbacks already
+run, or withdraw other State-owner/NodeState/DerivedState registrations. Those
+retain their existing cleanup paths. A root refusal withholds publication; a
+nested Boundary refusal publishes the outer content with that Boundary empty.
+The initial-mount pins in `PartialTreePublicationTests.cpp` cover these paths.
+`testExpectedRedPartialTreeAttachRefusal144` marks the separate descendant-ATTACH
+atomicity gap (slice 3 of #144). Replacement and declaration staging are outside
+this initial-mount guarantee.
 
 Change the root's shape through `SceneManager::commitTransaction`, or put a
 `Match` one level below it. Scene adoption updates a desired identity; `scene()`

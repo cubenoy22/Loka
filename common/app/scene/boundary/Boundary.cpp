@@ -17,11 +17,23 @@ namespace loka
         if (row) scene.focus().join(*row);
       }
 
+      void BoundaryNode::WithdrawCandidateBindings(Node *node)
+      {
+        if (!node) return;
+        ComposableNode *composable = node->asComposable();
+        if (composable) composable->releaseCallbacks();
+        INestable *nestable = node->asNestable();
+        for (Node *child = nestable ? nestable->childrenHead() : 0;
+             child; child = child->nextInComposition)
+          WithdrawCandidateBindings(child);
+      }
+
       void BoundaryNode::RetireUnattachedCandidate(Node *root, void *data)
       {
         ComponentContext &context = *static_cast<ComponentContext *>(data);
-        // Factory-only candidates have never entered ATTACH. Drop actual owner
-        // slots through the existing owner walk without invoking detachNode.
+        // Declaration bindings may already be live, even before ATTACH.
+        // Withdraw them without invoking attach-resource detachNode hooks.
+        WithdrawCandidateBindings(root);
         DropRetainedHeldSlots(root);
         context.boundary()->retireDetachedNode(context, root);
       }
@@ -42,40 +54,53 @@ namespace loka
         const NodeMaterializationResult result = composition.createNodeTreeCompleted();
         PendingSubtree candidate(&RetireUnattachedCandidate, &context);
         candidate.prepare(result.root);
-        const bool retryFactory = (result.allocationFailed || result.requiresBoundaryPlan)
-                                  && this->branchSeats_.plans().empty();
-        if (!retryFactory && candidate.root())
+        const bool rejectedMaterialization = !result.complete();
+        if (rejectedMaterialization)
         {
-          Node *child = candidate.root();
-          if (this->seatReservations_.empty())
-            this->addChild(candidate.take());
-          else
-            candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
-          this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
-          if (candidate.root() && !this->compositionState_.allocationFailedValue())
-            this->addChild(candidate.take());
+          candidate.reclaim();
+          this->resetRejectedInitialChildren(context);
         }
-        const bool rejectedAttach = !retryFactory && candidate.root()
+        else
+        {
+          assert(result.complete() && "initial children require complete materialization");
+          if (candidate.root())
+          {
+            Node *child = candidate.root();
+            if (this->seatReservations_.empty())
+              this->addChild(candidate.take());
+            else
+              candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
+            this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
+            if (candidate.root() && !this->compositionState_.allocationFailedValue())
+              this->addChild(candidate.take());
+          }
+        }
+        const bool rejectedAttach = !rejectedMaterialization && candidate.root()
                                     && this->compositionState_.allocationFailedValue();
         if (rejectedAttach)
         {
           this->retireSeatBranchRoot(context, candidate.take());
-          this->retireDeclarationScope(context, this->branchSeats_);
-          this->forgetBranchSeatDirtySources(this->branchSeats_);
-          this->branchSeats_.clearRuntime();
-          // Remove plans appended by runtime nodes before disposing declarations.
-          // The retained mount definition and its cold reservations survive replay.
-          this->branchSeats_.capture(composition.root());
-          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
-          for (size_t i = 0; i < plans.size(); ++i)
-            plans[i].seat()->commitBranchDeclaration(0);
-          this->seatReservations_.resetInitialBuildRequests();
-          this->captureBranchSeatPlan();
-          this->noteComposeAllocationFailure();
+          this->resetRejectedInitialChildren(context);
         }
         composition.setContext(0);
         context.setComposition(0);
-        return !retryFactory && !rejectedAttach;
+        return !rejectedMaterialization && !rejectedAttach;
+      }
+
+      void BoundaryNode::resetRejectedInitialChildren(ComponentContext &context)
+      {
+        this->retireDeclarationScope(context, this->branchSeats_);
+        this->forgetBranchSeatDirtySources(this->branchSeats_);
+        this->branchSeats_.clearRuntime();
+        // Remove plans appended by runtime nodes before disposing declarations.
+        // The retained mount definition and its cold reservations survive replay.
+        this->branchSeats_.capture(this->composition().root());
+        const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+        for (size_t i = 0; i < plans.size(); ++i)
+          plans[i].seat()->commitBranchDeclaration(0);
+        this->seatReservations_.resetInitialBuildRequests();
+        this->captureBranchSeatPlan();
+        this->noteComposeAllocationFailure();
       }
 
       void BoundaryNode::destroyUncommittedLocalRebuildCandidates(

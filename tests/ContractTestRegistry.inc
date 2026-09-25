@@ -731,9 +731,14 @@ LOKA_TEST(testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement)
 LOKA_TEST(testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime)
 LOKA_TEST(testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch)
 
-// Only #144 remains expected-red: opt in with LOKA_EXPECTED_RED=1.
+// Slice 3 ATTACH refusal remains expected-red: opt in with LOKA_EXPECTED_RED=1.
 LOKA_TEST(testPartialTree629)
-LOKA_TEST(testExpectedRedPartialTree144)
+LOKA_TEST(testPartialTree144)
+LOKA_TEST(testPartialTree144PlainRoot)
+LOKA_TEST(testPartialTree144NestedBoundary)
+LOKA_TEST(testPartialTreeDiscardWithdrawsBindings)
+LOKA_TEST(testPartialTreeDrainOnlyDoesNotRetry)
+LOKA_TEST(testExpectedRedPartialTreeAttachRefusal144)
 LOKA_TEST(testPartialTree100Children)
 LOKA_TEST(testPartialTreeHealthyControl)
 LOKA_TEST(testPartialTreeNullRootSwitchRecovery)

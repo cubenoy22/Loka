@@ -2408,16 +2408,19 @@ namespace loka
           return true;
         }
 
-        /** Materialize initial children, preserving seat-free instructions on
-            factory refusal. Seat-bearing declarations retain their existing
-            acceptance/replay behavior until attempt-scoped declarations and
-            participation are available (hole B 2c). Descendant ATTACH still
-            follows linkage; this is not the whole-tree candidate wall.
+        /** Accept only a complete initial materialization, retaining the
+            declaration for retry after refusal. Descendant ATTACH failure is
+            a separate operation and is not covered by completeness.
 
-            Cost: once per mount attempt; walks this declaration's factories and
-            admitted children. Plan eligibility and slot transfer are O(1).
-            Refused roots queue on this Boundary's existing reclaim clock. */
+            Cost: once per mount attempt; walks this declaration's factories
+            and admitted children. Refused roots queue on this Boundary's clock. */
         bool materializeInitialChildren(ComponentContext &context);
+        /** Discard a factory-only candidate: withdraw BindingToken callbacks,
+            drop Held edges, then queue storage on its Boundary's reclaim clock.
+            Immediate callbacks already run are not rolled back. Other state
+            registrations retain their existing cleanup paths.
+            Cost: once per discard; allocation-free child walk plus withdrawal
+            of the candidate's callbacks and Held owner slots. */
         static void RetireUnattachedCandidate(Node *root, void *data);
 
         /** Captures the attach declaration for subsequent seat updates. */
@@ -2430,6 +2433,10 @@ namespace loka
 
       private:
         static void JoinSceneFocus(Scene &scene, Node &node);
+        static void WithdrawCandidateBindings(Node *node);
+        /** Reset provisional rows and declaration scopes after either initial
+            rejection. Reuses this Boundary's plan/reset walks once per refusal. */
+        void resetRejectedInitialChildren(ComponentContext &context);
         template <class T> NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);
