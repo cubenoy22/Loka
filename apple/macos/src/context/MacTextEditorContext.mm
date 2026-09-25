@@ -147,6 +147,12 @@ namespace
   MacTextEditorHandler handler;
 } // namespace
 
+/** Native participant mark; behavior remains NSTextView's. */
+@interface LokaTextEditorView : NSTextView
+@end
+@implementation LokaTextEditorView
+@end
+
 /** Informal text view/storage delegate selectors also work on ObjC1 SDKs. */
 @interface LokaTextEditorDelegate : NSObject
 {
@@ -786,6 +792,16 @@ void MacTextEditorContext::settle(loka::app::scene::Settlement stimulus, RailOpe
   );
 }
 
+MacTextEditorContext *MacTextEditorContext::fromNativeFocus(void *responder)
+{
+  id view = (id)responder;
+  if (![view isKindOfClass:[LokaTextEditorView class]])
+    return 0;
+  id delegate = [(LokaTextEditorView *)view delegate];
+  return [delegate isKindOfClass:[LokaTextEditorDelegate class]]
+             ? [(LokaTextEditorDelegate *)delegate owner] : 0;
+}
+
 MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controller,
                                          void *parent,
                                          loka::app::TextEditorNode *node,
@@ -800,7 +816,7 @@ MacTextEditorContext::MacTextEditorContext(MacScenePlatformController *controlle
       delegate_(0)
 {
   NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSZeroRect];
-  NSTextView *view = [[NSTextView alloc] initWithFrame:NSZeroRect];
+  NSTextView *view = [[LokaTextEditorView alloc] initWithFrame:NSZeroRect];
   LokaTextEditorDelegate *delegate = [[LokaTextEditorDelegate alloc] init];
   if (!this->projection_ || !scroll || !view || !delegate)
   {

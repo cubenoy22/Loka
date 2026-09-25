@@ -25,6 +25,7 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/scene/Node.hpp"
 #include "context/MacEditTextContext.hpp"
+#include "context/MacTextEditorContext.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
 #include "context/MacRectSurfaceContext.hpp"
 #include "context/MacScrollViewContext.hpp"
@@ -985,6 +986,19 @@ void MacScenePlatformController::finalizeKeyLoop()
       [window setInitialFirstResponder:firstField];
     }
   }
+}
+
+bool MacScenePlatformController::readNativeFocus(loka::app::scene::NodeContext *&out)
+{
+  out = 0;
+  NSWindow *window = [(NSView *)this->rootView_ window];
+  if (![window isKeyWindow])
+    return false;
+  NSResponder *responder = [window firstResponder];
+  out = MacEditTextContext::fromNativeFocus(responder);
+  if (!out)
+    out = MacTextEditorContext::fromNativeFocus(responder);
+  return true;
 }
 
 void MacScenePlatformController::captureFocusedEditField()
