@@ -522,8 +522,6 @@ void testComponentComposesChildrenOnceAfterStatesConnect()
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testComponentComposesChildrenOnceAfterStatesConnect");
 #endif
 }
 
@@ -733,8 +731,6 @@ void testComponentParkedReentryKeepsSubtreeSingular()
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testComponentParkedReentryKeepsSubtreeSingular");
 #endif
 }
 
@@ -785,7 +781,5 @@ void testComponentKeySwapRetiresResidentsTwoPhase()
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testComponentKeySwapRetiresResidentsTwoPhase");
 #endif
 }

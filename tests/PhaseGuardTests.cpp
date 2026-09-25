@@ -65,7 +65,6 @@ void testDetachClearsQueuedBoundaryUpdate()
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint("testDetachClearsQueuedBoundaryUpdate");
 #endif
   printf("==== [testDetachClearsQueuedBoundaryUpdate] end ====\n");
 }
