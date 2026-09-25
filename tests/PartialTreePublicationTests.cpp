@@ -1,4 +1,5 @@
 #include "PartialTreePublicationTests.hpp"
+#include "support/LocalRebuildRefusal.hpp"
 #include "support/PublishedTreeInvariant.hpp"
 #include "support/RecordingPlatformController.hpp"
 #include "support/TestVerify.hpp"
@@ -684,29 +685,9 @@ void testPartialTreeEmptyDeclarationComposesOnce()
   assert(data.declarations == 1 && data.bindings == 1 && data.factoryAttempts == 0);
 }
 
-// Retained-props refusal (fail count), defined in tests/TestingHooks.cpp.
-namespace loka { namespace app { namespace testing {
-  void failLocalRebuildProbeProps(unsigned count);
-  bool consumeLocalRebuildProbePropsFailure();
-} } }
-
 namespace
 {
-  /** Retained arm member whose props application refuses while the
-      local-rebuild fail-count hook is armed. */
-  struct PropsRefusingFragment : FragmentDefinition
-  {
-    virtual NodeDefinitionBase *clone() const
-    {
-      return new PropsRefusingFragment(*this);
-    }
-    virtual bool applyPropsToNode(Node *node) const
-    {
-      if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
-        return false;
-      return FragmentDefinition::applyPropsToNode(node);
-    }
-  };
+  using LocalRebuildRefusalSupport::RefusingRetainedFragment;
 
   /** Outer Conditional seat whose Fragment arm holds a nested Conditional
       seat (arm root tag 1, a RefusedChild) and, when the fixture declares
@@ -737,7 +718,7 @@ namespace
       outerArm << ConditionalDefinition(ConditionalProps(&fixture->condition, &nestedArm, &empty));
       if (fixture->count == 2)
       {
-        PropsRefusingFragment sibling;
+        RefusingRetainedFragment sibling;
         sibling.tag(2);
         outerArm << sibling;
       }
