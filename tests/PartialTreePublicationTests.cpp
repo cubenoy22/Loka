@@ -726,16 +726,11 @@ namespace
     }
   };
 
-  /** Runtime rows, counted as lines of the existing seat dump. */
-  size_t seatRowCount(Scene &scene)
+  /** Storage identity of each seat-ledger row, in dump order: the outer
+      seat's row first. Compared across a refresh, never dereferenced. */
+  std::vector<const void *> seatRows(Scene &scene)
   {
-    const std::string rows =
-        loka::dsl::testing::OwnershipDump::dumpSeatRuntime(*SceneTestAccess::rootBoundary(scene));
-    size_t count = 0;
-    for (size_t i = 0; i < rows.size(); ++i)
-      if (rows[i] == '\n')
-        ++count;
-    return count;
+    return loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*SceneTestAccess::rootBoundary(scene));
   }
 
   /** Mounts with the nested arm refused and recaptures the plan. The seat
@@ -744,7 +739,8 @@ namespace
       MSVC STL all allocate room for exactly one element there. The healing
       reconcile stages the nested row and reserves room for two; reserve(n)
       reallocates whenever n > capacity() ([vector.capacity]), so the outer
-      row moves while applyBranchSeat still holds it. */
+      row moves while applyBranchSeat still holds it. Each pin checks that
+      move directly (outerRowMoved). */
   NestedSeatRoot *mountRecapturedWithOneSeatRow(Scene &scene,
                                                 PublicationObserver &platform,
                                                 PublicationFixture &data)
@@ -752,12 +748,22 @@ namespace
     scene.mount(&platform);
     SceneTestAccess::updateAttached(scene, true);
     LOKA_VERIFY(check("nested-attach", scene, platform));
-    const bool oneRowAfterRefusedMount = seatRowCount(scene) == 1 && data.refusals == 1;
+    const bool oneRowAfterRefusedMount = seatRows(scene).size() == 1 && data.refusals == 1;
     LOKA_VERIFY(oneRowAfterRefusedMount);
     NestedSeatRoot *root = static_cast<NestedSeatRoot *>(SceneTestAccess::rootBoundary(scene));
     root->recaptureSeatPlan();
     data.refusing = false;
     return root;
+  }
+
+  /** Positive control for both pins: the refresh moved the outer row. The
+      growing reserve allocates the new buffer while the old one is still
+      live, so a moved row always has a new address, with or without the
+      fix. If this fails, the ledger was not at capacity when the reconcile
+      reserved, and the pin has stopped exercising #925. */
+  bool outerRowMoved(const void *before, const std::vector<const void *> &after)
+  {
+    return !after.empty() && after[0] != before;
   }
 } // namespace
 
@@ -773,21 +779,25 @@ void testPartialTreeNestedReconcileGrowsSeatLedger925()
   NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
   Node *outerArm = root->childrenHead();
   LOKA_VERIFY(outerArm != 0);
+  const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
   bool valid = check("nested-healed", scene, platform);
+  const std::vector<const void *> healedRows = seatRows(scene);
+  const bool outerRowReallocated = outerRowMoved(outerRowBefore, healedRows);
   const bool outerArmReconciledInPlace = root->childrenHead() == outerArm;
-  const bool nestedRowCommitted = seatRowCount(scene) == 2;
+  const bool nestedRowCommitted = healedRows.size() == 2;
   const bool healedPublished = platform.published == data.declared;
   const bool healedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
   const int healedAttempts = data.attempts;
   refresh(scene);
   valid = check("nested-settled", scene, platform) && valid;
+  LOKA_VERIFY(outerRowReallocated);
   LOKA_VERIFY(valid);
   LOKA_VERIFY(outerArmReconciledInPlace);
   LOKA_VERIFY(nestedRowCommitted);
   LOKA_VERIFY(healedPublished);
   LOKA_VERIFY(healedWhiteCleared);
-  const bool settledInPlace = root->childrenHead() == outerArm && seatRowCount(scene) == 2 &&
+  const bool settledInPlace = root->childrenHead() == outerArm && seatRows(scene).size() == 2 &&
                               data.attempts == healedAttempts && platform.published == data.declared;
   LOKA_VERIFY(settledInPlace);
   LOKA_VERIFY(data.declarations == 1);
@@ -805,13 +815,16 @@ void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
   Scene scene((Boundary<NestedSeatRoot>()));
   NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
   loka::app::testing::failLocalRebuildProbeProps(1);
+  const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
-  // Positive control: the reconcile reached the retained sibling (after the
-  // reserve that grows the ledger) and refused there.
+  // Positive controls: the reconcile reached the retained sibling (after the
+  // reserve that grows the ledger) and refused there, and the row moved.
   const bool retainedRefusalReached = !loka::app::testing::consumeLocalRebuildProbePropsFailure();
   loka::app::testing::failLocalRebuildProbeProps(0);
   bool valid = check("nested-refusal-replaced", scene, platform);
-  const bool nestedRowCommitted = seatRowCount(scene) == 2;
+  const std::vector<const void *> replacedRows = seatRows(scene);
+  const bool outerRowReallocated = outerRowMoved(outerRowBefore, replacedRows);
+  const bool nestedRowCommitted = replacedRows.size() == 2;
   const bool replacedPublished = platform.published == data.declared;
   const bool replacedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
   Node *replacedArm = root->childrenHead();
@@ -819,12 +832,13 @@ void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
   refresh(scene);
   valid = check("nested-refusal-settled", scene, platform) && valid;
   LOKA_VERIFY(retainedRefusalReached);
+  LOKA_VERIFY(outerRowReallocated);
   LOKA_VERIFY(valid);
   LOKA_VERIFY(nestedRowCommitted);
   LOKA_VERIFY(replacedPublished);
   LOKA_VERIFY(replacedWhiteCleared);
   const bool settledInPlace = replacedArm != 0 && root->childrenHead() == replacedArm &&
-                              seatRowCount(scene) == 2 && data.attempts == replacedAttempts &&
+                              seatRows(scene).size() == 2 && data.attempts == replacedAttempts &&
                               platform.published == data.declared;
   LOKA_VERIFY(settledInPlace);
   LOKA_VERIFY(data.declarations == 1);
