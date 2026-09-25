@@ -1106,3 +1106,56 @@ void testFocusAppVisitedSpill()
   for (unsigned i = 0; i != 10; ++i)
     delete windows[i];
 }
+
+namespace
+{
+  void noPublishedContext(void *data)
+  {
+    Fixture &f = *static_cast<Fixture *>(data);
+    LOKA_VERIFY(!loka::app::testing::WindowTestAccess::publishedFocusContext(f.window));
+  }
+}
+
+void testFocusPublishedContext()
+{
+  typedef loka::app::testing::WindowTestAccess Access;
+  Fixture f;
+  LOKA_VERIFY(!Access::publishedFocusContext(f.window));
+  f.focus(f.height);
+  LOKA_VERIFY(Access::publishedFocusContext(f.window) == f.height.getContext());
+  // A native reactivation read does not ask the inactive rail or mutate the fact.
+  f.platform.answered = false;
+  const unsigned reads = f.platform.reads;
+  LOKA_VERIFY(Access::publishedFocusContext(f.window) == f.height.getContext());
+  LOKA_VERIFY(f.platform.reads == reads);
+  LOKA_VERIFY(f.facts.first.state()->get().is(FOCUS_HEIGHT));
+  loka::dsl::testing::SceneTestAccess::withoutRoot(f.scene, &noPublishedContext, &f);
+  {
+    Fixture gated;
+    gated.focus(gated.height);
+    // Observe the Scene's detached fact before teardown clears its root/rows.
+    gated.scene.getAttachedState()->bind(&noPublishedContext, &gated, false);
+    loka::dsl::testing::SceneTestAccess::updateAttached(gated.scene, false);
+    gated.scene.getAttachedState()->unbind(&noPublishedContext, &gated);
+    noPublishedContext(&gated);
+  }
+  NotifySubtreeNodeDetached(&f.height);
+  LOKA_VERIFY(!Access::publishedFocusContext(f.window));
+  // Force inconsistent endpoints only through kernel test access to pin each
+  // defensive query wall independently of ordinary detach cutting publication.
+  SceneFocusTestAccess::publish(f.scene.focus(), f.height.focusParticipant);
+  LOKA_VERIFY(!Access::publishedFocusContext(f.window));
+  NotifySubtreeNodeAttached(&f.height);
+  LOKA_VERIFY(Access::publishedFocusContext(f.window) == f.height.getContext());
+  {
+    Fixture other;
+    SceneFocusTestAccess::publish(f.scene.focus(), other.height.focusParticipant);
+    LOKA_VERIFY(!Access::publishedFocusContext(f.window));
+  }
+  FocusRow foreign;
+  SceneFocusTestAccess::join(f.scene.focus(), foreign);
+  SceneFocusTestAccess::publish(f.scene.focus(), foreign);
+  LOKA_VERIFY(!Access::publishedFocusContext(f.window));
+  NullWindow empty(&f.context, WindowProps(), &f.platform);
+  LOKA_VERIFY(!Access::publishedFocusContext(empty));
+}

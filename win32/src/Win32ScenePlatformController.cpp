@@ -1,4 +1,5 @@
 #include "Win32ScenePlatformController.hpp"
+#include "context/Win32FocusParticipant.hpp"
 #include "context/Win32EditTextBridge.hpp"
 #include "app/layout/CanvasLayout.hpp"
 #include "Win32BuiltInSupport.hpp"
@@ -1596,4 +1597,15 @@ HWND loka::win32::CreateEditTextControl(HWND parent, const NativeRect &geometry)
                          NULL,
                          GetModuleHandleW(NULL),
                          NULL);
+}
+
+bool Win32ScenePlatformController::readNativeFocus(loka::app::scene::NodeContext *&out)
+{
+  out = 0;
+  if (!this->rootHwnd_ || GetActiveWindow() != this->rootHwnd_)
+    return false;
+  const HWND focused = GetFocus();
+  if (focused && IsChild(this->rootHwnd_, focused))
+    out = Win32FocusParticipant::read(focused);
+  return true;
 }

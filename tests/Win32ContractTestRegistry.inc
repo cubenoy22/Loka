@@ -1,3 +1,5 @@
+LOKA_TEST(testWin32FocusReadAndRestore)
+LOKA_TEST(testWin32FocusCompletion)
 LOKA_TEST(testWin32ThreadModalScopeHoldsSiblingsDisabled)
 LOKA_TEST(testWin32NodeHandlerEnsureContract)
 LOKA_TEST(testWin32TextFontTable)

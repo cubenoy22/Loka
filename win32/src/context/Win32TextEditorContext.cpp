@@ -1,4 +1,5 @@
 #include "Win32TextEditorContext.hpp"
+#include "Win32FocusParticipant.hpp"
 #include "Win32EditTextBridge.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
 #include "../Win32ScenePlatformController.hpp"
@@ -458,6 +459,8 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &o
 }
 void Win32TextEditorContext::readLifecycleFactOnAttach()
 {
+  if (this->hwnd_ && this->node_ && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
+    Win32FocusParticipant::attach(this->hwnd_, this);
   this->syncFromNode(scene::SETTLE_ATTACH);
 }
 void Win32TextEditorContext::onPropsApplied()
@@ -471,12 +474,14 @@ void Win32TextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::Node
     return;
   if (next == scene::NODE_FACT_ATTACHED)
   {
+    Win32FocusParticipant::attach(this->hwnd_, this);
     scene::Node *const liveNode = this->node_;
     this->syncFromNode(scene::SETTLE_ATTACH);
     if (liveNode && liveNode->getContext() == this && liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED)
       ShowWindow(this->hwnd_, SW_SHOW);
     return;
   }
+  Win32FocusParticipant::detach(this->hwnd_);
   KillTimer(this->hwnd_, kRestoreTimer);
   ShowWindow(this->hwnd_, SW_HIDE);
   SendMessageW(this->hwnd_, EM_SETREADONLY, TRUE, 0);

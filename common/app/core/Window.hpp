@@ -611,6 +611,9 @@ public:
     return &sceneManager_;
   }
 protected:
+  /** Borrow the current Scene's published participant for native reactivation.
+      Refuses absent/detached Scenes, missing roots, nonmembers and detached rows. */
+  loka::app::scene::NodeContext *publishedFocusContext();
   friend class SceneManager;
   /** Binds the candidate to this rail without publishing it. A Window without
       native resources succeeds; its ordinary mount will run after creation. */

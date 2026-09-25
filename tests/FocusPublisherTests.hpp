@@ -32,4 +32,5 @@ void testFocusNullCompletion();
 void testFocusForeignRow();
 void testFocusAppReenumeratesMultipleRemovals();
 void testFocusAppVisitedSpill();
+void testFocusPublishedContext();
 #endif

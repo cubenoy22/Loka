@@ -9,6 +9,9 @@
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32OpenFileDialogContext.hpp"
 #include "context/Win32ScrollViewContext.hpp"
+#include "context/Win32EditTextContext.hpp"
+#include "context/Win32TextEditorContext.hpp"
+#include "context/Win32FocusParticipant.hpp"
 #include "core/String.hpp"
 #include "platform/Win32String.hpp"
 #include "platform/Win32DisplayScale.hpp"
@@ -401,6 +404,22 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       if (self->app_ && LOWORD(wParam) != WA_INACTIVE)
       {
         self->app_->setActiveWindow(static_cast<Window *>(self));
+      }
+      if ((LOWORD(wParam) == WA_ACTIVE || LOWORD(wParam) == WA_CLICKACTIVE)
+          && !HIWORD(wParam))
+      {
+        loka::app::scene::NodeContext *context = self->publishedFocusContext();
+        loka::app::scene::Node *node = context ? context->owner() : 0;
+        HWND target = 0;
+        if (node && node->asEditTextNode())
+          target = static_cast<Win32EditTextContext *>(context)->hwnd();
+        else if (node && node->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>())
+          target = static_cast<Win32TextEditorContext *>(context)->hwnd();
+        if (target && Win32FocusParticipant::read(target) == context)
+        {
+          SetFocus(target);
+          return 0;
+        }
       }
       break;
     case WM_CTLCOLORSTATIC:

@@ -17,6 +17,10 @@ namespace loka
       class WindowTestAccess
       {
       public:
+        static scene::NodeContext *publishedFocusContext(::Window &window)
+        {
+          return window.publishedFocusContext();
+        }
         static void reconcileFocus(::Window &window) { window.reconcileFocus(); }
 
         static void storeNativeFrame(::Window &window, const loka::core::Frame &frame)

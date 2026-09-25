@@ -63,6 +63,12 @@ namespace loka
         }
       }
 
+      scene::NodeContext *FocusPublisher::publishedContext(scene::SceneFocus &current)
+      {
+        FocusParticipant *row = FocusParticipant::from(current.published_.peerRow());
+        return row && row->owner_ == &current && attached(*row) ? row->context() : 0;
+      }
+
       void FocusPublisher::reconcile(scene::SceneFocus &current, bool answered, scene::NodeContext *context)
       {
         if (!answered)

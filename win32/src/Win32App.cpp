@@ -169,7 +169,8 @@ void Win32App::run()
         break;
       }
       HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-      if (root && IsDialogMessage(root, &msg))
+      // Dialog navigation still reaches the outer admission/completion tail.
+      if (root && IsDialogMessageW(root, &msg))
       {
         continue;
       }
@@ -197,6 +198,7 @@ void Win32App::run()
       idlePacer.reset();
       this->flushMenuInvalidation();
       this->flushWindowInvalidations();
+      this->reconcileFocus();
       if (this->hasPendingWindowAdmission())
         continue;
       if (!handledMessage)
@@ -222,6 +224,7 @@ void Win32App::run()
     }
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
+    this->reconcileFocus();
     const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
     if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
     {

@@ -90,6 +90,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ScrollViewTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FocusTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32TextEditorTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32OpenFileDialogTransportTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
