@@ -4,6 +4,7 @@
 #include "support/TestVerify.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/boundary/LazyScopeDefinition.hpp"
@@ -1520,4 +1521,109 @@ void testPartialReplacementDeclarationDiscardSkipsDetach()
   data.refusing = false;
   refresh(scene);
   LOKA_VERIFY(data.scopeAttaches == 2 && data.scopeDetaches == 1);
+}
+
+namespace
+{
+  class ConditionalObservedRoot : public BoundaryNodeFor<ConditionalObservedRoot>
+  {
+  public:
+    explicit ConditionalObservedRoot(const BoundaryPropsFor<ConditionalObservedRoot> &p)
+        : BoundaryNodeFor<ConditionalObservedRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      FragmentDefinition incoming, outgoing;
+      incoming << LazyScopeDefinition<int, InnerObservedScope>(fixture->input, InnerObservedProps());
+      outgoing.tag(9);
+      c.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &incoming, &outgoing)));
+    }
+  };
+
+  class ShowObservedRoot : public BoundaryNodeFor<ShowObservedRoot>
+  {
+  public:
+    explicit ShowObservedRoot(const BoundaryPropsFor<ShowObservedRoot> &p)
+        : BoundaryNodeFor<ShowObservedRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(Show(fixture->condition).destroyOnDetach()
+                << LazyScopeDefinition<int, InnerObservedScope>(fixture->input, InnerObservedProps()));
+    }
+  };
+
+  void verifyImmediateInnerSelection(Scene &scene, PublicationObserver &platform)
+  {
+    {
+      loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+      fixture->nestedSelection.set(true);
+    }
+    scene.flushInvalidation(); // One flush; no external refresh to repair observation.
+    LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 31));
+  }
+
+  template <class RootT> void ordinaryArmObservations()
+  {
+    PublicationFixture data(NULL_ROOT, 0, false);
+    FixtureScope scope(data);
+    PublicationObserver platform;
+    Scene scene((Boundary<RootT>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    flipReplacement(scene, true);
+    LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 32));
+    LOKA_VERIFY(scopeRoots(SceneTestAccess::rootBoundary(scene)) == 1);
+    verifyImmediateInnerSelection(scene, platform);
+  }
+
+  class LocalObservedRoot : public BoundaryNodeFor<LocalObservedRoot>
+  {
+  public:
+    explicit LocalObservedRoot(const BoundaryPropsFor<LocalObservedRoot> &p)
+        : BoundaryNodeFor<LocalObservedRoot>(p) {}
+    virtual void composeNode(NodeComposition &c) { c.declare(FragmentDefinition()); }
+
+    /** Exercise the local rebuild commit directly with a Boundary-owned definition. */
+    bool installForTest(Scene &scene, IPlatformController &platform)
+    {
+      FragmentDefinition incoming;
+      incoming << LazyScopeDefinition<int, InnerObservedScope>(fixture->input, InnerObservedProps());
+      this->composition().declare(FragmentDefinition()
+          << ConditionalDefinition(ConditionalProps(&fixture->condition, &incoming, 0)));
+      this->captureBranchSeatPlan();
+      this->clearPhaseResults();
+      ComponentContext context;
+      context.setBoundary(this);
+      context.setStateOwner(this);
+      context.setScene(&scene);
+      context.setPlatformController(&platform);
+      return this->reconcileParkedBranch(context, this->compositionRootNode(), this->composition().root());
+    }
+  };
+}
+
+void testPartialReplacementConditionalCommitsNestedObservations()
+{
+  ordinaryArmObservations<ConditionalObservedRoot>();
+}
+
+void testPartialReplacementShowCommitsNestedObservations()
+{
+  ordinaryArmObservations<ShowObservedRoot>();
+}
+
+void testPartialReplacementLocalRebuildCommitsNestedObservations()
+{
+  PublicationFixture data(CONDITIONAL, 0, false);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<LocalObservedRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  LocalObservedRoot *root = static_cast<LocalObservedRoot *>(SceneTestAccess::rootBoundary(scene));
+  const bool installed = root->installForTest(scene, platform);
+  LOKA_VERIFY(installed && scopeRoots(root) == 1);
+  std::vector<NodeTag> logical;
+  SceneTestSupport::CollectPublishedTags(root, logical);
+  LOKA_VERIFY(logical == std::vector<NodeTag>(1, 32));
+  verifyImmediateInnerSelection(scene, platform);
 }

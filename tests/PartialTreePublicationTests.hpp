@@ -31,4 +31,7 @@ void testPartialReplacementDiscardSkipsDetach();
 void testPartialReplacementStagingAllocationRefusal();
 void testPartialReplacementDeclarationDiscardSkipsDetach();
 void testPartialReplacementAdmittedDiscardSkipsDetach();
+void testPartialReplacementConditionalCommitsNestedObservations();
+void testPartialReplacementShowCommitsNestedObservations();
+void testPartialReplacementLocalRebuildCommitsNestedObservations();
 #endif

@@ -516,6 +516,16 @@ namespace loka
               this->registerBranchSeatDirtySources(*nested);
           }
         }
+        /** Publish staged declarations and rows before observing the accepted
+            scope tree once. Callers choose the owning boundary or a newly
+            installed declaration scope; nested scopes are visited recursively.
+            Cost: once per enclosing commit, walks that scope's seat sources. */
+        void commitBranchSeatRegistrations(BoundaryBranchSeatRuntimeRegistrationPlan &registrations,
+                                           BoundaryBranchSeatState &observationScope)
+        {
+          registrations.commitTo(this->branchSeats_);
+          this->registerBranchSeatDirtySources(observationScope);
+        }
         /** Outgoing declaration registrations stop owning their sources before
             publication. Surviving seats and the boundary are registered again;
             descendant nodes register in the following child walk. */
@@ -719,8 +729,7 @@ namespace loka
           else
           {
             plan.seat()->commitBranchDeclaration(candidate.take());
-            nested.commitTo(this->branchSeats_);
-            this->registerBranchSeatDirtySources(*plan.seat()->declaredBranchSeats());
+            this->commitBranchSeatRegistrations(nested, *plan.seat()->declaredBranchSeats());
           }
           return result;
         }
@@ -1306,8 +1315,7 @@ namespace loka
               this->retireParkedBranchForRemovedSeat(context, detachedNode);
             }
           }
-          plan.branchSeatRegistrations.commitTo(this->branchSeats_);
-          this->registerBranchSeatDirtySources();
+          this->commitBranchSeatRegistrations(plan.branchSeatRegistrations, this->branchSeats_);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
@@ -1945,12 +1953,9 @@ namespace loka
               this->forgetBranchSeatDirtySources(*outgoingScope);
             plan.seat()->commitBranchDeclaration(candidate.take());
           }
-          nestedRegistrations.commitTo(this->branchSeats_);
+          this->commitBranchSeatRegistrations(nestedRegistrations, this->branchSeats_);
           if (declaresBranch)
-          {
-            this->registerBranchSeatDirtySources();
             declareBoundaryDirtySources(this, this);
-          }
           BoundaryBranchSeatRuntimeEntry *committedRuntime =
               this->branchSeats_.findRuntime(plan.key);
           assert(committedRuntime &&
