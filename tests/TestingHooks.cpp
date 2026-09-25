@@ -233,3 +233,19 @@ namespace loka
   } // namespace testing
 } // namespace loka
 #endif
+
+#ifdef TEST_BUILD
+namespace loka { namespace app { namespace testing {
+  namespace { unsigned localRebuildProbePropsFailures = 0; }
+  void failLocalRebuildProbeProps(unsigned count)
+  {
+    localRebuildProbePropsFailures = count;
+  }
+  bool consumeLocalRebuildProbePropsFailure()
+  {
+    if (!localRebuildProbePropsFailures) return false;
+    --localRebuildProbePropsFailures;
+    return true;
+  }
+} } }
+#endif

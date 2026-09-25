@@ -6,14 +6,24 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/PolicyScope.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/context/ComponentContext.hpp"
+#include "app/scene/node/ComponentNode.hpp"
 #include "app/scene/node/Conditional.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullScenePlatformController.hpp"
+#include "platform/null/NullWindow.hpp"
+#include "support/Headless.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "app/nodes/nestable/Keyed.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "testing/scene/SceneFocusTestAccess.hpp"
 
 namespace
 {
@@ -2304,4 +2314,429 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
   g_detachWindowCondition = 0;
   g_detachWindowFalseCounts = 0;
   g_detachWindowTrueCounts = 0;
+}
+
+// Retained props refusal keeps later nodes owned or retired.
+namespace loka { namespace app { namespace testing {
+  void failLocalRebuildProbeProps(unsigned count);
+  bool consumeLocalRebuildProbePropsFailure();
+} } }
+
+namespace
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  struct StrandObservation
+  {
+    Node *tail;
+    bool destroyed;
+    bool retiredBeforeDestructor;
+    bool contextReleasedBeforeDestructor;
+    unsigned heapCandidatesCreated, heapCandidatesDestroyed;
+    StrandObservation() : tail(0), destroyed(false), retiredBeforeDestructor(false), contextReleasedBeforeDestructor(false),
+        heapCandidatesCreated(0), heapCandidatesDestroyed(0) {}
+  };
+  StrandObservation *strandObservation = 0;
+  loka::core::MutableState<bool> *strandVisible = 0;
+
+  class StrandTextNode : public TextNode
+  {
+  public:
+    explicit StrandTextNode(const TextProps &props) : TextNode(props) {}
+    virtual ~StrandTextNode()
+    {
+      if (strandObservation && strandObservation->tail == this)
+      {
+        strandObservation->destroyed = true;
+        strandObservation->retiredBeforeDestructor = this->lifecycleFact() == NODE_FACT_RETIRED;
+        strandObservation->contextReleasedBeforeDestructor = this->getContext() == 0;
+      }
+    }
+  };
+
+  class StrandCandidateNode : public TextNode
+  {
+  public:
+    explicit StrandCandidateNode(const TextProps &props) : TextNode(props) {}
+    virtual ~StrandCandidateNode()
+    {
+      if (strandObservation && !this->isArenaAllocated())
+        ++strandObservation->heapCandidatesDestroyed;
+    }
+  };
+
+  /** Force a real REPLACE candidate during the parked branch's re-entry. */
+  struct StrandCandidateDefinition : NodeDefinition<TextProps, StrandCandidateNode>
+  {
+    virtual NodeDefinitionBase *clone() const { return new StrandCandidateDefinition(*this); }
+    virtual bool isCompatibleWithNode(const Node *) const { return false; }
+    virtual Node *create() const
+    {
+      Node *node = NodeDefinition<TextProps, StrandCandidateNode>::create();
+      if (node && strandObservation)
+        ++strandObservation->heapCandidatesCreated;
+      return node;
+    }
+  };
+
+  struct RebuildRefusalObservation
+  {
+    INestable &root;
+    size_t linkedChildren;
+    explicit RebuildRefusalObservation(INestable &value)
+        : root(value), linkedChildren(value.childrenCount()) {}
+    void record() { this->linkedChildren = this->root.childrenCount(); }
+  };
+
+  struct RefusingRetainedFragment : FragmentDefinition
+  {
+    RebuildRefusalObservation *observation;
+    explicit RefusingRetainedFragment(RebuildRefusalObservation *value = 0)
+        : observation(value) {}
+    virtual NodeDefinitionBase *clone() const { return new RefusingRetainedFragment(*this); }
+    virtual bool applyPropsToNode(Node *node) const
+    {
+      if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
+      {
+        if (this->observation)
+          this->observation->record();
+        return false;
+      }
+      return FragmentDefinition::applyPropsToNode(node);
+    }
+  };
+
+  class StrandBoundary;
+  typedef BoundaryPropsFor<StrandBoundary> StrandProps;
+  class StrandBoundary : public BoundaryNodeFor<StrandBoundary>
+  {
+  public:
+    explicit StrandBoundary(const StrandProps &props) : BoundaryNodeFor<StrandBoundary>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      FragmentDefinition prefix;
+      prefix.tag(7101);
+      RefusingRetainedFragment refusal;
+      refusal.tag(7102);
+      NodeDefinition<TextProps, StrandTextNode> tail((TextProps("tail")));
+      tail.tag(7103);
+      StrandCandidateDefinition candidate;
+      candidate.tag(7104);
+      composition.declare(Show(*strandVisible) << prefix << candidate << refusal << tail);
+    }
+  };
+
+  Node *findStrandTag(Node *node, NodeTag tag)
+  {
+    if (!node || node->nodeTag() == tag)
+      return node;
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0;
+         child; child = child->nextInComposition)
+    {
+      Node *found = findStrandTag(child, tag);
+      if (found) return found;
+    }
+    return 0;
+  }
+}
+
+void testLocalRebuildRefusalKeepsLaterNodesOwnedOrRetired()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  StrandObservation observation;
+  loka::core::MutableState<bool> visible(true);
+  strandObservation = &observation;
+  strandVisible = &visible;
+  bool ownedOrRetired = false;
+  {
+    NullScenePlatformController platform;
+    {
+      Scene scene((Boundary<StrandBoundary>()));
+      scene.mount(&platform);
+      SceneTestAccess::updateAttached(scene, true);
+      observation.tail = findStrandTag(SceneTestAccess::rootNode(scene), 7103);
+      LOKA_VERIFY(observation.tail && observation.tail->getContext());
+      {
+        loka::core::StateTrackerGuard transaction(visible.trackerOwner());
+        visible.set(false);
+      }
+      scene.flushInvalidation();
+      LOKA_VERIFY(!observation.destroyed);
+      // Fail-count injection lives in TestingHooks.cpp. Keep refusal armed
+      // through the complete run so internal retries cannot hide the defect.
+      loka::app::testing::failLocalRebuildProbeProps(
+          100);
+      {
+        loka::core::StateTrackerGuard transaction(visible.trackerOwner());
+        visible.set(true);
+      }
+      scene.flushInvalidation();
+      loka::app::testing::failLocalRebuildProbeProps(0);
+      const bool reachable = !observation.destroyed &&
+          findStrandTag(SceneTestAccess::rootNode(scene), 7103) == observation.tail;
+      const bool retired = observation.destroyed ? observation.retiredBeforeDestructor
+          : observation.tail->lifecycleFact() == NODE_FACT_RETIRED;
+      const bool contextReleased = observation.destroyed ? observation.contextReleasedBeforeDestructor
+          : observation.tail->getContext() == 0;
+      ownedOrRetired = reachable || (retired && contextReleased);
+      Node *candidate = findStrandTag(SceneTestAccess::rootNode(scene), 7104);
+      const unsigned reachableHeapCandidates = candidate && !candidate->isArenaAllocated() ? 1 : 0;
+      LOKA_VERIFY(observation.heapCandidatesDestroyed > 0);
+      LOKA_VERIFY(observation.heapCandidatesCreated - observation.heapCandidatesDestroyed
+                  == reachableHeapCandidates);
+      SceneTestAccess::unmount(scene);
+    }
+  }
+  LOKA_VERIFY(observation.heapCandidatesCreated == observation.heapCandidatesDestroyed);
+  strandObservation = 0;
+  strandVisible = 0;
+  LOKA_VERIFY(ownedOrRetired && "every old node must remain reachable or be retired after refusal");
+}
+
+namespace
+{
+  struct RebuildCandidateCounts
+  {
+    unsigned alive, destroyed, attached;
+    RebuildCandidateCounts() : alive(0), destroyed(0), attached(0) {}
+  };
+  class RebuildCandidateNode;
+  struct RebuildCandidateTag {};
+  struct RebuildCandidateProps : NodePropsBase<RebuildCandidateProps>
+  {
+    typedef RebuildCandidateTag TypeTag;
+    typedef RebuildCandidateNode NodeType;
+    RebuildCandidateCounts *counts;
+    explicit RebuildCandidateProps(RebuildCandidateCounts *value = 0) : counts(value) {}
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (this->propsTypeId() != rhs.propsTypeId())
+        return this->propsTypeId() < rhs.propsTypeId();
+      return this->counts < static_cast<const RebuildCandidateProps &>(rhs).counts;
+    }
+  };
+  class RebuildCandidateNode : public ComponentNodeWithProps<RebuildCandidateProps>
+  {
+  public:
+    explicit RebuildCandidateNode(const RebuildCandidateProps &p)
+        : ComponentNodeWithProps<RebuildCandidateProps>(p) { ++this->props.counts->alive; }
+    virtual ~RebuildCandidateNode()
+    {
+      --this->props.counts->alive;
+      ++this->props.counts->destroyed;
+    }
+    virtual void attachNode(NodeComposition &) { ++this->props.counts->attached; }
+    virtual void composeChildren(NodeComposition &) {}
+  };
+  typedef NodeDefinition<RebuildCandidateProps, RebuildCandidateNode> RebuildCandidate;
+
+  /** Existing protected plan doors, exposed only by this test Boundary. */
+  class RebuildRefusalHarness : public BoundaryNodeFor<RebuildRefusalHarness>
+  {
+  public:
+    explicit RebuildRefusalHarness(const BoundaryPropsFor<RebuildRefusalHarness> &p)
+        : BoundaryNodeFor<RebuildRefusalHarness>(p) {}
+    virtual void composeNode(NodeComposition &) {}
+    Node *materialize(ComponentContext &context, NodeDefinitionBase &definition)
+    { return this->materializeLocalRebuildNode(context, &definition); }
+    bool rebuild(ComponentContext &context, Node &root, FragmentDefinition &desired)
+    {
+      BoundaryLocalRebuildPlan plan;
+      if (!this->buildParkedBranchReentryPlan(context, &root, *root.asNestable(),
+              desired, plan, RETAINED_CHILD_PLAN_PRESERVE_MATCHES))
+        return false;
+      std::vector<Node *> retained;
+      return this->applyLocalRebuildPlan(context, *root.asNestable(), plan, retained);
+    }
+    bool applyLive(ComponentContext &context, Node &root,
+                   FragmentDefinition &previous, FragmentDefinition &desired)
+    { return this->applyRetainedDefinitionTree(context, &root, &previous, &desired); }
+  };
+
+  void verifyRebuildOrder(Node &root, const NodeTag *tags, size_t count)
+  {
+    INestable *children = root.asNestable();
+    LOKA_VERIFY(children && children->childrenCount() == count);
+    Node *child = children->childrenHead();
+    for (size_t i = 0; i < count; ++i)
+    {
+      LOKA_VERIFY(child && child->nodeTag() == tags[i]);
+      child = child->nextInComposition;
+    }
+    LOKA_VERIFY(!child);
+  }
+
+  void runRebuildCandidateRefusal(bool before)
+  {
+    RebuildCandidateCounts counts;
+    RebuildRefusalHarness owner((BoundaryPropsFor<RebuildRefusalHarness>()));
+    ComponentContext context;
+    context.setBoundary(&owner);
+    context.setStateOwner(&owner);
+    FragmentDefinition previous;
+    previous << Fragment().tag(7201) << Fragment().tag(7202) << Fragment().tag(7203);
+    Node *root = owner.materialize(context, previous);
+    LOKA_VERIFY(root);
+    Node *oldFirst = root->asNestable()->childrenHead();
+    RebuildRefusalObservation observation(*root->asNestable());
+    RefusingRetainedFragment refusal(&observation);
+    refusal.tag(7202);
+    RebuildCandidate candidate((RebuildCandidateProps(&counts)));
+    candidate.tag(before ? 7201 : 7204);
+    FragmentDefinition desired;
+    if (before)
+      desired << candidate << refusal << Fragment().tag(7203);
+    else
+      desired << Fragment().tag(7201) << refusal << candidate;
+    loka::app::testing::failLocalRebuildProbeProps(1);
+    const bool applied = owner.rebuild(context, *root, desired);
+    loka::app::testing::failLocalRebuildProbeProps(0);
+    LOKA_VERIFY(!applied);
+    LOKA_VERIFY(observation.linkedChildren == 0 &&
+                "plan entries must remain unlinked until all fallible work succeeds");
+    LOKA_VERIFY(counts.destroyed == 1 && counts.alive == 0);
+    LOKA_VERIFY(counts.attached == 0);
+    const NodeTag tags[] = {7201, 7202, 7203};
+    verifyRebuildOrder(*root, tags, 3);
+    Node *restoredFirst = root->asNestable()->childrenHead();
+    LOKA_VERIFY(restoredFirst == oldFirst);
+    LOKA_VERIFY(!findStrandTag(root, 7204));
+    DestroyHeapNode(root);
+  }
+}
+
+void testLocalRebuildRefusalDestroysCandidateBefore()
+{
+  runRebuildCandidateRefusal(true);
+}
+void testLocalRebuildRefusalDestroysCandidateAfter()
+{
+  runRebuildCandidateRefusal(false);
+}
+void testLocalRebuildNestedRefusalRestoresBothOrders()
+{
+  RebuildRefusalHarness owner((BoundaryPropsFor<RebuildRefusalHarness>()));
+  ComponentContext context;
+  context.setBoundary(&owner);
+  context.setStateOwner(&owner);
+  FragmentDefinition nested;
+  nested.tag(7302);
+  nested << Fragment().tag(7311) << Fragment().tag(7312) << Fragment().tag(7313);
+  FragmentDefinition previous;
+  previous << Fragment().tag(7301) << nested << Fragment().tag(7303);
+  Node *root = owner.materialize(context, previous);
+  LOKA_VERIFY(root);
+  Node *oldNested = findStrandTag(root, 7302);
+  PolicyScopeDefinition scope;
+  FragmentDefinition *scoped = static_cast<FragmentDefinition *>(scope.scopedBranchDefinition());
+  scoped->tag(7302);
+  RefusingRetainedFragment refusal;
+  refusal.tag(7312);
+  *scoped << Fragment().tag(7311) << refusal << Fragment().tag(7313);
+  FragmentDefinition desired;
+  desired << Fragment().tag(7301) << scope << Fragment().tag(7303);
+  loka::app::testing::failLocalRebuildProbeProps(1);
+  const bool applied = owner.rebuild(context, *root, desired);
+  loka::app::testing::failLocalRebuildProbeProps(0);
+  LOKA_VERIFY(!applied);
+  const NodeTag outerTags[] = {7301, 7302, 7303};
+  const NodeTag innerTags[] = {7311, 7312, 7313};
+  verifyRebuildOrder(*root, outerTags, 3);
+  verifyRebuildOrder(*oldNested, innerTags, 3);
+  DestroyHeapNode(root);
+}
+
+void testLocalRebuildLiveRefusalKeepsFocusReachable()
+{
+  using namespace loka::core;
+  using loka::dsl::testing::SceneTestAccess;
+  HeadlessStateOwner facts;
+  Reported<Focused<unsigned> > focus;
+  StateBatchBase::CreateImmediateState(&facts, focus, Focused<unsigned>::none());
+  NullScenePlatformController platform;
+  NullPlatformContext platformContext;
+  WindowProps props;
+  props.scene(new Scene(Boundary<RebuildRefusalHarness>()));
+  NullWindow window(&platformContext, props, &platform);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  Scene &scene = *window.scene();
+  RebuildRefusalHarness &owner =
+      *static_cast<RebuildRefusalHarness *>(SceneTestAccess::rootBoundary(scene));
+  ComponentContext context;
+  context.setBoundary(&owner);
+  context.setStateOwner(&owner);
+  context.setScene(&scene);
+  context.setPlatformController(&platform);
+  FragmentDefinition nested;
+  nested.tag(7402);
+  nested << Fragment().tag(7411) << Fragment().tag(7412) << Fragment().tag(7413);
+  FragmentDefinition previous;
+  previous << Fragment().tag(7401) << nested
+           << EditText(EditTextProps().focusedAs(focus, 7u)).tag(7403);
+  Node *root = owner.materialize(context, previous);
+  LOKA_VERIFY(root);
+  owner.addChild(root);
+  BoundaryNode::composeSubtree(root, context, COMPOSE_EVENT_ATTACH, &owner);
+  LayoutState bounds;
+  bounds.width = 240;
+  bounds.height = 320;
+  platform.projectLayoutForTesting(root, bounds);
+  Node *editor = findStrandTag(root, 7403);
+  LOKA_VERIFY(editor && editor->getContext());
+  platform.simulateNativeFocus(editor->getContext());
+  app.reconcileFocus();
+  LOKA_VERIFY(focus.state()->get().is(7u));
+  LOKA_VERIFY(SceneFocusTestAccess::published(*editor->asFocusParticipant()));
+
+  PolicyScopeDefinition scope;
+  FragmentDefinition *scoped = static_cast<FragmentDefinition *>(scope.scopedBranchDefinition());
+  scope.setNodeTag(7402);
+  scoped->tag(7402);
+  RefusingRetainedFragment refusal;
+  refusal.tag(7412);
+  *scoped << Fragment().tag(7411) << refusal << Fragment().tag(7413);
+  FragmentDefinition desired;
+  desired << Fragment().tag(7401) << scope
+          << EditText(EditTextProps().focusedAs(focus, 7u)).tag(7403)
+          << Fragment().tag(7404);
+  loka::app::testing::failLocalRebuildProbeProps(1);
+  const bool applied = owner.applyLive(context, *root, previous, desired);
+  loka::app::testing::failLocalRebuildProbeProps(0);
+  LOKA_VERIFY(!applied);
+  const bool reachable = findStrandTag(SceneTestAccess::rootNode(scene), 7403) == editor;
+  LOKA_VERIFY(reachable);
+  LOKA_VERIFY(editor->lifecycleFact() == NODE_FACT_ATTACHED);
+  LOKA_VERIFY(SceneFocusTestAccess::published(*editor->asFocusParticipant()));
+  LOKA_VERIFY(focus.state()->get().is(7u));
+  const NodeTag tags[] = {7401, 7402, 7403};
+  verifyRebuildOrder(*root, tags, 3);
+  SceneTestAccess::unmount(scene);
+  LOKA_VERIFY(!(focus.state()->get() != Focused<unsigned>::none()));
+}
+
+void testLocalRebuildSuccessCommitsCandidates()
+{
+  RebuildCandidateCounts counts;
+  RebuildRefusalHarness owner((BoundaryPropsFor<RebuildRefusalHarness>()));
+  ComponentContext context;
+  context.setBoundary(&owner);
+  context.setStateOwner(&owner);
+  FragmentDefinition previous;
+  previous << Fragment().tag(7501);
+  Node *root = owner.materialize(context, previous);
+  LOKA_VERIFY(root);
+  RebuildCandidate candidate((RebuildCandidateProps(&counts)));
+  candidate.tag(7502);
+  FragmentDefinition desired;
+  desired << Fragment().tag(7501) << candidate;
+  const bool applied = owner.rebuild(context, *root, desired);
+  LOKA_VERIFY(applied);
+  LOKA_VERIFY(counts.alive == 1 && counts.attached == 1 && counts.destroyed == 0);
+  const NodeTag tags[] = {7501, 7502};
+  verifyRebuildOrder(*root, tags, 2);
+  DestroyHeapNode(root);
+  LOKA_VERIFY(counts.alive == 0 && counts.destroyed == 1);
 }
