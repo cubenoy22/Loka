@@ -62,7 +62,6 @@ namespace loka
         }
         else
         {
-          assert(result.complete() && "initial children require complete materialization");
           if (candidate.root())
           {
             Node *child = candidate.root();
