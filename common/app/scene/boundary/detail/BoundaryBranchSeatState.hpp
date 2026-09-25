@@ -6,7 +6,6 @@
 #include <cstdio>
 #endif
 #include <vector>
-#include "core/util/ScopedPtr.hpp"
 #include "app/scene/Node.hpp"
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
@@ -230,9 +229,26 @@ namespace loka
         void commitTo(BoundaryBranchSeatState &state);
 
       private:
-        struct StagedDeclaration;
-        loka::core::ScopedPtr<StagedDeclaration> declarations_;
-        StagedDeclaration *declarationsTail_;
+        /** Owns gate-allocated staging entries and their declaration payloads.
+            Push and splice keep the owning head and borrowed tail consistent. */
+        class StagedDeclarationChain
+        {
+        public:
+          StagedDeclarationChain();
+          ~StagedDeclarationChain();
+          bool push(IBranchSeatDefinition *seat, loka::core::OwnedDef<BranchSeatDeclaration> &candidate);
+          void spliceTo(StagedDeclarationChain &target);
+          void clear();
+          void commit();
+
+        private:
+          struct Entry;
+          Entry *head_;
+          Entry *tail_;
+          StagedDeclarationChain(const StagedDeclarationChain &);
+          StagedDeclarationChain &operator=(const StagedDeclarationChain &);
+        };
+        StagedDeclarationChain declarations_;
         std::vector<Entry> entries_;
 
         BoundaryBranchSeatRuntimeRegistrationPlan(const BoundaryBranchSeatRuntimeRegistrationPlan &);

@@ -700,7 +700,7 @@ namespace loka
           if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
           {
             if (result.root)
-              this->retireSeatBranchRoot(context, result.root);
+              RetireUnattachedCandidate(result.root, &context);
             result.root = 0;
             return result;
           }
@@ -1106,7 +1106,7 @@ namespace loka
           if (result.requiresBoundaryPlan || result.allocationFailed || !result.root)
           {
             if (result.root)
-              this->retireSeatBranchRoot(materializationContext, result.root);
+              RetireUnattachedCandidate(result.root, &materializationContext);
             return 0;
           }
           return result.root;
@@ -1423,7 +1423,7 @@ namespace loka
                         *seatPlan,
                         runtimeParent,
                         materialized,
-                        &plan.branchSeatRegistrations))
+                        plan.branchSeatRegistrations))
                 {
                   return false;
                 }
@@ -1558,7 +1558,7 @@ namespace loka
                                  const BoundaryBranchSeatPlanEntry &plan,
                                  Node *parent,
                                  NodeMaterializationResult &result,
-                                 BoundaryBranchSeatRuntimeRegistrationPlan *registrations)
+                                 BoundaryBranchSeatRuntimeRegistrationPlan &registrations)
         {
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *definition =
@@ -1569,7 +1569,7 @@ namespace loka
           if (runtime && runtime->stateOwner)
             branchContext.setStateOwner(runtime->stateOwner);
           composition.setContext(&branchContext);
-          composition.collectBranchSeatRegistrationsIn(registrations);
+          composition.collectBranchSeatRegistrationsIn(&registrations);
           assert(context.boundary() == this);
           result = composition.createNodeFromDefinitionResult(definition, parent, plan.key.scope);
           if (result.requiresBoundaryPlan)
@@ -1847,9 +1847,9 @@ namespace loka
           // retireOwnedSeatDescendants() would erase them with the old ones.
           // The local-rebuild path stages for the same reason (#511).
           BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
-          NodeMaterializationResult materialized = {incoming, false, false};
+          NodeMaterializationResult accepted = {incoming, false, false};
           loka::core::OwnedDef<BranchSeatDeclaration> candidate;
-          PendingSubtree pending(&BoundaryNode::ReclaimPendingSeatRoot, &context);
+          PendingSubtree pending(&BoundaryNode::RetireUnattachedCandidate, &context);
           if (plan.seat()->needsBranchDeclaration())
           {
             ComponentContext declarationContext = this->branchRuntimeContext(context, runtime);
@@ -1859,37 +1859,36 @@ namespace loka
               this->noteComposeAllocationFailure();
               return false;
             }
-            NodeMaterializationResult &result = materialized;
-            result = this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
-            if (context.nodeStorage() && result.root && !result.allocationFailed && !result.requiresBoundaryPlan)
+            accepted = this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
+            PendingSubtree materialized(&BoundaryNode::RetireUnattachedCandidate, &declarationContext);
+            materialized.prepare(accepted.root);
+            if (context.nodeStorage() && accepted.root && accepted.complete())
             {
-              this->composeTree(result.root, declarationContext, COMPOSE_EVENT_ATTACH, this);
-              result.allocationFailed = this->compositionState_.allocationFailedValue();
+              materialized.prepare(materialized.take(), &BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
+              this->composeTree(accepted.root, declarationContext, COMPOSE_EVENT_ATTACH, this);
+              accepted.allocationFailed = this->compositionState_.allocationFailedValue();
             }
-            PendingSubtree materialized(&BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
-            materialized.prepare(result.root);
-            if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
-            {
-              materialized.reclaim();
+            if (!accepted.complete() || !accepted.root)
               return false;
-            }
-            pending.prepare(materialized.take());
+            pending.prepare(materialized.take(),
+                            context.nodeStorage() ? &BoundaryNode::ReclaimPendingSeatRoot
+                                                  : &BoundaryNode::RetireUnattachedCandidate,
+                            &context);
             incoming = pending.root();
           }
-          if (!incoming && !this->createCurrentBranch(context,
-                                                      plan,
-                                                      runtimeParent,
-                                                      materialized,
-                                                      &nestedRegistrations))
+          if (!incoming)
           {
-            return false;
+            if (!this->createCurrentBranch(context, plan, runtimeParent, accepted, nestedRegistrations))
+              return false;
+            pending.prepare(accepted.root);
           }
-          incoming = materialized.root;
+          incoming = accepted.root;
           if (!incoming)
           {
             return false;
           }
-          assert(materialized.complete());
+          // No accepted path reaches this commit with an incomplete result today.
+          assert(accepted.complete());
           // Runtime publication is part of the structural commit: reserve the
           // ledger storage now, while nothing has been replaced or retired, so
           // the commit after cleanup cannot allocate (the local-rebuild path's

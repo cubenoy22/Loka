@@ -27,4 +27,8 @@ void testPartialReplacementSameArmPreservesRow();
 void testPartialReplacementUntaggedStateAndReclaim();
 void testPartialReplacementStagingOwnership();
 void testPartialReplacementCommitsNestedObservations();
+void testPartialReplacementDiscardSkipsDetach();
+void testPartialReplacementStagingAllocationRefusal();
+void testPartialReplacementDeclarationDiscardSkipsDetach();
+void testPartialReplacementAdmittedDiscardSkipsDetach();
 #endif
