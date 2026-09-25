@@ -8,6 +8,7 @@
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "support/Headless.hpp"
@@ -75,12 +76,12 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
+      // A composition declares one root; the three participants share a column.
       composition.declare(
-          EditText(EditTextProps(this->props.facts->firstText).focusedAs(this->props.facts->focus, 1u)));
-      composition.declare(
-          EditText(EditTextProps(this->props.facts->secondText).focusedAs(this->props.facts->focus, 2u)));
-      composition.declare(TextEditor(TextEditorProps(this->props.facts->lines, this->props.facts->cursor)
-                                         .focusedAs(this->props.facts->focus, 3u)));
+          VStack() << EditText(EditTextProps(this->props.facts->firstText).focusedAs(this->props.facts->focus, 1u))
+                   << EditText(EditTextProps(this->props.facts->secondText).focusedAs(this->props.facts->focus, 2u))
+                   << TextEditor(TextEditorProps(this->props.facts->lines, this->props.facts->cursor)
+                                     .focusedAs(this->props.facts->focus, 3u)));
     }
   };
   typedef BoundaryDefinition<FocusProps, FocusRoot> FocusDefinition;
@@ -193,8 +194,11 @@ void testMacFocusReadAndCompletion()
     const bool key = requestKeyWindow(native);
     Scene &scene = *window->scene();
     Node *root = SceneAccess::rootNode(scene);
-    loka::dsl::CompositionCursor<Node> children(root->asNestable()->childrenHead(),
-                                                root->asNestable()->childrenCount());
+    LOKA_VERIFY(root && root->asNestable() && root->asNestable()->childrenCount() == 1);
+    Node *column = root->asNestable()->childrenHead();
+    LOKA_VERIFY(column && column->asNestable() && column->asNestable()->childrenCount() == 3);
+    loka::dsl::CompositionCursor<Node> children(column->asNestable()->childrenHead(),
+                                                column->asNestable()->childrenCount());
     Node *firstNode = children.next();
     Node *secondNode = children.next();
     Node *editorNode = children.next();
@@ -308,8 +312,9 @@ void testMacFocusReadAndCompletion()
       const NSEventType mouseDownType = NSLeftMouseDown;
 #endif
       first = field(firstNode);
-      [first setFrame:NSMakeRect(10, 10, 160, 24)];
-      const NSPoint point = [first convertPoint:NSMakePoint(8, 12) toView:nil];
+      const NSRect bounds = [first bounds];
+      LOKA_VERIFY(!NSIsEmptyRect(bounds));
+      const NSPoint point = [first convertPoint:NSMakePoint(NSMidX(bounds), NSMidY(bounds)) toView:nil];
       NSEvent *up = [NSEvent mouseEventWithType:mouseUpType
                                        location:point
                                   modifierFlags:0
