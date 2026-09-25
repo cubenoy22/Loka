@@ -1949,9 +1949,6 @@ namespace
       if (probe.reveal)
         static_cast<PreparedReveal *>(SceneTestAccess::rootBoundary(probe.target))->visible.set(true);
       probe.target.invalidate(NODE_DIRTY_LAYOUT);
-      std::fprintf(stderr, "#913 observer: current_observed=%d attached=%d projections=%lu created=%lu\n",
-                   probe.window.scene() == &probe.observed, probe.target.getAttachedState()->get(),
-                   rail->onChangeCallCount() - changes, rail->createdCount() - created);
       if (!probe.onAttach)
       {
         LOKA_VERIFY(rail->onChangeCallCount() == changes);
