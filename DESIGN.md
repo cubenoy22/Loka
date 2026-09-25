@@ -67,6 +67,7 @@ facts into native behavior.
 | Where should state live and who may mutate it? | [docs/ProgrammingGuide.en.md](docs/ProgrammingGuide.en.md) and [PHILOSOPHY.md](PHILOSOPHY.md) | [`common/app/scene/state/`](common/app/scene/state/) and State/Flow tests |
 | How do composition and update routing work? | [docs/update_pipeline_overview.md](docs/update_pipeline_overview.md) | [`common/app/scene/composition/`](common/app/scene/composition/) and [`common/app/scene/boundary/`](common/app/scene/boundary/) |
 | How do request delivery / queue / command / seat / settle work? | [docs/RequestDeliveryDesign.md](docs/RequestDeliveryDesign.md) | [`RequestSettlement.hpp`](common/app/scene/state/RequestSettlement.hpp) and rail request tests |
+| Which input has keyboard focus, and who publishes it? | [docs/FocusDesign.md](docs/FocusDesign.md) | [`SceneFocus.hpp`](common/app/scene/SceneFocus.hpp), [`FocusPublisher.cpp`](common/app/FocusPublisher.cpp), and [focus tests](tests/FocusPublisherTests.cpp) |
 | What are the lifetime and ownership rules? | The ownership and lifetime sections of [PHILOSOPHY.md](PHILOSOPHY.md) | Boundary, lifecycle, allocation, and ownership tests |
 | What applies to Classic Mac and Retro68? | [docs/retro68.md](docs/retro68.md) | [`apple/toolbox/`](apple/toolbox/), Retro68 presets, and Toolbox CI |
 | What applies to macOS native code? | [AGENTS.md](AGENTS.md) and [docs/environments.md](docs/environments.md) | [`apple/macos/`](apple/macos/) and macOS CI |
