@@ -304,10 +304,17 @@ void testWin32FocusReadAndRestore()
   SetFocus(f.window.hwnd());
   SendMessageW(f.window.hwnd(), WM_ACTIVATE, MAKEWPARAM(WA_ACTIVE, TRUE), 0);
   LOKA_VERIFY(GetFocus() != f.edit(3));
+  // Deactivation never restores. A real WA_INACTIVE arrives while this window
+  // is still the active one, so a restore there would take focus until the
+  // new active window overrides it; the synthetic message keeps it visible.
+  SendMessageW(f.window.hwnd(), WM_ACTIVATE, MAKEWPARAM(WA_INACTIVE, FALSE), 0);
+  LOKA_VERIFY(GetFocus() != f.edit(3));
   ShowWindow(f.window.hwnd(), SW_MINIMIZE);
   LOKA_VERIFY(IsIconic(f.window.hwnd()));
   SetActiveWindow(other.hwnd());
   SetFocus(other.hwnd());
+  // Windows itself refuses focus into a minimized window's child, so this
+  // pins the outcome; the IsIconic guard alone is not what it discriminates.
   SendMessageW(f.window.hwnd(), WM_ACTIVATE, MAKEWPARAM(WA_CLICKACTIVE, FALSE), 0);
   LOKA_VERIFY(GetFocus() != f.edit(3));
   f.expect(3);
