@@ -1185,7 +1185,14 @@ namespace loka
         public:
           explicit UncommittedLocalRebuildPlanGuard(
               BoundaryLocalRebuildPlan &plan)
-              : plan_(&plan)
+              : plan_(&plan), root_(0), oldChildren_(0)
+          {
+          }
+
+          UncommittedLocalRebuildPlanGuard(
+              BoundaryLocalRebuildPlan &plan, INestable &root,
+              const std::vector<Node *> &oldChildren)
+              : plan_(&plan), root_(&root), oldChildren_(&oldChildren)
           {
           }
 
@@ -1193,6 +1200,14 @@ namespace loka
           {
             if (this->plan_)
             {
+              if (this->root_)
+              {
+                // No candidate has entered ATTACH yet. Restore the old owning
+                // edges before releasing the plan's uncommitted candidates.
+                this->root_->detachChildren();
+                for (size_t i = 0; i < this->oldChildren_->size(); ++i)
+                  this->root_->addChild((*this->oldChildren_)[i]);
+              }
               BoundaryNode::destroyUncommittedLocalRebuildCandidates(
                   *this->plan_);
             }
@@ -1204,7 +1219,12 @@ namespace loka
           }
 
         private:
+          UncommittedLocalRebuildPlanGuard(const UncommittedLocalRebuildPlanGuard &);
+          UncommittedLocalRebuildPlanGuard &operator=(const UncommittedLocalRebuildPlanGuard &);
+
           BoundaryLocalRebuildPlan *plan_;
+          INestable *root_;
+          const std::vector<Node *> *oldChildren_;
         };
 
         bool applyLocalRebuildPlan(ComponentContext &context,
@@ -1228,6 +1248,7 @@ namespace loka
           }
           std::vector<Node *> detachedChildren;
           root.detachChildrenTo(detachedChildren);
+          UncommittedLocalRebuildPlanGuard uncommittedGuard(plan, root, detachedChildren);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             if (!plan.entries[i].keepsLiveNode())
@@ -1260,6 +1281,7 @@ namespace loka
             }
             root.addChild(plan.entries[i].node);
           }
+          uncommittedGuard.disarm();
 
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
