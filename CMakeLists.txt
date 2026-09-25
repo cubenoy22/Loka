@@ -531,6 +531,18 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     endif()
   endfunction()
 
+  # Runs a whole binary with no arguments, in its own directory under
+  # test-work/ like the per-test entries of loka_add_registered_test above.
+  function(loka_add_whole_binary_test test_name target)
+    set(_loka_test_work_dir
+      "${CMAKE_CURRENT_BINARY_DIR}/test-work/${test_name}")
+    file(MAKE_DIRECTORY "${_loka_test_work_dir}")
+    add_test(NAME "${test_name}"
+      COMMAND "$<TARGET_FILE:${target}>")
+    set_tests_properties("${test_name}" PROPERTIES
+      WORKING_DIRECTORY "${_loka_test_work_dir}")
+  endfunction()
+
   if(NOT WIN32)
     add_test(NAME scriptMameDebugLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
@@ -650,13 +662,15 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   # The pin binary runs whole (single scenario), matching the per-test
   # working-directory convention of the registered suites.
-  set(_loka_allocpin_work_dir
-    "${CMAKE_CURRENT_BINARY_DIR}/test-work/testZeroAllocationPin")
-  file(MAKE_DIRECTORY "${_loka_allocpin_work_dir}")
-  add_test(NAME testZeroAllocationPin
-    COMMAND "$<TARGET_FILE:LokaAllocPinTests>")
-  set_tests_properties(testZeroAllocationPin PROPERTIES
-    WORKING_DIRECTORY "${_loka_allocpin_work_dir}")
+  loka_add_whole_binary_test(testZeroAllocationPin LokaAllocPinTests)
+
+  # One-process runs (#922). The per-test entries above give every test a
+  # fresh process. With no arguments a runner executes every test it
+  # registers in one process, which is how ctest runs the macOS and Win32
+  # test executables. State that outlives its test, or a check that holds
+  # only in a fresh process, can fail here while every per-test entry passes.
+  loka_add_whole_binary_test(oneProcessContractRunner LokaContractTests)
+  loka_add_whole_binary_test(oneProcessScenarioRunner LokaScenarioTests)
 endif()
 
 if(LOKA_BUILD_SMIRKYCARD)
