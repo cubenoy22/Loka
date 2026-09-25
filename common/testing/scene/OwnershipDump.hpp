@@ -60,6 +60,13 @@ namespace loka
           return output.str();
         }
 
+        /** Test snapshot access; callers must not retain rows across mutation. */
+        static const ::loka::app::scene::BoundaryBranchSeatState &seatState(
+            const ::loka::app::scene::BoundaryNode &boundary)
+        {
+          return boundary.branchSeats_;
+        }
+
       private:
         static void dumpScopeRuntime(const ::loka::app::scene::BoundaryNode &boundary,
                                      const ::loka::app::scene::BoundaryBranchSeatState &scope,

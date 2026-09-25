@@ -6,7 +6,9 @@
 #include <cstdio>
 #endif
 #include <vector>
+#include "core/util/ScopedPtr.hpp"
 #include "app/scene/Node.hpp"
+#include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/boundary/detail/BoundaryParkedBranchLedger.hpp"
 
 namespace loka
@@ -172,20 +174,29 @@ namespace loka
         IStateOwner *stateOwner;
       };
 
+      class BranchSeatDeclaration;
       class BoundaryBranchSeatState;
 
       /** Uncommitted runtime-seat facts produced while a fallible local
           rebuild materializes candidates. Commit publishes them only after
           the structural plan has installed its new roots and removed stale
-          mappings. */
+          mappings. Owns declarations until that same commit; clear and destruction
+          dispose them, and appendTo transfers ownership to its enclosing plan. */
       class BoundaryBranchSeatRuntimeRegistrationPlan
       {
       public:
+        BoundaryBranchSeatRuntimeRegistrationPlan();
+        ~BoundaryBranchSeatRuntimeRegistrationPlan();
+
+        /** Takes candidate only on success. One nullable allocation per declaration. */
+        bool stageDeclaration(IBranchSeatDefinition *seat,
+                              loka::core::OwnedDef<BranchSeatDeclaration> &candidate);
+
         struct Entry
         {
           Entry(const BoundaryBranchSeatPlanEntry &planValue,
                 Node *parentValue,
-                Node *activeValue,
+                const NodeMaterializationResult &activeValue,
                 IStateOwner *stateOwnerValue)
               : plan(planValue),
                 parent(parentValue),
@@ -196,28 +207,20 @@ namespace loka
 
           BoundaryBranchSeatPlanEntry plan;
           Node *parent;
-          Node *active;
+          NodeMaterializationResult active;
           IStateOwner *stateOwner;
         };
 
-        void record(const BoundaryBranchSeatPlanEntry &plan, Node *parent, Node *active, IStateOwner *stateOwner = 0)
+        void record(const BoundaryBranchSeatPlanEntry &plan, Node *parent,
+                    const NodeMaterializationResult &active, IStateOwner *stateOwner = 0)
         {
           this->entries_.push_back(Entry(plan, parent, active, stateOwner));
         }
 
-        void appendTo(BoundaryBranchSeatRuntimeRegistrationPlan &target) const
-        {
-          for (size_t i = 0; i < this->entries_.size(); ++i)
-          {
-            const Entry &entry = this->entries_[i];
-            target.record(entry.plan, entry.parent, entry.active, entry.stateOwner);
-          }
-        }
+        /** Transfers rows and declarations; the source becomes empty. */
+        void appendTo(BoundaryBranchSeatRuntimeRegistrationPlan &target);
 
-        void clear()
-        {
-          this->entries_.clear();
-        }
+        void clear();
 
         size_t count() const
         {
@@ -227,7 +230,13 @@ namespace loka
         void commitTo(BoundaryBranchSeatState &state);
 
       private:
+        struct StagedDeclaration;
+        loka::core::ScopedPtr<StagedDeclaration> declarations_;
+        StagedDeclaration *declarationsTail_;
         std::vector<Entry> entries_;
+
+        BoundaryBranchSeatRuntimeRegistrationPlan(const BoundaryBranchSeatRuntimeRegistrationPlan &);
+        BoundaryBranchSeatRuntimeRegistrationPlan &operator=(const BoundaryBranchSeatRuntimeRegistrationPlan &);
       };
 
       /** Boundary-owned definition plans and runtime seat ownership. Plans
@@ -598,16 +607,6 @@ namespace loka
 #endif
       };
 
-      inline void BoundaryBranchSeatRuntimeRegistrationPlan::commitTo(
-          BoundaryBranchSeatState &state)
-      {
-        for (size_t i = 0; i < this->entries_.size(); ++i)
-        {
-          Entry &entry = this->entries_[i];
-          state.registerRuntime(entry.plan, entry.parent, entry.active, entry.stateOwner);
-        }
-        this->entries_.clear();
-      }
     } // namespace scene
   } // namespace app
 } // namespace loka

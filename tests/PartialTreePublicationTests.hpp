@@ -20,4 +20,11 @@ void testPartialTreeInitialChildCloneRefusal();
 void testPartialTreeEmptyDeclarationComposesOnce();
 void testPartialTreePlainRootCloneRefusal();
 void testPartialTreeInitialTaggedCopyRefusal();
+void testPartialReplacementLazyScopeStaging();
+void testPartialReplacementConditionFlip();
+void testPartialReplacementDiscardWithdrawsBindings();
+void testPartialReplacementSameArmPreservesRow();
+void testPartialReplacementUntaggedStateAndReclaim();
+void testPartialReplacementStagingOwnership();
+void testPartialReplacementCommitsNestedObservations();
 #endif

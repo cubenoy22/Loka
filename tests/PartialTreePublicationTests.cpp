@@ -43,6 +43,7 @@ namespace
     int callbacks;
     loka::core::MutableState<int> input;
     loka::core::MutableState<bool> condition;
+    loka::core::MutableState<bool> nestedSelection;
     std::vector<NodeTag> declared;
 
     PublicationFixture(Shape s, int n, bool fail)
@@ -57,6 +58,7 @@ namespace
           callbacks(0),
           input(0),
           condition(s != NULL_ROOT),
+          nestedSelection(false),
           declared()
     {
       if (s == SECTION)
@@ -349,6 +351,18 @@ namespace
     }
   };
 
+  int liveScopeDefinitions = 0;
+  struct CountedScopeDefinition : FragmentDefinition
+  {
+    CountedScopeDefinition() { ++liveScopeDefinitions; }
+    CountedScopeDefinition(const CountedScopeDefinition &other) : FragmentDefinition(other)
+    {
+      ++liveScopeDefinitions;
+    }
+    virtual ~CountedScopeDefinition() { --liveScopeDefinitions; }
+    virtual NodeDefinitionBase *clone() const { return new CountedScopeDefinition(*this); }
+  };
+
   class WatchedScope;
   struct WatchedScopeTag {};
   struct WatchedScopeProps : NodePropsBase<WatchedScopeProps>
@@ -371,7 +385,7 @@ namespace
     void changed() { ++fixture->callbacks; }
     virtual void declareScope(NodeComposition &composition)
     {
-      composition.declare(FragmentDefinition().tag(1));
+      composition.declare(CountedScopeDefinition().tag(1));
     }
   };
   class WatchedRoot : public BoundaryNodeFor<WatchedRoot>
@@ -914,4 +928,427 @@ void testPartialTreeEmptyDeclarationComposesOnce()
   refresh(scene);
   LOKA_VERIFY(freshInvariant(scene, platform, "empty-refresh"));
   assert(data.declarations == 1 && data.bindings == 1 && data.factoryAttempts == 0);
+}
+
+namespace
+{
+  class ReplacementRoot : public BoundaryNodeFor<ReplacementRoot>
+  {
+  public:
+    explicit ReplacementRoot(const BoundaryPropsFor<ReplacementRoot> &p)
+        : BoundaryNodeFor<ReplacementRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      FragmentDefinition incoming, outgoing;
+      incoming << LazyScopeDefinition<bool, WatchedScope>(fixture->condition, WatchedScopeProps())
+               << RefusedChild().tag(2);
+      outgoing << FragmentDefinition().tag(9);
+      c.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &incoming, &outgoing)));
+    }
+  };
+
+  void flipReplacement(Scene &scene, bool value)
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    fixture->condition.set(value);
+  }
+
+  const BoundaryBranchSeatState &replacementSeats(Scene &scene)
+  {
+    return loka::dsl::testing::OwnershipDump::seatState(*SceneTestAccess::rootBoundary(scene));
+  }
+
+  BoundaryBranchSeatRuntimeEntry replacementRow(Scene &scene)
+  {
+    const BoundaryBranchSeatState &seats = replacementSeats(scene);
+    return *seats.findRuntime(seats.plans()[0].key);
+  }
+
+  int scopeRoots(Node *node)
+  {
+    if (!node) return 0;
+    int count = node->nodeTypeKey() == NodeTypeToken<LazyScopeNode>() ? 1 : 0;
+    INestable *nestable = node->asNestable();
+    for (Node *child = nestable ? nestable->childrenHead() : 0; child; child = child->nextInComposition)
+      count += scopeRoots(child);
+    return count;
+  }
+
+  void verifyReplacementRow(const BoundaryBranchSeatRuntimeEntry &current,
+                            const BoundaryBranchSeatRuntimeEntry &old)
+  {
+    LOKA_VERIFY(current.active == old.active && current.parent == old.parent);
+    LOKA_VERIFY(current.activeArm == old.activeArm && current.hasActiveArm == old.hasActiveArm);
+    LOKA_VERIFY(current.appliedGeneration == old.appliedGeneration && current.stateOwner == old.stateOwner);
+    LOKA_VERIFY(current.hasOwner == old.hasOwner && current.ownerArm == old.ownerArm);
+    const bool sameIdentity = current.key.matches(old.key) && current.ownerKey.matches(old.ownerKey)
+                              && current.shape.matches(old.shape);
+    LOKA_VERIFY(sameIdentity);
+  }
+
+  void verifyOldReplacement(Scene &scene, PublicationObserver &platform,
+                            const BoundaryBranchSeatRuntimeEntry &old)
+  {
+    const BoundaryBranchSeatRuntimeEntry current = replacementRow(scene);
+    verifyReplacementRow(current, old);
+    LOKA_VERIFY(old.active->lifecycleFact() == NODE_FACT_ATTACHED);
+    LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 9));
+  }
+
+  IBranchSeatDefinition *replacementLazySeat(Scene &scene)
+  {
+    const std::vector<BoundaryBranchSeatPlanEntry> &plans = replacementSeats(scene).plans();
+    for (size_t i = 0; i < plans.size(); ++i)
+      if (plans[i].seat()->needsBranchDeclaration() || plans[i].seat()->declaredBranchSeats())
+        return plans[i].seat();
+    return 0;
+  }
+}
+
+void testPartialReplacementLazyScopeStaging()
+{
+  PublicationFixture data(NULL_ROOT, 2, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<ReplacementRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  const BoundaryBranchSeatRuntimeEntry old = replacementRow(scene);
+  flipReplacement(scene, true);
+  LOKA_VERIFY(data.refusals > 0);
+  verifyOldReplacement(scene, platform, old);
+  IBranchSeatDefinition *seat = replacementLazySeat(scene);
+  LOKA_VERIFY(seat);
+  const bool stagedOnly = seat->declaredBranchSeats() == 0;
+  LOKA_VERIFY(stagedOnly);
+  LOKA_VERIFY(liveScopeDefinitions == 0);
+  refresh(scene);
+  verifyOldReplacement(scene, platform, old);
+  data.refusing = false;
+  refresh(scene);
+  LOKA_VERIFY(platform.published == data.declared);
+  LOKA_VERIFY(scopeRoots(SceneTestAccess::rootBoundary(scene)) == 1);
+  const bool committed = seat->declaredBranchSeats() != 0;
+  LOKA_VERIFY(committed);
+  LOKA_VERIFY(liveScopeDefinitions == 1);
+  const int attempts = data.attempts;
+  refresh(scene);
+  LOKA_VERIFY(data.attempts == attempts);
+}
+
+void testPartialReplacementConditionFlip()
+{
+  PublicationFixture data(NULL_ROOT, 2, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<ReplacementRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  const BoundaryBranchSeatRuntimeEntry old = replacementRow(scene);
+  flipReplacement(scene, true);
+  verifyOldReplacement(scene, platform, old);
+  const int attempts = data.attempts;
+  flipReplacement(scene, false);
+  refresh(scene);
+  LOKA_VERIFY(data.attempts == attempts);
+  verifyOldReplacement(scene, platform, old);
+  data.refusing = false;
+  flipReplacement(scene, true);
+  LOKA_VERIFY(platform.published == data.declared);
+  LOKA_VERIFY(scopeRoots(SceneTestAccess::rootBoundary(scene)) == 1);
+}
+
+void testPartialReplacementDiscardWithdrawsBindings()
+{
+  PublicationFixture data(NULL_ROOT, 2, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<ReplacementRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  flipReplacement(scene, true);
+  LOKA_VERIFY(data.callbacks > 0 && data.refusals > 0);
+  const int before = data.callbacks;
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    data.input.set(1);
+  }
+  LOKA_VERIFY(data.callbacks == before);
+  data.refusing = false;
+  refresh(scene);
+  const int live = data.callbacks;
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    data.input.set(2);
+  }
+  LOKA_VERIFY(data.callbacks == live + 1);
+}
+
+namespace
+{
+  struct ReconcileRefusal : RefusedChild
+  {
+    virtual bool isCompatibleWithNode(const Node *node) const
+    {
+      return !fixture->refusing && RefusedChild::isCompatibleWithNode(node);
+    }
+    virtual NodeDefinitionBase *clone() const { return new ReconcileRefusal(*this); }
+  };
+  class SameArmRoot : public BoundaryNodeFor<SameArmRoot>
+  {
+  public:
+    explicit SameArmRoot(const BoundaryPropsFor<SameArmRoot> &p) : BoundaryNodeFor<SameArmRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      FragmentDefinition arm;
+      arm << FragmentDefinition().tag(1) << ReconcileRefusal().tag(2);
+      c.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &arm, 0)));
+    }
+    void recaptureForTest() { this->captureBranchSeatPlan(); }
+  };
+
+  int livePositionNodes = 0;
+  class PositionNode;
+  struct PositionTag {};
+  struct PositionProps : NodePropsBase<PositionProps>
+  {
+    typedef PositionTag TypeTag;
+    typedef PositionNode NodeType;
+    int initial;
+    explicit PositionProps(int value = 0) : initial(value) {}
+    bool operator<(const PropsBase &rhs) const
+    {
+      return this->initial < static_cast<const PositionProps &>(rhs).initial;
+    }
+  };
+  class PositionNode : public ComponentNodeWithProps<PositionProps>
+  {
+  public:
+    explicit PositionNode(const PositionProps &p) : ComponentNodeWithProps<PositionProps>(p), value_()
+    {
+      ++livePositionNodes;
+      this->state(this->value_, p.initial);
+    }
+    virtual ~PositionNode() { --livePositionNodes; }
+    virtual void composeChildren(NodeComposition &c) { c.declare(FragmentDefinition()); }
+    const loka::core::State<int> *value() const { return this->value_.state(); }
+  private:
+    NodeState<int> value_;
+  };
+  class PositionRoot : public BoundaryNodeFor<PositionRoot>
+  {
+  public:
+    explicit PositionRoot(const BoundaryPropsFor<PositionRoot> &p) : BoundaryNodeFor<PositionRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      FragmentDefinition incoming, outgoing;
+      incoming << NodeDefinition<PositionProps, PositionNode>(PositionProps(11))
+               << RefusedChild()
+               << NodeDefinition<PositionProps, PositionNode>(PositionProps(22));
+      outgoing << NodeDefinition<PositionProps, PositionNode>(PositionProps(44))
+               << NodeDefinition<PositionProps, PositionNode>(PositionProps(55));
+      c.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &incoming, &outgoing)));
+    }
+  };
+}
+
+void testPartialReplacementSameArmPreservesRow()
+{
+  PublicationFixture data(CONDITIONAL, 2, false);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<SameArmRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  const BoundaryBranchSeatRuntimeEntry old = replacementRow(scene);
+  Node *first = old.active->asNestable()->childrenHead();
+  Node *second = first->nextInComposition;
+  data.refusing = true;
+  static_cast<SameArmRoot *>(SceneTestAccess::rootBoundary(scene))->recaptureForTest();
+  refresh(scene);
+  const BoundaryBranchSeatRuntimeEntry refused = replacementRow(scene);
+  LOKA_VERIFY(data.refusals >= 2); // Reconcile and its replacement both refused.
+  verifyReplacementRow(refused, old);
+  LOKA_VERIFY(old.active->asNestable()->childrenHead() == first && first->nextInComposition == second);
+  LOKA_VERIFY(first->lifecycleFact() == NODE_FACT_ATTACHED && second->lifecycleFact() == NODE_FACT_ATTACHED);
+  LOKA_VERIFY(platform.published == data.declared);
+  data.refusing = false;
+  refresh(scene);
+  LOKA_VERIFY(platform.published == data.declared);
+  const BoundaryBranchSeatRuntimeEntry healed = replacementRow(scene);
+  LOKA_VERIFY(healed.appliedGeneration == replacementSeats(scene).generation());
+}
+
+void testPartialReplacementUntaggedStateAndReclaim()
+{
+  PublicationFixture data(NULL_ROOT, 0, true);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  LOKA_VERIFY(livePositionNodes == 0);
+  {
+    Scene scene((Boundary<PositionRoot>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    const BoundaryBranchSeatRuntimeEntry old = replacementRow(scene);
+    PositionNode *first = static_cast<PositionNode *>(old.active->asNestable()->childrenHead());
+    PositionNode *second = static_cast<PositionNode *>(first->nextInComposition);
+    const loka::core::State<int> *one = first->value();
+    const loka::core::State<int> *two = second->value();
+    LOKA_VERIFY(one != two && one->get() == 44 && two->get() == 55);
+    flipReplacement(scene, true);
+    LOKA_VERIFY(data.refusals > 0);
+    const BoundaryBranchSeatRuntimeEntry refused = replacementRow(scene);
+    verifyReplacementRow(refused, old);
+    LOKA_VERIFY(first->nextInComposition == second && first->value() == one && second->value() == two);
+    scene.flushInvalidation(); // Reclaim only; a forgotten candidate leaves its constructed nodes counted.
+    LOKA_VERIFY(livePositionNodes == 2);
+    data.refusing = false;
+    refresh(scene);
+    Node *incoming = replacementRow(scene).active;
+    PositionNode *newFirst = static_cast<PositionNode *>(incoming->asNestable()->childrenHead());
+    PositionNode *newSecond = static_cast<PositionNode *>(newFirst->nextInComposition->nextInComposition);
+    LOKA_VERIFY(newFirst->value() != newSecond->value());
+    LOKA_VERIFY(newFirst->value()->get() == 11 && newSecond->value()->get() == 22);
+  }
+  LOKA_VERIFY(livePositionNodes == 0);
+}
+
+
+namespace
+{
+  class CountedDeclaration : public BranchSeatDeclaration
+  {
+  public:
+    explicit CountedDeclaration(int &live) : live_(live) { ++this->live_; }
+    virtual ~CountedDeclaration() { --this->live_; }
+    virtual bool matchesCurrentKey() const { return true; }
+  private:
+    int &live_;
+  };
+}
+
+void testPartialReplacementStagingOwnership()
+{
+  int live = 0;
+  loka::core::MutableState<bool> condition(false);
+  LazyScopeDefinition<bool, WatchedScope> seat(condition, WatchedScopeProps());
+  {
+    BoundaryBranchSeatRuntimeRegistrationPlan target;
+    loka::core::OwnedDef<BranchSeatDeclaration> first(new CountedDeclaration(live));
+    const bool firstStaged = target.stageDeclaration(&seat, first);
+    LOKA_VERIFY(firstStaged && live == 1);
+    {
+      BoundaryBranchSeatRuntimeRegistrationPlan source;
+      loka::core::OwnedDef<BranchSeatDeclaration> candidate(new CountedDeclaration(live));
+      const bool staged = source.stageDeclaration(&seat, candidate);
+      LOKA_VERIFY(staged && !candidate.isSet() && live == 2);
+      loka::core::OwnedDef<BranchSeatDeclaration> last(new CountedDeclaration(live));
+      const bool lastStaged = source.stageDeclaration(&seat, last);
+      LOKA_VERIFY(lastStaged && live == 3);
+      source.appendTo(target);
+      source.clear();
+      LOKA_VERIFY(live == 3);
+    }
+    LOKA_VERIFY(live == 3);
+    target.clear();
+    LOKA_VERIFY(live == 0);
+    loka::core::OwnedDef<BranchSeatDeclaration> candidate(new CountedDeclaration(live));
+    const bool staged = target.stageDeclaration(&seat, candidate);
+    LOKA_VERIFY(staged && live == 1);
+  }
+  LOKA_VERIFY(live == 0);
+  {
+    BoundaryBranchSeatRuntimeRegistrationPlan source;
+    loka::core::OwnedDef<BranchSeatDeclaration> candidate(new CountedDeclaration(live));
+    const bool staged = source.stageDeclaration(&seat, candidate);
+    LOKA_VERIFY(staged && live == 1);
+    BoundaryBranchSeatState state;
+    source.commitTo(state);
+    source.clear();
+    LOKA_VERIFY(live == 1);
+    const bool committed = seat.declaredBranchSeats() != 0;
+    LOKA_VERIFY(committed);
+    seat.commitBranchDeclaration(0);
+    LOKA_VERIFY(live == 0);
+  }
+}
+
+namespace
+{
+  class InnerObservedScope;
+  struct InnerObservedTag {};
+  struct InnerObservedProps : NodePropsBase<InnerObservedProps>
+  {
+    typedef InnerObservedTag TypeTag;
+    typedef InnerObservedScope NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class InnerObservedScope : public LazyScopeNode
+  {
+  public:
+    typedef InnerObservedProps Props;
+    typedef InnerObservedTag TypeTag;
+    Props props;
+    explicit InnerObservedScope(const Props &p) : props(p) {}
+    virtual void declareScope(NodeComposition &c)
+    {
+      FragmentDefinition yes, no;
+      yes.tag(31);
+      no.tag(32);
+      c.declare(ConditionalDefinition(ConditionalProps(&fixture->nestedSelection, &yes, &no)));
+    }
+  };
+  class OuterObservedScope;
+  struct OuterObservedTag {};
+  struct OuterObservedProps : NodePropsBase<OuterObservedProps>
+  {
+    typedef OuterObservedTag TypeTag;
+    typedef OuterObservedScope NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class OuterObservedScope : public LazyScopeNode
+  {
+  public:
+    typedef OuterObservedProps Props;
+    typedef OuterObservedTag TypeTag;
+    Props props;
+    explicit OuterObservedScope(const Props &p) : props(p) {}
+    virtual void declareScope(NodeComposition &c)
+    {
+      c.declare(LazyScopeDefinition<bool, InnerObservedScope>(fixture->condition, InnerObservedProps()));
+    }
+  };
+  class NestedObservedRoot : public BoundaryNodeFor<NestedObservedRoot>
+  {
+  public:
+    explicit NestedObservedRoot(const BoundaryPropsFor<NestedObservedRoot> &p)
+        : BoundaryNodeFor<NestedObservedRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(LazyScopeDefinition<int, OuterObservedScope>(fixture->input, OuterObservedProps()));
+    }
+  };
+}
+
+void testPartialReplacementCommitsNestedObservations()
+{
+  PublicationFixture data(CONDITIONAL, 0, false);
+  FixtureScope scope(data);
+  PublicationObserver platform;
+  Scene scene((Boundary<NestedObservedRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 32));
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    data.input.set(1);
+  }
+  LOKA_VERIFY(scopeRoots(SceneTestAccess::rootBoundary(scene)) == 2);
+  LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 32));
+  // No intervening external refresh may repair a missed observation.
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    data.nestedSelection.set(true);
+  }
+  LOKA_VERIFY(platform.published == std::vector<NodeTag>(1, 31));
 }
