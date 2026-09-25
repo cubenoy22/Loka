@@ -341,6 +341,9 @@ void testMacFocusReadAndCompletion()
       LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
       app.flushInvalidationsTick();
       LOKA_VERIFY(!(facts.focus.state()->get() != Fact(1u)));
+      std::printf("[pin] macOS focus with a key window: raw read and publication at completion, Tab, "
+                  "rebuild, HELD across key loss, TextEditor publication, unmarked responder, click.\n");
+      std::fflush(stdout);
     }
     else
     {
