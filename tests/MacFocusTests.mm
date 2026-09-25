@@ -281,6 +281,8 @@ void testMacFocusReadAndCompletion()
       [other release];
       [native makeKeyWindow];
       LOKA_VERIFY(waitForKeyStatus(native, true));
+      // Regaining key status answers again; with no participant focused, the answer is none.
+      LOKA_VERIFY([native makeFirstResponder:nil]);
       app.flushInvalidationsTick();
       LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
 
