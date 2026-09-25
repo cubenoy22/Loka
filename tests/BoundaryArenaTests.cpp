@@ -3729,3 +3729,25 @@ void testBranchSeatSiblingsRejectDuplicateTags()
               "an appended third claimant does not revive a collided key");
 #endif
 }
+
+void testUnattachedSceneWhiteFlagWaitsForAttach()
+{
+  SceneTestSupport::RecordingPlatformController platform;
+  g_refuseRootCreate = true;
+  loka::app::scene::Scene scene((RefusableRootDefinition()));
+  scene.mount(&platform);
+  loka::dsl::testing::SceneTestAccess::prepareComposition(scene);
+  const bool refused = loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene);
+  LOKA_VERIFY(refused);
+  g_refuseRootCreate = false;
+  scene.invalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+  const bool prematureCompose = loka::dsl::testing::SceneTestAccess::composed(scene);
+  const size_t prematureChanges = platform.changeCount();
+  LOKA_VERIFY(!loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  LOKA_VERIFY(!prematureCompose && prematureChanges == 0);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  const bool attachedCompose = loka::dsl::testing::SceneTestAccess::composed(scene);
+  const size_t attachedChanges = platform.changeCount();
+  LOKA_VERIFY(attachedCompose && attachedChanges == 1);
+}

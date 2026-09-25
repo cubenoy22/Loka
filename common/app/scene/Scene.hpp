@@ -426,6 +426,8 @@ namespace loka
             if (v)
             {
               composeIfNeeded(COMPOSE_EVENT_ATTACH);
+              if (composed_ && director_.firstPendingBoundary())
+                queueInvalidate();
             }
             else
             {
@@ -928,6 +930,12 @@ namespace loka
 
         bool refreshComposition()
         {
+          if (!attached_.get())
+          {
+            if (!composed_)
+              clearPendingRefreshCycle();
+            return false;
+          }
           // Root allocation white-flag retry (#132 ruling 3 / #140 P2): an
           // earlier refused root create() leaves the scene mounted but
           // uncomposed, which the !composed_ guard below would strand forever

@@ -40,4 +40,5 @@ void testHeldBlockUsesEnclosingBoundaryArenaWithoutHeapControlBlock();
 void testIndexedSeatSlotPassTraversesArmsPastAnEmptyOne();
 void testBranchSeatSiblingsRejectDuplicateTags();
 
+void testUnattachedSceneWhiteFlagWaitsForAttach();
 #endif // LOKA_BOUNDARY_ARENA_TESTS_HPP
