@@ -195,6 +195,7 @@ void MacApp::flushInvalidationsTick()
   }
   this->flushWindowInvalidations();
   MacScenePlatformController::flushPendingRelayouts();
+  this->reconcileFocus();
 }
 
 void MacApp::startInvalidationFlushTimer()

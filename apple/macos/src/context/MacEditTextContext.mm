@@ -43,6 +43,12 @@ namespace
   MacEditTextNodeHandler gMacEditTextNodeHandler;
 } // namespace
 
+/** Native participant mark; behavior remains NSTextField's. */
+@interface LokaEditTextField : NSTextField
+@end
+@implementation LokaEditTextField
+@end
+
 @interface LokaTextFieldDelegate : NSObject
 {
   MacEditTextContext *owner_;
@@ -62,6 +68,18 @@ namespace
 }
 @end
 
+MacEditTextContext *MacEditTextContext::fromNativeFocus(void *responder)
+{
+  id field = (id)responder;
+  if ([field isKindOfClass:[NSTextView class]])
+    field = [(NSTextView *)field delegate];
+  if (![field isKindOfClass:[LokaEditTextField class]])
+    return 0;
+  id delegate = [(LokaEditTextField *)field delegate];
+  return [delegate isKindOfClass:[LokaTextFieldDelegate class]]
+             ? [(LokaTextFieldDelegate *)delegate owner] : 0;
+}
+
 MacEditTextContext::MacEditTextContext(MacScenePlatformController *controller,
                                        void *parentView,
                                        int x,
@@ -80,7 +98,7 @@ MacEditTextContext::MacEditTextContext(MacScenePlatformController *controller,
   NSView *parent = (NSView *)parentView;
   const loka::macos::MacRect frame =
       this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
-  NSTextField *field = [[NSTextField alloc] initWithFrame:frame.r];
+  NSTextField *field = [[LokaEditTextField alloc] initWithFrame:frame.r];
   [field setEditable:YES];
   [field setSelectable:YES];
   [field setBezeled:YES];

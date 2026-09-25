@@ -23,6 +23,8 @@ class MacScenePlatformController;
 class MacEditTextContext : public MacRetirableContext
 {
 public:
+  /** Borrow a context only from this rail's class-checked native participant. */
+  static MacEditTextContext *fromNativeFocus(void *responder);
   MacEditTextContext(MacScenePlatformController *controller,
                      void *parentView,
                      int x,

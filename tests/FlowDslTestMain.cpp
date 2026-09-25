@@ -1,6 +1,7 @@
 #include "FocusPublisherTests.hpp"
 #ifdef __APPLE__
 #include "MacTextEditorTests.hpp"
+#include "MacFocusTests.hpp"
 #endif
 #include "TextEditorTests.hpp"
 #include "RailMetricsTests.hpp"

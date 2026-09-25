@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include "app/RectSurface.hpp"
+#include "app/FocusParticipant.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 #include "ToolboxControlIdAllocator.hpp"
@@ -63,6 +64,7 @@ public:
   }
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
+  virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void drainNativeRetirements();
@@ -301,6 +303,8 @@ private:
   };
 
 private:
+  ToolboxEditTextContext *fallbackFocusContext() const;
+  loka::app::scene::FocusLink fallbackFocus_;
   const loka::app::TextShaping textShaping_;
 public:
   ToolboxWindow *window_;
@@ -313,9 +317,6 @@ public:
   std::vector<ButtonControlBinding> buttonControls_;
   ToolboxScrollBarLedger scrollBarLedger_;
   ToolboxEditControlLedger<EditTextControlBinding, loka::app::scene::NodeContext> editControls_;
-  loka::core::State<loka::core::String> *focusedText_;
-  Rect focusedRect_;
-  bool hasFocusedRect_;
   std::vector<loka::core::State<loka::core::String> *> boundTextStates_;
   std::vector<TextBinding *> textBindings_;
   ToolboxEnabledStateBindingPath<ToolboxScenePlatformController,

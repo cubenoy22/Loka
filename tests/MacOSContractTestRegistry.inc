@@ -42,3 +42,5 @@ LOKA_TEST(testMacTextEditorPageGeometryDeclinesWrappedLine)
 LOKA_TEST(testMacTextEditorPagePriority)
 LOKA_TEST(testMacTextEditorPageEmptyLine)
 LOKA_TEST(testMacTextEditorPageBindingReplacement)
+
+LOKA_TEST(testMacFocusReadAndCompletion)

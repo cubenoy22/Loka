@@ -53,6 +53,7 @@ bool ToolboxScenePlatformController::handleEditClick(const Point &point)
     if (binding.te && PtInRect(point, &binding.rect))
     {
       editControls_.focus(i);
+      this->fallbackFocus_.cut();
       TEActivate(binding.te);
       if (binding.editor) binding.editor->click(point);
       else TEClick(point, false, binding.te);

@@ -28,6 +28,8 @@ namespace loka
 class MacTextEditorContext : public MacRetirableContext
 {
 public:
+  /** Borrow a context only from this rail's class-checked native participant. */
+  static MacTextEditorContext *fromNativeFocus(void *responder);
   MacTextEditorContext(MacScenePlatformController *, void *parent, loka::app::TextEditorNode *,
                        const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   virtual ~MacTextEditorContext();
