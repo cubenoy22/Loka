@@ -299,8 +299,8 @@ void testWin32FocusReadAndRestore()
   LOKA_VERIFY(GetFocus() != editor);
   f.expect(3);
   LOKA_VERIFY(Win32FocusParticipant::attach(editor, f.field(3)->getContext()));
-  // The WM_ACTIVATE minimized bit must suppress restore even before IsIconic
-  // catches up. A synthetic message isolates that guard from OS focus policy.
+  // The WM_ACTIVATE minimized bit is the minimized-skip guard. A synthetic
+  // message isolates it from OS focus policy.
   SetFocus(f.window.hwnd());
   SendMessageW(f.window.hwnd(), WM_ACTIVATE, MAKEWPARAM(WA_ACTIVE, TRUE), 0);
   LOKA_VERIFY(GetFocus() != f.edit(3));
@@ -313,8 +313,8 @@ void testWin32FocusReadAndRestore()
   LOKA_VERIFY(IsIconic(f.window.hwnd()));
   SetActiveWindow(other.hwnd());
   SetFocus(other.hwnd());
-  // Windows itself refuses focus into a minimized window's child, so this
-  // pins the outcome; the IsIconic guard alone is not what it discriminates.
+  // Windows itself refuses focus into a minimized window's child, so no
+  // separate IsIconic guard exists: this pins the outcome on a real iconic window.
   SendMessageW(f.window.hwnd(), WM_ACTIVATE, MAKEWPARAM(WA_CLICKACTIVE, FALSE), 0);
   LOKA_VERIFY(GetFocus() != f.edit(3));
   f.expect(3);

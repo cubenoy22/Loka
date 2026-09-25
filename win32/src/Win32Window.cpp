@@ -406,7 +406,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         self->app_->setActiveWindow(static_cast<Window *>(self));
       }
       if ((LOWORD(wParam) == WA_ACTIVE || LOWORD(wParam) == WA_CLICKACTIVE)
-          && !HIWORD(wParam) && !IsIconic(hwnd))
+          && !HIWORD(wParam))
       {
         loka::app::scene::NodeContext *context = self->publishedFocusContext();
         loka::app::scene::Node *node = context ? context->owner() : 0;
