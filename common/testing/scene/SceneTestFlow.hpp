@@ -25,6 +25,33 @@ namespace loka
       class SceneTestAccess
       {
       public:
+        /** Count real refresh attempts using the Scene's own scheduler. */
+        static bool runCountingRefreshes(::loka::app::scene::Scene &scene, int &attempts)
+        {
+          CountedRefresh probe(scene, attempts);
+          return scene.nextTickTracker_.run(&CountedRefresh::refresh, &CountedRefresh::apply, &probe);
+        }
+
+      private:
+        struct CountedRefresh
+        {
+          ::loka::app::scene::Scene &scene;
+          int &attempts;
+          CountedRefresh(::loka::app::scene::Scene &value, int &count) : scene(value), attempts(count) {}
+          static bool refresh(void *data)
+          {
+            CountedRefresh &probe = *static_cast<CountedRefresh *>(data);
+            ++probe.attempts;
+            return ::loka::app::scene::Scene::RefreshThunk(&probe.scene);
+          }
+          static void apply(void *data)
+          {
+            CountedRefresh &probe = *static_cast<CountedRefresh *>(data);
+            ::loka::app::scene::Scene::ApplyThunk(&probe.scene);
+          }
+        };
+
+      public:
         /** Prepare a replacement's logical tree before native projection/install. */
         static void prepareComposition(::loka::app::scene::Scene &scene)
         {

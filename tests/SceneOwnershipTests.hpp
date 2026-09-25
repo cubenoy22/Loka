@@ -35,4 +35,12 @@ void testAppKeepsAdmissionSnapshotAliveDuringWindowClose();
 
 void testClosedAdmittedWindowIsNotRecreatedByEarlierSeatCallback();
 
+void testPreparedSceneDefersProjection();
+void testPreparedScenePreservesStructuralWork();
+void testPreparedSceneOrdinaryInstallProjectsOnce();
+void testPreparedSceneAttachedObserverProjectsWhileCurrent();
+void testSceneDetachObserverDropsWork();
+void testPreparedSceneSchedulerDoesNotPoll();
+void testPreparedSceneCoalescesDescendantWork();
+
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP
