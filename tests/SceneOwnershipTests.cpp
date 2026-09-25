@@ -1,3 +1,4 @@
+#include "app/nodes/nestable/Show.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "testing/app/ComposableNodeTestAccess.hpp"
@@ -1881,4 +1882,182 @@ void testClosedAdmittedWindowIsNotRecreatedByEarlierSeatCallback()
   app.requestWindowClose(first);
   app.flush();
   LOKA_VERIFY(g_sceneOwnershipScenesAlive == 0);
+}
+
+namespace
+{
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  class PreparedReveal : public BoundaryNodeFor<PreparedReveal>
+  {
+  public:
+    NodeState<bool> visible;
+    explicit PreparedReveal(const BoundaryPropsFor<PreparedReveal> &props)
+        : BoundaryNodeFor<PreparedReveal>(props) { this->state(this->visible, false); }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(loka::app::Show(*this->visible.state()) << loka::app::EditText());
+    }
+  };
+
+  class PreparedParent : public BoundaryNodeFor<PreparedParent>
+  {
+  public:
+    explicit PreparedParent(const BoundaryPropsFor<PreparedParent> &props)
+        : BoundaryNodeFor<PreparedParent>(props) {}
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Boundary<PreparedReveal>());
+    }
+  };
+
+  Node *FindPreparedEdit(Node *node)
+  {
+    if (!node || node->asEditTextNode()) return node;
+    INestable *nest = node->asNestable();
+    if (!nest) return 0;
+    loka::dsl::CompositionCursor<Node> it(nest->childrenHead(), nest->childrenCount());
+    for (Node *child = it.next(); child; child = it.next())
+    {
+      Node *found = FindPreparedEdit(child);
+      if (found) return found;
+    }
+    return 0;
+  }
+
+  /** Window owns both scenes throughout the synchronous notification. */
+  struct PreparedNotification
+  {
+    NullWindow &window;
+    Scene &observed;
+    Scene &target;
+    bool onAttach;
+    bool reveal;
+    int calls;
+    PreparedNotification(NullWindow &w, Scene &o, Scene &t, bool attach, bool show)
+        : window(w), observed(o), target(t), onAttach(attach), reveal(show), calls(0) {}
+    static void run(void *data)
+    {
+      PreparedNotification &probe = *static_cast<PreparedNotification *>(data);
+      if (probe.observed.getAttachedState()->get() != probe.onAttach) return;
+      ++probe.calls;
+      NullScenePlatformController *rail = probe.window.scenePlatformController();
+      const unsigned long changes = rail->onChangeCallCount();
+      const unsigned long created = rail->createdCount();
+      LOKA_VERIFY(probe.window.scene() == &probe.observed);
+      if (probe.reveal)
+        static_cast<PreparedReveal *>(SceneTestAccess::rootBoundary(probe.target))->visible.set(true);
+      probe.target.invalidate(NODE_DIRTY_LAYOUT);
+      std::fprintf(stderr, "#913 observer: current_observed=%d attached=%d projections=%lu created=%lu\n",
+                   probe.window.scene() == &probe.observed, probe.target.getAttachedState()->get(),
+                   rail->onChangeCallCount() - changes, rail->createdCount() - created);
+      if (!probe.onAttach)
+      {
+        LOKA_VERIFY(rail->onChangeCallCount() == changes);
+        LOKA_VERIFY(rail->createdCount() == created);
+      }
+      else
+      {
+        LOKA_VERIFY(probe.window.scene() == &probe.target);
+        LOKA_VERIFY(rail->onChangeCallCount() > changes);
+      }
+    }
+  };
+
+  void VerifyPreparedReplacement(bool reveal, bool observeAttach, bool ordinary)
+  {
+    WindowCreatingPlatformContext context;
+    WindowProps props;
+    props.scene(new Scene(new loka::app::EditTextDefinition()));
+    NullWindow window(&context, props);
+    WindowAdmissionTestApp app(window);
+    Scene *a = window.scene();
+    Scene *b = reveal ? new Scene(Boundary<PreparedReveal>())
+                      : new Scene(new loka::app::EditTextDefinition());
+    PreparedNotification probe(window, observeAttach ? *b : *a, *b, observeAttach, reveal);
+    if (!ordinary) probe.observed.getAttachedState()->bind(&PreparedNotification::run, &probe, false);
+    const unsigned long before = window.scenePlatformController()->onChangeCallCount();
+    LOKA_VERIFY(window.sceneManager()->commitTransaction(0, b));
+    app.flush();
+    LOKA_VERIFY(window.scene() == b);
+    Node *edit = FindPreparedEdit(SceneTestAccess::rootNode(*b));
+    LOKA_VERIFY(edit && edit->getContext());
+    if (ordinary) LOKA_VERIFY(window.scenePlatformController()->onChangeCallCount() == before + 1);
+    else
+    {
+      LOKA_VERIFY(probe.calls == 1);
+      probe.observed.getAttachedState()->unbind(&PreparedNotification::run, &probe);
+    }
+  }
+}
+
+void testPreparedSceneDefersProjection() { VerifyPreparedReplacement(false, false, false); }
+void testPreparedScenePreservesStructuralWork() { VerifyPreparedReplacement(true, false, false); }
+void testPreparedSceneOrdinaryInstallProjectsOnce() { VerifyPreparedReplacement(false, false, true); }
+void testPreparedSceneAttachedObserverProjectsWhileCurrent() { VerifyPreparedReplacement(true, true, false); }
+
+void testSceneDetachObserverDropsWork()
+{
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  props.scene(new Scene(new loka::app::EditTextDefinition()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  Scene &scene = *window.scene();
+  PreparedNotification probe(window, scene, scene, false, false);
+  scene.getAttachedState()->bind(&PreparedNotification::run, &probe, false);
+  window.sceneManager()->requestDetach();
+  app.flush();
+  LOKA_VERIFY(probe.calls == 1);
+  LOKA_VERIFY(!SceneTestAccess::director(scene).firstPendingBoundary());
+  LOKA_VERIFY(!SceneTestAccess::rootNode(scene));
+  scene.getAttachedState()->unbind(&PreparedNotification::run, &probe);
+}
+
+void testPreparedSceneSchedulerDoesNotPoll()
+{
+  NullScenePlatformController rail;
+  Scene scene(new loka::app::EditTextDefinition());
+  scene.mount(&rail);
+  SceneTestAccess::prepareComposition(scene);
+  scene.requestInvalidate(NODE_DIRTY_LAYOUT);
+  int attempts = 0;
+  LOKA_VERIFY(!SceneTestAccess::runCountingRefreshes(scene, attempts));
+  LOKA_VERIFY(attempts == 1);
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
+  for (int i = 0; i < 3; ++i)
+    LOKA_VERIFY(!SceneTestAccess::runCountingRefreshes(scene, attempts));
+  LOKA_VERIFY(attempts == 1);
+  LOKA_VERIFY(SceneTestAccess::director(scene).firstPendingBoundary());
+}
+
+void testPreparedSceneCoalescesDescendantWork()
+{
+  for (int descendantOnly = 0; descendantOnly < 2; ++descendantOnly)
+  {
+    NullScenePlatformController rail;
+    Scene scene((Boundary<PreparedParent>()));
+    scene.mount(&rail);
+    SceneTestAccess::prepareComposition(scene);
+    PreparedReveal *child = static_cast<PreparedReveal *>(SceneTestAccess::rootBoundary(scene)->childrenHead());
+    child->visible.set(true);
+    for (int i = 0; i < 3; ++i)
+    {
+      if (!descendantOnly) scene.invalidate(NODE_DIRTY_LAYOUT);
+      SceneTestAccess::director(scene).requestBoundaryUpdate(child, NODE_DIRTY_LAYOUT, true);
+    }
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+    LOKA_VERIFY(rail.onChangeCallCount() == 0);
+    SceneTestAccess::updateAttached(scene, true);
+    LOKA_VERIFY(scene.hasPendingInvalidation());
+    int attempts = 0;
+    LOKA_VERIFY(SceneTestAccess::runCountingRefreshes(scene, attempts));
+    LOKA_VERIFY(attempts == 1);
+    Node *edit = FindPreparedEdit(SceneTestAccess::rootNode(scene));
+    LOKA_VERIFY(edit && edit->getContext());
+    LOKA_VERIFY(!SceneTestAccess::director(scene).firstPendingBoundary());
+    LOKA_VERIFY(!SceneTestAccess::runCountingRefreshes(scene, attempts));
+    LOKA_VERIFY(attempts == 1);
+  }
 }
