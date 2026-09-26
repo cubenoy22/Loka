@@ -67,6 +67,7 @@ typedef float CGFloat;
 #define LOKA_MAC_TEXT_ALIGNMENT_LEFT NSTextAlignmentLeft
 #define LOKA_MAC_TEXT_ALIGNMENT_CENTER NSTextAlignmentCenter
 #define LOKA_MAC_TEXT_ALIGNMENT_RIGHT NSTextAlignmentRight
+#define LOKA_MAC_TEXT_ALIGNMENT_NATURAL NSTextAlignmentNatural
 #else
 #define LOKA_MAC_WINDOW_STYLE_TITLED NSTitledWindowMask
 #define LOKA_MAC_WINDOW_STYLE_CLOSABLE NSClosableWindowMask
@@ -76,6 +77,7 @@ typedef float CGFloat;
 #define LOKA_MAC_TEXT_ALIGNMENT_LEFT NSLeftTextAlignment
 #define LOKA_MAC_TEXT_ALIGNMENT_CENTER NSCenterTextAlignment
 #define LOKA_MAC_TEXT_ALIGNMENT_RIGHT NSRightTextAlignment
+#define LOKA_MAC_TEXT_ALIGNMENT_NATURAL NSNaturalTextAlignment
 #endif
 
 #if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101000)

@@ -11,6 +11,9 @@ namespace loka
         IStateOwner *owner = this->asStateOwner();
         if (owner)
           owner->withdrawOwnedStates();
+        ComposableNode *composable = this->asComposable();
+        if (composable)
+          composable->withdrawParticipants();
       }
 
       void Node::bindingsFollowProps()

@@ -20,6 +20,7 @@ namespace loka
   {
     namespace scene
     {
+      template <typename FlowT> class FlowSlot;
       class ComposableNodeTestAccess;
       class BoundaryNode;
       class Scene;
@@ -78,14 +79,14 @@ namespace loka
               nodeStateOwner_(0),
               isAttached_(false),
               attached_(),
-              nodeStates_()
+              participants_()
         {
         }
         virtual ~ComposableNode()
         {
           releaseCallbacks();
           clearChildren();
-          releaseNodeStateRegistrations();
+          reclaimParticipants();
         }
 
         virtual ComposableNode *asComposable()
@@ -352,16 +353,16 @@ namespace loka
 
         template <typename T> void state(NodeState<T> &out, const T &initial)
         {
-          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          for (size_t i = 0; i < participants_.size(); ++i)
           {
-            if (nodeStates_[i] && nodeStates_[i]->matches(&out))
+            if (participants_[i]->asStateRegistration() && participants_[i]->asStateRegistration()->matches(&out))
             {
               assert(false && "ComposableNode::state registered the same NodeState twice");
               return;
             }
           }
           NodeStateRegistration<T> *entry = new NodeStateRegistration<T>(&out, initial);
-          nodeStates_.push_back(entry);
+          participants_.push_back(entry);
           this->connectNodeStateRegistration(entry);
         }
 
@@ -745,9 +746,9 @@ namespace loka
                              const detail::NodeStateDependency &dep2,
                              typename loka::core::DerivedState<T>::EvalFn *eval)
         {
-          for (size_t i = 0; i < this->nodeStates_.size(); ++i)
+          for (size_t i = 0; i < this->participants_.size(); ++i)
           {
-            if (this->nodeStates_[i] && this->nodeStates_[i]->matches(&out))
+            if (this->participants_[i]->asStateRegistration() && this->participants_[i]->asStateRegistration()->matches(&out))
             {
               delete eval;
               assert(false && "ComposableNode::derived registered the same seat twice");
@@ -756,14 +757,28 @@ namespace loka
           }
           NodeDerivedStateRegistration<T> *entry =
               new NodeDerivedStateRegistration<T>(&out, dep1, dep2, eval);
-          this->nodeStates_.push_back(entry);
+          this->participants_.push_back(entry);
           this->connectNodeStateRegistration(entry);
         }
 
       protected:
-        struct NodeStateRegistrationBase
+        struct NodeStateRegistrationBase;
+        /** One lifetime axis; only State rows expose reservation/connect operations. */
+        struct Participant
+        {
+          virtual ~Participant() {}
+          virtual void withdraw() = 0;
+          virtual void reclaim() = 0;
+          virtual NodeStateRegistrationBase *asStateRegistration() { return 0; }
+        };
+
+        struct NodeStateRegistrationBase : Participant
         {
           virtual ~NodeStateRegistrationBase() {}
+          virtual NodeStateRegistrationBase *asStateRegistration() { return this; }
+          // State withdrawal belongs to the existing IStateOwner ledger sweep.
+          virtual void withdraw() {}
+          virtual void reclaim() { this->disconnect(); delete this; }
           virtual bool matches(const void *out) const = 0;
           virtual void connect(IStateOwner *owner) = 0;
           virtual void disconnect() = 0;
@@ -912,7 +927,7 @@ namespace loka
             return;
           }
           NodeStateBatchRegistration *entry = new NodeStateBatchRegistration(entries, count);
-          nodeStates_.push_back(entry);
+          participants_.push_back(entry);
           this->connectNodeStateRegistration(entry);
         }
 
@@ -944,38 +959,48 @@ namespace loka
           // would cut one tiny slab per state, which is the same economy as
           // the heap fallback with extra bookkeeping.
           size_t arenaBytes = 0;
-          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          for (size_t i = 0; i < participants_.size(); ++i)
           {
-            if (nodeStates_[i])
+            if (NodeStateRegistrationBase *entry = participants_[i]->asStateRegistration())
             {
-              arenaBytes += nodeStates_[i]->pendingArenaBytes();
+              arenaBytes += entry->pendingArenaBytes();
             }
           }
           if (arenaBytes != 0)
           {
             nodeStateOwner_->reserveStateArena(arenaBytes);
           }
-          for (size_t i = 0; i < nodeStates_.size(); ++i)
+          for (size_t i = 0; i < participants_.size(); ++i)
           {
-            if (nodeStates_[i])
+            if (NodeStateRegistrationBase *entry = participants_[i]->asStateRegistration())
             {
-              nodeStates_[i]->connect(nodeStateOwner_);
+              entry->connect(nodeStateOwner_);
             }
           }
         }
 
-        void releaseNodeStateRegistrations()
+        void withdrawParticipants()
         {
-          for (size_t i = 0; i < nodeStates_.size(); ++i)
-          {
-            if (nodeStates_[i])
-            {
-              nodeStates_[i]->disconnect();
-            }
-            delete nodeStates_[i];
-          }
-          nodeStates_.clear();
+          for (size_t i = 0; i < this->participants_.size(); ++i)
+            this->participants_[i]->withdraw();
         }
+
+        void reclaimParticipants()
+        {
+          for (size_t i = 0; i < this->participants_.size(); ++i)
+            this->participants_[i]->reclaim();
+          this->participants_.clear();
+        }
+
+        void enrollParticipant(Participant &entry) { this->participants_.push_back(&entry); }
+        void unlinkParticipant(Participant &entry)
+        {
+          for (std::vector<Participant *>::iterator it = this->participants_.begin();
+               it != this->participants_.end(); ++it)
+            if (*it == &entry) { this->participants_.erase(it); return; }
+          assert(false && "Participant was not enrolled");
+        }
+        template <typename FlowT> friend class FlowSlot;
 
         void releaseCallbacks()
         {
@@ -1034,7 +1059,7 @@ namespace loka
         AttachedContext attached_;
         friend class ComposableNodeTestAccess;
         std::vector<CallbackEntryBase *> callbacks_;
-        std::vector<NodeStateRegistrationBase *> nodeStates_;
+        std::vector<Participant *> participants_;
       };
 
       /** Derived registration, sharing the ordered connect/release protocol
