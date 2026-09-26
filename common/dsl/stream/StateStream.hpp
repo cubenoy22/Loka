@@ -21,7 +21,8 @@ namespace loka
           : source(0),
             cb(0),
             userData(0),
-            destroy(0)
+            destroy(0),
+            ownedState(0)
       {
       }
       StateStreamBindingEntry(::loka::core::StateBase *s,
@@ -31,13 +32,16 @@ namespace loka
           : source(s),
             cb(c),
             userData(u),
-            destroy(d)
+            destroy(d),
+            ownedState(0)
       {
       }
       ::loka::core::StateBase *source;
       ::loka::core::StateBase::OnChangeFn cb;
       void *userData;
       void (*destroy)(void *);
+      /** State released after every subscription in this batch is disconnected. */
+      ::loka::core::StateBase *ownedState;
     };
 
     template <typename T> class StateStream
@@ -113,6 +117,12 @@ namespace loka
         return *this;
       }
 
+      /**
+       * Consume an owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename Mapper> StateStream<typename Mapper::Result> map(const Mapper &mapper) const
       {
         PROFILE_SECTION("sMap");
@@ -134,6 +144,12 @@ namespace loka
         return out;
       }
 
+      /**
+       * Consume an owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename R, typename ExprT> StateStream<R> map(const Expr<R, ExprT> &expr) const
       {
         PROFILE_SECTION("sMapExpr");
@@ -151,6 +167,12 @@ namespace loka
         return out;
       }
 
+      /**
+       * Consume either owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename U, typename Combiner>
       StateStream<typename Combiner::Result> combine(const StateStream<U> &other, const Combiner &combiner) const
       {
@@ -205,6 +227,11 @@ namespace loka
             entry.destroy(entry.userData);
           }
         }
+        for (size_t i = bindings_.size(); i > 0; --i)
+        {
+          if (bindings_[i - 1].ownedState && owner_)
+            this->owner_->releaseState(bindings_[i - 1].ownedState);
+        }
         bindings_.clear();
         if (ownsState_ && owner_ && state_)
         {
@@ -225,6 +252,14 @@ namespace loka
 
       template <typename U> void transferBindingsTo(StateStream<U> &out) const
       {
+        if (this->ownsState_)
+        {
+          StateStreamBindingEntry owned;
+          owned.ownedState = this->state_;
+          this->bindings_.push_back(owned);
+          this->ownsState_ = false;
+          this->state_ = 0;
+        }
         for (size_t i = 0; i < bindings_.size(); ++i)
         {
           out.bindings_.push_back(bindings_[i]);

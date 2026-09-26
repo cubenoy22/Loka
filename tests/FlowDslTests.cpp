@@ -7264,6 +7264,210 @@ void testStateStreamDestructionUnbindsSources()
   assert(target.get() == 5);
 }
 
+namespace
+{
+  struct ChainAddOneMapper
+  {
+    typedef int Result;
+    int *calls;
+    explicit ChainAddOneMapper(int *count) : calls(count) {}
+    int operator()(const int &value) const
+    {
+      ++*this->calls;
+      return value + 1;
+    }
+  };
+
+  struct ChainSum
+  {
+    typedef int Result;
+    int operator()(const int &left, const int &right) const { return left + right; }
+  };
+
+  loka::dsl::StateStream<int> makeOwnedChainLink(loka::dsl::StateStream<int> &source, int *calls)
+  {
+    return source.map(ChainAddOneMapper(calls));
+  }
+
+  class ChainReleaseOrderOwner : public CharacterizationStateOwner
+  {
+  public:
+    std::vector<loka::core::StateBase *> adopted;
+    std::vector<loka::core::StateBase *> released;
+
+    virtual void adoptStateUnchecked(loka::core::StateBase *state)
+    {
+      this->adopted.push_back(state);
+      CharacterizationStateOwner::adoptStateUnchecked(state);
+    }
+
+    virtual void releaseState(loka::core::StateBase *state)
+    {
+      this->released.push_back(state);
+      CharacterizationStateOwner::releaseState(state);
+    }
+  };
+
+  enum StreamChainShape
+  {
+    CHAIN_MAP,
+    CHAIN_COMBINE_LEFT,
+    CHAIN_COMBINE_RIGHT,
+    CHAIN_RETURNED,
+    CHAIN_EXPR,
+    CHAIN_NAMED_ESCAPE,
+    CHAIN_FLOW_SLOT
+  };
+
+  void verifyStreamChainOwnership(StreamChainShape shape)
+  {
+    // Borrowed storage outlives the owner's tracker deregistration.
+    loka::core::MutableState<int> input(1), otherInput(10), output(0);
+    CharacterizationStateOwner owner;
+    owner.trackBorrowed(&input);
+    owner.trackBorrowed(&otherInput);
+    owner.trackBorrowed(&output);
+    loka::app::scene::NodeState<int> target(&output, owner.tracker(), &owner);
+    int calls = 0;
+    {
+      loka::dsl::StateStream<int> source(&input, owner.tracker(), &owner);
+      loka::dsl::StateStream<int> other(&otherInput, owner.tracker(), &owner);
+      loka::dsl::StateStream<int> result;
+      loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot;
+      switch (shape)
+      {
+      case CHAIN_MAP:
+        result = source.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls));
+        break;
+      case CHAIN_COMBINE_LEFT:
+        result = source.map(ChainAddOneMapper(&calls)).combine(other, ChainSum());
+        break;
+      case CHAIN_COMBINE_RIGHT:
+        result = other.combine(source.map(ChainAddOneMapper(&calls)), ChainSum());
+        break;
+      case CHAIN_RETURNED:
+        result = makeOwnedChainLink(source, &calls).map(ChainAddOneMapper(&calls));
+        break;
+      case CHAIN_EXPR:
+        result = source.map(ChainAddOneMapper(&calls)).map(source.slot.value() + loka::dsl::Const(1));
+        break;
+      case CHAIN_NAMED_ESCAPE:
+        {
+          loka::dsl::StateStream<int> a = source.map(ChainAddOneMapper(&calls));
+          result = a.map(ChainAddOneMapper(&calls));
+          a.releaseOwnedState();
+          assert(owner.releaseCalls() == 0);
+        }
+        break;
+      case CHAIN_FLOW_SLOT:
+        slot.set(source.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls)));
+        slot.bindTo(target);
+        break;
+      }
+      if (shape != CHAIN_FLOW_SLOT)
+        result.set(target);
+      const int initialCalls = calls;
+      (void)initialCalls;
+      {
+        loka::core::StateTrackerGuard guard(owner.tracker());
+        input.set(5);
+      }
+      assert(calls > initialCalls);
+      assert(output.get() == ((shape == CHAIN_COMBINE_LEFT || shape == CHAIN_COMBINE_RIGHT) ? 16 : 7));
+    }
+    assert(owner.releaseCalls() == 2);
+    const int releasedCalls = calls;
+    (void)releasedCalls;
+    {
+      loka::core::StateTrackerGuard guard(owner.tracker());
+      input.set(9);
+      otherInput.set(20);
+    }
+    assert(calls == releasedCalls);
+    assert(output.get() == ((shape == CHAIN_COMBINE_LEFT || shape == CHAIN_COMBINE_RIGHT) ? 16 : 7));
+  }
+}
+
+void testStateStreamChainMapOwnsLinks() { verifyStreamChainOwnership(CHAIN_MAP); }
+void testStateStreamChainCombineLeftOwnsLinks() { verifyStreamChainOwnership(CHAIN_COMBINE_LEFT); }
+void testStateStreamChainCombineRightOwnsLinks() { verifyStreamChainOwnership(CHAIN_COMBINE_RIGHT); }
+void testStateStreamChainReturnedOwnsLinks() { verifyStreamChainOwnership(CHAIN_RETURNED); }
+void testStateStreamChainExprOwnsLinks() { verifyStreamChainOwnership(CHAIN_EXPR); }
+void testStateStreamChainNamedConsumptionEscapes() { verifyStreamChainOwnership(CHAIN_NAMED_ESCAPE); }
+void testStateStreamChainFlowSlotOwnsLinks() { verifyStreamChainOwnership(CHAIN_FLOW_SLOT); }
+
+void testStateStreamChainReleasesIntermediatesInReverseOrder()
+{
+  loka::core::MutableState<int> leftInput(1), rightInput(10), output(0);
+  ChainReleaseOrderOwner owner;
+  owner.trackBorrowed(&leftInput);
+  owner.trackBorrowed(&rightInput);
+  owner.trackBorrowed(&output);
+  loka::app::scene::NodeState<int> target(&output, owner.tracker(), &owner);
+  int calls = 0;
+  {
+    loka::dsl::StateStream<int> left(&leftInput, owner.tracker(), &owner);
+    loka::dsl::StateStream<int> right(&rightInput, owner.tracker(), &owner);
+    // Named construction fixes adoption order independently of argument evaluation order.
+    loka::dsl::StateStream<int> a = left.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls));
+    loka::dsl::StateStream<int> b = right.map(ChainAddOneMapper(&calls));
+    loka::dsl::StateStream<int> result = a.combine(b, ChainSum()).map(ChainAddOneMapper(&calls));
+    a.releaseOwnedState();
+    b.releaseOwnedState();
+    assert(owner.releaseCalls() == 0);
+    result.set(target);
+    {
+      loka::core::StateTrackerGuard guard(owner.tracker());
+      leftInput.set(5);
+      rightInput.set(20);
+    }
+    assert(output.get() == 29);
+  }
+  assert(owner.releaseCalls() == 5);
+  assert(owner.adopted.size() == 5 && owner.released.size() == 5);
+  // Four intermediate records unwind before the final State, which was adopted last.
+  for (size_t i = 0; i < 4; ++i)
+    assert(owner.released[i] == owner.adopted[3 - i]);
+  assert(owner.released[4] == owner.adopted[4]);
+}
+
+void testStateStreamChainCopyAssignmentAndRepeatedRelease()
+{
+  loka::core::MutableState<int> input(1);
+  CharacterizationStateOwner owner;
+  owner.trackBorrowed(&input);
+  int calls = 0;
+  {
+    loka::dsl::StateStream<int> source(&input, owner.tracker(), &owner);
+    loka::dsl::StateStream<int> first = source.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls));
+    loka::dsl::StateStream<int> copied(first);
+    first.releaseOwnedState();
+    assert(owner.releaseCalls() == 0);
+    loka::dsl::StateStream<int> assigned = source.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls));
+    assigned = copied;
+    assert(owner.releaseCalls() == 2);
+    copied.releaseOwnedState();
+    assert(owner.releaseCalls() == 2);
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot;
+    slot.set(assigned);
+    assigned.releaseOwnedState();
+    assert(owner.releaseCalls() == 2);
+    slot.set(source.map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls)));
+    assert(owner.releaseCalls() == 4);
+    slot.clear();
+    slot.clear();
+    assert(owner.releaseCalls() == 6);
+    const int releasedCalls = calls;
+    (void)releasedCalls;
+    {
+      loka::core::StateTrackerGuard guard(owner.tracker());
+      input.set(5);
+    }
+    assert(calls == releasedCalls);
+  }
+  assert(owner.releaseCalls() == 6);
+}
+
 void testBoundaryBorrowDirectionsRejectSiblingAndDescendant()
 {
   using loka::app::scene::ComponentContext;
