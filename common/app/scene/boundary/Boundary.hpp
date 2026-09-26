@@ -2084,15 +2084,29 @@ namespace loka
             runtime.appliedGeneration = this->branchSeats_.generation();
             return true;
           }
-          if (branchDefinition
-              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, mutablePlan.key.scope))
+          // Reconciling can grow the seat ledger (the reserve for staged
+          // nested rows) and erase rows below this seat, so `runtime` does not
+          // survive the call: stamp and fall back through the row re-found by
+          // key, as replaceSeatBranch() does before its commit (#925).
+          const BoundaryParkedBranchKey key = mutablePlan.key;
+          const bool reconciled =
+              branchDefinition
+              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, key.scope);
+          BoundaryBranchSeatRuntimeEntry *current = this->branchSeats_.findRuntime(key);
+          assert(current &&
+                 "reconciling a seat's arm must preserve that seat's own mapping");
+          if (!current)
           {
-            runtime.appliedGeneration = this->branchSeats_.generation();
+            return false;
+          }
+          if (reconciled)
+          {
+            current->appliedGeneration = this->branchSeats_.generation();
             return true;
           }
           return this->replaceSeatBranch(context,
                                          mutablePlan,
-                                         runtime,
+                                         *current,
                                          false,
                                          true);
         }
