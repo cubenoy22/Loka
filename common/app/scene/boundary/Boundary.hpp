@@ -89,7 +89,7 @@ namespace loka
 #endif
           clearObservedStateEntries();
           this->releaseOwnedNodeStorage();
-          releaseNodeStateRegistrations();
+          reclaimParticipants();
           clearOwnedStates();
           stateArena_.clear();
         }

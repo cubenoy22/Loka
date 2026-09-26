@@ -15,7 +15,10 @@ namespace loka
       public:
         static size_t declaredStateCount(const ComposableNode &node)
         {
-          return node.nodeStates_.size();
+          size_t count = 0;
+          for (size_t i = 0; i < node.participants_.size(); ++i)
+            if (node.participants_[i]->asStateRegistration()) ++count;
+          return count;
         }
 
         static size_t uiCallbackCount(const ComposableNode &node)

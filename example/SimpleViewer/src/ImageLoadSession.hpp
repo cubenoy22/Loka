@@ -29,10 +29,10 @@ namespace simpleviewer
   public:
     typedef loka::dsl::FlowChain<loka::app::FileChooserResult, loka::core::resource::Image> Flow;
 
-    ImageLoadSession()
+    explicit ImageLoadSession(loka::app::scene::ComposableNode &owner)
         : owner_(0),
           platformContext_(0),
-          flow_()
+          flow_(owner)
     {
     }
 
