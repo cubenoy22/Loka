@@ -9,8 +9,8 @@ card('first', class {
   compose() {
     return VStack(
       Markup('<size=18><b>Card One</b></size>', undefined, {align: 'center'}).TEST_ID('SmirkyCard.Title'),
-      Text('This Scene is defined in JavaScript. Edit the expression below and run it to explore.',
-           undefined, {wrap: 'word'}),
+      Markup('This Scene is defined in JavaScript. Edit the expression below and run it to explore.',
+             undefined, {wrap: 'word'}),
       Markup('<i>A little code, a new idea.</i>', undefined, {align: 'right'}),
       EditText(this.script).TEST_ID('SmirkyCard.Script'),
       Button('Run', () => {
