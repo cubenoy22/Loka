@@ -249,13 +249,11 @@ namespace loka
         }
 
       private:
+        // A step already on the stack may finish after RETIRED and try to
+        // re-arm; that is a timing consequence, not misuse, so refuse quietly.
         bool mayParticipate() const
         {
-          const bool allowed = !this->owner_ || this->owner_->lifecycleFact() != NODE_FACT_RETIRED;
-#ifdef LOKA_LIFECYCLE_AUDIT
-          assert(allowed && "FlowSlot owner is RETIRED");
-#endif
-          return allowed;
+          return !this->owner_ || this->owner_->lifecycleFact() != NODE_FACT_RETIRED;
         }
         virtual void withdraw()
         {

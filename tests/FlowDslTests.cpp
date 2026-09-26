@@ -8069,11 +8069,6 @@ void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce()
 
 #include "RetiredFlowParticipationTests.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
-#if defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(NDEBUG)
-#include <unistd.h>
-#include <sys/wait.h>
-#include <signal.h>
-#endif
 
 namespace
 {
@@ -8223,21 +8218,7 @@ namespace
 void testRetiredFlowRefusesRearm()
 {
   for (int door = 0; door < 3; ++door)
-  {
-#if defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(NDEBUG)
-    const pid_t child = fork();
-    LOKA_VERIFY(child >= 0);
-    if (child == 0) { attemptRetiredFlowRearm(door); _exit(0); }
-    int status = 0;
-    const pid_t waited = waitpid(child, &status, 0);
-    LOKA_VERIFY(waited == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
-#elif !defined(LOKA_LIFECYCLE_AUDIT) || defined(NDEBUG)
     attemptRetiredFlowRearm(door);
-#else
-    std::fprintf(stderr, "[skip] audit refusal death pin needs Linux fork; release exercises silent refusal\n");
-    (void)&attemptRetiredFlowRearm;
-#endif
-  }
 }
 
 void testRetiredStreamBroadOwnerStopsEvaluation()
