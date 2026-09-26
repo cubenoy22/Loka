@@ -1,3 +1,4 @@
+#include "MacObjCCompat.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "MacNodeHandlerEnsureTests.hpp"
 #include "support/TestVerify.hpp"
@@ -276,7 +277,7 @@ void testMacNodeHandlerEnsureContract()
     NSTextField *textField = (NSTextField *)[[root subviews] objectAtIndex:childrenWithText - 1];
     const loka::app::TextAlign alignments[] = {
         loka::app::TEXT_ALIGN_CENTER, loka::app::TEXT_ALIGN_RIGHT, loka::app::TEXT_ALIGN_LEFT};
-    const NSTextAlignment expected[] = {NSCenterTextAlignment, NSRightTextAlignment, NSLeftTextAlignment};
+    const NSTextAlignment expected[] = {LOKA_MAC_TEXT_ALIGNMENT_CENTER, LOKA_MAC_TEXT_ALIGNMENT_RIGHT, LOKA_MAC_TEXT_ALIGNMENT_LEFT};
     for (int a = 0; a < 3; ++a)
     {
       text.props.blockStyle_.align(alignments[a]);
@@ -419,7 +420,7 @@ void testMacAttributedTextWholeLineProjection()
       LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByTruncatingTail);
       LOKA_VERIFY(![[field cell] wraps]);
       const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
-      const NSTextAlignment expected[] = {NSLeftTextAlignment, NSCenterTextAlignment, NSRightTextAlignment};
+      const NSTextAlignment expected[] = {LOKA_MAC_TEXT_ALIGNMENT_LEFT, LOKA_MAC_TEXT_ALIGNMENT_CENTER, LOKA_MAC_TEXT_ALIGNMENT_RIGHT};
       for (int a = 0; a < 3; ++a)
       {
         node.props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_NONE).align(alignments[a]);
