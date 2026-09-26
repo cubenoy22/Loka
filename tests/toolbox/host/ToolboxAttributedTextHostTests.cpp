@@ -271,6 +271,30 @@ int main(int argc, char **)
     LOKA_VERIFY(toolbox_host::draws[1].face == italic);
     LOKA_VERIFY(toolbox_host::draws[1].x == 10);
   }
+  Pin("ToolboxAttributedTextAlignsPaintedLines");
+  {
+    ToolboxAttributedTextTable projected;
+    const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+    const int offsets[] = {0, 8, 17};
+    for (int a = 0; a < 3; ++a)
+    {
+      const BlockStyle block = BlockStyle().align(alignments[a]);
+      LOKA_VERIFY(projected.build(Styled("ab\nx", Bold), block, 27, controller));
+      toolbox_host::reset();
+      LOKA_VERIFY(projected.draw(3, 0, controller, block, 27));
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].x == 3 + offsets[a]);
+      LOKA_VERIFY(toolbox_host::draws[1].x == 3 + (a == 0 ? 0 : a == 1 ? 11 : 22));
+      LOKA_VERIFY(toolbox_host::measures == 0);
+      const BlockStyle dots = BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS).align(alignments[a]);
+      LOKA_VERIFY(projected.build(Styled("abcdefgh", Bold), dots, 27, controller));
+      toolbox_host::reset();
+      LOKA_VERIFY(projected.draw(3, 0, controller, dots, 27));
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "ab");
+      LOKA_VERIFY(toolbox_host::draws[0].x == 3 + a);
+      LOKA_VERIFY(toolbox_host::draws[1].x == 13 + a);
+    }
+  }
   Pin("ToolboxAttributedTextDistinctResolvedMetricsAndEmptyLines");
   loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 0);
   {

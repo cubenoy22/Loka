@@ -374,6 +374,43 @@ void testWin32TextFontTable()
     LOKA_VERIFY(readFont(plainWindow, defaultDescriptor) == controller.displayFont());
     LOKA_VERIFY(layoutFontText(controller, plain) == loka::app::layout::FallbackControlMetrics::kTextHeight);
 
+    // Undeclared Text keeps the native default; declared alignment selects a
+    // STATIC type without combining it with SS_LEFTNOWORDWRAP's type bits.
+    LOKA_VERIFY((GetWindowLongPtrW(plainWindow, GWL_STYLE) & SS_TYPEMASK) == SS_LEFT);
+    const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+    for (int wraps = 0; wraps < 2; ++wraps)
+      for (int ellipsis = 0; ellipsis < 2; ++ellipsis)
+        for (int a = 0; a < 3; ++a)
+        {
+          TextProps alignedProps(plainProps);
+          alignedProps.blockStyle_ = BlockStyle().wrap(wraps ? TEXT_WRAP_WORD : TEXT_WRAP_NONE)
+              .truncation(ellipsis ? TEXT_TRUNCATION_ELLIPSIS : TEXT_TRUNCATION_CLIP).align(alignments[a]);
+          TextNode aligned(alignedProps);
+          HWND child = projectFontText(controller, root, aligned);
+          const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
+          const LONG_PTR expected = a == 0 ? (wraps ? SS_LEFT : SS_LEFTNOWORDWRAP)
+                                          : a == 1 ? SS_CENTER : SS_RIGHT;
+          LOKA_VERIFY((style & SS_TYPEMASK) == expected);
+          LOKA_VERIFY((style & SS_EDITCONTROL) == (wraps ? SS_EDITCONTROL : 0));
+          LOKA_VERIFY((style & SS_ENDELLIPSIS) == (ellipsis ? SS_ENDELLIPSIS : 0));
+          if (a == 0)
+          {
+            // Retained LEFT -> CENTER keeps the context, HWND and other flags.
+            SetWindowLongPtrW(child, GWL_STYLE, style | SS_NOPREFIX);
+            loka::app::scene::NodeContext *context = aligned.getContext();
+            const int children = countChildWindows(root);
+            aligned.props.blockStyle_.align(TEXT_ALIGN_CENTER);
+            context->onPropsApplied();
+            LOKA_VERIFY(projectFontText(controller, root, aligned) == child);
+            LOKA_VERIFY(aligned.getContext() == context);
+            LOKA_VERIFY(countChildWindows(root) == children);
+            const LONG_PTR retained = GetWindowLongPtrW(child, GWL_STYLE);
+            LOKA_VERIFY((retained & SS_TYPEMASK) == SS_CENTER);
+            LOKA_VERIFY((retained & ~static_cast<LONG_PTR>(SS_TYPEMASK))
+                        == ((style | SS_NOPREFIX) & ~static_cast<LONG_PTR>(SS_TYPEMASK)));
+          }
+        }
+
     TextProps largeProps(plainProps);
     largeProps.textStyle_ = FontSize<24>();
     TextNode largeMetrics(largeProps);
@@ -616,6 +653,29 @@ void testWin32AttributedTextPerRunProjection()
         if (GetPixel(dc, x, y) != RGB(255, 255, 255))
           ink = true;
     LOKA_VERIFY(ink);
+    // Compare actual ink translations on the same GDI surface. Bearings stay
+    // constant; the line offset must use this rail's measured painted width.
+    int leftInk = 400;
+    const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+    for (int a = 0; a < 3; ++a)
+    {
+      node.props.blockStyle_.align(alignments[a]);
+      context->onPropsApplied();
+      state = attributedSeat(width * 3);
+      context->layout(&controller, state);
+      LOKA_VERIFY(table.lines().lineCount() == 1 && table.lines().line(0).width < 400);
+      AttributedAccess::draw(*context, dc, rect);
+      int firstInk = 400;
+      for (int y = 0; y < 80; ++y)
+        for (int x = 0; x < firstInk; ++x)
+          if (GetPixel(dc, x, y) != RGB(255, 255, 255))
+            firstInk = x;
+      LOKA_VERIFY(firstInk < 400);
+      if (a == 0)
+        leftInk = firstInk;
+      const int slack = 400 - table.lines().line(0).width;
+      LOKA_VERIFY(firstInk == leftInk + (a == 0 ? 0 : a == 1 ? slack / 2 : slack));
+    }
     const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
     LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
     IntersectClipRect(dc, 0, 0, 10, 10);
