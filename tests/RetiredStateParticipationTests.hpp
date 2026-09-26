@@ -7,4 +7,5 @@ void testRetiredStateDiscardForgetsAncestorObservation();
 void testRetiredStateDirtyTransactionCannotPublish();
 void testRetiredStateGenerationReplacementWithdraws();
 void testRetiredStateParkAndReattachKeepsParticipation();
+void testRetiredStateLifecycleHookCannotPublish();
 #endif

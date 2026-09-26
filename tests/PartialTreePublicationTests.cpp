@@ -1648,6 +1648,7 @@ void testBranchSeatCaptureOverLiveLedgerAborts()
 }
 
 #include "RetiredStateParticipationTests.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 
 namespace
@@ -1726,6 +1727,29 @@ namespace
       c.declare(FragmentDefinition().tag(1));
     }
   };
+  class HookParticipationScope : public ParticipationScope
+  {
+  public:
+    explicit HookParticipationScope(const Props &p) : ParticipationScope(p) {}
+  protected:
+    virtual void onLifecycleFactChanged(NodeLifecycleFact, NodeLifecycleFact next)
+    {
+      if (next == NODE_FACT_RETIRED)
+        this->local.set(7);
+    }
+  };
+  class HookParticipationRoot : public BoundaryNodeFor<HookParticipationRoot>
+  {
+  public:
+    explicit HookParticipationRoot(const BoundaryPropsFor<HookParticipationRoot> &p)
+        : BoundaryNodeFor<HookParticipationRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(LazyScopeDefinition<bool, HookParticipationScope>(
+          fixture->nestedSelection, ParticipationProps()));
+    }
+  };
+
   class ParticipationRoot : public BoundaryNodeFor<ParticipationRoot>
   {
   public:
@@ -1886,3 +1910,35 @@ void testRetiredStateDirtyTransactionCannotPublish()
 }
 void testRetiredStateGenerationReplacementWithdraws() { ordinaryParticipation(false); }
 void testRetiredStateParkAndReattachKeepsParticipation() { ordinaryParticipation(true); }
+
+void testRetiredStateLifecycleHookCannotPublish()
+{
+  PublicationFixture data(PLAIN, 2, false);
+  FixtureScope fixtureScope(data);
+  ParticipationData state(true, true);
+  participation = &state;
+  PublicationObserver platform;
+  Scene scene((Boundary<HookParticipationRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  BoundaryNode *boundary = SceneTestAccess::rootBoundary(scene);
+  state.publication.install(*state.scope->asStateOwner()->tracker()->asPushTracker());
+  holdUpdateCycle(scene);
+  const int evaluations = state.evaluations;
+  state.scope->local.set(1);
+  LOKA_VERIFY(state.publication.calls == 1 && state.evaluations == evaluations + 1);
+  LOKA_VERIFY(SceneTestAccess::accumulatedBoundaryDirtyFlags(scene, boundary) == NODE_DIRTY_LAYOUT);
+  SceneTestAccess::director(scene).completeUpdateCycle();
+  holdUpdateCycle(scene);
+
+  LifecycleFactTestAccess::MarkSubtreeRetired(state.scope);
+  const NodeDirtyFlags dirty = SceneTestAccess::accumulatedBoundaryDirtyFlags(scene, boundary);
+  std::fprintf(stderr, "932 retired hook commits=%d evals=%d dirty=%u value=%d\n",
+               state.publication.calls - 1, state.evaluations - evaluations - 1,
+               static_cast<unsigned>(dirty), state.scope->local.get());
+  LOKA_VERIFY(state.scope->local.get() == 7);
+  LOKA_VERIFY(state.publication.calls == 1);
+  LOKA_VERIFY(state.evaluations == evaluations + 1);
+  LOKA_VERIFY(dirty == NODE_DIRTY_NONE);
+  SceneTestAccess::director(scene).completeUpdateCycle();
+}

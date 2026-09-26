@@ -703,8 +703,9 @@ namespace loka
             RETIRED is terminal, so R->A / R->D assert. The three writers are
             the compose door (composeTree ATTACH), the walk door
             (NotifySubtreeNode*), and the retire door (retire/teardown paths)
-            — reclaim never writes lifecycle state. Focus source cuts precede
-            the living publication hook; terminal membership removal follows it.
+            — reclaim never writes lifecycle state. Detach work (focus source
+            cuts, terminal membership removal and state withdrawal) precedes
+            the living publication hook.
             In ~Node virtual dispatch is base-only: the derived row has already
             silently unlinked, so that final RETIRED write cannot touch it. */
         void applyLifecycleFact(NodeLifecycleFact next)
@@ -734,12 +735,13 @@ namespace loka
             }
             if (next == NODE_FACT_RETIRED) focusRow->unlink();
           }
-          this->onLifecycleFactChanged(previous, next);
           if (next == NODE_FACT_RETIRED)
             this->withdrawStateParticipation();
+          this->onLifecycleFactChanged(previous, next);
         }
         /** After RETIRED, a write to a withdrawn State may change its value
-            but propagates nothing. Withdraw the inner owner's participation;
+            but propagates nothing, including inside the living publication
+            hook. Withdraw the inner owner's participation before that hook;
             storage stays on the owning clock. In ~Node, base-only
             asStateOwner() returns null: derived owners are already gone. */
         void withdrawStateParticipation();
