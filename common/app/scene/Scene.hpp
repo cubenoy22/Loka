@@ -936,19 +936,13 @@ namespace loka
               clearPendingRefreshCycle();
             return false;
           }
-          // Root allocation white-flag retry (#132 ruling 3 / #140 P2): an
-          // earlier refused root create() leaves the scene mounted but
-          // uncomposed, which the !composed_ guard below would strand forever
-          // (ordinary invalidations never re-enter root creation). This
-          // externally caused refresh retries it once. If the backend has
-          // healed, composeIfNeeded rebuilds the root and projects the initial
-          // content through onChange, exactly as a healthy mount does — there
-          // is no prior platform state for a root that never existed, so no
-          // diff cycle is owed and the flag is simply consumed. If it fails
-          // again, ensureRootNode re-arms the flag and the scene stays
-          // uncomposed, waiting for the next external drive. Nothing here
-          // self-schedules a tick, exactly like the boundary white flag.
-          if (!composed_ && mounted_ && platformController_ && whiteFlagFullRebuildPending_)
+          // #132 ruling 3 / #144: retry a refused mount only on external
+          // boundary work. Candidate retirement queues a drain-only run, which
+          // must not start another materialization and retirement cycle.
+          // With no root there can be no candidate retirement; retain the
+          // root-factory retry. The plain-root wrapper is itself a Boundary.
+          if (!composed_ && mounted_ && platformController_ && whiteFlagFullRebuildPending_
+              && (!rootNode_ || director_.firstPendingBoundary()))
           {
             composeIfNeeded(COMPOSE_EVENT_ATTACH);
             if (composed_)

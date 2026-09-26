@@ -1,7 +1,12 @@
 #ifndef LOKA_TESTS_PARTIAL_TREE_PUBLICATION_TESTS_HPP
 #define LOKA_TESTS_PARTIAL_TREE_PUBLICATION_TESTS_HPP
 void testPartialTree629();
-void testExpectedRedPartialTree144();
+void testPartialTree144();
+void testPartialTree144PlainRoot();
+void testPartialTree144NestedBoundary();
+void testPartialTreeDiscardWithdrawsBindings();
+void testPartialTreeDrainOnlyDoesNotRetry();
+void testExpectedRedPartialTreeAttachRefusal144();
 void testPartialTree100Children();
 void testPartialTreeHealthyControl();
 void testPartialTreeNullRootSwitchRecovery();
