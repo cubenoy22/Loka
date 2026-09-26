@@ -33,6 +33,7 @@ def generate_cpp(vocab):
     lines += enum_lines("TextWeight", "TEXT_WEIGHT", vocab["weights"])
     lines += enum_lines("TextWrap", "TEXT_WRAP", vocab["wrap"])
     lines += enum_lines("TextTruncation", "TEXT_TRUNCATION", vocab["truncation"])
+    lines += enum_lines("TextAlign", "TEXT_ALIGN", vocab["align"])
     sizes = ", ".join(str(value) for value in vocab["sizes"])
     lines += [
         "    template <int N> struct FontSize;",
@@ -97,7 +98,7 @@ def generate_cpp(vocab):
 
 def ts_type(value):
     return {"fontSize": "FontSize", "weight": "TextWeight", "italic": "boolean",
-            "wrap": "TextWrap", "truncation": "TextTruncation"}[value]
+            "wrap": "TextWrap", "truncation": "TextTruncation", "align": "TextAlign"}[value]
 
 
 def union(values):
@@ -111,6 +112,7 @@ def generate_typescript(vocab):
         "export type TextWeight = %s;" % union(json.dumps(key.lower()) for key in vocab["weights"]),
         "export type TextWrap = %s;" % union(vocab["wrap"].values()),
         "export type TextTruncation = %s;" % union(vocab["truncation"].values()),
+        "export type TextAlign = %s;" % union(vocab["align"].values()),
         "",
     ]
     for interface in ("TextStyle", "BlockStyle"):

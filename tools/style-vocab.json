@@ -14,8 +14,13 @@
     "CLIP": 1,
     "ELLIPSIS": 2
   },
+  "align": {
+    "LEFT": 0,
+    "CENTER": 1,
+    "RIGHT": 2
+  },
   "fields": {
     "TextStyle": ["fontSize", "weight", "italic"],
-    "BlockStyle": ["wrap", "truncation"]
+    "BlockStyle": ["wrap", "truncation", "align"]
   }
 }

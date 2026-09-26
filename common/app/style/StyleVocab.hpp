@@ -26,6 +26,13 @@ namespace loka
       TEXT_TRUNCATION_ELLIPSIS = 2
     };
 
+    enum TextAlign
+    {
+      TEXT_ALIGN_LEFT = 0,
+      TEXT_ALIGN_CENTER = 1,
+      TEXT_ALIGN_RIGHT = 2
+    };
+
     template <int N> struct FontSize;
     namespace detail
     {

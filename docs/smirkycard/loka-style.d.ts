@@ -3,6 +3,7 @@ export type FontSize = 9 | 10 | 12 | 14 | 18 | 24;
 export type TextWeight = "normal" | "bold";
 export type TextWrap = 0 | 1 | 2;
 export type TextTruncation = 0 | 1 | 2;
+export type TextAlign = 0 | 1 | 2;
 
 export interface TextStyle {
   /** Any integer; snapped at declaration to the nearest FontSize, ties down. */
@@ -14,6 +15,7 @@ export interface TextStyle {
 export interface BlockStyle {
   wrap?: TextWrap;
   truncation?: TextTruncation;
+  align?: TextAlign;
 }
 
 /**

@@ -119,7 +119,8 @@ namespace loka
       bool hasDeclaredStyle() const
       {
         return this->textStyleState_ != 0 || this->textStyle_.hasFontSize_ || this->textStyle_.hasWeight_
-               || this->textStyle_.hasItalic_ || this->blockStyle_.hasWrap_ || this->blockStyle_.hasTruncation_;
+               || this->textStyle_.hasItalic_ || this->blockStyle_.hasWrap_ || this->blockStyle_.hasTruncation_
+               || this->blockStyle_.hasAlign_;
       }
       TextStyle resolvedTextStyle() const
       {

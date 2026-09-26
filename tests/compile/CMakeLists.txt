@@ -416,3 +416,8 @@ loka_compile_pin(defer-key-is-private
   REFUSES pins/refuses_defer_key_construction.cpp
   ACCEPTS pins/accepts_defer_testing_door.cpp
 )
+
+loka_compile_pin(text-align-enum
+  REFUSES pins/refuses_text_align.cpp
+  ACCEPTS pins/accepts_text_align.cpp
+)
