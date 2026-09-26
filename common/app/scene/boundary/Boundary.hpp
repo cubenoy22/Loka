@@ -516,6 +516,16 @@ namespace loka
               this->registerBranchSeatDirtySources(*nested);
           }
         }
+        /** Publish staged declarations and rows before observing the accepted
+            scope tree once. Callers choose the owning boundary or a newly
+            installed declaration scope; nested scopes are visited recursively.
+            Cost: once per enclosing commit, walks that scope's seat sources. */
+        void commitBranchSeatRegistrations(BoundaryBranchSeatRuntimeRegistrationPlan &registrations,
+                                           BoundaryBranchSeatState &observationScope)
+        {
+          registrations.commitTo(this->branchSeats_);
+          this->registerBranchSeatDirtySources(observationScope);
+        }
         /** Outgoing declaration registrations stop owning their sources before
             publication. Surviving seats and the boundary are registered again;
             descendant nodes register in the following child walk. */
@@ -700,17 +710,26 @@ namespace loka
           if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
           {
             if (result.root)
-              this->retireSeatBranchRoot(context, result.root);
+              RetireUnattachedCandidate(result.root, &context);
             result.root = 0;
             return result;
           }
-          plan.seat()->commitBranchDeclaration(candidate.take());
           if (registrations)
+          {
+            if (!nested.stageDeclaration(plan.seat(), candidate))
+            {
+              this->noteComposeAllocationFailure();
+              RetireUnattachedCandidate(result.root, &context);
+              result.root = 0;
+              result.allocationFailed = true;
+              return result;
+            }
             nested.appendTo(*registrations);
+          }
           else
           {
-            nested.commitTo(this->branchSeats_);
-            this->registerBranchSeatDirtySources(*plan.seat()->declaredBranchSeats());
+            plan.seat()->commitBranchDeclaration(candidate.take());
+            this->commitBranchSeatRegistrations(nested, *plan.seat()->declaredBranchSeats());
           }
           return result;
         }
@@ -1096,7 +1115,7 @@ namespace loka
           if (result.requiresBoundaryPlan || result.allocationFailed || !result.root)
           {
             if (result.root)
-              this->retireSeatBranchRoot(materializationContext, result.root);
+              RetireUnattachedCandidate(result.root, &materializationContext);
             return 0;
           }
           return result.root;
@@ -1296,8 +1315,7 @@ namespace loka
               this->retireParkedBranchForRemovedSeat(context, detachedNode);
             }
           }
-          plan.branchSeatRegistrations.commitTo(this->branchSeats_);
-          this->registerBranchSeatDirtySources();
+          this->commitBranchSeatRegistrations(plan.branchSeatRegistrations, this->branchSeats_);
           for (size_t i = 0; i < plan.entries.size(); ++i)
           {
             BoundaryLocalRebuildPlanEntry &entry = plan.entries[i];
@@ -1406,18 +1424,20 @@ namespace loka
               Node *created = 0;
               if (seatPlan)
               {
+                NodeMaterializationResult materialized = {0, false, false};
                 if (!seatPlan->dirtySource || !runtimeParent ||
                     !this->createCurrentBranch(
                         context,
                         *seatPlan,
                         runtimeParent,
-                        created,
-                        &plan.branchSeatRegistrations))
+                        materialized,
+                        plan.branchSeatRegistrations))
                 {
                   return false;
                 }
+                created = materialized.root;
                 plan.branchSeatRegistrations.record(
-                    *seatPlan, runtimeParent, created);
+                    *seatPlan, runtimeParent, materialized);
               }
               else
               {
@@ -1545,10 +1565,9 @@ namespace loka
         bool createCurrentBranch(ComponentContext &context,
                                  const BoundaryBranchSeatPlanEntry &plan,
                                  Node *parent,
-                                 Node *&created,
-                                 BoundaryBranchSeatRuntimeRegistrationPlan *registrations = 0)
+                                 NodeMaterializationResult &result,
+                                 BoundaryBranchSeatRuntimeRegistrationPlan &registrations)
         {
-          created = 0;
           loka::app::FragmentDefinition emptyBranch;
           NodeDefinitionBase *definition =
               plan.materializedBranchDefinition(emptyBranch);
@@ -1558,10 +1577,9 @@ namespace loka
           if (runtime && runtime->stateOwner)
             branchContext.setStateOwner(runtime->stateOwner);
           composition.setContext(&branchContext);
-          composition.collectBranchSeatRegistrationsIn(registrations);
+          composition.collectBranchSeatRegistrationsIn(&registrations);
           assert(context.boundary() == this);
-          NodeMaterializationResult result =
-              composition.createNodeFromDefinitionResult(definition, parent, plan.key.scope);
+          result = composition.createNodeFromDefinitionResult(definition, parent, plan.key.scope);
           if (result.requiresBoundaryPlan)
           {
             this->noteComposeBoundaryPlanRequired();
@@ -1570,7 +1588,13 @@ namespace loka
           {
             this->noteComposeAllocationFailure();
           }
-          created = result.root;
+          if (!result.complete())
+          {
+            RetireUnattachedCandidate(result.root, &branchContext);
+            result.root = 0;
+            return false;
+          }
+          Node *created = result.root;
           return created != 0;
         }
 
@@ -1831,8 +1855,9 @@ namespace loka
           // retireOwnedSeatDescendants() would erase them with the old ones.
           // The local-rebuild path stages for the same reason (#511).
           BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
+          NodeMaterializationResult accepted = {incoming, false, false};
           loka::core::OwnedDef<BranchSeatDeclaration> candidate;
-          PendingSubtree pending(&BoundaryNode::ReclaimPendingSeatRoot, &context);
+          PendingSubtree pending(&BoundaryNode::RetireUnattachedCandidate, &context);
           if (plan.seat()->needsBranchDeclaration())
           {
             ComponentContext declarationContext = this->branchRuntimeContext(context, runtime);
@@ -1842,35 +1867,36 @@ namespace loka
               this->noteComposeAllocationFailure();
               return false;
             }
-            NodeMaterializationResult result =
-                this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
-            if (context.nodeStorage() && result.root && !result.allocationFailed && !result.requiresBoundaryPlan)
+            accepted = this->materializeDeclaration(declarationContext, plan, *candidate, runtimeParent, nestedRegistrations);
+            PendingSubtree materialized(&BoundaryNode::RetireUnattachedCandidate, &declarationContext);
+            materialized.prepare(accepted.root);
+            if (context.nodeStorage() && accepted.root && accepted.complete())
             {
-              this->composeTree(result.root, declarationContext, COMPOSE_EVENT_ATTACH, this);
-              result.allocationFailed = this->compositionState_.allocationFailedValue();
+              materialized.prepare(materialized.take(), &BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
+              this->composeTree(accepted.root, declarationContext, COMPOSE_EVENT_ATTACH, this);
+              accepted.allocationFailed = this->compositionState_.allocationFailedValue();
             }
-            PendingSubtree materialized(&BoundaryNode::ReclaimPendingSeatRoot, &declarationContext);
-            materialized.prepare(result.root);
-            if (result.allocationFailed || result.requiresBoundaryPlan || !result.root)
-            {
-              materialized.reclaim();
+            if (!accepted.complete() || !accepted.root)
               return false;
-            }
-            pending.prepare(materialized.take());
+            pending.prepare(materialized.take(),
+                            context.nodeStorage() ? &BoundaryNode::ReclaimPendingSeatRoot
+                                                  : &BoundaryNode::RetireUnattachedCandidate,
+                            &context);
             incoming = pending.root();
           }
-          if (!incoming && !this->createCurrentBranch(context,
-                                                      plan,
-                                                      runtimeParent,
-                                                      incoming,
-                                                      &nestedRegistrations))
+          if (!incoming)
           {
-            return false;
+            if (!this->createCurrentBranch(context, plan, runtimeParent, accepted, nestedRegistrations))
+              return false;
+            pending.prepare(accepted.root);
           }
+          incoming = accepted.root;
           if (!incoming)
           {
             return false;
           }
+          // No accepted path reaches this commit with an incomplete result today.
+          assert(accepted.complete());
           // Runtime publication is part of the structural commit: reserve the
           // ledger storage now, while nothing has been replaced or retired, so
           // the commit after cleanup cannot allocate (the local-rebuild path's
@@ -1919,16 +1945,17 @@ namespace loka
           {
             this->drainParkedSeat(context, plan.key, drainParkedArmCount);
           }
-          if (candidate.isSet())
+          const bool declaresBranch = candidate.isSet();
+          if (declaresBranch)
           {
             BoundaryBranchSeatState *outgoingScope = plan.seat()->declaredBranchSeats();
             if (outgoingScope)
               this->forgetBranchSeatDirtySources(*outgoingScope);
             plan.seat()->commitBranchDeclaration(candidate.take());
-            this->registerBranchSeatDirtySources();
-            declareBoundaryDirtySources(this, this);
           }
-          nestedRegistrations.commitTo(this->branchSeats_);
+          this->commitBranchSeatRegistrations(nestedRegistrations, this->branchSeats_);
+          if (declaresBranch)
+            declareBoundaryDirtySources(this, this);
           BoundaryBranchSeatRuntimeEntry *committedRuntime =
               this->branchSeats_.findRuntime(plan.key);
           assert(committedRuntime &&
@@ -2422,16 +2449,19 @@ namespace loka
           return true;
         }
 
-        /** Materialize initial children, preserving seat-free instructions on
-            factory refusal. Seat-bearing declarations retain their existing
-            acceptance/replay behavior until attempt-scoped declarations and
-            participation are available (hole B 2c). Descendant ATTACH still
-            follows linkage; this is not the whole-tree candidate wall.
+        /** Accept only a complete initial materialization, retaining the
+            declaration for retry after refusal. Descendant ATTACH failure is
+            a separate operation and is not covered by completeness.
 
-            Cost: once per mount attempt; walks this declaration's factories and
-            admitted children. Plan eligibility and slot transfer are O(1).
-            Refused roots queue on this Boundary's existing reclaim clock. */
+            Cost: once per mount attempt; walks this declaration's factories
+            and admitted children. Refused roots queue on this Boundary's clock. */
         bool materializeInitialChildren(ComponentContext &context);
+        /** Discard a factory-only candidate: withdraw BindingToken callbacks,
+            drop Held edges, then queue storage on its Boundary's reclaim clock.
+            Immediate callbacks already run are not rolled back. Other state
+            registrations retain their existing cleanup paths.
+            Cost: once per discard; allocation-free child walk plus withdrawal
+            of the candidate's callbacks and Held owner slots. */
         static void RetireUnattachedCandidate(Node *root, void *data);
 
         /** Captures the attach declaration for subsequent seat updates. */
@@ -2444,6 +2474,10 @@ namespace loka
 
       private:
         static void JoinSceneFocus(Scene &scene, Node &node);
+        static void WithdrawCandidateBindings(Node *node);
+        /** Reset provisional rows and declaration scopes after either initial
+            rejection. Reuses this Boundary's plan/reset walks once per refusal. */
+        void resetRejectedInitialChildren(ComponentContext &context);
         template <class T> NodeState<T> dangerouslyUseStateWithValue(const T &initial)
         {
           loka::core::MutableState<T> *state = new loka::core::MutableState<T>(initial);

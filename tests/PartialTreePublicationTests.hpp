@@ -1,7 +1,12 @@
 #ifndef LOKA_TESTS_PARTIAL_TREE_PUBLICATION_TESTS_HPP
 #define LOKA_TESTS_PARTIAL_TREE_PUBLICATION_TESTS_HPP
 void testPartialTree629();
-void testExpectedRedPartialTree144();
+void testPartialTree144();
+void testPartialTree144PlainRoot();
+void testPartialTree144NestedBoundary();
+void testPartialTreeDiscardWithdrawsBindings();
+void testPartialTreeDrainOnlyDoesNotRetry();
+void testExpectedRedPartialTreeAttachRefusal144();
 void testPartialTree100Children();
 void testPartialTreeHealthyControl();
 void testPartialTreeNullRootSwitchRecovery();
@@ -15,6 +20,20 @@ void testPartialTreeInitialChildCloneRefusal();
 void testPartialTreeEmptyDeclarationComposesOnce();
 void testPartialTreePlainRootCloneRefusal();
 void testPartialTreeInitialTaggedCopyRefusal();
+void testPartialReplacementLazyScopeStaging();
+void testPartialReplacementConditionFlip();
+void testPartialReplacementDiscardWithdrawsBindings();
+void testPartialReplacementSameArmPreservesRow();
+void testPartialReplacementUntaggedStateAndReclaim();
+void testPartialReplacementStagingOwnership();
+void testPartialReplacementCommitsNestedObservations();
+void testPartialReplacementDiscardSkipsDetach();
+void testPartialReplacementStagingAllocationRefusal();
+void testPartialReplacementDeclarationDiscardSkipsDetach();
+void testPartialReplacementAdmittedDiscardSkipsDetach();
+void testPartialReplacementConditionalCommitsNestedObservations();
+void testPartialReplacementShowCommitsNestedObservations();
+void testPartialReplacementLocalRebuildCommitsNestedObservations();
 void testPartialTreeNestedReconcileGrowsSeatLedger925();
 void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925();
 #endif

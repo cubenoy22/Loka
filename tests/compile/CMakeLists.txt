@@ -96,6 +96,11 @@ loka_compile_pin(small-object-pool-source-alignment
   ACCEPTS pins/accepts_small_object_pool_aligned_source.cpp
 )
 
+loka_compile_pin(branch-seat-registration-plan-copy
+  REFUSES pins/refuses_branch-seat-registration-plan-copy.cpp
+  ACCEPTS pins/accepts_branch-seat-registration-plan-copy.cpp
+)
+
 loka_compile_pin(scene-detach-is-seat-owned
   REFUSES pins/refuses_scene_detach.cpp
   ACCEPTS pins/accepts_scene_requests.cpp

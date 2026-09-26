@@ -14,4 +14,6 @@ void testLocalRebuildRefusalPreservesInstalledSubtree();
 void testPublishedLazyScopeSectionRefusalKeepsScopeReady();
 void testKeyedDirectDeclarerHeapRefusalRejectsPendingRootAndRetries();
 void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders();
+void testNestedKeyedReshowCommitsStagedDeclarations();
+void testNestedKeyedReshowRefusalDiscardsStagedDeclarations();
 #endif

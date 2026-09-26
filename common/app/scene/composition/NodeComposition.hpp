@@ -38,6 +38,13 @@ namespace loka
         Node *root;
         bool allocationFailed;
         bool requiresBoundaryPlan;
+
+        /** Materialization completeness, not ATTACH success. An empty
+            declaration is complete even though it has no root. */
+        bool complete() const
+        {
+          return !this->allocationFailed && !this->requiresBoundaryPlan;
+        }
       };
 
       struct NodeComposition

@@ -1,4 +1,5 @@
 #include "Boundary.hpp"
+#include "core/LokaAlloc.hpp"
 #include "app/scene/Scene.hpp"
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
 #include "platform/debug/DebugLog.hpp"
@@ -10,6 +11,116 @@ namespace loka
   {
     namespace scene
     {
+      namespace
+      {
+        const loka::core::LokaAllocationSite StagedDeclarationSite("BoundaryBranchSeat", "StagedDeclaration");
+      }
+
+      struct BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::Entry
+      {
+        explicit Entry(IBranchSeatDefinition *seatValue)
+            : seat(seatValue), declaration(), next(0) {}
+        IBranchSeatDefinition *seat;
+        loka::core::OwnedDef<BranchSeatDeclaration> declaration;
+        Entry *next;
+      };
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::StagedDeclarationChain()
+          : head_(0), tail_(0) {}
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::~StagedDeclarationChain()
+      {
+        this->clear();
+      }
+
+      bool BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::push(
+          IBranchSeatDefinition *seat, loka::core::OwnedDef<BranchSeatDeclaration> &candidate)
+      {
+        Entry *entry = loka::core::LokaNew<Entry>(StagedDeclarationSite, seat);
+        if (!entry) return false;
+        entry->declaration.reset(candidate.take());
+        if (this->tail_)
+          this->tail_->next = entry;
+        else
+          this->head_ = entry;
+        this->tail_ = entry;
+        return true;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::spliceTo(
+          StagedDeclarationChain &target)
+      {
+        if (this == &target || !this->head_) return;
+        if (target.tail_)
+          target.tail_->next = this->head_;
+        else
+          target.head_ = this->head_;
+        target.tail_ = this->tail_;
+        this->head_ = 0;
+        this->tail_ = 0;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::clear()
+      {
+        while (this->head_)
+        {
+          Entry *entry = this->head_;
+          this->head_ = entry->next;
+          loka::core::LokaDelete(entry, StagedDeclarationSite);
+        }
+        this->tail_ = 0;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::commit()
+      {
+        for (Entry *entry = this->head_; entry; entry = entry->next)
+          entry->seat->commitBranchDeclaration(entry->declaration.take());
+        this->clear();
+      }
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::BoundaryBranchSeatRuntimeRegistrationPlan()
+          : declarations_(), entries_() {}
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::~BoundaryBranchSeatRuntimeRegistrationPlan() {}
+
+      bool BoundaryBranchSeatRuntimeRegistrationPlan::stageDeclaration(
+          IBranchSeatDefinition *seat, loka::core::OwnedDef<BranchSeatDeclaration> &candidate)
+      {
+        return this->declarations_.push(seat, candidate);
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::appendTo(
+          BoundaryBranchSeatRuntimeRegistrationPlan &target)
+      {
+        if (this == &target) return;
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+          target.entries_.push_back(this->entries_[i]);
+        this->entries_.clear();
+        this->declarations_.spliceTo(target.declarations_);
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::clear()
+      {
+        this->entries_.clear();
+        this->declarations_.clear();
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::commitTo(BoundaryBranchSeatState &state)
+      {
+        // Check every provisional result before publishing any declaration or row.
+#ifndef NDEBUG
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+          assert(this->entries_[i].active.complete());
+#endif
+        this->declarations_.commit();
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+        {
+          Entry &entry = this->entries_[i];
+          state.registerRuntime(entry.plan, entry.parent, entry.active.root, entry.stateOwner);
+        }
+        this->entries_.clear();
+      }
+
       void BoundaryNode::JoinSceneFocus(Scene &scene, Node &node)
       {
         if (node.lifecycleFact() == NODE_FACT_RETIRED) return;
@@ -17,11 +128,23 @@ namespace loka
         if (row) scene.focus().join(*row);
       }
 
+      void BoundaryNode::WithdrawCandidateBindings(Node *node)
+      {
+        if (!node) return;
+        ComposableNode *composable = node->asComposable();
+        if (composable) composable->releaseCallbacks();
+        INestable *nestable = node->asNestable();
+        for (Node *child = nestable ? nestable->childrenHead() : 0;
+             child; child = child->nextInComposition)
+          WithdrawCandidateBindings(child);
+      }
+
       void BoundaryNode::RetireUnattachedCandidate(Node *root, void *data)
       {
         ComponentContext &context = *static_cast<ComponentContext *>(data);
-        // Factory-only candidates have never entered ATTACH. Drop actual owner
-        // slots through the existing owner walk without invoking detachNode.
+        // Declaration bindings may already be live, even before ATTACH.
+        // Withdraw them without invoking attach-resource detachNode hooks.
+        WithdrawCandidateBindings(root);
         DropRetainedHeldSlots(root);
         context.boundary()->retireDetachedNode(context, root);
       }
@@ -42,40 +165,52 @@ namespace loka
         const NodeMaterializationResult result = composition.createNodeTreeCompleted();
         PendingSubtree candidate(&RetireUnattachedCandidate, &context);
         candidate.prepare(result.root);
-        const bool retryFactory = (result.allocationFailed || result.requiresBoundaryPlan)
-                                  && this->branchSeats_.plans().empty();
-        if (!retryFactory && candidate.root())
+        const bool rejectedMaterialization = !result.complete();
+        if (rejectedMaterialization)
         {
-          Node *child = candidate.root();
-          if (this->seatReservations_.empty())
-            this->addChild(candidate.take());
-          else
-            candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
-          this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
-          if (candidate.root() && !this->compositionState_.allocationFailedValue())
-            this->addChild(candidate.take());
+          candidate.reclaim();
+          this->resetRejectedInitialChildren(context);
         }
-        const bool rejectedAttach = !retryFactory && candidate.root()
+        else
+        {
+          if (candidate.root())
+          {
+            Node *child = candidate.root();
+            if (this->seatReservations_.empty())
+              this->addChild(candidate.take());
+            else
+              candidate.prepare(candidate.take(), &ReclaimPendingSeatRoot, &context);
+            this->composeTree(child, context, COMPOSE_EVENT_ATTACH, this);
+            if (candidate.root() && !this->compositionState_.allocationFailedValue())
+              this->addChild(candidate.take());
+          }
+        }
+        const bool rejectedAttach = !rejectedMaterialization && candidate.root()
                                     && this->compositionState_.allocationFailedValue();
         if (rejectedAttach)
         {
           this->retireSeatBranchRoot(context, candidate.take());
-          this->retireDeclarationScope(context, this->branchSeats_);
-          this->forgetBranchSeatDirtySources(this->branchSeats_);
-          this->branchSeats_.clearRuntime();
-          // Remove plans appended by runtime nodes before disposing declarations.
-          // The retained mount definition and its cold reservations survive replay.
-          this->branchSeats_.capture(composition.root());
-          const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
-          for (size_t i = 0; i < plans.size(); ++i)
-            plans[i].seat()->commitBranchDeclaration(0);
-          this->seatReservations_.resetInitialBuildRequests();
-          this->captureBranchSeatPlan();
-          this->noteComposeAllocationFailure();
+          this->resetRejectedInitialChildren(context);
         }
         composition.setContext(0);
         context.setComposition(0);
-        return !retryFactory && !rejectedAttach;
+        return !rejectedMaterialization && !rejectedAttach;
+      }
+
+      void BoundaryNode::resetRejectedInitialChildren(ComponentContext &context)
+      {
+        this->retireDeclarationScope(context, this->branchSeats_);
+        this->forgetBranchSeatDirtySources(this->branchSeats_);
+        this->branchSeats_.clearRuntime();
+        // Remove plans appended by runtime nodes before disposing declarations.
+        // The retained mount definition and its cold reservations survive replay.
+        this->branchSeats_.capture(this->composition().root());
+        const std::vector<BoundaryBranchSeatPlanEntry> &plans = this->branchSeats_.plans();
+        for (size_t i = 0; i < plans.size(); ++i)
+          plans[i].seat()->commitBranchDeclaration(0);
+        this->seatReservations_.resetInitialBuildRequests();
+        this->captureBranchSeatPlan();
+        this->noteComposeAllocationFailure();
       }
 
       void BoundaryNode::destroyUncommittedLocalRebuildCandidates(

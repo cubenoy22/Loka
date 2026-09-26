@@ -69,6 +69,13 @@ namespace loka
           return output.str();
         }
 
+        /** Test snapshot access; callers must not retain rows across mutation. */
+        static const ::loka::app::scene::BoundaryBranchSeatState &seatState(
+            const ::loka::app::scene::BoundaryNode &boundary)
+        {
+          return boundary.branchSeats_;
+        }
+
         /** Storage addresses of the rows dumpSeatRuntime() prints, in the same
             order. Identity only: a pin compares them across one ledger
             operation to prove that a row moved, and never dereferences one. */
@@ -78,6 +85,22 @@ namespace loka
           std::vector<const ::loka::app::scene::BoundaryBranchSeatRuntimeEntry *> rows;
           collectSeatRuntime(boundary, boundary.branchSeats_, rows);
           return std::vector<const void *>(rows.begin(), rows.end());
+        }
+
+        /** The one mutating door here, for fixtures that need a state no
+            production sequence builds: drops the ledger row whose active arm
+            root is `active`, through the ledger's own erase door, so the seat
+            keeps its installed nodes but has no row. Parked residents and
+            nested rows are not touched. False when no row has that root. */
+        static bool eraseSeatRuntimeRow(::loka::app::scene::BoundaryNode &boundary,
+                                        ::loka::app::scene::Node *active)
+        {
+          ::loka::app::scene::BoundaryParkedBranchKey key(
+              ::loka::app::scene::NODE_TAG_NONE, -1, 0, &boundary.branchSeats_);
+          unsigned arm = 0;
+          bool hasActiveArm = false;
+          unsigned armCount = 0;
+          return active && boundary.branchSeats_.eraseRuntimeForActive(active, key, arm, hasActiveArm, armCount);
         }
 
       private:
