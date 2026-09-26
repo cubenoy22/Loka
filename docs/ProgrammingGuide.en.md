@@ -864,8 +864,10 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Markup('<size=18><b>Card One</b></size>'),
-      Text('This Scene is defined in JavaScript.'),
+      Markup('<size=18><b>Card One</b></size>', undefined, {align: 'center'}),
+      Markup('This Scene is defined in JavaScript. Edit the expression below and run it to explore.',
+             undefined, {wrap: 'word'}),
+      Markup('<i>A little code, a new idea.</i>', undefined, {align: 'right'}),
       EditText(this.script),
       Button('Run', () => {
         try { this.result.set(String(eval(this.script.get()))); }
@@ -898,6 +900,17 @@ Markup accepts `<b>…</b>`, `<i>…</i>`, `<size=N>…</size>`, and `\<` for a 
 or `false` and `weight: 'normal'`. Unknown style keys or markup tags reject the
 card and show an error through the Reload path. Sizes snap to the nearest of
 9, 10, 12, 14, 18, and 24, with ties down: 21 becomes 18.
+
+Both `Text(value, style?, block?)` and `Markup(markup, style?, block?)` accept a
+third dictionary for the paragraph: `align` is `'left'`, `'center'`, or `'right'`;
+`wrap` is `'none'`, `'word'`, or `'char'`; and `truncation` is `'none'`, `'clip'`, or
+`'ellipsis'`. Use `undefined` to skip the style argument. Unknown block keys or
+invalid values reject the card. Give paragraphs separate nodes when their
+alignment differs:
+
+```js
+Markup('<b>A centred title</b>', undefined, {align: 'center'})
+```
 
 ## 12. Toggle UI Driven By State
 

@@ -525,28 +525,38 @@ namespace smirkycard
     }
     return out;
   }
+  namespace
+  {
+    bool requirePlainStyleObject(JSContext *ctx, JSValueConst dict, const char *label)
+    {
+      // Compare to an ordinary object without consulting replaceable JS globals.
+      JSValue plain = JS_NewObject(ctx);
+      if (JS_IsException(plain))
+        return false;
+      JSValue prototype = JS_IsObject(dict) ? JS_GetPrototype(ctx, dict) : JS_UNDEFINED;
+      JSValue plainPrototype = JS_GetPrototype(ctx, plain);
+      const bool valid = JS_IsObject(dict) && JS_GetClassID(dict) == JS_GetClassID(plain)
+                         && (JS_IsNull(prototype) || JS_IsStrictEqual(ctx, prototype, plainPrototype));
+      const bool exception = JS_IsException(prototype) || JS_IsException(plainPrototype);
+      JS_FreeValue(ctx, plainPrototype);
+      JS_FreeValue(ctx, prototype);
+      JS_FreeValue(ctx, plain);
+      if (exception)
+        return false;
+      if (!valid)
+      {
+        JS_ThrowTypeError(ctx, "%s requires a plain object", label);
+        return false;
+      }
+      return true;
+    }
+  } // namespace
+
   bool readTextStyle(JSContext *ctx, JSValueConst dict, loka::app::TextStyle &out)
   {
     using namespace loka::app;
-    // Compare to an ordinary object without consulting replaceable JS globals.
-    JSValue plain = JS_NewObject(ctx);
-    if (JS_IsException(plain))
+    if (!requirePlainStyleObject(ctx, dict, "Text style"))
       return false;
-    JSValue prototype = JS_IsObject(dict) ? JS_GetPrototype(ctx, dict) : JS_UNDEFINED;
-    JSValue plainPrototype = JS_GetPrototype(ctx, plain);
-    const bool valid = JS_IsObject(dict) && JS_GetClassID(dict) == JS_GetClassID(plain)
-                       && (JS_IsNull(prototype) || JS_IsStrictEqual(ctx, prototype, plainPrototype));
-    const bool exception = JS_IsException(prototype) || JS_IsException(plainPrototype);
-    JS_FreeValue(ctx, plainPrototype);
-    JS_FreeValue(ctx, prototype);
-    JS_FreeValue(ctx, plain);
-    if (exception)
-      return false;
-    if (!valid)
-    {
-      JS_ThrowTypeError(ctx, "Text style requires a plain object");
-      return false;
-    }
     JsOwnProperties names(ctx);
     if (!names.read(dict, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK))
       return false;
@@ -622,13 +632,89 @@ namespace smirkycard
     out = result;
     return true;
   }
+  bool readBlockStyle(JSContext *ctx, JSValueConst dict, loka::app::BlockStyle &out)
+  {
+    using namespace loka::app;
+    if (!requirePlainStyleObject(ctx, dict, "Block style"))
+      return false;
+    JsOwnProperties names(ctx);
+    if (!names.read(dict, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK))
+      return false;
+    BlockStyle result;
+    // StyleVocab.hpp supplies enums but no name-to-enum table (#951, like weights).
+    const struct BlockName
+    {
+      const char *key;
+      const char *name;
+      BlockStyle style;
+    } values[] = {{"align", "left", BlockStyle().align(TEXT_ALIGN_LEFT)},
+                  {"align", "center", BlockStyle().align(TEXT_ALIGN_CENTER)},
+                  {"align", "right", BlockStyle().align(TEXT_ALIGN_RIGHT)},
+                  {"wrap", "none", BlockStyle().wrap(TEXT_WRAP_NONE)},
+                  {"wrap", "word", BlockStyle().wrap(TEXT_WRAP_WORD)},
+                  {"wrap", "char", BlockStyle().wrap(TEXT_WRAP_CHAR)},
+                  {"truncation", "none", BlockStyle().truncation(TEXT_TRUNCATION_NONE)},
+                  {"truncation", "clip", BlockStyle().truncation(TEXT_TRUNCATION_CLIP)},
+                  {"truncation", "ellipsis", BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS)}};
+    for (uint32_t i = 0; i < names.count(); ++i)
+    {
+      JSValue key = JS_AtomToValue(ctx, names.atom(i));
+      size_t keyLength = 0;
+      const char *keyName = JS_IsString(key) ? JS_ToCStringLen(ctx, &keyLength, key) : 0;
+      JS_FreeValue(ctx, key);
+      bool known = false;
+      for (size_t j = 0; keyName && j < sizeof(values) / sizeof(values[0]); ++j)
+        if (keyLength == strlen(values[j].key) && !memcmp(keyName, values[j].key, keyLength))
+          known = true;
+      if (!known)
+      {
+        JS_FreeCString(ctx, keyName);
+        JS_ThrowTypeError(ctx, "Unknown Block style key");
+        return false;
+      }
+      JSValue value = JS_GetProperty(ctx, dict, names.atom(i));
+      if (JS_IsException(value))
+      {
+        JS_FreeCString(ctx, keyName);
+        return false;
+      }
+      size_t length = 0;
+      const char *name = JS_IsString(value) ? JS_ToCStringLen(ctx, &length, value) : 0;
+      bool accepted = false;
+      for (size_t j = 0; name && j < sizeof(values) / sizeof(values[0]); ++j)
+        if (keyLength == strlen(values[j].key) && !memcmp(keyName, values[j].key, keyLength)
+            && length == strlen(values[j].name) && !memcmp(name, values[j].name, length))
+        {
+          result = result + values[j].style;
+          accepted = true;
+          break;
+        }
+      JS_FreeCString(ctx, name);
+      JS_FreeCString(ctx, keyName);
+      JS_FreeValue(ctx, value);
+      if (!accepted)
+      {
+        JS_ThrowTypeError(ctx, "Invalid Block style value");
+        return false;
+      }
+    }
+    out = result;
+    return true;
+  }
   loka::app::scene::NodeDefinitionBase *JsCardNode::lowerText(JSContext *ctx, JSValueConst tree)
   {
     using namespace loka::app;
     TextStyle style;
     JSValue dict = JS_GetPropertyStr(ctx, tree, "style");
-    const bool valid = !JS_IsException(dict) && (JS_IsUndefined(dict) || readTextStyle(ctx, dict, style));
+    bool valid = !JS_IsException(dict) && (JS_IsUndefined(dict) || readTextStyle(ctx, dict, style));
     JS_FreeValue(ctx, dict);
+    BlockStyle block;
+    if (valid)
+    {
+      dict = JS_GetPropertyStr(ctx, tree, "block");
+      valid = !JS_IsException(dict) && (JS_IsUndefined(dict) || readBlockStyle(ctx, dict, block));
+      JS_FreeValue(ctx, dict);
+    }
     if (!valid)
     {
       loka::core::String error;
@@ -647,18 +733,19 @@ namespace smirkycard
     loka::app::scene::NodeDefinitionBase *out =
         JS_IsStrictEqual(ctx, value, errorSeat_)
             ? static_cast<loka::app::scene::NodeDefinitionBase *>(
-                  new (std::nothrow) TextDefinitionWithAttr(Text(error_.state()) + style))
-        : seat >= 0 ? (seatKinds_[seat] == 0
-                           ? static_cast<loka::app::scene::NodeDefinitionBase *>(
-                                 new (std::nothrow) TextDefinitionWithAttr(Text(strings_[seat].state()) + style))
-                           : static_cast<loka::app::scene::NodeDefinitionBase *>(new (
-                                 std::nothrow) TextDefinitionWithAttr(Text(derivedStrings_[seat].state()) + style)))
-                    : 0;
+                  new (std::nothrow) TextDefinitionWithAttr(Text(error_.state()) + style + block))
+        : seat >= 0
+            ? (seatKinds_[seat] == 0
+                   ? static_cast<loka::app::scene::NodeDefinitionBase *>(
+                         new (std::nothrow) TextDefinitionWithAttr(Text(strings_[seat].state()) + style + block))
+                   : static_cast<loka::app::scene::NodeDefinitionBase *>(new (std::nothrow) TextDefinitionWithAttr(
+                         Text(derivedStrings_[seat].state()) + style + block)))
+            : 0;
     if (!out && JS_IsString(value))
     {
       loka::core::String text;
       treeString(ctx, tree, "text", text);
-      out = new (std::nothrow) TextDefinitionWithAttr(Text(text) + style);
+      out = new (std::nothrow) TextDefinitionWithAttr(Text(text) + style + block);
     }
     if (!out && !JS_IsString(value))
       fail("JavaScript Text requires a literal string or state seat.");
