@@ -16,4 +16,5 @@ void testKeyedDirectDeclarerHeapRefusalRejectsPendingRootAndRetries();
 void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders();
 void testNestedKeyedReshowCommitsStagedDeclarations();
 void testNestedKeyedReshowRefusalDiscardsStagedDeclarations();
+void testVacatedKeyedReshowKeepsSectionStateOwner();
 #endif
