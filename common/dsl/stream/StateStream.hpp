@@ -135,8 +135,10 @@ namespace loka
         MapEval<T, typename Mapper::Result, Mapper> *eval =
             new MapEval<T, typename Mapper::Result, Mapper>(this->state_, mapper);
         PROFILE_SECTION("sMapDerNew");
+        // Explicit recompute bindings are the only update evaluator; empty
+        // dependencies prevent a second tracker route. Adoption still owns the State.
         ::loka::core::DerivedState<typename Mapper::Result> *derived =
-            new ::loka::core::DerivedState<typename Mapper::Result>(this->state_, eval);
+            new ::loka::core::DerivedState<typename Mapper::Result>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<typename Mapper::Result> out(derived, this->tracker_, this->owner_, true);
@@ -159,7 +161,10 @@ namespace loka
         }
         assert(this->owner_ && "StateStream::map(expr) requires IStateOwner");
         MapSlotExprEval<T, R, ExprT> *eval = new MapSlotExprEval<T, R, ExprT>(this->state_, expr);
-        ::loka::core::DerivedState<R> *derived = new ::loka::core::DerivedState<R>(this->state_, eval);
+        // As in mapper map, bindings evaluate updates; adoption retains storage
+        // and a tracker row, but must not install another evaluation route.
+        ::loka::core::DerivedState<R> *derived =
+            new ::loka::core::DerivedState<R>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<R> out(derived, this->tracker_, this->owner_, true);
@@ -186,8 +191,10 @@ namespace loka
         CombineEval<T, U, typename Combiner::Result, Combiner> *eval =
             new CombineEval<T, U, typename Combiner::Result, Combiner>(this->state_, other.state_, combiner);
         PROFILE_SECTION("sCombDerNew");
+        // Each input binding evaluates updates. Empty dependencies avoid a
+        // duplicate tracker evaluation while retaining owner adoption.
         ::loka::core::DerivedState<typename Combiner::Result> *derived =
-            new ::loka::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
+            new ::loka::core::DerivedState<typename Combiner::Result>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
