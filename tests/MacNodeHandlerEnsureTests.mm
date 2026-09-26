@@ -285,6 +285,11 @@ void testMacNodeHandlerEnsureContract()
       LOKA_VERIFY([textField alignment] == expected[a]);
       LOKA_VERIFY(text.getContext() == textCtx);
     }
+    // Retained aligned -> undeclared restores AppKit's default alignment.
+    text.props.blockStyle_ = loka::app::BlockStyle();
+    textCtx->onPropsApplied();
+    LOKA_VERIFY([textField alignment] == LOKA_MAC_TEXT_ALIGNMENT_NATURAL);
+    LOKA_VERIFY(text.getContext() == textCtx);
 
     // -- TextEditor: installs its multiline context even with unavailable props --
     loka::app::TextEditorNode editor((loka::app::TextEditorProps()));

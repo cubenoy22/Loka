@@ -408,6 +408,11 @@ void testWin32TextFontTable()
             LOKA_VERIFY((retained & SS_TYPEMASK) == SS_CENTER);
             LOKA_VERIFY((retained & ~static_cast<LONG_PTR>(SS_TYPEMASK))
                         == ((style | SS_NOPREFIX) & ~static_cast<LONG_PTR>(SS_TYPEMASK)));
+            // Retained CENTER -> undeclared restores the creation default type.
+            aligned.props.blockStyle_ = BlockStyle();
+            context->onPropsApplied();
+            LOKA_VERIFY(projectFontText(controller, root, aligned) == child);
+            LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_TYPEMASK) == SS_LEFT);
           }
         }
 

@@ -54,6 +54,13 @@ namespace
     return SS_LEFT;
   }
 
+  /** The STATIC type bits a props value asks for; undeclared style keeps the
+      creation default (SS_LEFT), so a retained style removal restores it. */
+  DWORD TextControlTypeFor(const loka::app::TextProps &props)
+  {
+    return props.hasDeclaredStyle() ? TextControlType(props.blockStyle_) : SS_LEFT;
+  }
+
   HFONT ResolveTextFont(const loka::app::TextNode *text,
                         const Win32ScenePlatformController *controller)
   {
@@ -264,15 +271,17 @@ bool Win32TextContext::applyStyle()
   if (!this->hwnd_ || !this->node_ || !this->controller())
     return false;
   bool changed = false;
-  if (this->node_->props.hasDeclaredStyle())
   {
+    // Reconciled on every apply, declared or not: a retained change back to an
+    // undeclared style restores the creation default instead of keeping the
+    // old SS_CENTER/SS_RIGHT type. Keep the HWND and all non-type flags.
+    // CENTER/RIGHT use native STATIC wrapping; the NONE + CLIP overflow limit
+    // is documented in the guide.
     const LONG_PTR style = GetWindowLongPtrW(this->hwnd_, GWL_STYLE);
     const LONG_PTR alignedStyle = (style & ~static_cast<LONG_PTR>(SS_TYPEMASK))
-                                  | TextControlType(this->node_->props.blockStyle_);
+                                  | TextControlTypeFor(this->node_->props);
     if (style != alignedStyle)
     {
-      // Keep the HWND and all non-type flags. CENTER/RIGHT use native STATIC
-      // wrapping; the NONE + CLIP overflow limit is documented in the guide.
       SetWindowLongPtrW(this->hwnd_, GWL_STYLE, alignedStyle);
       changed = true;
     }
