@@ -349,7 +349,7 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(Show(*this->shown.state()).destroyOnDetach()
+      c.declare(Fragment() << (Show(*this->shown.state()).destroyOnDetach()
                 << Keyed(*this->outer.state(),
                          this,
                          &NestedRoot::declareOuter,
@@ -359,7 +359,8 @@ namespace
                              loka::app::reservation::Nodes<
                                  loka::app::BoundarySectionNode,
                                  2,
-                                 loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >()));
+                                 loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >()))
+                << (Show(*this->shown.state()) << Fragment().tag(6491)));
     }
     virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const
     {
@@ -1041,7 +1042,30 @@ void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders()
     BoundarySectionNode *oldOuter = findSection(root, 6401), *oldInner = findSection(root, 6404);
     IStateOwner *outerProvider = oldOuter->stateStorageOwner(), *innerProvider = oldInner->stateStorageOwner();
     loka::core::State<int> *oldState = static_cast<ResidentNode *>(oldInner->childrenHead())->valueState();
+    const BoundaryBranchSeatState &seats = loka::dsl::testing::OwnershipDump::seatState(*root);
+    const std::vector<BoundaryBranchSeatPlanEntry> &plans = seats.plans();
+    LOKA_VERIFY(plans.size() == 3);
+    BoundaryBranchSeatRuntimeEntry survivor;
+    const bool foundSurvivor = seats.queryRuntime(plans[2].key, survivor);
+    LOKA_VERIFY(foundSurvivor && survivor.active && survivor.hasActiveArm);
+    const std::vector<const void *> beforeRows =
+        loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*root);
+    LOKA_VERIFY(beforeRows.size() == 4);
     replaceWithoutDrain(scene, *root, root->outer, 1);
+    const std::vector<const void *> afterRows =
+        loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*root);
+    LOKA_VERIFY(afterRows.size() == 3 && beforeRows.back() != afterRows.back());
+    BoundaryBranchSeatRuntimeEntry currentSurvivor, vacated;
+    const bool foundCurrent = seats.queryRuntime(survivor.key, currentSurvivor);
+    const bool foundVacated = seats.queryRuntime(plans[1].key, vacated);
+    LOKA_VERIFY(foundCurrent && foundVacated);
+    LOKA_VERIFY(!vacated.active && !vacated.hasActiveArm);
+    LOKA_VERIFY(currentSurvivor.active == survivor.active);
+    LOKA_VERIFY(currentSurvivor.activeArm == survivor.activeArm && currentSurvivor.hasActiveArm);
+    LOKA_VERIFY(currentSurvivor.parent == survivor.parent && currentSurvivor.stateOwner == survivor.stateOwner);
+    LOKA_VERIFY(currentSurvivor.hasOwner == survivor.hasOwner && currentSurvivor.ownerArm == survivor.ownerArm);
+    const bool sameOwner = currentSurvivor.ownerKey.matches(survivor.ownerKey);
+    LOKA_VERIFY(sameOwner);
     LOKA_VERIFY(!findSection(root, 6401));
     replaceWithoutDrain(scene, *root, root->inner, 1);
     LOKA_VERIFY(oldOuter->stateStorageOwner() == outerProvider && oldInner->stateStorageOwner() == innerProvider);
@@ -1192,11 +1216,12 @@ namespace
     {
       if (!plans[i].seat()->needsBranchDeclaration() && !plans[i].seat()->declaredBranchSeats())
         continue;
-      const BoundaryBranchSeatRuntimeEntry *row = seats.findRuntime(plans[i].key);
-      LOKA_VERIFY(row && row->active);
-      LOKA_VERIFY(row->parent == section);
-      LOKA_VERIFY(row->stateOwner == static_cast<IStateOwner *>(section));
-      IStateOwner *generation = row->active->asStateOwner();
+      BoundaryBranchSeatRuntimeEntry row;
+      const bool found = seats.queryRuntime(plans[i].key, row);
+      LOKA_VERIFY(found && row.active);
+      LOKA_VERIFY(row.parent == section);
+      LOKA_VERIFY(row.stateOwner == static_cast<IStateOwner *>(section));
+      IStateOwner *generation = row.active->asStateOwner();
       LOKA_VERIFY(generation && generation->holdLedger());
       LOKA_VERIFY(loka::core::testing::HeldTestAccess::enclosingOwner(*generation->holdLedger()) ==
                   static_cast<IStateOwner *>(section));
@@ -1255,12 +1280,11 @@ void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce()
   seats.registerRuntime(plan, parentA, activeA, ownerA);
 #ifdef NDEBUG
   seats.registerRuntime(plan, parentB, activeB, ownerB);
-  const BoundaryBranchSeatState &stored = seats;
-  const BoundaryBranchSeatRuntimeEntry *row = stored.findRuntime(plan.key);
-  LOKA_VERIFY(row);
-  LOKA_VERIFY(row->parent == parentA);
-  LOKA_VERIFY(row->stateOwner == ownerA);
-  LOKA_VERIFY(row->active == activeB);
+  BoundaryBranchSeatRuntimeEntry row;
+  LOKA_VERIFY(seats.queryRuntime(plan.key, row));
+  LOKA_VERIFY(row.parent == parentA);
+  LOKA_VERIFY(row.stateOwner == ownerA);
+  LOKA_VERIFY(row.active == activeB);
 #else
   const pid_t child = fork();
   LOKA_VERIFY(child >= 0);

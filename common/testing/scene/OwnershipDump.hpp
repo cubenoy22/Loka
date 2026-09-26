@@ -69,6 +69,18 @@ namespace loka
           return output.str();
         }
 
+        /** Testing-only append for composed fixtures. The appender's composition
+            must outlive the appended plan: Headless DETACH drops its composition
+            while the Boundary still holds the plan. */
+        static void appendNestedBranchSeatPlan(
+            ::loka::app::scene::BoundaryNode &boundary,
+            ::loka::app::scene::NodeComposition &composition)
+        {
+          composition.assignCompositionSeatSlots();
+          boundary.branchSeats_.append(composition.root());
+          boundary.registerBranchSeatDirtySources();
+        }
+
         /** Test snapshot access; callers must not retain rows across mutation. */
         static const ::loka::app::scene::BoundaryBranchSeatState &seatState(
             const ::loka::app::scene::BoundaryNode &boundary)

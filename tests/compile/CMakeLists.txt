@@ -41,6 +41,11 @@ loka_compile_pin(bindings-need-the-token
   ACCEPTS pins/accepts_bindings_need_the_token.cpp
 )
 
+loka_compile_pin(seat-runtime-read-is-a-copy
+  REFUSES pins/refuses_seat_runtime_read.cpp
+  ACCEPTS pins/accepts_seat_runtime_read.cpp
+)
+
 loka_compile_pin(keyed-declarer-is-a-member-of-the-boundary
   REFUSES pins/refuses_keyed_declarer_member.cpp
   ACCEPTS pins/accepts_keyed_declarer_member.cpp
