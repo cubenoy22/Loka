@@ -44,6 +44,8 @@ namespace
     int callbacks;
     loka::core::MutableState<int> input;
     loka::core::MutableState<bool> condition;
+    /** The #925 pins' outer seat; starts false so their mount is complete. */
+    loka::core::MutableState<bool> outerCondition;
     std::vector<NodeTag> declared;
 
     PublicationFixture(Shape s, int n, bool fail)
@@ -58,6 +60,7 @@ namespace
           callbacks(0),
           input(0),
           condition(s != NULL_ROOT),
+          outerCondition(false),
           declared()
     {
       if (s == SECTION)
@@ -923,9 +926,10 @@ namespace
 
   /** Outer Conditional seat whose Fragment arm holds a nested Conditional
       seat (arm root tag 1, a RefusedChild) and, when the fixture declares
-      two members, a retained sibling (tag 2). A refused nested arm at mount
-      leaves the Boundary's seat ledger with exactly one row: the outer
-      seat's. */
+      two members, a retained sibling (tag 2). The outer seat follows the
+      fixture's outerCondition, the nested seat its condition, so the nested
+      seat's plan can select its refusing arm while the outer arm is still
+      unmounted. */
   class NestedSeatRoot : public BoundaryNodeFor<NestedSeatRoot>
   {
   public:
@@ -954,7 +958,7 @@ namespace
         sibling.tag(2);
         outerArm << sibling;
       }
-      composition.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &outerArm, &empty)));
+      composition.declare(ConditionalDefinition(ConditionalProps(&fixture->outerCondition, &outerArm, &empty)));
     }
   };
 
@@ -965,26 +969,54 @@ namespace
     return loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*SceneTestAccess::rootBoundary(scene));
   }
 
-  /** Mounts with the nested arm refused and recaptures the plan. The seat
-      ledger then holds one row at capacity one: the row was the ledger's
-      first push_back into an empty vector, and libstdc++, libc++ and the
-      MSVC STL all allocate room for exactly one element there. The healing
-      reconcile stages the nested row and reserves room for two; reserve(n)
-      reallocates whenever n > capacity() ([vector.capacity]), so the outer
-      row moves while applyBranchSeat still holds it. Each pin checks that
-      move directly (outerRowMoved). */
-  NestedSeatRoot *mountRecapturedWithOneSeatRow(Scene &scene,
-                                                PublicationObserver &platform,
-                                                PublicationFixture &data)
+  /** Leaves the outer seat's row alone in a ledger at capacity one, over an
+      installed arm whose nested seat has no row, and makes that row not
+      current. A refused mount cannot build this state: an incomplete
+      initial tree is rejected and its rows cleared.
+      1. Mount with outerCondition false and nothing refusing. The complete
+         mount installs the outer seat's empty arm and registers the outer
+         row as the ledger's first push_back; libstdc++, libc++ and the MSVC
+         STL all allocate room for exactly one element there. The captured
+         plan already selects the nested seat's refusing arm (condition is
+         true), though that seat is not materialized yet.
+      2. Arm the refusal and flip outerCondition. The seat switch installs
+         the outer arm while the nested seat's arm root refuses, so the
+         nested seat stays rowless. The switch stages no row, so the ledger
+         keeps its one row and its capacity.
+      3. Heal and recapture the plan. The outer row is no longer current, so
+         the next apply reconciles the installed arm in place, stages the
+         nested row and reserves room for two. reserve(n) reallocates
+         whenever n > capacity() ([vector.capacity]), so the outer row moves
+         while applyBranchSeat still holds it. Each pin checks that move
+         directly (outerRowMoved). */
+  NestedSeatRoot *switchToRowlessNestedSeat(Scene &scene,
+                                            PublicationObserver &platform,
+                                            PublicationFixture &data)
   {
     scene.mount(&platform);
     SceneTestAccess::updateAttached(scene, true);
-    LOKA_VERIFY(check("nested-attach", scene, platform));
-    const bool oneRowAfterRefusedMount = seatRows(scene).size() == 1 && data.refusals == 1;
-    LOKA_VERIFY(oneRowAfterRefusedMount);
     NestedSeatRoot *root = static_cast<NestedSeatRoot *>(SceneTestAccess::rootBoundary(scene));
-    root->recaptureSeatPlan();
+    const bool oneRowAfterCompleteMount = seatRows(scene).size() == 1 && data.attempts == 0 &&
+                                          platform.published.empty() &&
+                                          !SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    LOKA_VERIFY(oneRowAfterCompleteMount);
+    Node *mountedArm = root->childrenHead();
+    data.refusing = true;
+    {
+      loka::core::StateTrackerGuard guard(root->tracker());
+      data.outerCondition.set(true);
+    }
+    scene.flushInvalidation();
+    // The switch accepts the outer arm although its nested seat refused (a
+    // partial replacement); the mounted arm stays parked, so a new arm root
+    // means the switch installed it. #931 will refuse that switch; this
+    // check then fails first, and the route must change.
+    const bool refusedSwitchInstalledOuterArm = root->childrenHead() != 0 && root->childrenHead() != mountedArm;
+    LOKA_VERIFY(refusedSwitchInstalledOuterArm);
+    const bool oneRowAfterRefusedSwitch = seatRows(scene).size() == 1 && data.attempts == 1 && data.refusals == 1;
+    LOKA_VERIFY(oneRowAfterRefusedSwitch);
     data.refusing = false;
+    root->recaptureSeatPlan();
     return root;
   }
 
@@ -1004,13 +1036,12 @@ namespace
 // a heap-use-after-free WRITE in applyBranchSeat under testing-asan.
 void testPartialTreeNestedReconcileGrowsSeatLedger925()
 {
-  PublicationFixture data(CONDITIONAL, 1, true);
+  PublicationFixture data(CONDITIONAL, 1, false);
   FixtureScope scope(data);
   PublicationObserver platform;
   Scene scene((Boundary<NestedSeatRoot>()));
-  NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
+  NestedSeatRoot *root = switchToRowlessNestedSeat(scene, platform, data);
   Node *outerArm = root->childrenHead();
-  LOKA_VERIFY(outerArm != 0);
   const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
   bool valid = check("nested-healed", scene, platform);
@@ -1041,11 +1072,11 @@ void testPartialTreeNestedReconcileGrowsSeatLedger925()
 // heap-use-after-free READ in replaceSeatBranch under testing-asan.
 void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
 {
-  PublicationFixture data(CONDITIONAL, 2, true);
+  PublicationFixture data(CONDITIONAL, 2, false);
   FixtureScope scope(data);
   PublicationObserver platform;
   Scene scene((Boundary<NestedSeatRoot>()));
-  NestedSeatRoot *root = mountRecapturedWithOneSeatRow(scene, platform, data);
+  NestedSeatRoot *root = switchToRowlessNestedSeat(scene, platform, data);
   loka::app::testing::failLocalRebuildProbeProps(1);
   const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
