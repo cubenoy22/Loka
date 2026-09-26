@@ -244,6 +244,22 @@ bool MacTextContext::applyStyle(bool initial)
     [cell setLineBreakMode:mode];
     changed = true;
   }
+  if (this->node_->props.hasDeclaredStyle())
+  {
+    // Twin: MacAttributedTextContext::Projection::build sets paragraph alignment.
+    NSTextAlignment alignment = NSLeftTextAlignment;
+    switch (attr.hasAlign_ ? attr.align_ : loka::app::TEXT_ALIGN_LEFT)
+    {
+    case loka::app::TEXT_ALIGN_LEFT: alignment = NSLeftTextAlignment; break;
+    case loka::app::TEXT_ALIGN_CENTER: alignment = NSCenterTextAlignment; break;
+    case loka::app::TEXT_ALIGN_RIGHT: alignment = NSRightTextAlignment; break;
+    }
+    if ([label alignment] != alignment)
+    {
+      [label setAlignment:alignment];
+      changed = true;
+    }
+  }
   return changed;
 }
 

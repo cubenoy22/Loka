@@ -1185,6 +1185,10 @@ ASCII spaces and tabs through the shared breaker, while macOS lets AppKit
 choose its word breaks, so hyphens and non-Latin scripts can wrap differently
 across rails.
 
+On Win32, plain `Text` with wrap=NONE, CLIP truncation, and CENTER/RIGHT alignment
+can wrap overflowing words inside its one-line-high native control; ellipsis uses
+the native single-line mode.
+
 ### `Section()` And Tagged Siblings
 
 [`Section(k)`](../common/app/nodes/nestable/BoundarySection.hpp) groups children

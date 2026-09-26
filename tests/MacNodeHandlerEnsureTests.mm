@@ -272,6 +272,19 @@ void testMacNodeHandlerEnsureContract()
     LOKA_VERIFY(text.getContext() == textCtx);
     LOKA_VERIFY(countChildViews(root) == childrenWithText);
 
+    // Alignment applies on the retained plain label without replacing it.
+    NSTextField *textField = (NSTextField *)[[root subviews] objectAtIndex:childrenWithText - 1];
+    const loka::app::TextAlign alignments[] = {
+        loka::app::TEXT_ALIGN_CENTER, loka::app::TEXT_ALIGN_RIGHT, loka::app::TEXT_ALIGN_LEFT};
+    const NSTextAlignment expected[] = {NSCenterTextAlignment, NSRightTextAlignment, NSLeftTextAlignment};
+    for (int a = 0; a < 3; ++a)
+    {
+      text.props.blockStyle_.align(alignments[a]);
+      textCtx->onPropsApplied();
+      LOKA_VERIFY([textField alignment] == expected[a]);
+      LOKA_VERIFY(text.getContext() == textCtx);
+    }
+
     // -- TextEditor: installs its multiline context even with unavailable props --
     loka::app::TextEditorNode editor((loka::app::TextEditorProps()));
     LOKA_VERIFY(controller.prepareProjectedLayout(&editor, state));
@@ -405,6 +418,26 @@ void testMacAttributedTextWholeLineProjection()
       VerifyAttributedHeight(node, controller, root, 90);
       LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByTruncatingTail);
       LOKA_VERIFY(![[field cell] wraps]);
+      const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+      const NSTextAlignment expected[] = {NSLeftTextAlignment, NSCenterTextAlignment, NSRightTextAlignment};
+      for (int a = 0; a < 3; ++a)
+      {
+        node.props.blockStyle_ = BlockStyle().wrap(TEXT_WRAP_NONE).align(alignments[a]);
+        node.props.text(Styled("short", small));
+        context->onPropsApplied();
+        VerifyAttributedHeight(node, controller, root, 90);
+        const CGFloat oneLine = [field frame].size.height;
+        node.props.text(Styled("short\nline", small));
+        context->onPropsApplied();
+        VerifyAttributedHeight(node, controller, root, 90);
+        LOKA_VERIFY([field frame].size.height > oneLine);
+        LOKA_VERIFY(![[field cell] wraps] && ![[field cell] isScrollable]);
+        if ([[field cell] respondsToSelector:@selector(usesSingleLineMode)])
+          LOKA_VERIFY(![[field cell] usesSingleLineMode]);
+        NSParagraphStyle *aligned = [[field attributedStringValue]
+            attribute:NSParagraphStyleAttributeName atIndex:0 effectiveRange:0];
+        LOKA_VERIFY([aligned alignment] == expected[a]);
+      }
       LOKA_VERIFY(node.getContext() == context);
     }
     LOKA_VERIFY([[root subviews] count] == 0);
