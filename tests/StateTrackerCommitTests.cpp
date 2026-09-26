@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "StateTrackerCommitTests.hpp"
 #include <cassert>
@@ -54,7 +55,7 @@ namespace
   void deferFromCommitWindowObserver(void *userData)
   {
     TrackerCommitProbe *probe = static_cast<TrackerCommitProbe *>(userData);
-    probe->tracker->defer(&countDeferredCommitWork, probe);
+    loka::core::testing::PushStateTrackerTestAccess::defer(*probe->tracker, &countDeferredCommitWork, probe);
   }
 
   void writeFromTrackerInvalidate(void *userData)
@@ -408,7 +409,7 @@ void testStateTrackerGuardOpenedDuringCommitJoinsTransaction()
     loka::core::StateTrackerGuard guard(
         &tracker, &incrementGuardInvalidations, &probe.invalidations);
     a.set(10);
-    tracker.defer(&writeFromDeferredCommit, &probe);
+    loka::core::testing::PushStateTrackerTestAccess::defer(tracker, &writeFromDeferredCommit, &probe);
   }
 
   assert(b.get() == 10);

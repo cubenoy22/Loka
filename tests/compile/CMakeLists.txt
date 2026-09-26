@@ -406,3 +406,13 @@ loka_compile_pin(focus-window-entry
   REFUSES pins/refuses_focus-window-entry.cpp
   ACCEPTS pins/accepts_focus-window-entry.cpp
 )
+
+loka_compile_pin(defer-needs-the-key
+  REFUSES pins/refuses_defer_without_key.cpp
+  ACCEPTS pins/accepts_defer_testing_door.cpp
+)
+
+loka_compile_pin(defer-key-is-private
+  REFUSES pins/refuses_defer_key_construction.cpp
+  ACCEPTS pins/accepts_defer_testing_door.cpp
+)

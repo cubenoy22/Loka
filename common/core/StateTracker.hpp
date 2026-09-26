@@ -9,6 +9,13 @@
 
 namespace loka
 {
+  namespace app
+  {
+    namespace scene
+    {
+      class BoundaryNode;
+    }
+  }
   namespace core
   {
 
@@ -28,11 +35,27 @@ namespace loka
       struct PushStateTrackerTestAccess;
     }
 
+    /** Permission for the lifetime-validated Boundary deferred callback path.
+        Copies carry no ownership or lifetime extension. */
+    class TrackerDeferKey
+    {
+    public:
+      TrackerDeferKey(const TrackerDeferKey &) {}
+
+    private:
+      friend class loka::app::scene::BoundaryNode;
+      friend struct testing::PushStateTrackerTestAccess;
+      TrackerDeferKey() {}
+    };
+
     class StateTracker
     {
     public:
       virtual void begin() = 0;
-      virtual void defer(void (*fn)(void *), void *userData) = 0;
+      /** Internal, not app-facing: a deferred (fn, void*) has no lifetime edge
+          to the caller's owner. The sole production caller, BoundaryNode,
+          carries its own refcounted, self-validating record. */
+      virtual void defer(TrackerDeferKey, void (*fn)(void *), void *userData) = 0;
       virtual void markDirty(StateBase *state) = 0;
       virtual bool end() = 0;
       virtual void registerDependency(StateBase *dependent, StateBase *dependency) = 0;
@@ -55,7 +78,7 @@ namespace loka
           joins the running transaction; its writes land in the current phase's
           intake and are drained by the settlement already in progress. */
       void begin();
-      void defer(void (*fn)(void *), void *userData);
+      void defer(TrackerDeferKey, void (*fn)(void *), void *userData);
       void markDirty(StateBase *state);
       void addState(StateBase *state);
       void addStateUnchecked(StateBase *state);
