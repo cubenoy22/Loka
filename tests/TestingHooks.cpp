@@ -234,6 +234,7 @@ namespace loka
 } // namespace loka
 #endif
 
+// Declared in tests/support/LocalRebuildRefusal.hpp.
 #ifdef TEST_BUILD
 namespace loka { namespace app { namespace testing {
   namespace { unsigned localRebuildProbePropsFailures = 0; }
