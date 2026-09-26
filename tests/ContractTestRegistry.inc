@@ -753,6 +753,8 @@ LOKA_TEST(testPartialTreeInitialChildCloneRefusal)
 LOKA_TEST(testPartialTreeEmptyDeclarationComposesOnce)
 LOKA_TEST(testPartialTreePlainRootCloneRefusal)
 LOKA_TEST(testPartialTreeInitialTaggedCopyRefusal)
+LOKA_TEST(testPartialTreeNestedReconcileGrowsSeatLedger925)
+LOKA_TEST(testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925)
 
 LOKA_TEST(testNodePartitionReuse)
 LOKA_TEST(testNodePartitionReturnValidation)

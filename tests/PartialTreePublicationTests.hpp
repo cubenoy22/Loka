@@ -20,4 +20,6 @@ void testPartialTreeInitialChildCloneRefusal();
 void testPartialTreeEmptyDeclarationComposesOnce();
 void testPartialTreePlainRootCloneRefusal();
 void testPartialTreeInitialTaggedCopyRefusal();
+void testPartialTreeNestedReconcileGrowsSeatLedger925();
+void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925();
 #endif
