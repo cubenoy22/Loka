@@ -1349,12 +1349,12 @@ namespace loka
         return *this;
       }
 
-      // Clears the hooks on the SHARED impl without detaching: used when the
-      // hook owner (FlowSlot) disowns this flow, so wrappers that still share
-      // the impl cannot fire hooks into the owner's freed run state.
       /** Withdraw the actual participating implementation, without copy-on-write. */
       void withdraw() { this->impl_->withdrawTrigger(); }
 
+      // Clears the hooks on the SHARED impl without detaching: used when the
+      // hook owner (FlowSlot) disowns this flow, so wrappers that still share
+      // the impl cannot fire hooks into the owner's freed run state.
       void clearExecutionHooks()
       {
         this->impl_->runBeginFn_ = 0;
