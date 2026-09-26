@@ -247,12 +247,12 @@ bool MacTextContext::applyStyle(bool initial)
   if (this->node_->props.hasDeclaredStyle())
   {
     // Twin: MacAttributedTextContext::Projection::build sets paragraph alignment.
-    NSTextAlignment alignment = NSLeftTextAlignment;
+    NSTextAlignment alignment = LOKA_MAC_TEXT_ALIGNMENT_LEFT;
     switch (attr.hasAlign_ ? attr.align_ : loka::app::TEXT_ALIGN_LEFT)
     {
-    case loka::app::TEXT_ALIGN_LEFT: alignment = NSLeftTextAlignment; break;
-    case loka::app::TEXT_ALIGN_CENTER: alignment = NSCenterTextAlignment; break;
-    case loka::app::TEXT_ALIGN_RIGHT: alignment = NSRightTextAlignment; break;
+    case loka::app::TEXT_ALIGN_LEFT: alignment = LOKA_MAC_TEXT_ALIGNMENT_LEFT; break;
+    case loka::app::TEXT_ALIGN_CENTER: alignment = LOKA_MAC_TEXT_ALIGNMENT_CENTER; break;
+    case loka::app::TEXT_ALIGN_RIGHT: alignment = LOKA_MAC_TEXT_ALIGNMENT_RIGHT; break;
     }
     if ([label alignment] != alignment)
     {

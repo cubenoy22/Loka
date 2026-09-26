@@ -64,12 +64,18 @@ typedef float CGFloat;
 #define LOKA_MAC_WINDOW_STYLE_RESIZABLE NSWindowStyleMaskResizable
 #define LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE NSWindowStyleMaskMiniaturizable
 #define LOKA_MAC_COMPOSITING_SOURCE_OVER NSCompositingOperationSourceOver
+#define LOKA_MAC_TEXT_ALIGNMENT_LEFT NSTextAlignmentLeft
+#define LOKA_MAC_TEXT_ALIGNMENT_CENTER NSTextAlignmentCenter
+#define LOKA_MAC_TEXT_ALIGNMENT_RIGHT NSTextAlignmentRight
 #else
 #define LOKA_MAC_WINDOW_STYLE_TITLED NSTitledWindowMask
 #define LOKA_MAC_WINDOW_STYLE_CLOSABLE NSClosableWindowMask
 #define LOKA_MAC_WINDOW_STYLE_RESIZABLE NSResizableWindowMask
 #define LOKA_MAC_WINDOW_STYLE_MINIATURIZABLE NSMiniaturizableWindowMask
 #define LOKA_MAC_COMPOSITING_SOURCE_OVER NSCompositeSourceOver
+#define LOKA_MAC_TEXT_ALIGNMENT_LEFT NSLeftTextAlignment
+#define LOKA_MAC_TEXT_ALIGNMENT_CENTER NSCenterTextAlignment
+#define LOKA_MAC_TEXT_ALIGNMENT_RIGHT NSRightTextAlignment
 #endif
 
 #if defined(MAC_OS_X_VERSION_MAX_ALLOWED) && (MAC_OS_X_VERSION_MAX_ALLOWED >= 101000)
