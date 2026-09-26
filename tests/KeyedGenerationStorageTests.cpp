@@ -19,6 +19,11 @@
 #include <cstdio>
 #include <cstring>
 #include <map>
+#if !defined(NDEBUG) && defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -1233,4 +1238,43 @@ void testVacatedKeyedReshowKeepsSectionStateOwner()
     LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
     verifyBalanced(allocations);
   }
+}
+
+void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce()
+{
+#if defined(NDEBUG) || (defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__))
+  BoundaryBranchSeatState seats;
+  const BoundaryBranchSeatPlanEntry plan(BoundaryParkedBranchKey(1, 0, 0, &seats));
+  // Inert identities, as in the ComponentContext pins: stored, never dereferenced.
+  Node *const parentA = reinterpret_cast<Node *>(0x1000);
+  Node *const parentB = reinterpret_cast<Node *>(0x2000);
+  Node *const activeA = reinterpret_cast<Node *>(0x3000);
+  Node *const activeB = reinterpret_cast<Node *>(0x4000);
+  IStateOwner *const ownerA = reinterpret_cast<IStateOwner *>(0x5000);
+  IStateOwner *const ownerB = reinterpret_cast<IStateOwner *>(0x6000);
+  seats.registerRuntime(plan, parentA, activeA, ownerA);
+#ifdef NDEBUG
+  seats.registerRuntime(plan, parentB, activeB, ownerB);
+  const BoundaryBranchSeatState &stored = seats;
+  const BoundaryBranchSeatRuntimeEntry *row = stored.findRuntime(plan.key);
+  LOKA_VERIFY(row);
+  LOKA_VERIFY(row->parent == parentA);
+  LOKA_VERIFY(row->stateOwner == ownerA);
+  LOKA_VERIFY(row->active == activeB);
+#else
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    seats.registerRuntime(plan, parentB, activeB, ownerB);
+    _exit(0);
+  }
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
+#endif
+#else
+  std::printf("[skip] Seat row write-once pin requires NDEBUG or TEST_BUILD Linux without ASan for fork/SIGABRT.\n");
+#endif
 }

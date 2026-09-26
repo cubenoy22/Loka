@@ -17,4 +17,5 @@ void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders();
 void testNestedKeyedReshowCommitsStagedDeclarations();
 void testNestedKeyedReshowRefusalDiscardsStagedDeclarations();
 void testVacatedKeyedReshowKeepsSectionStateOwner();
+void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce();
 #endif
