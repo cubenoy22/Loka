@@ -1686,20 +1686,6 @@ namespace loka
           this->retireSeatBranchRoot(context, branch);
         }
 
-        void drainParkedSeat(ComponentContext &context,
-                             const BoundaryParkedBranchKey &key,
-                             unsigned armCount)
-        {
-          for (unsigned arm = 0; arm < armCount; ++arm)
-          {
-            Node *parkedBranch = 0;
-            while ((parkedBranch = this->parkedBranches_.take(key, arm)) != 0)
-            {
-              this->retireSeatBranch(context, key, arm, parkedBranch);
-            }
-          }
-        }
-
         void retireParkedBranchForRemovedSeat(ComponentContext &context,
                                               Node *activeBranch)
         {
@@ -1814,20 +1800,11 @@ namespace loka
           context.boundary()->retireSeatBranchRoot(context, root);
         }
 
-        /** Installs the plan's selected arm in place of the runtime's active
-            one. `drainParkedArmCount` > 0 means the seat is rebuilding under a
-            new shape: every arm parked under the old shape (0..count-1) is
-            retired after the outgoing arm and before the incoming arm's nested
-            mappings are committed -- after, so a failed materialization
-            leaves the old ledger untouched; before the commit, so the retire
-            under (key, arm) cannot erase the fresh mappings. `runtime` is read
-            once up front: the ledger it lives in is edited below. */
         bool replaceSeatBranch(ComponentContext &context,
                                const BoundaryBranchSeatPlanEntry &plan,
                                const BoundaryBranchSeatRuntimeEntry &runtime,
                                bool parkOutgoing,
-                               bool reuseParked,
-                               unsigned drainParkedArmCount = 0)
+                               bool reuseParked)
         {
           Node *runtimeParent = runtime.parent;
           Node *outgoing = runtime.active;
@@ -1848,12 +1825,10 @@ namespace loka
             this->retireSeatBranch(context, plan.key, plan.selectedArm, incoming);
             incoming = 0;
           }
-          // Nested seats inside the incoming arm are staged, not published:
-          // when the seat rebuilds in place (shape mismatch, same arm index)
-          // the outgoing arm is retired under the very owner pair
-          // (plan.key, selectedArm) the new nested mappings would carry, and
-          // retireOwnedSeatDescendants() would erase them with the old ones.
-          // The local-rebuild path stages for the same reason (#511).
+          // A redeclared seat's outgoing and new generations share the owner
+          // pair (plan.key, 0): retiring the outgoing arm would erase newly
+          // published nested mappings. Stage them until retirement finishes
+          // and the incoming candidate is complete (#931).
           BoundaryBranchSeatRuntimeRegistrationPlan nestedRegistrations;
           NodeMaterializationResult accepted = {incoming, false, false};
           loka::core::OwnedDef<BranchSeatDeclaration> candidate;
@@ -1941,10 +1916,6 @@ namespace loka
               this->retireSeatBranchRoot(context, outgoing);
             }
           }
-          if (drainParkedArmCount > 0)
-          {
-            this->drainParkedSeat(context, plan.key, drainParkedArmCount);
-          }
           const bool declaresBranch = candidate.isSet();
           if (declaresBranch)
           {
@@ -1968,7 +1939,6 @@ namespace loka
           committedRuntime->activeArm = plan.selectedArm;
           committedRuntime->hasActiveArm = plan.hasSelectedArm;
           committedRuntime->shape = plan.shape;
-          committedRuntime->appliedGeneration = this->branchSeats_.generation();
           if (context.nodeStorage())
             incoming->markPrecomposedAttach();
           else
@@ -2064,23 +2034,7 @@ namespace loka
           {
             return true;
           }
-          if (runtime.appliedGeneration == this->branchSeats_.generation())
-          {
-            mutablePlan.snapshotSelection();
-          }
-
-          if (!runtime.shape.matches(mutablePlan.shape))
-          {
-            // Rebuild under the new shape; the old shape's parked arms are
-            // drained inside the replacement, between the outgoing retire and
-            // the commit of the incoming arm's nested mappings.
-            return this->replaceSeatBranch(context,
-                                           mutablePlan,
-                                           runtime,
-                                           false,
-                                           false,
-                                           runtime.shape.armCount);
-          }
+          mutablePlan.snapshotSelection();
 
           if (mutablePlan.hasSelectedArm != runtime.hasActiveArm ||
               (mutablePlan.hasSelectedArm &&
@@ -2096,46 +2050,7 @@ namespace loka
                                            true);
           }
 
-          if (runtime.appliedGeneration == this->branchSeats_.generation())
-          {
-            return true;
-          }
-          NodeDefinitionBase *branchDefinition = mutablePlan.hasSelectedArm
-                                                     ? mutablePlan.branch(
-                                                           mutablePlan.selectedArm)
-                                                           .definition
-                                                     : 0;
-          if (!branchDefinition &&
-              this->isMaterializedEmptyBranch(runtime.active))
-          {
-            runtime.appliedGeneration = this->branchSeats_.generation();
-            return true;
-          }
-          // Reconciling can grow the seat ledger (the reserve for staged
-          // nested rows) and erase rows below this seat, so `runtime` does not
-          // survive the call: stamp and fall back through the row re-found by
-          // key, as replaceSeatBranch() does before its commit (#925).
-          const BoundaryParkedBranchKey key = mutablePlan.key;
-          const bool reconciled =
-              branchDefinition
-              && this->reconcileParkedBranch(context, runtime.active, branchDefinition, key.scope);
-          BoundaryBranchSeatRuntimeEntry *current = this->branchSeats_.findRuntime(key);
-          assert(current &&
-                 "reconciling a seat's arm must preserve that seat's own mapping");
-          if (!current)
-          {
-            return false;
-          }
-          if (reconciled)
-          {
-            current->appliedGeneration = this->branchSeats_.generation();
-            return true;
-          }
-          return this->replaceSeatBranch(context,
-                                         mutablePlan,
-                                         *current,
-                                         false,
-                                         true);
+          return true;
         }
 
         bool applyCurrentBranchSeatPlan(ComponentContext &context)
@@ -2464,9 +2379,20 @@ namespace loka
             of the candidate's callbacks and Held owner slots. */
         static void RetireUnattachedCandidate(Node *root, void *data);
 
-        /** Captures the attach declaration for subsequent seat updates. */
+        /** Captures the attach declaration for subsequent seat updates.
+            The audit diagnostic fires after misuse: beginComposition has
+            already destroyed the borrowed definitions. #936 owns prevention.
+            Without the audit flag, capture proceeds as before; it must not
+            refuse and leave a plan borrowing freed definitions. */
         void captureBranchSeatPlan()
         {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          if (!this->branchSeats_.runtimeEmpty())
+          {
+            assert(false && "capturing a branch seat plan over a live runtime ledger");
+            std::abort();
+          }
+#endif
           this->composition().assignCompositionSeatSlots();
           this->branchSeats_.capture(this->composition().root());
           this->registerBranchSeatDirtySources();

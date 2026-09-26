@@ -23,7 +23,6 @@ void testPartialTreeInitialTaggedCopyRefusal();
 void testPartialReplacementLazyScopeStaging();
 void testPartialReplacementConditionFlip();
 void testPartialReplacementDiscardWithdrawsBindings();
-void testPartialReplacementSameArmPreservesRow();
 void testPartialReplacementUntaggedStateAndReclaim();
 void testPartialReplacementStagingOwnership();
 void testPartialReplacementCommitsNestedObservations();
@@ -34,6 +33,6 @@ void testPartialReplacementAdmittedDiscardSkipsDetach();
 void testPartialReplacementConditionalCommitsNestedObservations();
 void testPartialReplacementShowCommitsNestedObservations();
 void testPartialReplacementLocalRebuildCommitsNestedObservations();
-void testPartialTreeNestedReconcileGrowsSeatLedger925();
-void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925();
+void testBranchSeatCaptureOverLiveLedgerAborts();
+
 #endif
