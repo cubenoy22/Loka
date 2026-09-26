@@ -231,11 +231,21 @@ namespace smirkycard
       }
       virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
       {
-        if (argc != 1)
-          return JS_ThrowTypeError(ctx, "Text(value) requires one value");
+        if (argc < 1 || argc > 2)
+          return JS_ThrowTypeError(ctx, "Text(value, style?) requires a value and optional style");
+        loka::app::TextStyle style;
+        if (argc == 2 && !JS_IsUndefined(argv[1]) && !readTextStyle(ctx, argv[1], style))
+          return JS_EXCEPTION;
         JSValue n = newTree(ctx, kind);
-        JS_SetPropertyStr(ctx, n, "text", JS_DupValue(ctx, argv[0]));
-        JS_FreezeObject(ctx, n);
+        if (JS_IsException(n))
+          return n;
+        if (JS_SetPropertyStr(ctx, n, "text", JS_DupValue(ctx, argv[0])) < 0
+            || (argc == 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || JS_FreezeObject(ctx, n) < 0)
+        {
+          JS_FreeValue(ctx, n);
+          return JS_EXCEPTION;
+        }
         return n;
       }
       virtual loka::app::scene::NodeDefinitionBase *lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int)

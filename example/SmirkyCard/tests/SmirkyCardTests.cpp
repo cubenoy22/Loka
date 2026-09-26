@@ -474,7 +474,8 @@ namespace
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.on=state(true)}compose(){return "
                                     "VStack(Button('flip',()=>this.on.set(!this.on.get())).TEST_ID('Flip'),Button('"
-                                    "target',()=>{}).TEST_ID('Target').enabled(this.on))}});",
+                                    "target',()=>{}).TEST_ID('Target').enabled(this.on),"
+                                    "Button('reverse',()=>{}).enabled(this.on).TEST_ID('Reverse'))}});",
                                     error));
     NullPlatformContext context;
     NullScenePlatformController platform;
@@ -488,8 +489,13 @@ namespace
     LOKA_VERIFY(targetNode);
     loka::app::ButtonNode *target = targetNode->asButtonNode();
     LOKA_VERIFY(target && target->props.getEnabled() && target->props.getEnabled()->get());
+    loka::app::scene::Node *reverseNode = find(root, "Reverse");
+    LOKA_VERIFY(reverseNode && reverseNode->asButtonNode());
+    loka::app::ButtonNode *reverse = reverseNode->asButtonNode();
+    LOKA_VERIFY(reverse->props.getEnabled() && reverse->props.getEnabled()->get());
     find(root, "Flip")->asButtonNode()->props.getOnClick()->emit();
     LOKA_VERIFY(!target->props.getEnabled()->get());
+    LOKA_VERIFY(!reverse->props.getEnabled()->get());
   }
   void checkArrayChildren()
   {
@@ -512,6 +518,88 @@ namespace
       ++count;
     LOKA_VERIFY(count == 3);
   }
+  void checkTreePropertyCopy()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String result, error;
+    LOKA_VERIFY(runtime.evaluateToString(
+        loka::core::String::Literal(
+            "(()=>{const tag=Text('').TEST_ID;const sym=Symbol('own');"
+            "const source=Object.create({inherited:1});source.extra=undefined;source[sym]=7;"
+            "Object.defineProperty(source,'hidden',{value:3});"
+            "Object.defineProperty(source,'__proto__',{value:9,enumerable:true});"
+            "const copy=tag.call(source,'t');"
+            "return Object.hasOwn(copy,'extra') && copy.extra===undefined && copy[sym]===7 && "
+            "!Object.hasOwn(copy,'inherited') && !Object.hasOwn(copy,'hidden') && "
+            "Object.hasOwn(copy,'__proto__') && copy.__proto__===9 && "
+            "copy.testId==='t' && Object.isFrozen(copy) && copy.TEST_ID('u').testId==='u';})()"),
+        result,
+        error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("true")) == 0);
+    LOKA_VERIFY(runtime.evaluateToString(
+        loka::core::String::Literal(
+            "(()=>{try{Text('').TEST_ID.call({get extra(){throw new Error('copy getter')}},'t')}"
+            "catch(e){return e.message==='copy getter'}return false})()"),
+        result,
+        error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("true")) == 0);
+    // Invalid style must throw at the helper call, even when the tree is never lowered.
+    LOKA_VERIFY(runtime.evaluateToString(
+        loka::core::String::Literal(
+            "(()=>{try{Text('a',{colour:1})}catch(e){return e instanceof TypeError}return false})()"),
+        result,
+        error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("true")) == 0);
+    LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("typeof Text('a').enabled"), result, error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("undefined")) == 0);
+  }
+
+  void checkTextStyle()
+  {
+    using namespace loka::app;
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.text=state('live')}compose(){return VStack("
+                                    "Text('a',{size:24,weight:'bold',italic:true}).TEST_ID('Styled'),"
+                                    "Text('a',{size:13}).TEST_ID('Snap13'),Text('a',{size:16}).TEST_ID('Snap16'),"
+                                    "Text('a',{size:21}).TEST_ID('Snap21'),Text('a',{size:18}).TEST_ID('Exact18'),"
+                                    "Text('a',{size:24}).TEST_ID('Chained'),"
+                                    "Text('a',{weight:'normal',italic:false}).TEST_ID('Normal'),"
+                                    "Text('a').TEST_ID('Plain'),Text(this.text,{size:18}).TEST_ID('Live'),"
+                                    "Text(this.error,{italic:true}).TEST_ID('Error'))}});",
+                                    error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    const char *ids[] = {
+        "Chained", "Styled", "Snap13", "Snap16", "Snap21", "Exact18", "Normal", "Plain", "Live", "Error"};
+    const TextStyle styles[] = {FontSize<24>(),
+                                FontSize<24>() + Bold + Italic,
+                                FontSize<12>(),
+                                FontSize<14>(),
+                                FontSize<18>(),
+                                FontSize<18>(),
+                                TextStyle().weight(TEXT_WEIGHT_NORMAL).italic(false),
+                                TextStyle(),
+                                FontSize<18>(),
+                                Italic};
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i)
+    {
+      loka::app::scene::Node *node = find(root, ids[i]);
+      LOKA_VERIFY(node && node->asTextNode());
+      LOKA_VERIFY(node->asTextNode()->props.textStyle_ == styles[i]);
+    }
+    // #814: a Text with no style fields must not count as declared, or the
+    // rails configure their native label and the goldens drift.
+    loka::app::scene::Node *plain = find(root, "Plain");
+    LOKA_VERIFY(plain && plain->asTextNode() && !plain->asTextNode()->props.hasDeclaredStyle());
+  }
+
   void checkLifecycleHooks()
   {
     smirkycard::ScriptRuntime runtime;
@@ -569,6 +657,46 @@ namespace
         find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Status");
     LOKA_VERIFY(status && status->asTextNode());
     LOKA_VERIFY(textValue(status->asTextNode()).find(expected) != std::string::npos);
+    loka::app::scene::Node *reload =
+        find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Reload");
+    LOKA_VERIFY(reload && reload->asButtonNode() && reload->asButtonNode()->props.getOnClick());
+  }
+
+  void checkTextStyleRefusals()
+  {
+    const char *styles[] = {"{colour:1}",
+                            "{size:'big'}",
+                            "{weight:1}",
+                            "{weight:'heavy'}",
+                            "{italic:1}",
+                            "null",
+                            "[]",
+                            "new Date()",
+                            "{size:13.5}",
+                            "{size:NaN}",
+                            "{size:Infinity}",
+                            "{size:2147483648}",
+                            "{[Symbol('x')]:1}",
+                            "Object.defineProperty({},'colour',{value:1})",
+                            "{italic:undefined}",
+                            "{['size\\u0000']:24}",
+                            "{weight:'bold\\u0000'}"};
+    for (size_t i = 0; i < sizeof(styles) / sizeof(styles[0]); ++i)
+    {
+      const std::string source = std::string("card('first',class{compose(){return Text('a',") + styles[i] + ")}});";
+      checkComposeRefusal(source.c_str(), "TypeError");
+    }
+  }
+
+  void checkChangedTextStyleRefusal()
+  {
+    // The tree owns a reference to the dictionary, so lowering must revalidate it.
+    checkComposeRefusal("card('first',class{compose(){const s={size:24};const t=Text('a',s);"
+                        "s.colour=1;return t}});",
+                        "TypeError");
+    checkComposeRefusal("card('first',class{compose(){return Text('a',{get size(){"
+                        "throw new Error('style getter')}})}});",
+                        "style getter");
   }
 
   void checkRequiredRefusals()
@@ -809,6 +937,10 @@ int main()
   testScriptContextIsPointerTagAligned();
   checkRegistry();
   checkCounterAndRefusals();
+  checkTextStyle();
+  checkTreePropertyCopy();
+  checkTextStyleRefusals();
+  checkChangedTextStyleRefusal();
   checkEnabledSeat();
   checkArrayChildren();
   checkLifecycleHooks();

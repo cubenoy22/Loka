@@ -1,4 +1,5 @@
 #include "ScriptRuntime.hpp"
+#include "JsOwnProperties.hpp"
 #include "CardNodes.hpp"
 #include "app/PlatformContext.hpp"
 #include "core/io/File.hpp"
@@ -24,20 +25,27 @@ namespace smirkycard
       // Every modifier copies the whole node, including the other modifiers'
       // results ("testId", "enabledSeat") and the modifier functions
       // themselves, so TEST_ID and enabled chain in either order.
-      const char *names[] = {
-          "kind", "children", "text", "seat", "label", "handler", "testId", "enabledSeat", "enabled"};
+      JsOwnProperties names(ctx);
+      if (!names.read(source, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+        return JS_EXCEPTION;
       JSValue copy = JS_NewObject(ctx);
-      for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
+      if (JS_IsException(copy))
+        return copy;
+      for (uint32_t i = 0; i < names.count(); ++i)
       {
-        JSValue value = JS_GetPropertyStr(ctx, source, names[i]);
-        if (!JS_IsUndefined(value))
-          JS_SetPropertyStr(ctx, copy, names[i], value);
-        else
-          JS_FreeValue(ctx, value);
+        JSValue value = JS_GetProperty(ctx, source, names.atom(i));
+        if (JS_IsException(value) || JS_DefinePropertyValue(ctx, copy, names.atom(i), value, JS_PROP_C_W_E) < 0)
+        {
+          JS_FreeValue(ctx, copy);
+          return JS_EXCEPTION;
+        }
       }
-      JS_SetPropertyStr(ctx, copy, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1));
-      if (!JS_IsUndefined(id))
-        JS_SetPropertyStr(ctx, copy, "testId", JS_DupValue(ctx, id));
+      if (JS_SetPropertyStr(ctx, copy, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1)) < 0
+          || (!JS_IsUndefined(id) && JS_SetPropertyStr(ctx, copy, "testId", JS_DupValue(ctx, id)) < 0))
+      {
+        JS_FreeValue(ctx, copy);
+        return JS_EXCEPTION;
+      }
       return copy;
     }
   } // namespace
@@ -369,7 +377,13 @@ namespace smirkycard
     if (argc != 1 || !JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "TEST_ID(id) requires a string");
     JSValue copy = copyTreeWithId(ctx, thisValue, argv[0]);
-    JS_FreezeObject(ctx, copy);
+    if (JS_IsException(copy))
+      return copy;
+    if (JS_FreezeObject(ctx, copy) < 0)
+    {
+      JS_FreeValue(ctx, copy);
+      return JS_EXCEPTION;
+    }
     return copy;
   }
   JSValue ScriptRuntime::enabled(JSContext *ctx, JSValueConst thisValue, int argc, JSValueConst *argv)
@@ -377,8 +391,13 @@ namespace smirkycard
     if (argc != 1)
       return JS_ThrowTypeError(ctx, "enabled(seat) requires one seat");
     JSValue copy = copyTreeWithId(ctx, thisValue, JS_UNDEFINED);
-    JS_SetPropertyStr(ctx, copy, "enabledSeat", JS_DupValue(ctx, argv[0]));
-    JS_FreezeObject(ctx, copy);
+    if (JS_IsException(copy))
+      return copy;
+    if (JS_SetPropertyStr(ctx, copy, "enabledSeat", JS_DupValue(ctx, argv[0])) < 0 || JS_FreezeObject(ctx, copy) < 0)
+    {
+      JS_FreeValue(ctx, copy);
+      return JS_EXCEPTION;
+    }
     return copy;
   }
 
