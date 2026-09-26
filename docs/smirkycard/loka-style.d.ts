@@ -5,8 +5,8 @@ export type TextWrap = 0 | 1 | 2;
 export type TextTruncation = 0 | 1 | 2;
 
 export interface TextStyle {
-  /** Other integers are accepted at runtime; SizeOf snaps to the nearest size, ties down. */
-  size?: FontSize;
+  /** Any integer; snapped at declaration to the nearest FontSize, ties down. */
+  size?: number;
   weight?: TextWeight;
   italic?: boolean;
 }

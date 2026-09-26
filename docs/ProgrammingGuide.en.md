@@ -864,7 +864,7 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Text('Card One'),
+      Markup('<size=18><b>Card One</b></size>'),
       Text('This Scene is defined in JavaScript.'),
       EditText(this.script),
       Button('Run', () => {

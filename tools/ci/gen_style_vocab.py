@@ -117,11 +117,12 @@ def generate_typescript(vocab):
         lines.append("export interface %s {" % interface)
         for field in vocab["fields"][interface]:
             if interface == "TextStyle" and field == "fontSize":
-                lines.extend([
-                    "  /** Other integers are accepted at runtime; SizeOf snaps to the nearest size, ties down. */",
-                ])
-            name = "size" if interface == "TextStyle" and field == "fontSize" else field
-            lines.append("  %s?: %s;" % (name, ts_type(field)))
+                # The JS door accepts any integer and snaps it to the nearest
+                # vocabulary size (ties down), so the type is number, not the union.
+                lines.append("  /** Any integer; snapped at declaration to the nearest FontSize, ties down. */")
+                lines.append("  size?: number;")
+                continue
+            lines.append("  %s?: %s;" % (field, ts_type(field)))
         lines.extend(["}", ""])
     lines += [
         "/**",
