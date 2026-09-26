@@ -39,7 +39,7 @@ if(LOKA_CLASSIC_MAC)
 endif()
 
 function(smirkycard_cpp_target target)
-  target_sources(${target} PRIVATE src/ScriptRuntime.cpp src/JsCardNode.cpp src/JsCardBindingRegistry.cpp)
+  target_sources(${target} PRIVATE src/ScriptRuntime.cpp src/JsCardNode.cpp src/JsCardBindingRegistry.cpp src/SmirkyMarkup.cpp)
   loka_enable_warnings(${target})
   set_target_properties(${target} PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   target_link_libraries(${target} PRIVATE smirkycard_script)

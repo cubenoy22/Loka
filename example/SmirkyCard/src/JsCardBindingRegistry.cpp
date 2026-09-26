@@ -1,5 +1,7 @@
 #include "JsCardBindingRegistry.hpp"
 #include "CardNodes.hpp"
+#include "SmirkyMarkup.hpp"
+#include "app/nodes/AttributedText.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
@@ -253,6 +255,71 @@ namespace smirkycard
         return node.lowerText(ctx, tree);
       }
     };
+    bool readMarkup(JSContext *ctx, JSValueConst value, JSValueConst dict, loka::app::AttributedString &out)
+    {
+      if (!JS_IsString(value))
+      {
+        JS_ThrowTypeError(ctx, "Markup requires a literal string; state seats are not supported");
+        return false;
+      }
+      loka::app::TextStyle style;
+      if (JS_IsException(dict) || (!JS_IsUndefined(dict) && !readTextStyle(ctx, dict, style)))
+        return false;
+      size_t length = 0;
+      const char *bytes = JS_ToCStringLen(ctx, &length, value);
+      if (!bytes)
+        return false;
+      const bool valid = ParseSmirkyMarkup(bytes, length, style, out);
+      JS_FreeCString(ctx, bytes);
+      if (!valid)
+        JS_ThrowTypeError(ctx, "Markup parse or allocation refused");
+      return valid;
+    }
+
+    class MarkupLowering : public IJsNodeLowering
+    {
+    public:
+      MarkupLowering()
+      {
+        name = "Markup";
+        kind = 0;
+      }
+      virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
+      {
+        if (argc < 1 || argc > 2)
+          return JS_ThrowTypeError(ctx, "Markup(markup, style?) requires a string and optional style");
+        loka::app::AttributedString parsed;
+        if (!readMarkup(ctx, argv[0], argc == 2 ? argv[1] : JS_UNDEFINED, parsed))
+          return JS_EXCEPTION;
+        JSValue n = newTree(ctx, kind);
+        if (JS_IsException(n))
+          return n;
+        if (JS_SetPropertyStr(ctx, n, "markup", JS_DupValue(ctx, argv[0])) < 0
+            || (argc == 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || JS_FreezeObject(ctx, n) < 0)
+        {
+          JS_FreeValue(ctx, n);
+          return JS_EXCEPTION;
+        }
+        return n;
+      }
+      virtual loka::app::scene::NodeDefinitionBase *lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int)
+      {
+        JSValue value = JS_GetPropertyStr(ctx, tree, "markup");
+        JSValue dict = JS_GetPropertyStr(ctx, tree, "style");
+        loka::app::AttributedString parsed;
+        const bool valid = readMarkup(ctx, value, dict, parsed);
+        JS_FreeValue(ctx, dict);
+        JS_FreeValue(ctx, value);
+        if (!valid)
+        {
+          JS_FreeValue(ctx, JS_GetException(ctx));
+          node.fail("JavaScript Markup parse, style or allocation refused.");
+          return 0;
+        }
+        return new (std::nothrow) loka::app::AttributedText(parsed);
+      }
+    };
     class EditTextLowering : public IJsNodeLowering
     {
     public:
@@ -310,7 +377,8 @@ namespace smirkycard
            && registry.registerLowering(new (std::nothrow) TextLowering())
            && registry.registerLowering(new (std::nothrow) EditTextLowering())
            && registry.registerLowering(new (std::nothrow) ButtonLowering())
-           && registry.registerLowering(new (std::nothrow) StackLowering("Row", true)) && registry.registerGlobal(card)
+           && registry.registerLowering(new (std::nothrow) StackLowering("Row", true))
+           && registry.registerLowering(new (std::nothrow) MarkupLowering()) && registry.registerGlobal(card)
            && registry.registerGlobal(state) && registry.registerGlobal(go) && registry.registerGlobal(reload);
   }
 } // namespace smirkycard

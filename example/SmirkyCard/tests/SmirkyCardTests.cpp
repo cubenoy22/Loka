@@ -1,5 +1,8 @@
 #include "MyAppConfig.hpp"
 #include "JsCardBindingRegistry.hpp"
+#include "SmirkyMarkup.hpp"
+#include "app/nodes/AttributedText.hpp"
+#include "support/LokaAllocFailure.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "support/TestVerify.hpp"
@@ -641,7 +644,7 @@ namespace
     LOKA_VERIFY(textValue(status->asTextNode()).find("attach boom") != std::string::npos);
   }
 
-  void checkComposeRefusal(const char *source, const char *expected)
+  void checkComposeRefusal(const char *source, const char *expected, bool consumesException = false)
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
@@ -653,8 +656,12 @@ namespace
     NullWindow window(&context, props, &platform);
     WindowAdmissionTestApp admission(window);
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    if (consumesException)
+      LOKA_VERIFY(!JS_HasException(runtime.context()));
     loka::app::scene::Node *status =
         find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Status");
+    LOKA_VERIFY(!find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "Prefix"));
+    LOKA_VERIFY(!find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "M"));
     LOKA_VERIFY(status && status->asTextNode());
     LOKA_VERIFY(textValue(status->asTextNode()).find(expected) != std::string::npos);
     loka::app::scene::Node *reload =
@@ -697,6 +704,143 @@ namespace
     checkComposeRefusal("card('first',class{compose(){return Text('a',{get size(){"
                         "throw new Error('style getter')}})}});",
                         "style getter");
+  }
+
+  void checkMarkupParser()
+  {
+    using namespace loka::app;
+    AttributedString result;
+    const TextStyle base = FontSize<12>();
+    const char *sample = "var <b>x</b> = <i>1</i>;";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result
+                == Styled("var ", base) + Styled("x", base + Bold) + Styled(" = ", base) + Styled("1", base + Italic)
+                       + Styled(";", base));
+    sample = "<size=24><b>a</b>b</size>";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result == Styled("a", FontSize<24>() + Bold) + Styled("b", FontSize<24>()));
+    sample = "<size=24>a<size=12>b</size>c</size>d";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result
+                == Styled("a", FontSize<24>()) + Styled("b", base) + Styled("c", FontSize<24>()) + Styled("d", base));
+    sample = "\\<b>\\\\";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result == Styled("<b>\\", base));
+    sample = "<size=21>x</size>";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result == Styled("x", FontSize<18>()));
+    sample = "é<b>日本🙂</b>é";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result == Styled("é", base) + Styled("日本🙂", base + Bold) + Styled("é", base));
+    sample = "<b></b><i></i>";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), base, result));
+    LOKA_VERIFY(result.valid() && result.segmentCount() == 0);
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(0, 0, base, result));
+    LOKA_VERIFY(result.valid() && result.empty());
+    const char *bad[] = {"<u>x</u>",
+                         "<b>x",
+                         "<b>x</i>",
+                         "</b>",
+                         "<size=>x</size>",
+                         "<size=1x>x</size>",
+                         "<size=2147483648>x</size>",
+                         "<size=-1>x</size>",
+                         "<size=1.5>x</size>",
+                         "<size= 12>x</size>",
+                         "<size=12",
+                         "<>",
+                         "</>",
+                         "<b><i>x</b></i>",
+                         "<size=12>x</size=12>"};
+    const AttributedString sentinel = Styled("unchanged", base);
+    for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
+    {
+      result = sentinel;
+      LOKA_VERIFY(!smirkycard::ParseSmirkyMarkup(bad[i], std::strlen(bad[i]), base, result));
+      LOKA_VERIFY(result == sentinel);
+    }
+    const char embedded[] = {'a', '\0', '<', 'b', '>', 'b', '<', '/', 'b', '>'};
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(embedded, sizeof(embedded), base, result));
+    LOKA_VERIFY(result == Styled(loka::core::String::Utf8(embedded, 2), base) + Styled("b", base + Bold));
+    std::string deep;
+    for (int i = 0; i < 1024; ++i)
+      deep += "<b>";
+    deep += "x";
+    for (int i = 0; i < 1024; ++i)
+      deep += "</b>";
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(deep.data(), deep.size(), base, result));
+    LOKA_VERIFY(result == Styled("x", base + Bold));
+  }
+
+  void checkMarkup()
+  {
+    using namespace loka::app;
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error, value;
+    LOKA_VERIFY(runtime.evaluateToString(
+        loka::core::String::Literal("(()=>{try{Markup('<b>x')}catch(e){return e instanceof TypeError}return false})()"),
+        value,
+        error));
+    LOKA_VERIFY(value.compare(loka::core::String::Literal("true")) == 0);
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{compose(){return VStack("
+                                    "Markup('<b>Hi</b> there',{size:24}).TEST_ID('M'),"
+                                    "Text('<b>plain</b>').TEST_ID('P'))}});",
+                                    error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::app::scene::Node *node = find(root, "M");
+    LOKA_VERIFY(node && node->asAttributedTextNode());
+    LOKA_VERIFY(node->asAttributedTextNode()->props.text_->get()
+                == Styled("Hi", FontSize<24>() + Bold) + Styled(" there", FontSize<24>()));
+    LOKA_VERIFY(textValue(find(root, "P")->asTextNode()) == "<b>plain</b>");
+    checkComposeRefusal("card('first',class{constructor(){this.s=state('x')}compose(){return Markup(this.s)}});",
+                        "state seats are not supported");
+    checkComposeRefusal("card('first',class{compose(){return Markup('<b>x')}});", "TypeError");
+    checkComposeRefusal("card('first',class{compose(){return Markup('x',{colour:1})}});", "TypeError");
+    checkComposeRefusal("card('first',class{compose(){const s={size:24};const t=Markup('x',s);"
+                        "s.colour=1;return t}});",
+                        "Markup",
+                        true);
+  }
+
+  void checkMarkupAllocationRefusal()
+  {
+    using namespace loka::core::testing;
+    // Two Builder allocations per pass for five segments: fail both initial
+    // allocation and growth, first at declaration, then at lowering.
+    for (int failure = 1; failure <= 4; ++failure)
+    {
+      failLokaAllocRaw("AttributedString", "Segments", failure);
+      checkComposeRefusal("card('first',class{compose(){return VStack(Text('prefix').TEST_ID('Prefix'),"
+                          "Markup('a<b>b</b>c<i>d</i>e').TEST_ID('M'))}});",
+                          failure <= 2 ? "TypeError" : "Markup",
+                          true);
+      LOKA_VERIFY(lokaAllocRawLive() == 0);
+      allowLokaAllocRaw();
+    }
+    failLokaAllocRaw("AttributedString", "Segments", 1);
+    {
+      loka::app::AttributedString result;
+      LOKA_VERIFY(!smirkycard::ParseSmirkyMarkup(0, 0, loka::app::TextStyle(), result));
+      LOKA_VERIFY(result.valid() && result.empty());
+    }
+    LOKA_VERIFY(lokaAllocRawLive() == 0);
+    allowLokaAllocRaw();
+    failLokaAllocRaw("SmirkyMarkup", "Frame", 2);
+    {
+      loka::app::AttributedString result;
+      const char *sample = "<b>a<i>b</i></b>";
+      LOKA_VERIFY(!smirkycard::ParseSmirkyMarkup(sample, std::strlen(sample), loka::app::TextStyle(), result));
+      LOKA_VERIFY(result.empty());
+    }
+    LOKA_VERIFY(lokaAllocRawLive() == 0);
+    allowLokaAllocRaw();
   }
 
   void checkRequiredRefusals()
@@ -938,6 +1082,9 @@ int main()
   checkRegistry();
   checkCounterAndRefusals();
   checkTextStyle();
+  checkMarkupParser();
+  checkMarkup();
+  checkMarkupAllocationRefusal();
   checkTreePropertyCopy();
   checkTextStyleRefusals();
   checkChangedTextStyleRefusal();
