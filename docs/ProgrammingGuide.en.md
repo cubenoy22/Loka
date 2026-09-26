@@ -864,7 +864,7 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Text('Card One'),
+      Markup('<size=18><b>Card One</b></size>'),
       Text('This Scene is defined in JavaScript.'),
       EditText(this.script),
       Button('Run', () => {
@@ -882,6 +882,22 @@ card('first', class {
 
 To try it, edit `MAIN.JS`, choose **Run** to evaluate the text in the card, and
 choose **Reload MAIN.JS** to load your saved card definitions again.
+
+#### Text styles and markup from JavaScript
+
+Pass a style dictionary to set a whole line's appearance, or use markup to
+style individual spans:
+
+```js
+Text('A heading', {size: 24, weight: 'bold'})
+Markup('<b>Hi</b> <i>there</i>', {size: 18})
+```
+
+Markup accepts `<b>…</b>`, `<i>…</i>`, `<size=N>…</size>`, and `\<` for a literal
+`<` (write `\\<` inside a JavaScript string). Styles also accept `italic: true`
+or `false` and `weight: 'normal'`. Unknown style keys or markup tags reject the
+card and show an error through the Reload path. Sizes snap to the nearest of
+9, 10, 12, 14, 18, and 24, with ties down: 21 becomes 18.
 
 ## 12. Toggle UI Driven By State
 

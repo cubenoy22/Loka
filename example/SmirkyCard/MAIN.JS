@@ -8,7 +8,7 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Text('Card One').TEST_ID('SmirkyCard.Title'),
+      Markup('<size=18><b>Card One</b></size>').TEST_ID('SmirkyCard.Title'),
       Text('This Scene is defined in JavaScript.'),
       EditText(this.script).TEST_ID('SmirkyCard.Script'),
       Button('Run', () => {
@@ -29,7 +29,7 @@ card('second', class {
   }
   compose() {
     return VStack(
-      Text('Card Two').TEST_ID('SmirkyCard.Title'),
+      Markup('<size=18><b>Card Two</b></size>').TEST_ID('SmirkyCard.Title'),
       Text('This Scene is also defined in JavaScript.'),
       EditText(this.script).TEST_ID('SmirkyCard.Script'),
       Row(

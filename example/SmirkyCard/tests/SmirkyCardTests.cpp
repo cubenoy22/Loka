@@ -114,10 +114,9 @@ namespace
       loka::app::scene::Scene *previous = window.scene();
       loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*previous);
       loka::app::scene::Node *title = find(root, "SmirkyCard.Title");
-      LOKA_VERIFY(title && title->asTextNode());
-      LOKA_VERIFY(
-          title->asTextNode()->props.text_->get().compare(loka::core::String::Literal(i % 2 ? "Card Two" : "Card One"))
-          == 0);
+      LOKA_VERIFY(title && title->asAttributedTextNode());
+      LOKA_VERIFY(title->asAttributedTextNode()->props.text_->get()
+                  == loka::app::Styled(i % 2 ? "Card Two" : "Card One", loka::app::FontSize<18>() + loka::app::Bold));
       loka::app::scene::Node *button = find(root, "SmirkyCard.Run");
       LOKA_VERIFY(button && button->asButtonNode());
       // Exercise the actual binding: C++ button -> JS -> SceneManager handoff.
@@ -202,6 +201,13 @@ namespace
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
     loka::app::scene::Node *title =
         find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Title");
+    if (title && title->asAttributedTextNode())
+    {
+      const loka::app::AttributedString &text = title->asAttributedTextNode()->props.text_->get();
+      LOKA_VERIFY(text.segmentCount() == 1);
+      const loka::core::StringBuffer buffer = text.segment(0).text.bufferWithEncoding(loka::core::StringEncodingUtf8);
+      return std::string(static_cast<const char *>(buffer.data()), buffer.length());
+    }
     return title && title->asTextNode() ? textValue(title->asTextNode()) : std::string();
   }
 
