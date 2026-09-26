@@ -28,7 +28,7 @@ namespace tutorial
           showItem1_(),
           showItem2_(),
           showItem3_(),
-          itemSummaryFlow_(),
+          itemSummaryFlow_(*this),
           addItemEvent_(),
           toggleSummaryEvent_(),
           item1_(loka::app::Text("Item 1")),

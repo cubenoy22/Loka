@@ -1,3 +1,4 @@
+#include "testing/flow/FlowSlotTestAccess.hpp"
 #include "MineSweeperScenarios.hpp"
 
 #include <cassert>
@@ -332,7 +333,7 @@ namespace loka
         : clock_(),
           scene_(0),
           record_(),
-          flow_()
+          flow_(loka::dsl::testing::FlowSlotTestAccess::unowned())
     {
       if (name == kSeededReveal)
       {

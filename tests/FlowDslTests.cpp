@@ -23,6 +23,7 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/state/FlowSlot.hpp"
+#include "testing/flow/FlowSlotTestAccess.hpp"
 #include "app/scene/state/WriteSeat.hpp"
 #include "support/Headless.hpp"
 #include "dsl/flow/Expr.hpp"
@@ -968,7 +969,7 @@ namespace
         : loka::app::scene::BoundaryNodeFor<HeadlessScopeProbeBoundaryNode>(HeadlessScopeProbeProps(p)),
           count_(),
           summary_(),
-          summaryFlow_(),
+          summaryFlow_(*this),
           initialized_(false)
     {
     }
@@ -1079,7 +1080,7 @@ namespace
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedProbeProps>(p),
           count_(),
           summary_(),
-          summaryFlow_(),
+          summaryFlow_(*this),
           initialized_(false)
     {
     }
@@ -1181,7 +1182,7 @@ namespace
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeAProps>(p),
           count_(),
           summary_(),
-          summaryFlow_(),
+          summaryFlow_(*this),
           initialized_(false)
     {
     }
@@ -1236,7 +1237,7 @@ namespace
         : loka::app::scene::HeadlessNodeBase<HeadlessOwnedMultiProbeBProps>(p),
           count_(),
           summary_(),
-          summaryFlow_(),
+          summaryFlow_(*this),
           initialized_(false)
     {
     }
@@ -3267,7 +3268,7 @@ void testLokaFlowDslV1Core()
     loka::core::MutableState<loka::core::String> labelStorage;
     NodeState<loka::core::String> label(&labelStorage, &tracker, &owner);
     loka::dsl::StateStream<int> countStream(&countState, &tracker, &owner);
-    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<loka::core::String> > labelFlow(loka::dsl::testing::FlowSlotTestAccess::unowned());
 
     tracker.begin();
     labelFlow.set(countStream.map(loka::dsl::Const("Count: ") + countStream.slot.value())).bindTo(label, true);
@@ -6017,7 +6018,7 @@ void testLokaFlowDslV1Core()
 
     int input = 8;
     int directResult = 0;
-    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
     SlotFlowChain directChain =
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&directResult);
 
@@ -6050,7 +6051,7 @@ void testLokaFlowDslV1Core()
     int calls = 0;
     bool ready = false;
     int captured = 0;
-    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
     SlotFlowChain chain =
         loka::dsl::Flow()
         | loka::dsl::Step(1, FlowTestPendingThenSuccessAdapter(&ready, &calls)).input(&input).onSuccess(&captured);
@@ -6092,7 +6093,7 @@ void testLokaFlowDslV1Core()
     int replacementInput = 10;
     int replacementResult = 0;
     int replaceCalls = 0;
-    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
     SlotFlowChain replacement =
         loka::dsl::Flow() | loka::dsl::Step(1, FlowTestAdd1Adapter()).input(&replacementInput).onSuccess(&replacementResult);
     SetDuringRunHelper::Context ctx = {&slot, &replacement, &replaceCalls};
@@ -6134,7 +6135,7 @@ void testLokaFlowDslV1Core()
     int input = 5;
     int oldResult = 0;
     int clearCalls = 0;
-    loka::app::scene::FlowSlot<SlotFlowChain> slot;
+    loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
     ClearDuringRunHelper::Context ctx = {&slot, &clearCalls};
     slot.set(loka::dsl::Flow()
              | loka::dsl::Step(1, FlowTestMul2Adapter())
@@ -6159,7 +6160,7 @@ void testLokaFlowDslV1Core()
     int result = 0;
     SlotFlowChain *escaped = 0;
     {
-      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
       slot.set(loka::dsl::Flow()
                | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input).onSuccess(&result));
       LOKA_VERIFY(slot.run());
@@ -6181,7 +6182,7 @@ void testLokaFlowDslV1Core()
     int result = 0;
     SlotFlowChain *escaped = 0;
     {
-      loka::app::scene::FlowSlot<SlotFlowChain> slot;
+      loka::app::scene::FlowSlot<SlotFlowChain> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
       slot.set(loka::dsl::Flow() | loka::dsl::Step(1, FlowTestMul2Adapter()).input(&input));
       escaped = new SlotFlowChain(slot.dangerouslyUnwrap()
                                   | loka::dsl::Step(2, FlowTestAdd1Adapter()).onSuccess(&result));
@@ -6763,6 +6764,7 @@ namespace
   class CharacterizationFlowOwner : public CharacterizationBoundaryBase
   {
   public:
+    CharacterizationFlowOwner() : flow_(*this) {}
     virtual ~CharacterizationFlowOwner() {}
 
     void setFlow(const CharacterizationIntFlow &flow)
@@ -7081,7 +7083,7 @@ void testFlowSlotClearDefersRunningFlowDeletion()
 {
   FlowImplementationLifetimeProbe probe;
   int input = 8;
-  CharacterizationIntFlowSlot slot;
+  CharacterizationIntFlowSlot slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
   ClearRunningFlowContext context = {&slot, &probe};
   {
     CharacterizationIntFlow flow =
@@ -7104,7 +7106,7 @@ void testFlowSlotSetDefersRunningFlowDeletion()
   FlowImplementationLifetimeProbe replacementProbe;
   int runningInput = 13;
   int replacementInput = 21;
-  CharacterizationIntFlowSlot slot;
+  CharacterizationIntFlowSlot slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
   ReplaceRunningFlowContext context = {&slot, &runningProbe, &replacementProbe, &replacementInput};
   {
     CharacterizationIntFlow flow =
@@ -7333,7 +7335,7 @@ namespace
       loka::dsl::StateStream<int> source(&input, owner.tracker(), &owner);
       loka::dsl::StateStream<int> other(&otherInput, owner.tracker(), &owner);
       loka::dsl::StateStream<int> result;
-      loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot;
+      loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
       switch (shape)
       {
       case CHAIN_MAP:
@@ -7448,7 +7450,7 @@ void testStateStreamChainCopyAssignmentAndRepeatedRelease()
     assert(owner.releaseCalls() == 2);
     copied.releaseOwnedState();
     assert(owner.releaseCalls() == 2);
-    loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
     slot.set(assigned);
     assigned.releaseOwnedState();
     assert(owner.releaseCalls() == 2);
@@ -8063,6 +8065,234 @@ void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce()
                          "match id=12 arm=1\n"
                          "substep match=12 arm=1 id=101 due_tick=20 tick=21 status=failed error_kind=7 error_code=42 name=child%20step%09A\n"
                          "match id=13 arm=none\n");
+}
+
+#include "RetiredFlowParticipationTests.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
+
+namespace
+{
+  typedef loka::dsl::FlowChain<int, int> ParticipantFlow;
+  typedef loka::app::scene::LifecycleFactTestAccess RetirementAccess;
+  class ParticipantFlowNode : public CharacterizationBoundaryBase
+  {
+  public:
+    ParticipantFlowNode() : flow(*this), stream(*this) {}
+    loka::app::scene::FlowSlot<ParticipantFlow> flow;
+    loka::app::scene::FlowSlot<loka::dsl::StateStream<int> > stream;
+  };
+  struct ParticipantAdapter
+  {
+    typedef int In;
+    typedef int Out;
+    int *calls;
+    explicit ParticipantAdapter(int &count) : calls(&count) {}
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    { ++*this->calls; out = in + 1; return loka::dsl::FLOW_STEP_SUCCEEDED; }
+  };
+  ParticipantFlow participantFlow(int &calls, int &output)
+  { return loka::dsl::Flow() | loka::dsl::Step(1, ParticipantAdapter(calls)).onSuccess(&output); }
+
+  struct ReplaceAndRetire
+  {
+    typedef int In;
+    typedef int Out;
+    ParticipantFlowNode *node;
+    loka::core::MutableState<int> *source;
+    int *calls;
+    int *output;
+    ReplaceAndRetire(ParticipantFlowNode &n, loka::core::MutableState<int> &s, int &c, int &o)
+        : node(&n), source(&s), calls(&c), output(&o) {}
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
+      ++*this->calls;
+      this->node->flow.set(participantFlow(*this->calls, *this->output)).bindTrigger(this->source);
+      RetirementAccess::MarkSubtreeRetired(this->node);
+      // The step may finish and read its pinned trigger input after withdrawal.
+      out = in + 1;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+  class ParticipantStreamOwner : public CharacterizationStateOwner
+  {
+  public:
+    ParticipantStreamOwner() : withdrawals(0) {}
+    int withdrawals;
+    virtual void withdrawState(loka::core::StateBase *state)
+    { ++this->withdrawals; this->pushTracker()->removeState(state); }
+  };
+}
+
+void testRetiredFlowWithdrawsSharedImpl()
+{
+  loka::core::MutableState<int> source(0);
+  loka::core::PushStateTracker tracker;
+  ParticipantFlowNode node;
+  int calls = 0, output = 0;
+  node.flow.set(participantFlow(calls, output)).bindTrigger(&source);
+  ParticipantFlow shared(node.flow.dangerouslyUnwrap());
+  { loka::core::StateTrackerGuard guard(&tracker); source.set(1); }
+  LOKA_VERIFY(calls == 1 && output == 2);
+  RetirementAccess::MarkSubtreeRetired(&node);
+  { loka::core::StateTrackerGuard guard(&tracker); source.set(2); }
+  LOKA_VERIFY(calls == 1 && output == 2);
+}
+
+void testRetiredFlowWithdrawsReplacedRunningResident()
+{
+  loka::core::MutableState<int> source(0);
+  loka::core::PushStateTracker tracker;
+  ParticipantFlowNode node;
+  int calls = 0, output = 0;
+  node.flow.set(loka::dsl::Flow() | loka::dsl::Step(1, ReplaceAndRetire(node, source, calls, output))
+                .onSuccess(&output)).bindTrigger(&source);
+  // Keep the old implementation alive beyond run end, so destruction cannot
+  // conceal a missed withdrawal of the slot's deferred resident.
+  ParticipantFlow oldResident(node.flow.dangerouslyUnwrap());
+  { loka::core::StateTrackerGuard guard(&tracker); source.set(3); }
+  LOKA_VERIFY(calls == 1 && output == 4);
+  { loka::core::StateTrackerGuard guard(&tracker); source.set(5); }
+  LOKA_VERIFY(calls == 1 && output == 4);
+}
+
+void testRetiredStreamChainDisconnectsAndReleasesOnce()
+{
+  loka::core::MutableState<int> *source = new loka::core::MutableState<int>(0);
+  ParticipantStreamOwner owner;
+  int calls = 0;
+  {
+    ParticipantFlowNode node;
+    node.stream.set(loka::dsl::StateStream<int>(source, owner.tracker(), &owner)
+      .map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls)).map(ChainAddOneMapper(&calls)));
+    LOKA_VERIFY(calls == 3);
+    RetirementAccess::MarkSubtreeRetired(&node);
+    const int releasesBeforeDestruction = owner.releaseCalls();
+    LOKA_VERIFY(owner.withdrawals == 3 && releasesBeforeDestruction == 0);
+    { loka::core::StateTrackerGuard guard(owner.tracker()); source->set(3); }
+    LOKA_VERIFY(calls == 3);
+    // The source dies before deferred stream destruction: stale source fields
+    // would make releaseOwnedState unbind through freed memory (ASan pin).
+    delete source;
+  }
+  const int releasesAfterDestruction = owner.releaseCalls();
+  LOKA_VERIFY(releasesAfterDestruction == 3);
+}
+
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define LOKA_FLOW_SLOT_PIN_ASAN 1
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+#define LOKA_FLOW_SLOT_PIN_ASAN 1
+#endif
+#if defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(NDEBUG) && !defined(LOKA_FLOW_SLOT_PIN_ASAN)
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+#endif
+
+void testFlowParticipantOwnerDiesBeforeHolder()
+{
+#if defined(NDEBUG) || (defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(LOKA_FLOW_SLOT_PIN_ASAN))
+#if !defined(NDEBUG)
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+#endif
+  {
+    CharacterizationBoundaryBase *node = new CharacterizationBoundaryBase();
+    loka::app::scene::FlowSlot<ParticipantFlow> *holder =
+        new loka::app::scene::FlowSlot<ParticipantFlow>(*node);
+    const loka::app::scene::ComposableNode *before =
+        loka::dsl::testing::FlowSlotTestAccess::owner(*holder);
+    LOKA_VERIFY(before == node);
+    delete node;
+    const loka::app::scene::ComposableNode *after =
+        loka::dsl::testing::FlowSlotTestAccess::owner(*holder);
+    LOKA_VERIFY(after == 0);
+    delete holder;
+#if !defined(NDEBUG)
+    _exit(0);
+#endif
+  }
+#if !defined(NDEBUG)
+  int status = 0;
+  const pid_t waited = waitpid(child, &status, 0);
+  LOKA_VERIFY(waited == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+#endif
+#else
+  std::fprintf(stderr, "[skip] node-first FlowSlot destruction needs NDEBUG or Linux audit Debug without ASan\n");
+#endif
+}
+#undef LOKA_FLOW_SLOT_PIN_ASAN
+
+void testFlowParticipantMemberUnlinksBeforeBaseDestruction()
+{
+  loka::core::MutableState<int> source(0);
+  loka::core::PushStateTracker tracker;
+  int calls = 0, output = 0;
+  {
+    ParticipantFlowNode node;
+    node.flow.set(participantFlow(calls, output)).bindTrigger(&source);
+    { loka::core::StateTrackerGuard guard(&tracker); source.set(1); }
+    LOKA_VERIFY(calls == 1);
+  }
+  { loka::core::StateTrackerGuard guard(&tracker); source.set(2); }
+  LOKA_VERIFY(calls == 1);
+}
+
+namespace
+{
+  void attemptRetiredFlowRearm(int door)
+  {
+    loka::core::MutableState<int> source(0);
+    loka::core::PushStateTracker tracker;
+    ParticipantFlowNode node;
+    int calls = 0, output = 0;
+    node.flow.set(participantFlow(calls, output)).bindTrigger(&source);
+    RetirementAccess::MarkSubtreeRetired(&node);
+    const ParticipantFlow *installed = node.flow.get();
+    if (door == 0)
+    {
+      node.flow.set(participantFlow(calls, output));
+      LOKA_VERIFY(node.flow.get() == installed);
+    }
+    else if (door == 1) node.flow.bindTrigger(&source);
+    else { const bool ran = node.flow.run(); LOKA_VERIFY(!ran); }
+    { loka::core::StateTrackerGuard guard(&tracker); source.set(1); }
+    LOKA_VERIFY(calls == 0 && output == 0);
+  }
+}
+void testRetiredFlowRefusesRearm()
+{
+  for (int door = 0; door < 3; ++door)
+    attemptRetiredFlowRearm(door);
+}
+
+void testRetiredStreamBroadOwnerStopsEvaluation()
+{
+  loka::core::MutableState<int> source(0);
+  CharacterizationBoundaryBase owner;
+  owner.tracker()->asPushTracker()->addState(&source);
+  int calls = 0;
+  {
+    ParticipantFlowNode node;
+    node.stream.set(loka::dsl::StateStream<int>(&source, owner.tracker(), &owner)
+                    .map(ChainAddOneMapper(&calls)));
+    const int initial = calls;
+    { loka::core::StateTrackerGuard guard(owner.tracker()); source.set(1); }
+    LOKA_VERIFY(calls > initial);
+    RetirementAccess::MarkSubtreeRetired(&node);
+    const int before = calls;
+    // #948 leaves no tracker dependency edges on stream-derived States.
+    // This broad owner deliberately declines withdrawState: only the slot's
+    // binding withdrawal can stop the stream's remaining evaluation route.
+    { loka::core::StateTrackerGuard guard(owner.tracker()); source.set(2); }
+    std::fprintf(stderr, "932 broad owner: calls before=%d after=%d\n", before, calls);
+    LOKA_VERIFY(calls == before);
+  }
+  owner.tracker()->asPushTracker()->removeState(&source);
 }
 
 namespace

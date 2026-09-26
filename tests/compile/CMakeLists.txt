@@ -416,3 +416,13 @@ loka_compile_pin(defer-key-is-private
   REFUSES pins/refuses_defer_key_construction.cpp
   ACCEPTS pins/accepts_defer_testing_door.cpp
 )
+
+loka_compile_pin(flowslot-needs-owner
+  REFUSES pins/refuses_flowslot_default.cpp
+  ACCEPTS pins/accepts_flowslot_owner.cpp
+)
+
+loka_compile_pin(flowslot-testing-key-is-private
+  REFUSES pins/refuses_flowslot_key.cpp
+  ACCEPTS pins/accepts_flowslot_testing.cpp
+)

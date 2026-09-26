@@ -18,6 +18,7 @@
 #include "UpstreamGaugeTests.hpp"
 #include "PartialTreePublicationTests.hpp"
 #include "RetiredStateParticipationTests.hpp"
+#include "RetiredFlowParticipationTests.hpp"
 #include "KeyedGenerationStorageTests.hpp"
 #include "ObservableListTests.hpp"
 #include "CanvasLayoutTests.hpp"

@@ -179,7 +179,7 @@ namespace simpleviewer
           navOpen_(),
           scrollOffset_(),
           toggleNavEvent_(),
-          imageLoad_()
+          imageLoad_(*this)
     {
       this->state(this->isDialogShown_, false);
       this->state(this->chooserResult_, loka::app::FileChooserResult());
