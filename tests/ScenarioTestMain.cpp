@@ -1,3 +1,4 @@
+#include "StateStreamChainTests.hpp"
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"
 #include "HelloWorldScenarioTests.hpp"
