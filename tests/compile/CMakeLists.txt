@@ -421,3 +421,13 @@ loka_compile_pin(text-align-enum
   REFUSES pins/refuses_text_align.cpp
   ACCEPTS pins/accepts_text_align.cpp
 )
+
+loka_compile_pin(flowslot-needs-owner
+  REFUSES pins/refuses_flowslot_default.cpp
+  ACCEPTS pins/accepts_flowslot_owner.cpp
+)
+
+loka_compile_pin(flowslot-testing-key-is-private
+  REFUSES pins/refuses_flowslot_key.cpp
+  ACCEPTS pins/accepts_flowslot_testing.cpp
+)

@@ -1,3 +1,4 @@
+#include "testing/flow/FlowSlotTestAccess.hpp"
 #include "TutorialScenarios.hpp"
 
 #include <cassert>
@@ -100,7 +101,7 @@ namespace loka
         : clock_(),
           scene_(0),
           record_(),
-          flow_()
+          flow_(loka::dsl::testing::FlowSlotTestAccess::unowned())
     {
       this->flow_.set(BuildIncrementSummaryToggleFlow(this->clock_, &this->scene_, &this->record_, audit));
     }

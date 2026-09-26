@@ -21,7 +21,8 @@ namespace loka
           : source(0),
             cb(0),
             userData(0),
-            destroy(0)
+            destroy(0),
+            ownedState(0)
       {
       }
       StateStreamBindingEntry(::loka::core::StateBase *s,
@@ -31,13 +32,16 @@ namespace loka
           : source(s),
             cb(c),
             userData(u),
-            destroy(d)
+            destroy(d),
+            ownedState(0)
       {
       }
       ::loka::core::StateBase *source;
       ::loka::core::StateBase::OnChangeFn cb;
       void *userData;
       void (*destroy)(void *);
+      /** State released after every subscription in this batch is disconnected. */
+      ::loka::core::StateBase *ownedState;
     };
 
     template <typename T> class StateStream
@@ -113,6 +117,12 @@ namespace loka
         return *this;
       }
 
+      /**
+       * Consume an owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename Mapper> StateStream<typename Mapper::Result> map(const Mapper &mapper) const
       {
         PROFILE_SECTION("sMap");
@@ -125,8 +135,10 @@ namespace loka
         MapEval<T, typename Mapper::Result, Mapper> *eval =
             new MapEval<T, typename Mapper::Result, Mapper>(this->state_, mapper);
         PROFILE_SECTION("sMapDerNew");
+        // Explicit recompute bindings are the only update evaluator; empty
+        // dependencies prevent a second tracker route. Adoption still owns the State.
         ::loka::core::DerivedState<typename Mapper::Result> *derived =
-            new ::loka::core::DerivedState<typename Mapper::Result>(this->state_, eval);
+            new ::loka::core::DerivedState<typename Mapper::Result>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<typename Mapper::Result> out(derived, this->tracker_, this->owner_, true);
@@ -134,6 +146,12 @@ namespace loka
         return out;
       }
 
+      /**
+       * Consume an owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename R, typename ExprT> StateStream<R> map(const Expr<R, ExprT> &expr) const
       {
         PROFILE_SECTION("sMapExpr");
@@ -143,7 +161,10 @@ namespace loka
         }
         assert(this->owner_ && "StateStream::map(expr) requires IStateOwner");
         MapSlotExprEval<T, R, ExprT> *eval = new MapSlotExprEval<T, R, ExprT>(this->state_, expr);
-        ::loka::core::DerivedState<R> *derived = new ::loka::core::DerivedState<R>(this->state_, eval);
+        // As in mapper map, bindings evaluate updates; adoption retains storage
+        // and a tracker row, but must not install another evaluation route.
+        ::loka::core::DerivedState<R> *derived =
+            new ::loka::core::DerivedState<R>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         StateStream<R> out(derived, this->tracker_, this->owner_, true);
@@ -151,6 +172,12 @@ namespace loka
         return out;
       }
 
+      /**
+       * Consume either owning input, including a named stream, into a linear chain.
+       * The final stream (or its FlowSlot) owns every intermediate State;
+       * fan-out from one owning intermediate is not supported. Borrowed roots
+       * remain reusable, as they do not transfer State ownership.
+       */
       template <typename U, typename Combiner>
       StateStream<typename Combiner::Result> combine(const StateStream<U> &other, const Combiner &combiner) const
       {
@@ -164,8 +191,10 @@ namespace loka
         CombineEval<T, U, typename Combiner::Result, Combiner> *eval =
             new CombineEval<T, U, typename Combiner::Result, Combiner>(this->state_, other.state_, combiner);
         PROFILE_SECTION("sCombDerNew");
+        // Each input binding evaluates updates. Empty dependencies avoid a
+        // duplicate tracker evaluation while retaining owner adoption.
         ::loka::core::DerivedState<typename Combiner::Result> *derived =
-            new ::loka::core::DerivedState<typename Combiner::Result>(this->state_, other.state_, eval);
+            new ::loka::core::DerivedState<typename Combiner::Result>(std::vector< ::loka::core::StateBase *>(), eval);
         this->adoptDerived(derived);
         this->bindRecompute(this->state_, derived);
         this->bindRecompute(other.state_, derived);
@@ -191,6 +220,26 @@ namespace loka
         this->addBinding(this->state_, &SetBinding::ApplyThunk, binding, &SetBinding::Destroy);
       }
 
+      /** Stop subscriptions and owned-State propagation, retaining destruction records.
+          A callback already on the stack may finish. Explicit bindings are the
+          only evaluation route for stream-derived States, so this also stops
+          streams whose broad owner deliberately declines State withdrawal. */
+      void withdraw()
+      {
+        for (size_t i = 0; i < this->bindings_.size(); ++i)
+        {
+          StateStreamBindingEntry &entry = this->bindings_[i];
+          if (entry.source && entry.cb)
+            entry.source->deferUnbind(entry.cb, entry.userData);
+          entry.source = 0;
+          entry.cb = 0;
+          if (entry.ownedState && this->owner_)
+            this->owner_->withdrawState(entry.ownedState);
+        }
+        if (this->ownsState_ && this->owner_ && this->state_)
+          this->owner_->withdrawState(this->state_);
+      }
+
       void releaseOwnedState()
       {
         for (size_t i = 0; i < bindings_.size(); ++i)
@@ -204,6 +253,11 @@ namespace loka
           {
             entry.destroy(entry.userData);
           }
+        }
+        for (size_t i = bindings_.size(); i > 0; --i)
+        {
+          if (bindings_[i - 1].ownedState && owner_)
+            this->owner_->releaseState(bindings_[i - 1].ownedState);
         }
         bindings_.clear();
         if (ownsState_ && owner_ && state_)
@@ -225,6 +279,14 @@ namespace loka
 
       template <typename U> void transferBindingsTo(StateStream<U> &out) const
       {
+        if (this->ownsState_)
+        {
+          StateStreamBindingEntry owned;
+          owned.ownedState = this->state_;
+          this->bindings_.push_back(owned);
+          this->ownsState_ = false;
+          this->state_ = 0;
+        }
         for (size_t i = 0; i < bindings_.size(); ++i)
         {
           out.bindings_.push_back(bindings_[i]);
