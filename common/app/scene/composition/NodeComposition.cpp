@@ -163,7 +163,7 @@ namespace loka
           {
             if (registrations)
             {
-              registrations->record(*plan, runtimeParent, active.root, context.stateOwner());
+              registrations->record(*plan, runtimeParent, active, context.stateOwner());
             }
             else
             {

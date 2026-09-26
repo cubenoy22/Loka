@@ -12,6 +12,7 @@
 #include "app/scene/node/ComponentNode.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/scene/OwnershipDump.hpp"
 #include "core/LokaAlloc.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include <cstdio>
@@ -316,6 +317,22 @@ void testKeyedComponentGenerationStoragePlateaus()
 
 namespace
 {
+  /** The enclosing Show arm refuses after both Keyed declarations complete. */
+  struct NestedRefusingTail : FragmentDefinition
+  {
+    explicit NestedRefusingTail(const bool *refusing) : refusing_(refusing) {}
+    virtual Node *create() const
+    {
+      return *this->refusing_ ? 0 : FragmentDefinition::create();
+    }
+    virtual Node *createInPlace(void *storage) const
+    {
+      return *this->refusing_ ? 0 : FragmentDefinition::createInPlace(storage);
+    }
+    virtual NodeDefinitionBase *clone() const { return new NestedRefusingTail(*this); }
+    const bool *refusing_;
+  };
+
   class NestedRoot : public BoundaryNodeFor<NestedRoot>
   {
   public:
@@ -634,7 +651,7 @@ void testUnboundSectionRefusesStateAndMaterialization()
     NodeComposition composition;
     Section definition(635);
     NodeMaterializationResult result =
-        testing::NodeCompositionTestAccess::createNodeFromDefinitionResult(composition, &definition);
+        loka::app::scene::testing::NodeCompositionTestAccess::createNodeFromDefinitionResult(composition, &definition);
     LOKA_VERIFY(result.allocationFailed);
     DestroyHeapNode(result.root);
   }
@@ -1031,4 +1048,107 @@ void testNestedKeyedOuterThenInnerBeforeDrainPreservesProviders()
   }
   LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
   verifyBalanced(allocations);
+}
+
+namespace
+{
+  class NestedReshowRoot : public NestedRoot
+  {
+  public:
+    explicit NestedReshowRoot(const BoundaryPropsFor<NestedRoot> &p) : NestedRoot(p), refusingTail(false) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(Show(*this->shown.state()).destroyOnDetach()
+                << (Fragment()
+                    << Keyed(*this->outer.state(),
+                             static_cast<NestedRoot *>(this),
+                             &NestedRoot::declareOuter,
+                             loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                                 loka::app::FragmentNode,
+                                 1,
+                                 loka::app::reservation::Nodes<
+                                     loka::app::BoundarySectionNode,
+                                     2,
+                                     loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >())
+                    << NestedRefusingTail(&this->refusingTail)));
+    }
+    bool refusingTail;
+  };
+
+  int nestedKeyedRoots(Node *node)
+  {
+    if (!node)
+      return 0;
+    int count = node->nodeTypeKey() == NodeTypeToken<KeyedGenerationRoot>() ? 1 : 0;
+    INestable *nestable = node->asNestable();
+    for (Node *child = nestable ? nestable->childrenHead() : 0; child; child = child->nextInComposition)
+      count += nestedKeyedRoots(child);
+    return count;
+  }
+
+  int nestedKeyedDeclarations(const BoundaryBranchSeatState &scope)
+  {
+    int count = 0;
+    const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
+    for (size_t i = 0; i < plans.size(); ++i)
+    {
+      const BoundaryBranchSeatState *declaration = plans[i].seat()->declaredBranchSeats();
+      if (declaration)
+        count += 1 + nestedKeyedDeclarations(*declaration);
+    }
+    return count;
+  }
+
+  void nestedKeyedReshow(bool refuse)
+  {
+    AllocationProbe allocations;
+    ComponentLifetime lifetime;
+    {
+      NullScenePlatformController platform;
+      Scene scene((BoundaryDefinition<BoundaryPropsFor<NestedRoot>, NestedReshowRoot>((BoundaryPropsFor<NestedRoot>()))));
+      scene.mount(&platform);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+      NestedReshowRoot *root = static_cast<NestedReshowRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+      const Snapshot warm(allocations);
+      replaceWithoutDrain(scene, *root, root->shown, false);
+      scene.flushInvalidation();
+      LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
+      LOKA_VERIFY(nestedKeyedRoots(root) == 0);
+      const BoundaryBranchSeatState &seats = loka::dsl::testing::OwnershipDump::seatState(*root);
+      LOKA_VERIFY(nestedKeyedDeclarations(seats) == 0);
+      root->refusingTail = refuse;
+      // Show's replacement stages the outer declaration, whose materialization
+      // also stages the inner declaration into the same enclosing acceptance.
+      replaceWithoutDrain(scene, *root, root->shown, true);
+      if (refuse)
+      {
+        LOKA_VERIFY(root->composeResult().allocationFailed);
+        LOKA_VERIFY(nestedKeyedRoots(root) == 0);
+        LOKA_VERIFY(nestedKeyedDeclarations(seats) == 0);
+        root->refusingTail = false;
+      }
+      scene.flushInvalidation();
+      LOKA_VERIFY(nestedKeyedRoots(root) == 2);
+      LOKA_VERIFY(nestedKeyedDeclarations(seats) == 2);
+      BoundarySectionNode *outer = findSection(root, 6401);
+      BoundarySectionNode *inner = findSection(root, 6404);
+      LOKA_VERIFY(outer && inner);
+      loka::core::State<int> *outerState = static_cast<ResidentNode *>(outer->childrenHead())->valueState();
+      loka::core::State<int> *innerState = static_cast<ResidentNode *>(inner->childrenHead())->valueState();
+      LOKA_VERIFY(outerState != innerState && outerState->get() == 7 && innerState->get() == 7);
+      LOKA_VERIFY(Snapshot(allocations) == warm);
+    }
+    LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
+    verifyBalanced(allocations);
+  }
+} // namespace
+
+void testNestedKeyedReshowCommitsStagedDeclarations()
+{
+  nestedKeyedReshow(false);
+}
+
+void testNestedKeyedReshowRefusalDiscardsStagedDeclarations()
+{
+  nestedKeyedReshow(true);
 }

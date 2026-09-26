@@ -1,4 +1,5 @@
 #include "Boundary.hpp"
+#include "core/LokaAlloc.hpp"
 #include "app/scene/Scene.hpp"
 #if defined(LOKA_DEBUG_SCENE_UPDATE) && !defined(LOKA_RETRO68)
 #include "platform/debug/DebugLog.hpp"
@@ -10,6 +11,116 @@ namespace loka
   {
     namespace scene
     {
+      namespace
+      {
+        const loka::core::LokaAllocationSite StagedDeclarationSite("BoundaryBranchSeat", "StagedDeclaration");
+      }
+
+      struct BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::Entry
+      {
+        explicit Entry(IBranchSeatDefinition *seatValue)
+            : seat(seatValue), declaration(), next(0) {}
+        IBranchSeatDefinition *seat;
+        loka::core::OwnedDef<BranchSeatDeclaration> declaration;
+        Entry *next;
+      };
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::StagedDeclarationChain()
+          : head_(0), tail_(0) {}
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::~StagedDeclarationChain()
+      {
+        this->clear();
+      }
+
+      bool BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::push(
+          IBranchSeatDefinition *seat, loka::core::OwnedDef<BranchSeatDeclaration> &candidate)
+      {
+        Entry *entry = loka::core::LokaNew<Entry>(StagedDeclarationSite, seat);
+        if (!entry) return false;
+        entry->declaration.reset(candidate.take());
+        if (this->tail_)
+          this->tail_->next = entry;
+        else
+          this->head_ = entry;
+        this->tail_ = entry;
+        return true;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::spliceTo(
+          StagedDeclarationChain &target)
+      {
+        if (this == &target || !this->head_) return;
+        if (target.tail_)
+          target.tail_->next = this->head_;
+        else
+          target.head_ = this->head_;
+        target.tail_ = this->tail_;
+        this->head_ = 0;
+        this->tail_ = 0;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::clear()
+      {
+        while (this->head_)
+        {
+          Entry *entry = this->head_;
+          this->head_ = entry->next;
+          loka::core::LokaDelete(entry, StagedDeclarationSite);
+        }
+        this->tail_ = 0;
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::StagedDeclarationChain::commit()
+      {
+        for (Entry *entry = this->head_; entry; entry = entry->next)
+          entry->seat->commitBranchDeclaration(entry->declaration.take());
+        this->clear();
+      }
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::BoundaryBranchSeatRuntimeRegistrationPlan()
+          : declarations_(), entries_() {}
+
+      BoundaryBranchSeatRuntimeRegistrationPlan::~BoundaryBranchSeatRuntimeRegistrationPlan() {}
+
+      bool BoundaryBranchSeatRuntimeRegistrationPlan::stageDeclaration(
+          IBranchSeatDefinition *seat, loka::core::OwnedDef<BranchSeatDeclaration> &candidate)
+      {
+        return this->declarations_.push(seat, candidate);
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::appendTo(
+          BoundaryBranchSeatRuntimeRegistrationPlan &target)
+      {
+        if (this == &target) return;
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+          target.entries_.push_back(this->entries_[i]);
+        this->entries_.clear();
+        this->declarations_.spliceTo(target.declarations_);
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::clear()
+      {
+        this->entries_.clear();
+        this->declarations_.clear();
+      }
+
+      void BoundaryBranchSeatRuntimeRegistrationPlan::commitTo(BoundaryBranchSeatState &state)
+      {
+        // Check every provisional result before publishing any declaration or row.
+#ifndef NDEBUG
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+          assert(this->entries_[i].active.complete());
+#endif
+        this->declarations_.commit();
+        for (size_t i = 0; i < this->entries_.size(); ++i)
+        {
+          Entry &entry = this->entries_[i];
+          state.registerRuntime(entry.plan, entry.parent, entry.active.root, entry.stateOwner);
+        }
+        this->entries_.clear();
+      }
+
       void BoundaryNode::JoinSceneFocus(Scene &scene, Node &node)
       {
         if (node.lifecycleFact() == NODE_FACT_RETIRED) return;
