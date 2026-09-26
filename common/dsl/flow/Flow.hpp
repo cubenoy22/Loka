@@ -887,12 +887,19 @@ namespace loka
         state->deferBind(callback, this);
       }
 
-      void clearTrigger()
+      /** Disconnect ingress without disturbing a step's pinned input buffer. */
+      void withdrawTrigger()
       {
         if (this->triggerState_ && this->triggerCallback_)
-        {
           this->triggerState_->deferUnbind(this->triggerCallback_, this);
-        }
+        this->triggerState_ = 0;
+        this->triggerCallback_ = 0;
+        this->triggerReadFn_ = 0;
+      }
+
+      void clearTrigger()
+      {
+        this->withdrawTrigger();
         if (this->triggerDeleteFn_ && this->triggerInputBuffer_)
         {
           this->triggerDeleteFn_(this->triggerInputBuffer_);
@@ -1345,6 +1352,9 @@ namespace loka
       // Clears the hooks on the SHARED impl without detaching: used when the
       // hook owner (FlowSlot) disowns this flow, so wrappers that still share
       // the impl cannot fire hooks into the owner's freed run state.
+      /** Withdraw the actual participating implementation, without copy-on-write. */
+      void withdraw() { this->impl_->withdrawTrigger(); }
+
       void clearExecutionHooks()
       {
         this->impl_->runBeginFn_ = 0;

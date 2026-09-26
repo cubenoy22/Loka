@@ -660,8 +660,21 @@ Use Flow when logic has steps:
 - failure handling
 
 For long-lived chains owned by a Node or Boundary, store them in `FlowSlot<T>` or
-an equivalent lifecycle-aware slot. One-shot stack Flow usage should stay limited
-to tests or bounded local operations.
+an equivalent lifecycle-aware slot. Construct a node's slot with `*this` (or pass
+that node into an encapsulated holder such as ImageLoadSession). The holder must
+be destroyed before its node owner. The slot enrolls once and unlinks when it
+dies. RETIRED disconnects its current Flow/stream and any replaced Flow still
+running; reversible DETACH leaves participation intact. Withdrawal preserves
+buffers and ownership records until destruction, and never detaches a shared
+Flow implementation. A step already on the stack may finish. Attempts to set,
+bind, run, or resume through a retired slot are refused (audit builds assert;
+otherwise fluent doors do nothing and run doors return false/CANCELED).
+
+There is no default constructor. The testing access header provides an explicit
+unowned key for test locals and scenario drivers. The key header itself does
+not require TEST_BUILD. Those slots follow holder lifetime and have no retirement
+fact or re-arm refusal. Production constructors take a node owner.
+One-shot stack Flow usage should stay limited to tests or bounded local operations.
 
 Do not share mutable state between unrelated Flow instances just because several
 paths need to update a value. Prefer:

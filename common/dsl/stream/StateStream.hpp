@@ -213,6 +213,25 @@ namespace loka
         this->addBinding(this->state_, &SetBinding::ApplyThunk, binding, &SetBinding::Destroy);
       }
 
+      /** Stop subscriptions and owned-State propagation, retaining destruction records.
+          A callback already on the stack may finish. Broad owners may decline
+          State withdrawal; the stream still disconnects its explicit bindings. */
+      void withdraw()
+      {
+        for (size_t i = 0; i < this->bindings_.size(); ++i)
+        {
+          StateStreamBindingEntry &entry = this->bindings_[i];
+          if (entry.source && entry.cb)
+            entry.source->deferUnbind(entry.cb, entry.userData);
+          entry.source = 0;
+          entry.cb = 0;
+          if (entry.ownedState && this->owner_)
+            this->owner_->withdrawState(entry.ownedState);
+        }
+        if (this->ownsState_ && this->owner_ && this->state_)
+          this->owner_->withdrawState(this->state_);
+      }
+
       void releaseOwnedState()
       {
         for (size_t i = 0; i < bindings_.size(); ++i)

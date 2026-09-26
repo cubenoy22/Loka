@@ -89,7 +89,7 @@ namespace loka
         {
           this->releaseCallbacks();
           this->clearChildren();
-          this->releaseNodeStateRegistrations();
+          this->reclaimParticipants();
         }
         virtual const void *nodeTypeKey() const
         {

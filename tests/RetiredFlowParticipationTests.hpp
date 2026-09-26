@@ -1,0 +1,14 @@
+#ifndef LOKA_TESTS_RETIRED_FLOW_PARTICIPATION_HPP
+#define LOKA_TESTS_RETIRED_FLOW_PARTICIPATION_HPP
+void testRetiredFlowDiscardStopsTrigger();
+void testRetiredStreamDiscardStopsEvaluation();
+void testRetiredFlowSiblingCannotTrigger();
+void testRetiredStreamSiblingCannotEvaluate();
+void testRetiredFlowWithdrawsSharedImpl();
+void testRetiredFlowWithdrawsReplacedRunningResident();
+void testRetiredStreamChainDisconnectsAndReleasesOnce();
+void testFlowParticipantMemberUnlinksBeforeBaseDestruction();
+void testRetiredFlowRefusesRearm();
+void testParkedFlowRetirementWithdraws();
+void testRetiredStreamBroadOwnerStopsEvaluation();
+#endif

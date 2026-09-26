@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <vector>
 #include "app/scene/state/FlowSlot.hpp"
+#include "testing/flow/FlowSlotTestAccess.hpp"
 #include "app/scene/Scene.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -180,7 +181,7 @@ namespace SceneTests
     g_flowSlotProbeLiveCount = 0;
     g_flowSlotProbeCopyCount = 0;
     {
-      FlowSlot<FlowSlotProbe> slot;
+      FlowSlot<FlowSlotProbe> slot(loka::dsl::testing::FlowSlotTestAccess::unowned());
       assert(!slot.isValid());
       {
         FlowSlotProbe first(3);
@@ -537,7 +538,7 @@ namespace SceneTests
     NodeLocalStreamReleaseNode()
         : count_(),
           summary_(),
-          summaryFlow_()
+          summaryFlow_(*this)
     {
       this->state(this->count_, 3);
       this->state(this->summary_, loka::core::String::Literal("Count: 0"));

@@ -2,7 +2,8 @@
 #define LOKA_APP_SCENE_STATE_FLOW_SLOT_HPP
 
 #include <cassert>
-#include "app/scene/state/NodeState.hpp"
+#include "app/scene/node/ComposableNode.hpp"
+#include "dsl/flow/UnownedFlowSlotKey.hpp"
 #include "dsl/flow/Flow.hpp"
 #include "dsl/stream/StateStream.hpp"
 
@@ -15,6 +16,12 @@ namespace loka
       namespace flow_slot_detail
       {
         template <typename FlowT> inline void releaseOwnedFlow(FlowT *) {}
+        template <typename FlowT> inline void withdrawFlow(FlowT *) {}
+        template <typename InT, typename OutT>
+        inline void withdrawFlow(loka::dsl::FlowChain<InT, OutT> *flow)
+        { if (flow) flow->withdraw(); }
+        template <typename T> inline void withdrawFlow(loka::dsl::StateStream<T> *flow)
+        { if (flow) flow->withdraw(); }
 
         template <typename FlowT> inline void clearExecutionHooks(FlowT *)
         {
@@ -76,16 +83,26 @@ namespace loka
         }
       } // namespace flow_slot_detail
 
-      template <typename FlowT> class FlowSlot
+      /** Node participant whose holder must die before its node owner.
+          RETIRED disconnects current and running residents without destroying them.
+          The testing-key form is unowned: holder lifetime only, no retirement refusal. */
+      template <typename FlowT> class FlowSlot : private ComposableNode::Participant
       {
       public:
-        FlowSlot()
-            : flow_(0),
+        explicit FlowSlot(ComposableNode &owner)
+            : owner_(&owner), flow_(0),
+              runState_(flow_slot_detail::supportsExecutionHooks(static_cast<FlowT *>(0)) ? new RunState() : 0)
+        {
+          this->owner_->enrollParticipant(*this);
+        }
+        explicit FlowSlot(const loka::dsl::testing::UnownedFlowSlotKey &)
+            : owner_(0), flow_(0),
               runState_(flow_slot_detail::supportsExecutionHooks(static_cast<FlowT *>(0)) ? new RunState() : 0)
         {
         }
         ~FlowSlot()
         {
+          if (this->owner_) this->owner_->unlinkParticipant(*this);
           this->clear();
           if (this->runState_)
           {
@@ -105,6 +122,7 @@ namespace loka
 
         FlowSlot &set(const FlowT &flow)
         {
+          if (!this->mayParticipate()) return *this;
           FlowT *next = new FlowT(flow);
           this->attachExecutionHooks(next);
           if (this->shouldDeferRelease(this->flow_))
@@ -144,6 +162,7 @@ namespace loka
 
         template <typename InT> FlowSlot &bindTrigger(loka::core::State<InT> *source)
         {
+          if (!this->mayParticipate()) return *this;
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
           flow_->bindTrigger(source);
           return *this;
@@ -151,6 +170,7 @@ namespace loka
 
         template <typename InT> FlowSlot &bindTrigger(const NodeState<InT> &source)
         {
+          if (!this->mayParticipate()) return *this;
           assert(flow_ && "FlowSlot::bindTrigger requires a flow");
           assert(source.isValid() && "FlowSlot::bindTrigger requires a valid NodeState source");
           flow_->bindTrigger(source.dangerouslyMutableState());
@@ -159,6 +179,7 @@ namespace loka
 
         template <typename TargetT> FlowSlot &bindTo(TargetT &target, bool forceUpdate = false)
         {
+          if (!this->mayParticipate()) return *this;
           assert(flow_ && "FlowSlot::bindTo requires a flow");
           flow_->set(target, forceUpdate);
           return *this;
@@ -166,24 +187,28 @@ namespace loka
 
         bool run() const
         {
+          if (!this->mayParticipate()) return false;
           assert(flow_ && "FlowSlot::run requires a flow");
           return flow_->run();
         }
 
         loka::dsl::FlowRunResult runResult() const
         {
+          if (!this->mayParticipate()) return loka::dsl::FLOW_RUN_CANCELED;
           assert(flow_ && "FlowSlot::runResult requires a flow");
           return flow_->runResult();
         }
 
         bool resume(int stepId) const
         {
+          if (!this->mayParticipate()) return false;
           assert(flow_ && "FlowSlot::resume requires a flow");
           return flow_->resume(stepId);
         }
 
         loka::dsl::FlowRunResult resumeResult(int stepId) const
         {
+          if (!this->mayParticipate()) return loka::dsl::FLOW_RUN_CANCELED;
           assert(flow_ && "FlowSlot::resumeResult requires a flow");
           return flow_->resumeResult(stepId);
         }
@@ -224,6 +249,26 @@ namespace loka
         }
 
       private:
+        bool mayParticipate() const
+        {
+          const bool allowed = !this->owner_ || this->owner_->lifecycleFact() != NODE_FACT_RETIRED;
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(allowed && "FlowSlot owner is RETIRED");
+#endif
+          return allowed;
+        }
+        virtual void withdraw()
+        {
+          flow_slot_detail::withdrawFlow(this->flow_);
+          if (this->runState_ && this->runState_->deferredFlow_ != this->flow_)
+            flow_slot_detail::withdrawFlow(this->runState_->deferredFlow_);
+        }
+        virtual void reclaim()
+        {
+          // Node members unlink before the base destructor visits its rows.
+          assert(false && "FlowSlot must not outlive its node owner");
+        }
+
         struct RunState
         {
           RunState()
@@ -294,6 +339,7 @@ namespace loka
         FlowSlot(const FlowSlot &);
         FlowSlot &operator=(const FlowSlot &);
 
+        ComposableNode *owner_;
         FlowT *flow_;
         RunState *runState_;
       };

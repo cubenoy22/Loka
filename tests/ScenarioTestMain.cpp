@@ -1,3 +1,4 @@
+#include "RetiredFlowParticipationTests.hpp"
 #include "StateStreamChainTests.hpp"
 #include "FlowDslTests.hpp"
 #include "OwnershipDumpTests.hpp"

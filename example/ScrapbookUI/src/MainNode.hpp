@@ -85,7 +85,7 @@ namespace scrapbook
           badge_(),
           previousPage_(),
           nextPage_(),
-          pageFlow_()
+          pageFlow_(*this)
     {
       this->state(this->refusedPage_, -1);
       this->state(this->refusedBadgeVisible_, false);

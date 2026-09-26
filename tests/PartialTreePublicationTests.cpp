@@ -1942,3 +1942,198 @@ void testRetiredStateLifecycleHookCannotPublish()
   LOKA_VERIFY(dirty == NODE_DIRTY_NONE);
   SceneTestAccess::director(scene).completeUpdateCycle();
 }
+
+
+#include "RetiredFlowParticipationTests.hpp"
+#include "app/scene/state/FlowSlot.hpp"
+
+namespace
+{
+  class RetiredFlowScope;
+  struct RetiredFlowData
+  {
+    const bool streamMode;
+    int calls;
+    int output;
+    NodeState<int> *local;
+    RetiredFlowScope *scope;
+    loka::core::PushStateTracker tracker;
+    explicit RetiredFlowData(bool stream) : streamMode(stream), calls(0), output(0), local(0), scope(0) {}
+  };
+  RetiredFlowData *retiredFlowData = 0;
+  struct RetiredFlowAdapter
+  {
+    typedef int In;
+    typedef int Out;
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &) const
+    {
+      ++retiredFlowData->calls;
+      out = in + 1;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+  struct RetiredFlowMapper
+  {
+    typedef int Result;
+    int operator()(const int &in) const { ++retiredFlowData->calls; return in + 1; }
+  };
+  class RetiredFlowScope;
+  struct RetiredFlowTag {};
+  struct RetiredFlowProps : NodePropsBase<RetiredFlowProps>
+  {
+    typedef RetiredFlowTag TypeTag;
+    typedef RetiredFlowScope NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class RetiredFlowScope : public LazyScopeNode
+  {
+  public:
+    typedef RetiredFlowProps Props;
+    typedef RetiredFlowTag TypeTag;
+    Props props;
+    NodeState<int> local;
+    FlowSlot<loka::dsl::FlowChain<int, int> > flow;
+    FlowSlot<loka::dsl::StateStream<int> > stream;
+    explicit RetiredFlowScope(const Props &p) : props(p), flow(*this), stream(*this)
+    {
+      this->state(this->local, 0);
+    }
+    virtual void declareScope(NodeComposition &c)
+    {
+      retiredFlowData->scope = this;
+      retiredFlowData->local = &this->local;
+      if (retiredFlowData->streamMode)
+        this->stream.set(loka::dsl::StateStream<int>(&fixture->input, this->asStateOwner()->tracker(),
+                         this->asStateOwner()).map(RetiredFlowMapper())).bindTo(this->local);
+      else
+        this->flow.set(loka::dsl::Flow() | loka::dsl::Step(1, RetiredFlowAdapter())
+                       .onSuccess(&retiredFlowData->output)).bindTrigger(&fixture->input);
+      c.declare(FragmentDefinition().tag(1));
+    }
+  };
+  class RetiredFlowRoot : public BoundaryNodeFor<RetiredFlowRoot>
+  {
+  public:
+    explicit RetiredFlowRoot(const BoundaryPropsFor<RetiredFlowRoot> &p) : BoundaryNodeFor<RetiredFlowRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(FragmentDefinition() << LazyScopeDefinition<bool, RetiredFlowScope>(
+                fixture->condition, RetiredFlowProps()) << RefusedChild().tag(2));
+    }
+  };
+  class RetiredFlowTail;
+  struct RetiredFlowTailTag {};
+  struct RetiredFlowTailProps : NodePropsBase<RetiredFlowTailProps>
+  {
+    typedef RetiredFlowTailTag TypeTag;
+    typedef RetiredFlowTail NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class RetiredFlowTail : public ComponentNodeWithProps<RetiredFlowTailProps>
+  {
+  public:
+    explicit RetiredFlowTail(const RetiredFlowTailProps &p) : ComponentNodeWithProps<RetiredFlowTailProps>(p) {}
+    void write()
+    {
+      loka::core::StateTrackerGuard guard(&retiredFlowData->tracker);
+      fixture->input.set(7);
+    }
+    virtual void declareBindings(BindingToken &token) { token.watch(fixture->condition, this, &RetiredFlowTail::write, true); }
+    virtual void composeChildren(NodeComposition &) {}
+  };
+  class RetiredFlowOuter : public BoundaryNodeFor<RetiredFlowOuter>
+  {
+  public:
+    explicit RetiredFlowOuter(const BoundaryPropsFor<RetiredFlowOuter> &p) : BoundaryNodeFor<RetiredFlowOuter>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(FragmentDefinition() << Boundary<RetiredFlowRoot>() << NodeDefinition<RetiredFlowTailProps, RetiredFlowTail>());
+    }
+  };
+  void verifyRetiredFlowDiscard(bool stream, bool sibling, bool refuse)
+  {
+    PublicationFixture data(PLAIN, 2, refuse);
+    FixtureScope fixtureScope(data);
+    RetiredFlowData probe(stream);
+    retiredFlowData = &probe;
+    PublicationObserver platform;
+    Scene scene(sibling ? Boundary<RetiredFlowOuter>().clone() : Boundary<RetiredFlowRoot>().clone());
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    LOKA_VERIFY((data.refusals > 0) == refuse);
+    if (!sibling)
+    {
+      loka::core::StateTrackerGuard guard(&probe.tracker);
+      data.input.set(7);
+    }
+    // Streams evaluate once when constructed, then once per live source write.
+    std::fprintf(stderr, "932 flow stream=%d sibling=%d refuse=%d calls=%d output=%d local=%d\n",
+                 stream, sibling, refuse, probe.calls, probe.output, probe.local->get());
+    LOKA_VERIFY(probe.calls == (stream ? 1 : 0) + (refuse ? 0 : 1));
+    LOKA_VERIFY(stream ? probe.local->get() == (refuse ? 1 : 8) : probe.output == (refuse ? 0 : 8));
+    scene.flushInvalidation();
+  }
+}
+void testRetiredFlowDiscardStopsTrigger() { verifyRetiredFlowDiscard(false, false, false); verifyRetiredFlowDiscard(false, false, true); }
+void testRetiredStreamDiscardStopsEvaluation() { verifyRetiredFlowDiscard(true, false, false); verifyRetiredFlowDiscard(true, false, true); }
+void testRetiredFlowSiblingCannotTrigger() { verifyRetiredFlowDiscard(false, true, false); verifyRetiredFlowDiscard(false, true, true); }
+void testRetiredStreamSiblingCannotEvaluate() { verifyRetiredFlowDiscard(true, true, false); verifyRetiredFlowDiscard(true, true, true); }
+
+namespace
+{
+  class ParkedFlowScope;
+  struct ParkedFlowTag {};
+  struct ParkedFlowProps : NodePropsBase<ParkedFlowProps>
+  {
+    typedef ParkedFlowTag TypeTag;
+    typedef ParkedFlowScope NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class ParkedFlowScope : public LazyScopeNode
+  {
+  public:
+    typedef ParkedFlowProps Props;
+    typedef ParkedFlowTag TypeTag;
+    Props props;
+    explicit ParkedFlowScope(const Props &p) : props(p) {}
+    virtual void declareScope(NodeComposition &c)
+    {
+      c.declare(Show(fixture->condition) << LazyScopeDefinition<bool, RetiredFlowScope>(
+                fixture->condition, RetiredFlowProps()));
+    }
+  };
+  class ParkedFlowRoot : public BoundaryNodeFor<ParkedFlowRoot>
+  {
+  public:
+    explicit ParkedFlowRoot(const BoundaryPropsFor<ParkedFlowRoot> &p) : BoundaryNodeFor<ParkedFlowRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(LazyScopeDefinition<bool, ParkedFlowScope>(fixture->nestedSelection, ParkedFlowProps()));
+    }
+  };
+}
+void testParkedFlowRetirementWithdraws()
+{
+  PublicationFixture data(PLAIN, 2, false);
+  FixtureScope fixtureScope(data);
+  RetiredFlowData probe(false);
+  retiredFlowData = &probe;
+  PublicationObserver platform;
+  Scene scene((Boundary<ParkedFlowRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  RetiredFlowScope *original = probe.scope;
+  LOKA_VERIFY(original != 0);
+  BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
+  holdUpdateCycle(scene);
+  changeParticipationSelection(scene, *root, data.condition, false);
+  LOKA_VERIFY(original->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+  { loka::core::StateTrackerGuard guard(&probe.tracker); data.input.set(1); }
+  LOKA_VERIFY(probe.calls == 1 && probe.output == 2);
+  changeParticipationSelection(scene, *root, data.nestedSelection, true);
+  LOKA_VERIFY(original->lifecycleFact() == NODE_FACT_RETIRED);
+  { loka::core::StateTrackerGuard guard(&probe.tracker); data.input.set(2); }
+  LOKA_VERIFY(probe.calls == 1 && probe.output == 2);
+  SceneTestAccess::director(scene).completeUpdateCycle();
+  scene.flushInvalidation();
+}

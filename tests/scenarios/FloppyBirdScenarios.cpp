@@ -1,3 +1,4 @@
+#include "testing/flow/FlowSlotTestAccess.hpp"
 #include "FloppyBirdScenarios.hpp"
 
 #include <cassert>
@@ -194,7 +195,7 @@ namespace loka
         : clock_(),
           input_(),
           record_(),
-          flow_()
+          flow_(loka::dsl::testing::FlowSlotTestAccess::unowned())
     {
       this->flow_.set(BuildFixedStepFlapFlow(this->clock_, &this->input_, &this->record_, audit));
     }
