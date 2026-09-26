@@ -53,8 +53,8 @@ namespace
     loka::core::MutableState<int> input;
     loka::core::MutableState<bool> condition;
     loka::core::MutableState<bool> nestedSelection;
-    /** The #925 pins' outer seat; starts false so their mount is complete. */
-    loka::core::MutableState<bool> outerCondition;
+    /** The #925 pins' middle seat; starts false so its mounted arm holds no seat. */
+    loka::core::MutableState<bool> middleCondition;
     std::vector<NodeTag> declared;
 
     PublicationFixture(Shape s, int n, bool fail)
@@ -77,7 +77,7 @@ namespace
           input(0),
           condition(s != NULL_ROOT),
           nestedSelection(false),
-          outerCondition(false),
+          middleCondition(false),
           declared()
     {
       if (s == SECTION)
@@ -1636,12 +1636,12 @@ namespace
 {
   using LocalRebuildRefusalSupport::RefusingRetainedFragment;
 
-  /** Outer Conditional seat whose Fragment arm holds a nested Conditional
-      seat (arm root tag 1, a RefusedChild) and, when the fixture declares
-      two members, a retained sibling (tag 2). The outer seat follows the
-      fixture's outerCondition, the nested seat its condition, so the nested
-      seat's plan can select its refusing arm while the outer arm is still
-      unmounted. */
+  /** Three nested Conditional seats. The outer seat's Fragment arm holds the
+      middle seat and, when the fixture declares two members, a retained
+      sibling (tag 2). The middle seat's true arm is a Fragment holding the
+      inner seat, whose arm root is tag 1 (a RefusedChild, used here only
+      to count factory attempts; nothing refuses). The outer and inner seats
+      follow condition (true); the middle seat follows middleCondition. */
   class NestedSeatRoot : public BoundaryNodeFor<NestedSeatRoot>
   {
   public:
@@ -1659,18 +1659,20 @@ namespace
     virtual void composeNode(NodeComposition &composition)
     {
       ++fixture->declarations;
-      RefusedChild nestedArm;
-      nestedArm.tag(1);
+      RefusedChild innerArm;
+      innerArm.tag(1);
       FragmentDefinition empty;
+      FragmentDefinition middleArm;
+      middleArm << ConditionalDefinition(ConditionalProps(&fixture->condition, &innerArm, &empty));
       FragmentDefinition outerArm;
-      outerArm << ConditionalDefinition(ConditionalProps(&fixture->condition, &nestedArm, &empty));
+      outerArm << ConditionalDefinition(ConditionalProps(&fixture->middleCondition, &middleArm, &empty));
       if (fixture->count == 2)
       {
         RefusingRetainedFragment sibling;
         sibling.tag(2);
         outerArm << sibling;
       }
-      composition.declare(ConditionalDefinition(ConditionalProps(&fixture->outerCondition, &outerArm, &empty)));
+      composition.declare(ConditionalDefinition(ConditionalProps(&fixture->condition, &outerArm, &empty)));
     }
   };
 
@@ -1681,53 +1683,53 @@ namespace
     return loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*SceneTestAccess::rootBoundary(scene));
   }
 
-  /** Leaves the outer seat's row alone in a ledger at capacity one, over an
-      installed arm whose nested seat has no row, and makes that row not
-      current. A refused mount cannot build this state: an incomplete
-      initial tree is rejected and its rows cleared.
-      1. Mount with outerCondition false and nothing refusing. The complete
-         mount installs the outer seat's empty arm and registers the outer
-         row as the ledger's first push_back; libstdc++, libc++ and the MSVC
-         STL all allocate room for exactly one element there. The captured
-         plan already selects the nested seat's refusing arm (condition is
-         true), though that seat is not materialized yet.
-      2. Arm the refusal and flip outerCondition. The seat switch installs
-         the outer arm while the nested seat's arm root refuses, so the
-         nested seat stays rowless. The switch stages no row, so the ledger
-         keeps its one row and its capacity.
-      3. Heal and recapture the plan. The outer row is no longer current, so
-         the next apply reconciles the installed arm in place, stages the
-         nested row and reserves room for two. reserve(n) reallocates
-         whenever n > capacity() ([vector.capacity]), so the outer row moves
-         while applyBranchSeat still holds it. Each pin checks that move
-         directly (outerRowMoved). */
-  NestedSeatRoot *switchToRowlessNestedSeat(Scene &scene,
-                                            PublicationObserver &platform,
-                                            PublicationFixture &data)
+  /** Builds the #925 state through the testing layer: the outer seat's row,
+      not current, in a ledger with no room for the rows the next reconcile
+      stages under the installed outer arm. After #144 (PR B and PR C) no
+      production sequence builds it. Every accepted materialization
+      registers all of its seats' rows in the same commit, so an installed
+      arm has no rowless seat. The plan generation advances only when a
+      declaration is captured over an empty ledger, so no row is left not
+      current. The row is therefore dropped through OwnershipDump, and the
+      plan is recaptured through the test subclass.
+      1. Mount with middleCondition false. The middle seat's arm is empty and
+         the inner seat, in its other arm, gets no row. The rows are the
+         middle seat's and then the outer seat's: two push_backs from empty,
+         leaving capacity two in libstdc++, libc++ and the MSVC STL.
+      2. Drop the middle seat's row. One row remains, at capacity two.
+      3. Flip middleCondition. The middle seat has no row, so the apply skips
+         it; nothing is rebuilt.
+      4. Recapture. The outer row is no longer current, so the next apply
+         reconciles the installed outer arm in place and rebuilds the middle
+         seat on its new arm. That stages two rows, the middle seat's and the
+         never-registered inner seat's, so the reconcile reserves room for
+         three. reserve(n) reallocates whenever n > capacity()
+         ([vector.capacity]), so the outer row moves while applyBranchSeat
+         still holds it. Re-staging only the dropped row could never outgrow
+         the capacity the ledger already reached while it held that row. Each
+         pin checks the move directly (outerRowMoved). */
+  NestedSeatRoot *dropMiddleSeatRow(Scene &scene, PublicationObserver &platform, PublicationFixture &data)
   {
     scene.mount(&platform);
     SceneTestAccess::updateAttached(scene, true);
     NestedSeatRoot *root = static_cast<NestedSeatRoot *>(SceneTestAccess::rootBoundary(scene));
-    const bool oneRowAfterCompleteMount = seatRows(scene).size() == 1 && data.attempts == 0 &&
-                                          platform.published.empty() &&
-                                          !SceneTestAccess::whiteFlagFullRebuildPending(scene);
-    LOKA_VERIFY(oneRowAfterCompleteMount);
-    Node *mountedArm = root->childrenHead();
-    data.refusing = true;
+    const bool twoRowsAfterCompleteMount = seatRows(scene).size() == 2 && data.attempts == 0 &&
+                                           !SceneTestAccess::whiteFlagFullRebuildPending(scene);
+    LOKA_VERIFY(twoRowsAfterCompleteMount);
+    Node *outerArm = root->childrenHead();
+    Node *middleArm = outerArm && outerArm->asNestable() ? outerArm->asNestable()->childrenHead() : 0;
+    LOKA_VERIFY(loka::dsl::testing::OwnershipDump::eraseSeatRuntimeRow(*root, middleArm));
+    const bool oneRowAfterDrop = seatRows(scene).size() == 1;
+    LOKA_VERIFY(oneRowAfterDrop);
     {
       loka::core::StateTrackerGuard guard(root->tracker());
-      data.outerCondition.set(true);
+      data.middleCondition.set(true);
     }
     scene.flushInvalidation();
-    // The switch accepts the outer arm although its nested seat refused (a
-    // partial replacement); the mounted arm stays parked, so a new arm root
-    // means the switch installed it. #931 will refuse that switch; this
-    // check then fails first, and the route must change.
-    const bool refusedSwitchInstalledOuterArm = root->childrenHead() != 0 && root->childrenHead() != mountedArm;
-    LOKA_VERIFY(refusedSwitchInstalledOuterArm);
-    const bool oneRowAfterRefusedSwitch = seatRows(scene).size() == 1 && data.attempts == 1 && data.refusals == 1;
-    LOKA_VERIFY(oneRowAfterRefusedSwitch);
-    data.refusing = false;
+    const bool rowlessSwitchSkipped = seatRows(scene).size() == 1 && data.attempts == 0 &&
+                                      root->childrenHead() == outerArm &&
+                                      outerArm->asNestable()->childrenHead() == middleArm;
+    LOKA_VERIFY(rowlessSwitchSkipped);
     root->recaptureSeatPlan();
     return root;
   }
@@ -1752,7 +1754,7 @@ void testPartialTreeNestedReconcileGrowsSeatLedger925()
   FixtureScope scope(data);
   PublicationObserver platform;
   Scene scene((Boundary<NestedSeatRoot>()));
-  NestedSeatRoot *root = switchToRowlessNestedSeat(scene, platform, data);
+  NestedSeatRoot *root = dropMiddleSeatRow(scene, platform, data);
   Node *outerArm = root->childrenHead();
   const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
@@ -1760,7 +1762,7 @@ void testPartialTreeNestedReconcileGrowsSeatLedger925()
   const std::vector<const void *> healedRows = seatRows(scene);
   const bool outerRowReallocated = outerRowMoved(outerRowBefore, healedRows);
   const bool outerArmReconciledInPlace = root->childrenHead() == outerArm;
-  const bool nestedRowCommitted = healedRows.size() == 2;
+  const bool nestedRowCommitted = healedRows.size() == 3;
   const bool healedPublished = platform.published == data.declared;
   const bool healedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
   const int healedAttempts = data.attempts;
@@ -1772,7 +1774,7 @@ void testPartialTreeNestedReconcileGrowsSeatLedger925()
   LOKA_VERIFY(nestedRowCommitted);
   LOKA_VERIFY(healedPublished);
   LOKA_VERIFY(healedWhiteCleared);
-  const bool settledInPlace = root->childrenHead() == outerArm && seatRows(scene).size() == 2 &&
+  const bool settledInPlace = root->childrenHead() == outerArm && seatRows(scene).size() == 3 &&
                               data.attempts == healedAttempts && platform.published == data.declared;
   LOKA_VERIFY(settledInPlace);
   LOKA_VERIFY(data.declarations == 1);
@@ -1788,7 +1790,7 @@ void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
   FixtureScope scope(data);
   PublicationObserver platform;
   Scene scene((Boundary<NestedSeatRoot>()));
-  NestedSeatRoot *root = switchToRowlessNestedSeat(scene, platform, data);
+  NestedSeatRoot *root = dropMiddleSeatRow(scene, platform, data);
   loka::app::testing::failLocalRebuildProbeProps(1);
   const void *outerRowBefore = seatRows(scene)[0];
   refresh(scene);
@@ -1799,7 +1801,7 @@ void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
   bool valid = check("nested-refusal-replaced", scene, platform);
   const std::vector<const void *> replacedRows = seatRows(scene);
   const bool outerRowReallocated = outerRowMoved(outerRowBefore, replacedRows);
-  const bool nestedRowCommitted = replacedRows.size() == 2;
+  const bool nestedRowCommitted = replacedRows.size() == 3;
   const bool replacedPublished = platform.published == data.declared;
   const bool replacedWhiteCleared = !SceneTestAccess::whiteFlagFullRebuildPending(scene);
   Node *replacedArm = root->childrenHead();
@@ -1813,7 +1815,7 @@ void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925()
   LOKA_VERIFY(replacedPublished);
   LOKA_VERIFY(replacedWhiteCleared);
   const bool settledInPlace = replacedArm != 0 && root->childrenHead() == replacedArm &&
-                              seatRows(scene).size() == 2 && data.attempts == replacedAttempts &&
+                              seatRows(scene).size() == 3 && data.attempts == replacedAttempts &&
                               platform.published == data.declared;
   LOKA_VERIFY(settledInPlace);
   LOKA_VERIFY(data.declarations == 1);
