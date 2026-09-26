@@ -815,6 +815,91 @@ namespace
                         true);
   }
 
+  void checkBlockStyle()
+  {
+    using namespace loka::app;
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error, value;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "card('first',class{constructor(){this.s=state('s');this.n=state(1)}compose(){return VStack("
+        "Text('a',undefined,{align:'center'}).TEST_ID('T').TEST_ID('T'),"
+        "Markup('<b>x</b>',{size:18},{align:'right',wrap:'word'}).TEST_ID('M'),"
+        "Text(this.s,undefined,{wrap:'char',truncation:'clip'}).TEST_ID('S'),"
+        "Text(this.n,undefined,{align:'left',truncation:'ellipsis'}).TEST_ID('N'),"
+        "Text(this.error,undefined,{wrap:'none',truncation:'none'}).TEST_ID('E'),"
+        "Text('default',undefined,undefined).TEST_ID('D'))}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    const char *ids[] = {"T", "S", "N", "E", "D"};
+    const BlockStyle expected[] = {BlockStyle().align(TEXT_ALIGN_CENTER),
+                                   BlockStyle().wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_CLIP),
+                                   BlockStyle().align(TEXT_ALIGN_LEFT).truncation(TEXT_TRUNCATION_ELLIPSIS),
+                                   BlockStyle().wrap(TEXT_WRAP_NONE).truncation(TEXT_TRUNCATION_NONE),
+                                   BlockStyle()};
+    for (size_t i = 0; i < sizeof(ids) / sizeof(ids[0]); ++i)
+    {
+      loka::app::scene::Node *node = find(root, ids[i]);
+      LOKA_VERIFY(node && node->asTextNode());
+      LOKA_VERIFY(node->asTextNode()->props.blockStyle_ == expected[i]);
+    }
+    loka::app::scene::Node *markup = find(root, "M");
+    LOKA_VERIFY(markup && markup->asAttributedTextNode());
+    LOKA_VERIFY(markup->asAttributedTextNode()->props.blockStyle_
+                == BlockStyle().align(TEXT_ALIGN_RIGHT).wrap(TEXT_WRAP_WORD));
+    LOKA_VERIFY(markup->asAttributedTextNode()->props.text_->get() == Styled("x", FontSize<18>() + Bold));
+
+    const char *kinds[] = {"Text", "Markup"};
+    const char *bad[] = {"{gap:4}",
+                         "{align:1}",
+                         "{align:'justify'}",
+                         "{wrap:1}",
+                         "{wrap:'words'}",
+                         "{truncation:false}",
+                         "{truncation:'cut'}",
+                         "null",
+                         "[]",
+                         "new Date()",
+                         "Object.create({align:'center'})",
+                         "{[Symbol('x')]:1}",
+                         "Object.defineProperty({},'gap',{value:4})",
+                         "{align:undefined}",
+                         "{align:'center\\u0000'}",
+                         "{['align\\u0000']:'center'}"};
+    for (size_t k = 0; k < sizeof(kinds) / sizeof(kinds[0]); ++k)
+    {
+      for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
+      {
+        const std::string call = std::string(kinds[k]) + "('a',undefined," + bad[i] + ")";
+        const std::string source = "card('first',class{compose(){return " + call + "}});";
+        checkComposeRefusal(source.c_str(), "TypeError");
+        const std::string caught = "(()=>{try{" + call + "}catch(e){return e instanceof TypeError}return false})()";
+        LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Utf8(caught.data(), caught.size()), value, error));
+        LOKA_VERIFY(value.compare(loka::core::String::Literal("true")) == 0);
+      }
+      const std::string changed = std::string("card('first',class{compose(){const b={align:'center'};const t=")
+                                  + kinds[k] + "('a',undefined,b).TEST_ID('M');b.gap=4;return t}});";
+      checkComposeRefusal(changed.c_str(), k == 0 ? "TypeError" : "Markup", true);
+      const std::string throwing = std::string("card('first',class{compose(){return ") + kinds[k]
+                                   + "('a',undefined,{get align(){throw new Error('block getter')}})}});";
+      checkComposeRefusal(throwing.c_str(), "block getter");
+    }
+    // Inherited properties are not dictionary entries, even on Object.prototype.
+    LOKA_VERIFY(runtime.evaluateToString(
+        loka::core::String::Literal(
+            "(()=>{Object.prototype.gap=4;try{return Text('a',undefined,Object.create(null)).kind>0 && "
+            "Markup('x',undefined,{}).kind>0}finally{delete Object.prototype.gap}})()"),
+        value,
+        error));
+    LOKA_VERIFY(value.compare(loka::core::String::Literal("true")) == 0);
+  }
+
   void checkMarkupAllocationRefusal()
   {
     using namespace loka::core::testing;
@@ -1090,6 +1175,7 @@ int main()
   checkTextStyle();
   checkMarkupParser();
   checkMarkup();
+  checkBlockStyle();
   checkMarkupAllocationRefusal();
   checkTreePropertyCopy();
   checkTextStyleRefusals();

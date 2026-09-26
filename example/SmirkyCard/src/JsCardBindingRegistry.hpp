@@ -8,6 +8,7 @@ namespace loka
   namespace app
   {
     struct TextStyle;
+    struct BlockStyle;
     namespace scene
     {
       struct NodeDefinitionBase;
@@ -21,6 +22,9 @@ namespace smirkycard
 
   /** Read a plain style dictionary; leave out unchanged and throw on refusal. */
   bool readTextStyle(JSContext *context, JSValueConst dict, loka::app::TextStyle &out);
+
+  /** Read a separate block dictionary; leave out unchanged and throw on refusal. */
+  bool readBlockStyle(JSContext *context, JSValueConst dict, loka::app::BlockStyle &out);
 
   struct IJsNodeLowering
   {

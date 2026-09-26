@@ -233,16 +233,20 @@ namespace smirkycard
       }
       virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
       {
-        if (argc < 1 || argc > 2)
-          return JS_ThrowTypeError(ctx, "Text(value, style?) requires a value and optional style");
+        if (argc < 1 || argc > 3)
+          return JS_ThrowTypeError(ctx, "Text(value, style?, block?) requires a value and optional style and block");
         loka::app::TextStyle style;
-        if (argc == 2 && !JS_IsUndefined(argv[1]) && !readTextStyle(ctx, argv[1], style))
+        if (argc >= 2 && !JS_IsUndefined(argv[1]) && !readTextStyle(ctx, argv[1], style))
+          return JS_EXCEPTION;
+        loka::app::BlockStyle block;
+        if (argc == 3 && !JS_IsUndefined(argv[2]) && !readBlockStyle(ctx, argv[2], block))
           return JS_EXCEPTION;
         JSValue n = newTree(ctx, kind);
         if (JS_IsException(n))
           return n;
         if (JS_SetPropertyStr(ctx, n, "text", JS_DupValue(ctx, argv[0])) < 0
-            || (argc == 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || (argc >= 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || (argc == 3 && JS_SetPropertyStr(ctx, n, "block", JS_DupValue(ctx, argv[2])) < 0)
             || JS_FreezeObject(ctx, n) < 0)
         {
           JS_FreeValue(ctx, n);
@@ -286,16 +290,21 @@ namespace smirkycard
       }
       virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
       {
-        if (argc < 1 || argc > 2)
-          return JS_ThrowTypeError(ctx, "Markup(markup, style?) requires a string and optional style");
+        if (argc < 1 || argc > 3)
+          return JS_ThrowTypeError(ctx,
+                                   "Markup(markup, style?, block?) requires a string and optional style and block");
         loka::app::AttributedString parsed;
-        if (!readMarkup(ctx, argv[0], argc == 2 ? argv[1] : JS_UNDEFINED, parsed))
+        if (!readMarkup(ctx, argv[0], argc >= 2 ? argv[1] : JS_UNDEFINED, parsed))
+          return JS_EXCEPTION;
+        loka::app::BlockStyle block;
+        if (argc == 3 && !JS_IsUndefined(argv[2]) && !readBlockStyle(ctx, argv[2], block))
           return JS_EXCEPTION;
         JSValue n = newTree(ctx, kind);
         if (JS_IsException(n))
           return n;
         if (JS_SetPropertyStr(ctx, n, "markup", JS_DupValue(ctx, argv[0])) < 0
-            || (argc == 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || (argc >= 2 && JS_SetPropertyStr(ctx, n, "style", JS_DupValue(ctx, argv[1])) < 0)
+            || (argc == 3 && JS_SetPropertyStr(ctx, n, "block", JS_DupValue(ctx, argv[2])) < 0)
             || JS_FreezeObject(ctx, n) < 0)
         {
           JS_FreeValue(ctx, n);
@@ -308,16 +317,24 @@ namespace smirkycard
         JSValue value = JS_GetPropertyStr(ctx, tree, "markup");
         JSValue dict = JS_GetPropertyStr(ctx, tree, "style");
         loka::app::AttributedString parsed;
-        const bool valid = readMarkup(ctx, value, dict, parsed);
+        bool valid = readMarkup(ctx, value, dict, parsed);
         JS_FreeValue(ctx, dict);
         JS_FreeValue(ctx, value);
+        loka::app::BlockStyle block;
+        if (valid)
+        {
+          dict = JS_GetPropertyStr(ctx, tree, "block");
+          valid = !JS_IsException(dict) && (JS_IsUndefined(dict) || readBlockStyle(ctx, dict, block));
+          JS_FreeValue(ctx, dict);
+        }
         if (!valid)
         {
           JS_FreeValue(ctx, JS_GetException(ctx));
-          node.fail("JavaScript Markup parse, style or allocation refused.");
+          node.fail("JavaScript Markup parse, style, block or allocation refused.");
           return 0;
         }
-        return new (std::nothrow) loka::app::AttributedText(parsed);
+        return new (std::nothrow)
+            loka::app::AttributedTextDefinitionWithAttr(loka::app::AttributedText(parsed) + block);
       }
     };
     class EditTextLowering : public IJsNodeLowering
