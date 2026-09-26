@@ -8151,6 +8151,9 @@ void testRetiredFlowWithdrawsReplacedRunningResident()
   int calls = 0, output = 0;
   node.flow.set(loka::dsl::Flow() | loka::dsl::Step(1, ReplaceAndRetire(node, source, calls, output))
                 .onSuccess(&output)).bindTrigger(&source);
+  // Keep the old implementation alive beyond run end, so destruction cannot
+  // conceal a missed withdrawal of the slot's deferred resident.
+  ParticipantFlow oldResident(node.flow.dangerouslyUnwrap());
   { loka::core::StateTrackerGuard guard(&tracker); source.set(3); }
   LOKA_VERIFY(calls == 1 && output == 4);
   { loka::core::StateTrackerGuard guard(&tracker); source.set(5); }
@@ -8205,7 +8208,12 @@ namespace
     int calls = 0, output = 0;
     node.flow.set(participantFlow(calls, output)).bindTrigger(&source);
     RetirementAccess::MarkSubtreeRetired(&node);
-    if (door == 0) node.flow.set(participantFlow(calls, output));
+    const ParticipantFlow *installed = node.flow.get();
+    if (door == 0)
+    {
+      node.flow.set(participantFlow(calls, output));
+      LOKA_VERIFY(node.flow.get() == installed);
+    }
     else if (door == 1) node.flow.bindTrigger(&source);
     else { const bool ran = node.flow.run(); LOKA_VERIFY(!ran); }
     { loka::core::StateTrackerGuard guard(&tracker); source.set(1); }
@@ -8247,6 +8255,9 @@ void testRetiredStreamBroadOwnerStopsEvaluation()
     LOKA_VERIFY(calls > initial);
     RetirementAccess::MarkSubtreeRetired(&node);
     const int before = calls;
+    // #948 leaves no tracker dependency edges on stream-derived States.
+    // This broad owner deliberately declines withdrawState: only the slot's
+    // binding withdrawal can stop the stream's remaining evaluation route.
     { loka::core::StateTrackerGuard guard(owner.tracker()); source.set(2); }
     std::fprintf(stderr, "932 broad owner: calls before=%d after=%d\n", before, calls);
     LOKA_VERIFY(calls == before);

@@ -221,8 +221,9 @@ namespace loka
       }
 
       /** Stop subscriptions and owned-State propagation, retaining destruction records.
-          A callback already on the stack may finish. Broad owners may decline
-          State withdrawal; the stream still disconnects its explicit bindings. */
+          A callback already on the stack may finish. Explicit bindings are the
+          only evaluation route for stream-derived States, so this also stops
+          streams whose broad owner deliberately declines State withdrawal. */
       void withdraw()
       {
         for (size_t i = 0; i < this->bindings_.size(); ++i)
