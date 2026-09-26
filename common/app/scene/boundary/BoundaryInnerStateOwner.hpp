@@ -89,6 +89,24 @@ namespace loka
           this->tracker_.addStateUnchecked(state);
         }
 
+        virtual void withdrawState(loka::core::StateBase *state)
+        {
+          if (!state)
+            return;
+          this->detachOwnedStateFromAncestors(state);
+          this->tracker_.removeState(state);
+        }
+
+        virtual void withdrawOwnedStates()
+        {
+          for (size_t i = 0; i < this->ownedStates_.size(); ++i)
+            this->withdrawState(this->ownedStates_[i]);
+          // Removing rows cancels their queued work, but transaction dirt can
+          // predate retirement. Cut only this inner owner's outward route.
+          this->tracker_.setInvalidateCallback(0, 0);
+          this->tracker_.setInvalidateTarget(0);
+        }
+
         virtual void releaseState(loka::core::StateBase *state)
         {
           if (!state)
@@ -106,8 +124,7 @@ namespace loka
               ++i;
             }
           }
-          this->detachOwnedStateFromAncestors(state);
-          this->tracker_.removeState(state);
+          this->withdrawState(state);
           this->destroyOwnedStateStorage(state);
         }
 
@@ -158,8 +175,7 @@ namespace loka
             loka::core::StateBase *state = this->ownedStates_[i];
             if (state)
             {
-              this->detachOwnedStateFromAncestors(state);
-              this->tracker_.removeState(state);
+              this->withdrawState(state);
               this->destroyOwnedStateStorage(state);
             }
           }

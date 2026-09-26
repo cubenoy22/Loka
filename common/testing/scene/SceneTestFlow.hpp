@@ -173,6 +173,14 @@ namespace loka
           return scene.director_.effectiveRequestedDirtyFlags();
         }
 
+        /** Dirt queued during an active cycle, before the next refresh takes it. */
+        static ::loka::app::scene::NodeDirtyFlags accumulatedBoundaryDirtyFlags(
+            const ::loka::app::scene::Scene &scene,
+            const ::loka::app::scene::BoundaryNode *boundary)
+        {
+          return scene.director_.updateTransaction_.pendingDirtyFlagsForBoundary(boundary);
+        }
+
         static bool hasRequestedInput(const ::loka::app::scene::Scene &scene)
         {
           return scene.director_.hasRequestedInput();

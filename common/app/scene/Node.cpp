@@ -6,6 +6,13 @@ namespace loka
   {
     namespace scene
     {
+      void Node::withdrawStateParticipation()
+      {
+        IStateOwner *owner = this->asStateOwner();
+        if (owner)
+          owner->withdrawOwnedStates();
+      }
+
       void Node::bindingsFollowProps()
       {
         ComposableNode *composable = this->asComposable();
