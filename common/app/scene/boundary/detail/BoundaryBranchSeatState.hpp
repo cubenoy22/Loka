@@ -28,35 +28,15 @@ namespace loka
         BranchPolicies policies;
       };
 
-      /** Allocation-free fingerprint of one seat's ordered arm roots. */
+      /** Declared arm count used for branch lookup and retirement. */
       struct BoundaryBranchSeatShape
       {
         BoundaryBranchSeatShape()
-            : armCount(0),
-              orderedRootTypes(2166136261UL)
+            : armCount(0)
         {
-        }
-
-        void append(const void *propsTypeId)
-        {
-          const unsigned char *bytes =
-              reinterpret_cast<const unsigned char *>(&propsTypeId);
-          for (size_t i = 0; i < sizeof(propsTypeId); ++i)
-          {
-            this->orderedRootTypes ^= bytes[i];
-            this->orderedRootTypes *= 16777619UL;
-          }
-          ++this->armCount;
-        }
-
-        bool matches(const BoundaryBranchSeatShape &other) const
-        {
-          return this->armCount == other.armCount &&
-                 this->orderedRootTypes == other.orderedRootTypes;
         }
 
         unsigned armCount;
-        unsigned long orderedRootTypes;
       };
 
       struct BoundaryBranchSeatPlanEntry
@@ -153,7 +133,6 @@ namespace loka
               hasOwner(hasOwnerValue),
               ownerKey(ownerKeyValue),
               ownerArm(ownerArmValue),
-              appliedGeneration(0),
               stateOwner(stateOwnerValue)
         {
         }
@@ -168,7 +147,6 @@ namespace loka
         bool hasOwner;
         BoundaryParkedBranchKey ownerKey;
         unsigned ownerArm;
-        unsigned long appliedGeneration;
         /** Borrowed from the runtime parent scope until this mapping retires. */
         IStateOwner *stateOwner;
       };
@@ -263,8 +241,7 @@ namespace loka
       public:
         BoundaryBranchSeatState()
             : plans_(),
-              runtime_(),
-              generation_(0)
+              runtime_()
 #ifndef NDEBUG
               , misplacementHintEmitted_(false)
 #endif
@@ -274,7 +251,6 @@ namespace loka
         void capture(NodeDefinitionBase *root)
         {
           this->plans_.clear();
-          ++this->generation_;
           this->captureDefinition(root, 0, 0);
           this->assertUniqueKeys();
         }
@@ -282,7 +258,6 @@ namespace loka
         void captureOwned(NodeDefinitionBase *root, const BoundaryParkedBranchKey &ownerKey, unsigned ownerArm)
         {
           this->plans_.clear();
-          ++this->generation_;
           this->captureDefinition(root, &ownerKey, ownerArm);
           this->assertUniqueKeys();
         }
@@ -312,11 +287,6 @@ namespace loka
             }
           }
 #endif
-        }
-
-        unsigned long generation() const
-        {
-          return this->generation_;
         }
 
         const std::vector<BoundaryBranchSeatPlanEntry> &plans() const
@@ -408,7 +378,6 @@ namespace loka
             existing->hasOwner = plan.hasOwner;
             existing->ownerKey = plan.ownerKey;
             existing->ownerArm = plan.ownerArm;
-            existing->appliedGeneration = this->generation_;
             return;
           }
           this->runtime_.push_back(BoundaryBranchSeatRuntimeEntry(plan.key,
@@ -421,7 +390,6 @@ namespace loka
                                                                   plan.ownerKey,
                                                                   plan.ownerArm,
                                                                   stateOwner));
-          this->runtime_.back().appliedGeneration = this->generation_;
         }
 
         /** Performs the only potentially allocating part of publishing staged
@@ -504,6 +472,11 @@ namespace loka
               this->runtime_.erase(this->runtime_.begin() + i - 1);
         }
 
+        bool runtimeEmpty() const
+        {
+          return this->runtime_.empty();
+        }
+
         void clearRuntime()
         {
           this->runtime_.clear();
@@ -514,25 +487,6 @@ namespace loka
         {
           return BoundaryParkedBranchKey(
               definition.nodeTag(), definition.compositionSeatSlot(), seat.branchSeatTypeId(), this);
-        }
-
-        static BoundaryBranchPlanBranch foldBranchRoot(NodeDefinitionBase *definition)
-        {
-          BoundaryBranchPlanBranch result;
-          result.definition = definition;
-          if (!definition)
-          {
-            return result;
-          }
-
-          IBranchPolicyScopeDefinition *scope =
-              definition->asBranchPolicyScopeDefinition();
-          if (scope)
-          {
-            result.definition = scope->scopedBranchDefinition();
-            result.policies = scope->branchPolicies();
-          }
-          return result;
         }
 
         void captureDefinition(NodeDefinitionBase *definition,
@@ -579,13 +533,7 @@ namespace loka
             BoundaryBranchSeatPlanEntry entry(key);
             entry.dirtySource = seat->branchCondition();
             entry.definition = definition;
-            for (unsigned arm = 0; arm < seat->armCount(); ++arm)
-            {
-              BoundaryBranchPlanBranch branch = foldBranchRoot(seat->armDefinition(arm));
-              entry.shape.append(branch.definition
-                                     ? branch.definition->propsBase()->propsTypeId()
-                                     : 0);
-            }
+            entry.shape.armCount = seat->armCount();
             entry.snapshotSelection();
             if (ownerKey)
             {
@@ -617,7 +565,6 @@ namespace loka
 
         std::vector<BoundaryBranchSeatPlanEntry> plans_;
         std::vector<BoundaryBranchSeatRuntimeEntry> runtime_;
-        unsigned long generation_;
 #ifndef NDEBUG
         bool misplacementHintEmitted_;
 #endif
