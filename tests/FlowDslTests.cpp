@@ -8064,3 +8064,140 @@ void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce()
                          "substep match=12 arm=1 id=101 due_tick=20 tick=21 status=failed error_kind=7 error_code=42 name=child%20step%09A\n"
                          "match id=13 arm=none\n");
 }
+
+namespace
+{
+  struct StreamCountExpr
+  {
+    int *calls;
+    explicit StreamCountExpr(int *count) : calls(count) {}
+    int eval(const loka::dsl::EvalContext &context) const
+    {
+      ++*this->calls;
+      return *static_cast<int *>(context.slots[1]) + 1;
+    }
+  };
+
+  struct StreamCountSum
+  {
+    typedef int Result;
+    int *calls;
+    explicit StreamCountSum(int *count) : calls(count) {}
+    int operator()(int left, int right) const
+    {
+      ++*this->calls;
+      return left + right;
+    }
+  };
+
+  void verifyStreamSingleEvaluator(bool chain, bool crossTracker, bool expression)
+  {
+    loka::core::MutableState<int> input(1), output(0);
+    CharacterizationStateOwner owner;
+    loka::core::PushStateTracker sourceTracker;
+    if (crossTracker)
+      sourceTracker.addState(&input);
+    else
+      owner.trackBorrowed(&input);
+    owner.trackBorrowed(&output);
+    loka::app::scene::NodeState<int> target(&output, owner.tracker(), &owner);
+    int firstCalls = 0, secondCalls = 0;
+    {
+      loka::dsl::StateStream<int> source(&input, owner.tracker(), &owner);
+      loka::dsl::StateStream<int> result;
+      if (expression)
+        result = source.map(loka::dsl::Expr<int, StreamCountExpr>(StreamCountExpr(&firstCalls)));
+      else
+        result = source.map(ChainAddOneMapper(&firstCalls));
+      if (chain)
+        result = result.map(ChainAddOneMapper(&secondCalls));
+      result.set(target);
+      assert(firstCalls == 1);
+      assert(secondCalls == (chain ? 1 : 0));
+      for (int write = 1; write <= 2; ++write)
+      {
+        {
+          loka::core::StateTrackerGuard ownerGuard(owner.tracker());
+          loka::core::StateTrackerGuard sourceGuard(crossTracker ? &sourceTracker : owner.tracker());
+          input.set(write + 10);
+          assert(output.get() == write + 11 + (chain ? 1 : 0));
+        }
+        assert(firstCalls == write + 1);
+        assert(secondCalls == (chain ? write + 1 : 0));
+      }
+    }
+    {
+      loka::core::StateTrackerGuard ownerGuard(owner.tracker());
+      loka::core::StateTrackerGuard sourceGuard(crossTracker ? &sourceTracker : owner.tracker());
+      input.set(99);
+    }
+    assert(firstCalls == 3);
+    assert(secondCalls == (chain ? 3 : 0));
+    if (crossTracker)
+      sourceTracker.removeState(&input);
+  }
+
+  struct StreamProjectedEval : loka::core::DerivedState<int>::EvalFn
+  {
+    loka::core::State<int> *source;
+    explicit StreamProjectedEval(loka::core::State<int> *value) : source(value) {}
+    int operator()() { return this->source->get() * 2; }
+  };
+}
+
+void testStateStreamSingleEvaluatorMap() { verifyStreamSingleEvaluator(false, false, false); }
+void testStateStreamSingleEvaluatorChain() { verifyStreamSingleEvaluator(true, false, false); }
+void testStateStreamSingleEvaluatorCrossTracker() { verifyStreamSingleEvaluator(false, true, false); }
+void testStateStreamSingleEvaluatorExpr() { verifyStreamSingleEvaluator(false, false, true); }
+
+void testStateStreamSingleEvaluatorCombine()
+{
+  loka::core::MutableState<int> left(1), right(10), output(0);
+  CharacterizationStateOwner owner;
+  owner.trackBorrowed(&left);
+  owner.trackBorrowed(&right);
+  owner.trackBorrowed(&output);
+  loka::app::scene::NodeState<int> target(&output, owner.tracker(), &owner);
+  int calls = 0;
+  loka::dsl::StateStream<int> a(&left, owner.tracker(), &owner);
+  loka::dsl::StateStream<int> b(&right, owner.tracker(), &owner);
+  loka::dsl::StateStream<int> combined = a.combine(b, StreamCountSum(&calls));
+  combined.set(target);
+  assert(calls == 1);
+  {
+    loka::core::StateTrackerGuard guard(owner.tracker());
+    left.set(2);
+    assert(output.get() == 12);
+  }
+  assert(calls == 2);
+  {
+    loka::core::StateTrackerGuard guard(owner.tracker());
+    right.set(20);
+    assert(output.get() == 22);
+  }
+  assert(calls == 3);
+}
+
+void testStateStreamSingleEvaluatorProjectedReader()
+{
+  // The public output door is a mutable NodeState, not the private stream State.
+  loka::core::MutableState<int> input(1), output(0);
+  CharacterizationStateOwner owner;
+  owner.trackBorrowed(&input);
+  owner.trackBorrowed(&output);
+  loka::app::scene::NodeState<int> target(&output, owner.tracker(), &owner);
+  int calls = 0;
+  loka::dsl::StateStream<int> source(&input, owner.tracker(), &owner);
+  loka::dsl::StateStream<int> mapped = source.map(ChainAddOneMapper(&calls));
+  mapped.set(target);
+  loka::core::DerivedState<int> *reader =
+      new loka::core::DerivedState<int>(&output, new StreamProjectedEval(&output));
+  owner.adoptState(reader);
+  {
+    loka::core::StateTrackerGuard guard(owner.tracker());
+    input.set(5);
+    assert(target.get() == 6);
+  }
+  assert(reader->get() == 12);
+  owner.releaseState(reader);
+}
