@@ -85,7 +85,9 @@ namespace loka
 
       /** Node participant whose holder must die before its node owner.
           RETIRED disconnects current and running residents without destroying them.
-          The testing-key form is unowned: holder lifetime only, no retirement refusal. */
+          The testing-key form is unowned: holder lifetime only, no retirement refusal.
+          If the node dies first, Debug asserts; in release the slot becomes
+          unowned, following holder lifetime with no node participation. */
       template <typename FlowT> class FlowSlot : private ComposableNode::Participant
       {
       public:
@@ -249,6 +251,8 @@ namespace loka
         }
 
       private:
+        friend struct loka::dsl::testing::FlowSlotTestAccess;
+
         // A step already on the stack may finish after RETIRED and try to
         // re-arm; that is a timing consequence, not misuse, so refuse quietly.
         bool mayParticipate() const
@@ -263,7 +267,8 @@ namespace loka
         }
         virtual void reclaim()
         {
-          // Node members unlink before the base destructor visits its rows.
+          // The node owns the registration, not this holder.
+          this->owner_ = 0;
           assert(false && "FlowSlot must not outlive its node owner");
         }
 

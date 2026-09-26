@@ -8178,6 +8178,55 @@ void testRetiredStreamChainDisconnectsAndReleasesOnce()
   LOKA_VERIFY(releasesAfterDestruction == 3);
 }
 
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define LOKA_FLOW_SLOT_PIN_ASAN 1
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+#define LOKA_FLOW_SLOT_PIN_ASAN 1
+#endif
+#if defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(NDEBUG) && !defined(LOKA_FLOW_SLOT_PIN_ASAN)
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+#endif
+
+void testFlowParticipantOwnerDiesBeforeHolder()
+{
+#if defined(NDEBUG) || (defined(__linux__) && defined(LOKA_LIFECYCLE_AUDIT) && !defined(LOKA_FLOW_SLOT_PIN_ASAN))
+#if !defined(NDEBUG)
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+#endif
+  {
+    CharacterizationBoundaryBase *node = new CharacterizationBoundaryBase();
+    loka::app::scene::FlowSlot<ParticipantFlow> *holder =
+        new loka::app::scene::FlowSlot<ParticipantFlow>(*node);
+    const loka::app::scene::ComposableNode *before =
+        loka::dsl::testing::FlowSlotTestAccess::owner(*holder);
+    LOKA_VERIFY(before == node);
+    delete node;
+    const loka::app::scene::ComposableNode *after =
+        loka::dsl::testing::FlowSlotTestAccess::owner(*holder);
+    LOKA_VERIFY(after == 0);
+    delete holder;
+#if !defined(NDEBUG)
+    _exit(0);
+#endif
+  }
+#if !defined(NDEBUG)
+  int status = 0;
+  const pid_t waited = waitpid(child, &status, 0);
+  LOKA_VERIFY(waited == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+#endif
+#else
+  std::fprintf(stderr, "[skip] node-first FlowSlot destruction needs NDEBUG or Linux audit Debug without ASan\n");
+#endif
+}
+#undef LOKA_FLOW_SLOT_PIN_ASAN
+
 void testFlowParticipantMemberUnlinksBeforeBaseDestruction()
 {
   loka::core::MutableState<int> source(0);

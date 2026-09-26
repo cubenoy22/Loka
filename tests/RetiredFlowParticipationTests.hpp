@@ -8,6 +8,7 @@ void testRetiredFlowWithdrawsSharedImpl();
 void testRetiredFlowWithdrawsReplacedRunningResident();
 void testRetiredStreamChainDisconnectsAndReleasesOnce();
 void testFlowParticipantMemberUnlinksBeforeBaseDestruction();
+void testFlowParticipantOwnerDiesBeforeHolder();
 void testRetiredFlowRefusesRearm();
 void testParkedFlowRetirementWithdraws();
 void testRetiredStreamBroadOwnerStopsEvaluation();
