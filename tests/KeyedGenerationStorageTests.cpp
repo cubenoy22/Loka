@@ -1280,12 +1280,11 @@ void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce()
   seats.registerRuntime(plan, parentA, activeA, ownerA);
 #ifdef NDEBUG
   seats.registerRuntime(plan, parentB, activeB, ownerB);
-  const BoundaryBranchSeatState &stored = seats;
-  const BoundaryBranchSeatRuntimeEntry *row = stored.findRuntime(plan.key);
-  LOKA_VERIFY(row);
-  LOKA_VERIFY(row->parent == parentA);
-  LOKA_VERIFY(row->stateOwner == ownerA);
-  LOKA_VERIFY(row->active == activeB);
+  BoundaryBranchSeatRuntimeEntry row;
+  LOKA_VERIFY(seats.queryRuntime(plan.key, row));
+  LOKA_VERIFY(row.parent == parentA);
+  LOKA_VERIFY(row.stateOwner == ownerA);
+  LOKA_VERIFY(row.active == activeB);
 #else
   const pid_t child = fork();
   LOKA_VERIFY(child >= 0);
