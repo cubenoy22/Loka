@@ -596,21 +596,21 @@ namespace smirkycard
           const char *name;
           TextWeight value;
         } weights[] = {{"normal", TEXT_WEIGHT_NORMAL}, {"bold", TEXT_WEIGHT_BOLD}};
-        size_t length = 0;
-        const char *name = JS_ToCStringLen(ctx, &length, value);
-        if (!name)
+        size_t weightLength = 0;
+        const char *weightName = JS_ToCStringLen(ctx, &weightLength, value);
+        if (!weightName)
         {
           JS_FreeValue(ctx, value);
           return false;
         }
         for (size_t j = 0; j < sizeof(weights) / sizeof(weights[0]); ++j)
-          if (length == strlen(weights[j].name) && !memcmp(name, weights[j].name, length))
+          if (weightLength == strlen(weights[j].name) && !memcmp(weightName, weights[j].name, weightLength))
           {
             result.weight(weights[j].value);
             accepted = true;
             break;
           }
-        JS_FreeCString(ctx, name);
+        JS_FreeCString(ctx, weightName);
       }
       JS_FreeValue(ctx, value);
       if (!accepted)
