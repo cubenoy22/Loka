@@ -74,7 +74,14 @@ namespace loka
     int LokaAllocAuditTotalLiveCount();
     /** Prints every site with a nonzero live count to stderr. */
     void LokaAllocAuditDump();
-    /** Aborts after printing all nonzero sites when any gate allocation is still live. */
+    /**
+     * Aborts after printing all nonzero sites when any gate allocation is still
+     * live. The count is process-wide and includes allocations that live as long
+     * as the process, such as Blob's shared empty handle made on first use, so
+     * zero holds only in a fresh process. A test pins its own balance by comparing
+     * LokaAllocAuditTotalLiveCount() with the value it captured at its start,
+     * because the no-argument runner runs every test in one process (#922).
+     */
     void LokaAllocAuditCheckpoint(const char *label);
 #endif
 

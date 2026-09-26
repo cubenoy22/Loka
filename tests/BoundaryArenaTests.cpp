@@ -706,6 +706,7 @@ namespace
     const loka::core::LokaAllocationSite heapStateSite("StateOwner", "MutableState");
 #ifdef LOKA_LIFECYCLE_AUDIT
     const int heapLiveBefore = loka::core::LokaAllocAuditLiveCount(heapStateSite);
+    const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
     g_gateBackendAllocCalls = 0;
     g_gateBackendFreeCalls = 0;
@@ -747,8 +748,7 @@ namespace
     loka::core::LokaAllocSetBackend(0, 0);
 #ifdef LOKA_LIFECYCLE_AUDIT
     assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore);
-    loka::core::LokaAllocAuditCheckpoint(
-        "testUnreservedStateFallsBackAfterReservedCapacityIsConsumed");
+    assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
 #endif
   }
 
@@ -2184,6 +2184,7 @@ void testStateArenaSlabsCrossAllocationGate()
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int blockLiveBefore = loka::core::LokaAllocAuditLiveCount(blockSite);
   const int slabLiveBefore = loka::core::LokaAllocAuditLiveCount(slabSite);
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
   g_gateBackendAllocCalls = 0;
   g_gateBackendFreeCalls = 0;
@@ -2212,7 +2213,7 @@ void testStateArenaSlabsCrossAllocationGate()
   // Full teardown balanced the ledger: the leak detector covers arena slabs.
   assert(loka::core::LokaAllocAuditLiveCount(blockSite) == blockLiveBefore);
   assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint("testStateArenaSlabsCrossAllocationGate");
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
 #endif
 }
 
@@ -2221,6 +2222,7 @@ void testNodeArenaSlabCrossesAllocationGate()
   const loka::core::LokaAllocationSite slabSite("NodeArena", "slab");
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int slabLiveBefore = loka::core::LokaAllocAuditLiveCount(slabSite);
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
   g_gateBackendAllocCalls = 0;
   g_gateBackendFreeCalls = 0;
@@ -2242,7 +2244,7 @@ void testNodeArenaSlabCrossesAllocationGate()
   loka::core::LokaAllocSetBackend(0, 0);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditLiveCount(slabSite) == slabLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint("testNodeArenaSlabCrossesAllocationGate");
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
 #endif
 }
 
@@ -2251,6 +2253,7 @@ void testHeapNodeCrossesAllocationGate()
   const loka::core::LokaAllocationSite nodeSite("NodeDefinition", "Node");
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int nodeLiveBefore = loka::core::LokaAllocAuditLiveCount(nodeSite);
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
   g_gateBackendAllocCalls = 0;
   g_gateBackendFreeCalls = 0;
@@ -2278,8 +2281,8 @@ void testHeapNodeCrossesAllocationGate()
   assert(g_gateBackendFreeCalls == g_gateBackendAllocCalls);
   loka::core::LokaAllocSetBackend(0, 0);
 #ifdef LOKA_LIFECYCLE_AUDIT
-  // Full teardown balanced the ledger for the heap-node site.
-  loka::core::LokaAllocAuditCheckpoint("testHeapNodeCrossesAllocationGate");
+  // Full teardown balanced the whole ledger, not only the heap-node site.
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
 #endif
 }
 
@@ -2344,6 +2347,7 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose()
   const loka::core::LokaAllocationSite heapStateSite("StateOwner", "MutableState");
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int heapLiveBefore = loka::core::LokaAllocAuditLiveCount(heapStateSite);
+  const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
   g_heapStateRefusals = 0;
   loka::core::LokaAllocSetBackend(&heapStateRefusingBackendAlloc, &delegatingBackendFree);
@@ -2382,7 +2386,7 @@ void testHeapFallbackWhiteFlagFailsBoundaryCompose()
   loka::core::LokaAllocSetBackend(0, 0);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditLiveCount(heapStateSite) == heapLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint("testHeapFallbackWhiteFlagFailsBoundaryCompose");
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
 #endif
 }
 
@@ -2447,8 +2451,6 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
   // The whole scene lifetime, including the refused mount, must leave the
   // audit ledger balanced.
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh");
 #endif
 }
 
@@ -2552,8 +2554,6 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
   g_attachRefuseState = false;
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry");
 #endif
 }
 
@@ -2760,8 +2760,6 @@ void testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement()
   assert(g_sectionOrderingChildDestructions == 2);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testBoundarySectionKeyIdentityAndTwoPhaseStateRetirement");
 #endif
 }
 
@@ -2824,8 +2822,6 @@ void testBoundarySectionRetainedKeyReconcilesReplacedChild()
   assert(g_sectionOrderingChildDestructions == 1);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testBoundarySectionRetainedKeyReconcilesReplacedChild");
 #endif
 }
 
@@ -2909,8 +2905,6 @@ void testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic()
   g_sectionFailureHeapCalls = 0;
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testBoundarySectionAllocationFailureKeepsBoundaryRefusalAtomic");
 #endif
 }
 
@@ -2956,8 +2950,6 @@ void testBoundarySectionGridUsesEnclosingStateArenaEconomically()
   assert(g_sectionHeapStateFrees == g_sectionHeapStateAllocs);
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalLiveBefore);
-  loka::core::LokaAllocAuditCheckpoint(
-      "testBoundarySectionGridUsesEnclosingStateArenaEconomically");
 #endif
 }
 

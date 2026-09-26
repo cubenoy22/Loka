@@ -200,6 +200,11 @@ void testLokaAllocAuditBalancedUseCountsToZero()
   assert(loka::core::LokaAllocAuditLiveCount(gateProbeSite()) == liveBefore);
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalBefore);
 
+  // The one absolute checkpoint left in the suite: under ctest it runs in a
+  // fresh process, so it also catches a gate allocation made during static
+  // initialization. In the no-argument runner it holds only while it stays
+  // registered before the first test that makes a process-lifetime allocation
+  // (the Scrapbook tests make Blob's shared empty handle) (#922).
   loka::core::LokaAllocAuditCheckpoint("testLokaAllocAuditBalancedUseCountsToZero");
 #endif
 }
