@@ -34,4 +34,6 @@ void testPartialReplacementAdmittedDiscardSkipsDetach();
 void testPartialReplacementConditionalCommitsNestedObservations();
 void testPartialReplacementShowCommitsNestedObservations();
 void testPartialReplacementLocalRebuildCommitsNestedObservations();
+void testPartialTreeNestedReconcileGrowsSeatLedger925();
+void testPartialTreeNestedReconcileRefusalAfterLedgerGrowth925();
 #endif

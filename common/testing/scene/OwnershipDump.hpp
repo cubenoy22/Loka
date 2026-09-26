@@ -55,8 +55,17 @@ namespace loka
         /** Runtime rows for the boundary's declared seats, including retired links. */
         static std::string dumpSeatRuntime(const ::loka::app::scene::BoundaryNode &boundary)
         {
+          using namespace ::loka::app::scene;
+          std::vector<const BoundaryBranchSeatRuntimeEntry *> rows;
+          collectSeatRuntime(boundary, boundary.branchSeats_, rows);
           std::ostringstream output;
-          dumpScopeRuntime(boundary, boundary.branchSeats_, output);
+          for (size_t i = 0; i < rows.size(); ++i)
+          {
+            const bool parentAttached = rows[i]->parent && rows[i]->parent->lifecycleFact() == NODE_FACT_ATTACHED;
+            const bool activeAttached = rows[i]->active && rows[i]->active->lifecycleFact() == NODE_FACT_ATTACHED;
+            output << "seat parent=" << (parentAttached ? "attached" : "retired")
+                   << " active=" << (activeAttached ? "attached" : "retired") << "\n";
+          }
           return output.str();
         }
 
@@ -67,10 +76,23 @@ namespace loka
           return boundary.branchSeats_;
         }
 
+        /** Storage addresses of the rows dumpSeatRuntime() prints, in the same
+            order. Identity only: a pin compares them across one ledger
+            operation to prove that a row moved, and never dereferences one. */
+        static std::vector<const void *> seatRuntimeRowAddresses(
+            const ::loka::app::scene::BoundaryNode &boundary)
+        {
+          std::vector<const ::loka::app::scene::BoundaryBranchSeatRuntimeEntry *> rows;
+          collectSeatRuntime(boundary, boundary.branchSeats_, rows);
+          return std::vector<const void *>(rows.begin(), rows.end());
+        }
+
       private:
-        static void dumpScopeRuntime(const ::loka::app::scene::BoundaryNode &boundary,
-                                     const ::loka::app::scene::BoundaryBranchSeatState &scope,
-                                     std::ostringstream &output)
+        /** Declaration order: each plan's row, then its declared scope's rows. */
+        static void collectSeatRuntime(
+            const ::loka::app::scene::BoundaryNode &boundary,
+            const ::loka::app::scene::BoundaryBranchSeatState &scope,
+            std::vector<const ::loka::app::scene::BoundaryBranchSeatRuntimeEntry *> &rows)
         {
           using namespace ::loka::app::scene;
           const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
@@ -78,14 +100,9 @@ namespace loka
           {
             const BoundaryBranchSeatRuntimeEntry *row = boundary.branchSeats_.findRuntime(plans[i].key);
             if (row)
-            {
-              const bool parentAttached = row->parent && row->parent->lifecycleFact() == NODE_FACT_ATTACHED;
-              const bool activeAttached = row->active && row->active->lifecycleFact() == NODE_FACT_ATTACHED;
-              output << "seat parent=" << (parentAttached ? "attached" : "retired")
-                     << " active=" << (activeAttached ? "attached" : "retired") << "\n";
-            }
+              rows.push_back(row);
             const BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
-            if (nested) dumpScopeRuntime(boundary, *nested, output);
+            if (nested) collectSeatRuntime(boundary, *nested, rows);
           }
         }
 

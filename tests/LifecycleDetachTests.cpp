@@ -21,6 +21,7 @@
 #include "platform/null/NullWindow.hpp"
 #include "support/Headless.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
+#include "support/LocalRebuildRefusal.hpp"
 #include "app/nodes/nestable/Keyed.hpp"
 #include "support/WindowAdmissionTestApp.hpp"
 #include "testing/scene/SceneFocusTestAccess.hpp"
@@ -2317,10 +2318,8 @@ void testConditionalConditionWriteDuringDetachDoesNotMaterializeBranch()
 }
 
 // Retained props refusal keeps later nodes owned or retired.
-namespace loka { namespace app { namespace testing {
-  void failLocalRebuildProbeProps(unsigned count);
-  bool consumeLocalRebuildProbePropsFailure();
-} } }
+using LocalRebuildRefusalSupport::RebuildRefusalObservation;
+using LocalRebuildRefusalSupport::RefusingRetainedFragment;
 
 namespace
 {
@@ -2377,33 +2376,6 @@ namespace
       if (node && strandObservation)
         ++strandObservation->heapCandidatesCreated;
       return node;
-    }
-  };
-
-  struct RebuildRefusalObservation
-  {
-    INestable &root;
-    size_t linkedChildren;
-    explicit RebuildRefusalObservation(INestable &value)
-        : root(value), linkedChildren(value.childrenCount()) {}
-    void record() { this->linkedChildren = this->root.childrenCount(); }
-  };
-
-  struct RefusingRetainedFragment : FragmentDefinition
-  {
-    RebuildRefusalObservation *observation;
-    explicit RefusingRetainedFragment(RebuildRefusalObservation *value = 0)
-        : observation(value) {}
-    virtual NodeDefinitionBase *clone() const { return new RefusingRetainedFragment(*this); }
-    virtual bool applyPropsToNode(Node *node) const
-    {
-      if (loka::app::testing::consumeLocalRebuildProbePropsFailure())
-      {
-        if (this->observation)
-          this->observation->record();
-        return false;
-      }
-      return FragmentDefinition::applyPropsToNode(node);
     }
   };
 
