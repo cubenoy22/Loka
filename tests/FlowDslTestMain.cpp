@@ -1,3 +1,4 @@
+#include "StateStreamEvaluationTests.hpp"
 #include "StateStreamChainTests.hpp"
 #include "FocusPublisherTests.hpp"
 #ifdef __APPLE__
