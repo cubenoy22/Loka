@@ -8252,6 +8252,8 @@ void testRetiredStreamBroadOwnerStopsEvaluation()
     LOKA_VERIFY(calls == before);
   }
   owner.tracker()->asPushTracker()->removeState(&source);
+}
+
 namespace
 {
   struct StreamCountExpr
