@@ -189,7 +189,7 @@ namespace loka
         };
 
         void record(const BoundaryBranchSeatPlanEntry &plan, Node *parent,
-                    const NodeMaterializationResult &active, IStateOwner *stateOwner = 0)
+                    const NodeMaterializationResult &active, IStateOwner *stateOwner)
         {
           this->entries_.push_back(Entry(plan, parent, active, stateOwner));
         }
@@ -364,13 +364,13 @@ namespace loka
         void registerRuntime(const BoundaryBranchSeatPlanEntry &plan,
                              Node *parent,
                              Node *active,
-                             IStateOwner *stateOwner = 0)
+                             IStateOwner *stateOwner)
         {
           BoundaryBranchSeatRuntimeEntry *existing = this->findRuntime(plan.key);
           if (existing)
           {
-            existing->parent = parent;
-            existing->stateOwner = stateOwner;
+            assert(existing->parent == parent);
+            assert(existing->stateOwner == stateOwner);
             existing->active = active;
             existing->activeArm = plan.selectedArm;
             existing->hasActiveArm = plan.hasSelectedArm;

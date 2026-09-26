@@ -13,11 +13,17 @@
 #include "platform/null/NullScenePlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "testing/scene/OwnershipDump.hpp"
+#include "testing/core/HeldTestAccess.hpp"
 #include "core/LokaAlloc.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include <cstdio>
 #include <cstring>
 #include <map>
+#if !defined(NDEBUG) && defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#include <signal.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 namespace
 {
@@ -1151,4 +1157,124 @@ void testNestedKeyedReshowCommitsStagedDeclarations()
 void testNestedKeyedReshowRefusalDiscardsStagedDeclarations()
 {
   nestedKeyedReshow(true);
+}
+
+namespace
+{
+  class ParkedSectionRoot : public ParkedRoot
+  {
+  public:
+    explicit ParkedSectionRoot(const BoundaryPropsFor<Root<true> > &p) : ParkedRoot(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(Show(*this->shown.state())
+                << (Section(7021) << Keyed(
+                        *this->key.state(),
+                        static_cast<Root<true> *>(this),
+                        &Root<true>::declareArm,
+                        loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<
+                            loka::app::FragmentNode,
+                            1,
+                            loka::app::reservation::Nodes<
+                                loka::app::BoundarySectionNode,
+                                1,
+                                loka::app::reservation::Nodes<ResidentNode, 1, loka::app::reservation::End> > > >())));
+    }
+  };
+
+  void verifyKeyedSectionOwner(BoundaryNode &root, BoundarySectionNode *section)
+  {
+    LOKA_VERIFY(section && findSection(&root, 7021) == section);
+    const BoundaryBranchSeatState &seats = loka::dsl::testing::OwnershipDump::seatState(root);
+    const std::vector<BoundaryBranchSeatPlanEntry> &plans = seats.plans();
+    size_t checked = 0;
+    for (size_t i = 0; i < plans.size(); ++i)
+    {
+      if (!plans[i].seat()->needsBranchDeclaration() && !plans[i].seat()->declaredBranchSeats())
+        continue;
+      const BoundaryBranchSeatRuntimeEntry *row = seats.findRuntime(plans[i].key);
+      LOKA_VERIFY(row && row->active);
+      LOKA_VERIFY(row->parent == section);
+      LOKA_VERIFY(row->stateOwner == static_cast<IStateOwner *>(section));
+      IStateOwner *generation = row->active->asStateOwner();
+      LOKA_VERIFY(generation && generation->holdLedger());
+      LOKA_VERIFY(loka::core::testing::HeldTestAccess::enclosingOwner(*generation->holdLedger()) ==
+                  static_cast<IStateOwner *>(section));
+      ++checked;
+    }
+    LOKA_VERIFY(checked == 1);
+  }
+} // namespace
+
+void testVacatedKeyedReshowKeepsSectionStateOwner()
+{
+  // The first pass is the no-hide control: each key change drains normally.
+  for (int hide = 0; hide < 2; ++hide)
+  {
+    AllocationProbe allocations;
+    ComponentLifetime lifetime;
+    {
+      NullScenePlatformController platform;
+      Scene scene((BoundaryDefinition<BoundaryPropsFor<Root<true> >, ParkedSectionRoot>((BoundaryPropsFor<Root<true> >()))));
+      scene.mount(&platform);
+      loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+      ParkedSectionRoot *root = static_cast<ParkedSectionRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+      BoundarySectionNode *section = findSection(root, 7021);
+      verifyKeyedSectionOwner(*root, section);
+      replaceWithoutDrain(scene, *root, root->key, 1);
+      LOKA_VERIFY(nestedKeyedRoots(root) == 0);
+      if (hide)
+      {
+        replaceWithoutDrain(scene, *root, root->shown, false);
+        scene.flushInvalidation();
+        writeState(*root, root->shown, true);
+      }
+      scene.flushInvalidation();
+      verifyKeyedSectionOwner(*root, section);
+      writeState(*root, root->key, 2);
+      scene.flushInvalidation();
+      verifyKeyedSectionOwner(*root, section);
+    }
+    LOKA_VERIFY(lifetime.constructed == lifetime.destroyed);
+    verifyBalanced(allocations);
+  }
+}
+
+void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce()
+{
+#if defined(NDEBUG) || (defined(TEST_BUILD) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__))
+  BoundaryBranchSeatState seats;
+  const BoundaryBranchSeatPlanEntry plan(BoundaryParkedBranchKey(1, 0, 0, &seats));
+  // Inert identities, as in the ComponentContext pins: stored, never dereferenced.
+  Node *const parentA = reinterpret_cast<Node *>(0x1000);
+  Node *const parentB = reinterpret_cast<Node *>(0x2000);
+  Node *const activeA = reinterpret_cast<Node *>(0x3000);
+  Node *const activeB = reinterpret_cast<Node *>(0x4000);
+  IStateOwner *const ownerA = reinterpret_cast<IStateOwner *>(0x5000);
+  IStateOwner *const ownerB = reinterpret_cast<IStateOwner *>(0x6000);
+  seats.registerRuntime(plan, parentA, activeA, ownerA);
+#ifdef NDEBUG
+  seats.registerRuntime(plan, parentB, activeB, ownerB);
+  const BoundaryBranchSeatState &stored = seats;
+  const BoundaryBranchSeatRuntimeEntry *row = stored.findRuntime(plan.key);
+  LOKA_VERIFY(row);
+  LOKA_VERIFY(row->parent == parentA);
+  LOKA_VERIFY(row->stateOwner == ownerA);
+  LOKA_VERIFY(row->active == activeB);
+#else
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    seats.registerRuntime(plan, parentB, activeB, ownerB);
+    _exit(0);
+  }
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
+#endif
+#else
+  std::printf("[skip] Seat row write-once pin requires NDEBUG or TEST_BUILD Linux without ASan for fork/SIGABRT.\n");
+#endif
 }
