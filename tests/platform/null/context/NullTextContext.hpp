@@ -23,20 +23,22 @@ struct NullTextPaintStyle
         weight(loka::app::TEXT_WEIGHT_NORMAL),
         italic(false),
         wrap(loka::app::TEXT_WRAP_NONE),
-        truncation(loka::app::TEXT_TRUNCATION_NONE)
+        truncation(loka::app::TEXT_TRUNCATION_NONE),
+        align(loka::app::TEXT_ALIGN_LEFT)
   {
   }
   explicit NullTextPaintStyle(const loka::app::TextProps &props);
   bool operator==(const NullTextPaintStyle &other) const
   {
     return fontSize == other.fontSize && weight == other.weight && italic == other.italic
-           && wrap == other.wrap && truncation == other.truncation;
+           && wrap == other.wrap && truncation == other.truncation && align == other.align;
   }
   int fontSize;
   loka::app::TextWeight weight;
   bool italic;
   loka::app::TextWrap wrap;
   loka::app::TextTruncation truncation;
+  loka::app::TextAlign align;
 };
 
 class NullTextContext : public loka::app::scene::NativeNodeContext

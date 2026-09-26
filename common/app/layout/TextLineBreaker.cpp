@@ -391,6 +391,32 @@ namespace loka
       }
       return true;
     }
+    int SyntheticTextLineWidth(const TextLineRecord &line, const BlockStyle &block, short availableWidth)
+    {
+      int width = line.width;
+      if ((!block.hasWrap_ || block.wrap_ == TEXT_WRAP_NONE) && availableWidth > 0 && width > availableWidth
+          && block.hasTruncation_)
+      {
+        switch (block.truncation_)
+        {
+        case TEXT_TRUNCATION_NONE:
+          break;
+        case TEXT_TRUNCATION_CLIP:
+          width = availableWidth;
+          break;
+        case TEXT_TRUNCATION_ELLIPSIS:
+        {
+          const int size = SizeOf(line.metrics.ascent + line.metrics.descent).fontSize_;
+          const int advance = syntheticAdvance(size);
+          const int capacity = availableWidth / advance;
+          width = (capacity > 0 ? capacity : 1) * advance;
+          break;
+        }
+        }
+      }
+      return width;
+    }
+
     core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth)
     {
       assert(result.valid());
@@ -398,27 +424,7 @@ namespace loka
       for (std::size_t i = 0; i < result.lineCount(); ++i)
       {
         const TextLineRecord &line = result.line(i);
-        int width = line.width;
-        if ((!block.hasWrap_ || block.wrap_ == TEXT_WRAP_NONE) && availableWidth > 0 && width > availableWidth
-            && block.hasTruncation_)
-        {
-          switch (block.truncation_)
-          {
-          case TEXT_TRUNCATION_NONE:
-            break;
-          case TEXT_TRUNCATION_CLIP:
-            width = availableWidth;
-            break;
-          case TEXT_TRUNCATION_ELLIPSIS:
-          {
-            const int size = SizeOf(line.metrics.ascent + line.metrics.descent).fontSize_;
-            const int advance = syntheticAdvance(size);
-            const int capacity = availableWidth / advance;
-            width = (capacity > 0 ? capacity : 1) * advance;
-            break;
-          }
-          }
-        }
+        const int width = SyntheticTextLineWidth(line, block, availableWidth);
         if (width > maxWidth)
           maxWidth = width;
       }
