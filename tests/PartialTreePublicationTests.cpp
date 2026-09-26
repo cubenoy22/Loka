@@ -1033,7 +1033,7 @@ namespace
     LOKA_VERIFY(current.stateOwner == old.stateOwner);
     LOKA_VERIFY(current.hasOwner == old.hasOwner && current.ownerArm == old.ownerArm);
     const bool sameIdentity = current.key.matches(old.key) && current.ownerKey.matches(old.ownerKey)
-                              && current.shape.armCount == old.shape.armCount;
+                              && current.armCount == old.armCount;
     LOKA_VERIFY(sameIdentity);
   }
 

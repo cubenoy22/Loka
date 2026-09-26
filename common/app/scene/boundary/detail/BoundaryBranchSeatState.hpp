@@ -36,17 +36,6 @@ namespace loka
         BranchPolicies policies;
       };
 
-      /** Declared arm count used for branch lookup and retirement. */
-      struct BoundaryBranchSeatShape
-      {
-        BoundaryBranchSeatShape()
-            : armCount(0)
-        {
-        }
-
-        unsigned armCount;
-      };
-
       struct BoundaryBranchSeatPlanEntry
       {
         BoundaryBranchSeatPlanEntry(const BoundaryParkedBranchKey &keyValue)
@@ -55,7 +44,7 @@ namespace loka
               definition(0),
               selectedArm(0),
               hasSelectedArm(false),
-              shape(),
+              armCount(0),
               hasOwner(false),
               ownerKey(keyValue),
               ownerArm(0)
@@ -65,7 +54,7 @@ namespace loka
         BoundaryBranchPlanBranch branch(unsigned arm) const
         {
           BoundaryBranchPlanBranch result;
-          if (!this->seat() || arm >= this->shape.armCount)
+          if (!this->seat() || arm >= this->armCount)
           {
             return result;
           }
@@ -89,9 +78,9 @@ namespace loka
         {
           unsigned arm = 0;
           const bool selected = this->seat() && this->seat()->selectArm(arm);
-          assert((!selected || arm < this->shape.armCount) &&
+          assert((!selected || arm < this->armCount) &&
                  "branch seat selected an arm outside its declared arm count");
-          this->hasSelectedArm = selected && arm < this->shape.armCount;
+          this->hasSelectedArm = selected && arm < this->armCount;
           this->selectedArm = this->hasSelectedArm ? arm : 0;
         }
 
@@ -114,7 +103,7 @@ namespace loka
         }
         unsigned selectedArm;
         bool hasSelectedArm;
-        BoundaryBranchSeatShape shape;
+        unsigned armCount;
         bool hasOwner;
         BoundaryParkedBranchKey ownerKey;
         unsigned ownerArm;
@@ -124,7 +113,7 @@ namespace loka
       {
         BoundaryBranchSeatRuntimeEntry()
             : key(NODE_TAG_NONE, 0, 0, 0), parent(0), active(0), activeArm(0),
-              hasActiveArm(false), shape(), hasOwner(false),
+              hasActiveArm(false), armCount(0), hasOwner(false),
               ownerKey(NODE_TAG_NONE, 0, 0, 0), ownerArm(0), stateOwner(0)
         {
         }
@@ -134,7 +123,7 @@ namespace loka
                                        Node *activeValue,
                                        unsigned armValue,
                                        bool hasActiveArmValue,
-                                       const BoundaryBranchSeatShape &shapeValue,
+                                       unsigned armCountValue,
                                        bool hasOwnerValue,
                                        const BoundaryParkedBranchKey &ownerKeyValue,
                                        unsigned ownerArmValue,
@@ -144,7 +133,7 @@ namespace loka
               active(activeValue),
               activeArm(armValue),
               hasActiveArm(hasActiveArmValue),
-              shape(shapeValue),
+              armCount(armCountValue),
               hasOwner(hasOwnerValue),
               ownerKey(ownerKeyValue),
               ownerArm(ownerArmValue),
@@ -158,7 +147,7 @@ namespace loka
         Node *active;
         unsigned activeArm;
         bool hasActiveArm;
-        BoundaryBranchSeatShape shape;
+        unsigned armCount;
         bool hasOwner;
         BoundaryParkedBranchKey ownerKey;
         unsigned ownerArm;
@@ -381,7 +370,7 @@ namespace loka
           BoundaryBranchSeatRuntimeEntry *row = this->findRuntime(key);
           if (!row)
             return false;
-          assert(row->shape.armCount == plan.shape.armCount);
+          assert(row->armCount == plan.armCount);
           row->active = active;
           row->activeArm = plan.selectedArm;
           row->hasActiveArm = plan.hasSelectedArm;
@@ -412,7 +401,7 @@ namespace loka
             existing->active = active;
             existing->activeArm = plan.selectedArm;
             existing->hasActiveArm = plan.hasSelectedArm;
-            existing->shape = plan.shape;
+            existing->armCount = plan.armCount;
             existing->hasOwner = plan.hasOwner;
             existing->ownerKey = plan.ownerKey;
             existing->ownerArm = plan.ownerArm;
@@ -423,7 +412,7 @@ namespace loka
                                                                   active,
                                                                   plan.selectedArm,
                                                                   plan.hasSelectedArm,
-                                                                  plan.shape,
+                                                                  plan.armCount,
                                                                   plan.hasOwner,
                                                                   plan.ownerKey,
                                                                   plan.ownerArm,
@@ -465,7 +454,7 @@ namespace loka
             key = this->runtime_[i].key;
             arm = this->runtime_[i].activeArm;
             hasActiveArm = this->runtime_[i].hasActiveArm;
-            armCount = this->runtime_[i].shape.armCount;
+            armCount = this->runtime_[i].armCount;
             this->runtime_.erase(this->runtime_.begin() + i);
             return true;
           }
@@ -487,7 +476,7 @@ namespace loka
                 this->runtime_[i].ownerArm == ownerArm)
             {
               erasedKey = this->runtime_[i].key;
-              erasedArmCount = this->runtime_[i].shape.armCount;
+              erasedArmCount = this->runtime_[i].armCount;
               this->runtime_.erase(this->runtime_.begin() + i);
               return true;
             }
@@ -590,7 +579,7 @@ namespace loka
             BoundaryBranchSeatPlanEntry entry(key);
             entry.dirtySource = seat->branchCondition();
             entry.definition = definition;
-            entry.shape.armCount = seat->armCount();
+            entry.armCount = seat->armCount();
             entry.snapshotSelection();
             if (ownerKey)
             {
@@ -603,7 +592,7 @@ namespace loka
             if (!seat->declaredBranchSeats())
             {
               // Fixed arms belong to this scope; declaring seats own their arms.
-              for (unsigned arm = 0; arm < entry.shape.armCount; ++arm)
+              for (unsigned arm = 0; arm < entry.armCount; ++arm)
                 this->captureDefinition(entry.branch(arm).definition, &storedKey, arm);
             }
             return;
