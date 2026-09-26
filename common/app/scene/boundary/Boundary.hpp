@@ -734,12 +734,6 @@ namespace loka
           return result;
         }
 
-        void appendNestedBranchSeatPlan(NodeComposition &composition)
-        {
-          composition.assignCompositionSeatSlots();
-          this->branchSeats_.append(composition.root());
-          this->registerBranchSeatDirtySources();
-        }
         bool evaluateBranchSeatsForScheduledApply(ComponentContext &context)
         {
           return this->applyCurrentBranchSeatPlan(context);
@@ -1378,12 +1372,13 @@ namespace loka
               effectiveDefinition = scope->scopedBranchDefinition();
             }
             const BoundaryBranchSeatPlanEntry *seatPlan = this->branchSeatPlan(effectiveDefinition, seatScope);
-            BoundaryBranchSeatRuntimeEntry *seatRuntime =
-                seatPlan ? this->branchSeats_.findRuntime(seatPlan->key) : 0;
+            BoundaryBranchSeatRuntimeEntry seatRuntime;
+            const bool hasSeatRuntime =
+                seatPlan && this->branchSeats_.queryRuntime(seatPlan->key, seatRuntime);
             Node *existing =
                 mode == RETAINED_CHILD_PLAN_REPLACE_ALL
                     ? (slot < liveChildren.size() ? liveChildren[slot] : 0)
-                    : (seatRuntime ? seatRuntime->active : 0);
+                    : (hasSeatRuntime ? seatRuntime.active : 0);
             if (mode == RETAINED_CHILD_PLAN_PRESERVE_MATCHES &&
                 !seatPlan && !existing &&
                 effectiveDefinition->nodeTag() != NODE_TAG_NONE)
@@ -1438,7 +1433,7 @@ namespace loka
                 created = materialized.root;
                 plan.branchSeatRegistrations.record(
                     *seatPlan, runtimeParent, materialized,
-                    seatRuntime && seatRuntime->stateOwner ? seatRuntime->stateOwner : context.stateOwner());
+                    hasSeatRuntime && seatRuntime.stateOwner ? seatRuntime.stateOwner : context.stateOwner());
               }
               else
               {
@@ -1574,9 +1569,9 @@ namespace loka
               plan.materializedBranchDefinition(emptyBranch);
           NodeComposition composition;
           ComponentContext branchContext(context);
-          BoundaryBranchSeatRuntimeEntry *runtime = this->branchSeats_.findRuntime(plan.key);
-          if (runtime && runtime->stateOwner)
-            branchContext.setStateOwner(runtime->stateOwner);
+          BoundaryBranchSeatRuntimeEntry runtime;
+          if (this->branchSeats_.queryRuntime(plan.key, runtime) && runtime.stateOwner)
+            branchContext.setStateOwner(runtime.stateOwner);
           composition.setContext(&branchContext);
           composition.collectBranchSeatRegistrationsIn(&registrations);
           assert(context.boundary() == this);
@@ -1879,11 +1874,13 @@ namespace loka
           // rule, applyLocalRebuildPlan).
           this->branchSeats_.reserveRuntimeRegistrations(nestedRegistrations.count());
 
+          BoundaryBranchSeatRuntimeEntry existingRow;
           INestable *parent = runtimeParent ? runtimeParent->asNestable() : 0;
           const detail::SeatReservation *reservation = plan.seat()->seatReservation();
-          const bool installed = outgoing
-              ? parent && parent->replaceChild(outgoing, incoming)
-              : reservation && this->seatReservations_.installSeatChild(reservation->request(), incoming);
+          const bool installed = this->branchSeats_.queryRuntime(plan.key, existingRow) &&
+              (outgoing
+                   ? parent && parent->replaceChild(outgoing, incoming)
+                   : reservation && this->seatReservations_.installSeatChild(reservation->request(), incoming));
           if (!installed)
           {
             if (pending.root())
@@ -1928,18 +1925,11 @@ namespace loka
           this->commitBranchSeatRegistrations(nestedRegistrations, this->branchSeats_);
           if (declaresBranch)
             declareBoundaryDirtySources(this, this);
-          BoundaryBranchSeatRuntimeEntry *committedRuntime =
-              this->branchSeats_.findRuntime(plan.key);
-          assert(committedRuntime &&
+          const bool committed = this->branchSeats_.commitActiveArm(plan.key, incoming, plan);
+          assert(committed &&
                  "replacing a branch must preserve its definition-side seat mapping");
-          if (!committedRuntime)
-          {
+          if (!committed)
             return false;
-          }
-          committedRuntime->active = incoming;
-          committedRuntime->activeArm = plan.selectedArm;
-          committedRuntime->hasActiveArm = plan.hasSelectedArm;
-          committedRuntime->shape = plan.shape;
           if (context.nodeStorage())
             incoming->markPrecomposedAttach();
           else
@@ -1973,7 +1963,7 @@ namespace loka
 
         bool applyWaitingKeyedSeat(ComponentContext &context,
                                    BoundaryBranchSeatPlanEntry &plan,
-                                   BoundaryBranchSeatRuntimeEntry &runtime,
+                                   const BoundaryBranchSeatRuntimeEntry &runtime,
                                    const detail::SeatReservation &reservation)
         {
           detail::SeatBuildRequest &request = reservation.request();
@@ -1996,11 +1986,10 @@ namespace loka
             }
             plan.seat()->commitBranchDeclaration(0);
             this->retireSeatBranchRoot(context, outgoing);
-            BoundaryBranchSeatRuntimeEntry *surviving = this->branchSeats_.findRuntime(plan.key);
-            if (!surviving)
+            const bool vacated = this->branchSeats_.vacateActiveArm(plan.key);
+            assert(vacated && "retiring an arm must preserve its seat mapping");
+            if (!vacated)
               return false;
-            surviving->active = 0;
-            surviving->hasActiveArm = false;
             this->noteLocalStructureWork();
             return true;
           }
@@ -2011,7 +2000,7 @@ namespace loka
 
         bool applyBranchSeat(ComponentContext &context,
                              BoundaryBranchSeatPlanEntry &mutablePlan,
-                             BoundaryBranchSeatRuntimeEntry &runtime)
+                             const BoundaryBranchSeatRuntimeEntry &runtime)
         {
           if (!mutablePlan.dirtySource)
           {
@@ -2066,9 +2055,9 @@ namespace loka
           const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
           for (size_t i = 0; i < plans.size(); ++i)
           {
-            BoundaryBranchSeatRuntimeEntry *runtime =
-                this->branchSeats_.findRuntime(plans[i].key);
-            if (!runtime || !this->branchSeats_.isLive(*runtime))
+            BoundaryBranchSeatRuntimeEntry runtime;
+            if (!this->branchSeats_.queryRuntime(plans[i].key, runtime) ||
+                !this->branchSeats_.isLive(runtime))
             {
               continue;
             }
@@ -2081,7 +2070,7 @@ namespace loka
             BoundaryBranchSeatPlanEntry *plan =
                 this->branchSeats_.findPlan(plans[i].key);
             if (!plan || !plan->definition ||
-                !this->applyBranchSeat(context, *plan, *runtime))
+                !this->applyBranchSeat(context, *plan, runtime))
             {
               return false;
             }
@@ -2099,9 +2088,8 @@ namespace loka
           for (unsigned i = 0; BoundaryParkedBranchLedger::Entry *parked = this->parkedBranches_.entry(i); ++i)
           {
             BoundaryBranchSeatPlanEntry *plan = this->branchSeats_.findPlan(parked->key);
-            BoundaryBranchSeatRuntimeEntry *runtime =
-                plan ? this->branchSeats_.findRuntime(plan->key) : 0;
-            if (!plan || !runtime ||
+            BoundaryBranchSeatRuntimeEntry runtime;
+            if (!plan || !this->branchSeats_.queryRuntime(plan->key, runtime) ||
                 !plan->branch(parked->arm).policies.deliverWhileDetached)
             {
               continue;

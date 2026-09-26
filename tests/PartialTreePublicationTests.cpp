@@ -1009,7 +1009,10 @@ namespace
   BoundaryBranchSeatRuntimeEntry replacementRow(Scene &scene)
   {
     const BoundaryBranchSeatState &seats = replacementSeats(scene);
-    return *seats.findRuntime(seats.plans()[0].key);
+    BoundaryBranchSeatRuntimeEntry row;
+    const bool found = seats.queryRuntime(seats.plans()[0].key, row);
+    LOKA_VERIFY(found);
+    return row;
   }
 
   int scopeRoots(Node *node)
@@ -1101,8 +1104,20 @@ void testPartialReplacementConditionFlip()
   refresh(scene);
   LOKA_VERIFY(data.attempts == attempts);
   verifyOldReplacement(scene, platform, old);
+  BoundaryNode &root = *SceneTestAccess::rootBoundary(scene);
+  const std::vector<const void *> before =
+      loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(root);
+  LOKA_VERIFY(!before.empty());
   data.refusing = false;
   flipReplacement(scene, true);
+  const std::vector<const void *> after =
+      loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(root);
+  LOKA_VERIFY(after.size() > before.size() && after[0] != before[0]);
+  const BoundaryBranchSeatRuntimeEntry committed = replacementRow(scene);
+  LOKA_VERIFY(committed.active && committed.active != old.active);
+  LOKA_VERIFY(committed.active == root.childrenHead());
+  LOKA_VERIFY(committed.hasActiveArm && committed.activeArm == 1);
+  LOKA_VERIFY(committed.parent == old.parent && committed.stateOwner == old.stateOwner);
   LOKA_VERIFY(platform.published == data.declared);
   LOKA_VERIFY(scopeRoots(SceneTestAccess::rootBoundary(scene)) == 1);
 }

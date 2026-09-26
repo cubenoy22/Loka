@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_NODE_HEADLESS_HPP
 
 #include <cassert>
+#include "testing/scene/OwnershipDump.hpp"
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/boundary/Boundary.hpp"
@@ -109,7 +110,7 @@ namespace loka
           }
           if (context.boundary())
           {
-            context.boundary()->appendNestedBranchSeatPlan(composition);
+            loka::dsl::testing::OwnershipDump::appendNestedBranchSeatPlan(*context.boundary(), composition);
           }
           context.setComposition(&composition);
           const NodeMaterializationResult result = composition.createNodeTreeCompleted();

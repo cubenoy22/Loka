@@ -1051,7 +1051,7 @@ namespace
         NodeComposition::CompositionScope scope(composition);
         this->composeNode(composition);
       }
-      context.boundary()->appendNestedBranchSeatPlan(composition);
+      loka::dsl::testing::OwnershipDump::appendNestedBranchSeatPlan(*context.boundary(), composition);
       context.setComposition(&composition);
       const NodeMaterializationResult result = composition.createNodeTreeCompleted();
       assert(!result.allocationFailed && !result.requiresBoundaryPlan);

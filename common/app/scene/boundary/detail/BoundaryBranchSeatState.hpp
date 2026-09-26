@@ -12,6 +12,14 @@
 
 namespace loka
 {
+  namespace dsl
+  {
+    namespace testing
+    {
+      class OwnershipDump;
+    }
+  }
+
   namespace app
   {
     namespace scene
@@ -114,6 +122,13 @@ namespace loka
 
       struct BoundaryBranchSeatRuntimeEntry
       {
+        BoundaryBranchSeatRuntimeEntry()
+            : key(NODE_TAG_NONE, 0, 0, 0), parent(0), active(0), activeArm(0),
+              hasActiveArm(false), shape(), hasOwner(false),
+              ownerKey(NODE_TAG_NONE, 0, 0, 0), ownerArm(0), stateOwner(0)
+        {
+        }
+
         BoundaryBranchSeatRuntimeEntry(const BoundaryParkedBranchKey &keyValue,
                                        Node *parentValue,
                                        Node *activeValue,
@@ -344,21 +359,44 @@ namespace loka
           return const_cast<BoundaryBranchSeatState *>(this)->findPlan(key);
         }
 
-        BoundaryBranchSeatRuntimeEntry *findRuntime(const BoundaryParkedBranchKey &key)
+        /** Copies one row from this Boundary's ledger; leaves out unchanged on
+            absence. The type prevents retaining a reference into the ledger,
+            but does not protect the copy's freshness. Callers rely on synchronous
+            admission: no shipping path changes the ledger between taking the
+            copy and using its borrowed facts. */
+        bool queryRuntime(const BoundaryParkedBranchKey &key,
+                          BoundaryBranchSeatRuntimeEntry &out) const
         {
-          for (size_t i = 0; i < this->runtime_.size(); ++i)
-          {
-            if (this->runtime_[i].key.matches(key))
-            {
-              return &this->runtime_[i];
-            }
-          }
-          return 0;
+          const BoundaryBranchSeatRuntimeEntry *row = this->findRuntime(key);
+          if (!row)
+            return false;
+          out = *row;
+          return true;
         }
 
-        const BoundaryBranchSeatRuntimeEntry *findRuntime(const BoundaryParkedBranchKey &key) const
+        /** Commits only the active-arm facts of an existing row, by key. */
+        bool commitActiveArm(const BoundaryParkedBranchKey &key, Node *active,
+                             const BoundaryBranchSeatPlanEntry &plan)
         {
-          return const_cast<BoundaryBranchSeatState *>(this)->findRuntime(key);
+          BoundaryBranchSeatRuntimeEntry *row = this->findRuntime(key);
+          if (!row)
+            return false;
+          assert(row->shape.armCount == plan.shape.armCount);
+          row->active = active;
+          row->activeArm = plan.selectedArm;
+          row->hasActiveArm = plan.hasSelectedArm;
+          return true;
+        }
+
+        /** Vacates an existing row without changing its registration facts. */
+        bool vacateActiveArm(const BoundaryParkedBranchKey &key)
+        {
+          BoundaryBranchSeatRuntimeEntry *row = this->findRuntime(key);
+          if (!row)
+            return false;
+          row->active = 0;
+          row->hasActiveArm = false;
+          return true;
         }
 
         void registerRuntime(const BoundaryBranchSeatPlanEntry &plan,
@@ -483,6 +521,25 @@ namespace loka
         }
 
       private:
+        friend class ::loka::dsl::testing::OwnershipDump;
+
+        BoundaryBranchSeatRuntimeEntry *findRuntime(const BoundaryParkedBranchKey &key)
+        {
+          for (size_t i = 0; i < this->runtime_.size(); ++i)
+          {
+            if (this->runtime_[i].key.matches(key))
+            {
+              return &this->runtime_[i];
+            }
+          }
+          return 0;
+        }
+
+        const BoundaryBranchSeatRuntimeEntry *findRuntime(const BoundaryParkedBranchKey &key) const
+        {
+          return const_cast<BoundaryBranchSeatState *>(this)->findRuntime(key);
+        }
+
         BoundaryParkedBranchKey keyFor(NodeDefinitionBase &definition, IBranchSeatDefinition &seat)
         {
           return BoundaryParkedBranchKey(
