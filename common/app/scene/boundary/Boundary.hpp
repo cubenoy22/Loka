@@ -1437,7 +1437,8 @@ namespace loka
                 }
                 created = materialized.root;
                 plan.branchSeatRegistrations.record(
-                    *seatPlan, runtimeParent, materialized);
+                    *seatPlan, runtimeParent, materialized,
+                    seatRuntime && seatRuntime->stateOwner ? seatRuntime->stateOwner : context.stateOwner());
               }
               else
               {
