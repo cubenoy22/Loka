@@ -666,7 +666,7 @@ namespace loka
         if (ownerTracker && ownerTracker->phase() != loka::core::TRACKER_IDLE)
         {
           binding->retain();
-          ownerTracker->defer(&BoundaryNode::ObservedStateDeferredInvalidateThunk, binding);
+          ownerTracker->defer(loka::core::TrackerDeferKey(), &BoundaryNode::ObservedStateDeferredInvalidateThunk, binding);
           return;
         }
         binding->boundary->markViewDirty(flags);

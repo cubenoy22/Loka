@@ -69,7 +69,7 @@ namespace loka
       phase_ = TRACKER_PRECOMMIT;
     }
 
-    void PushStateTracker::defer(void (*fn)(void *), void *userData)
+    void PushStateTracker::defer(TrackerDeferKey, void (*fn)(void *), void *userData)
     {
       transaction_.intake(phase_).deferred.push_back(std::make_pair(fn, userData));
     }

@@ -9,9 +9,13 @@ namespace loka
   {
     namespace testing
     {
-      /** Test-only access to walk identity and tracker-owned registration rows. */
+      /** Test-only access to deferred work, walk identity and tracker-owned registration rows. */
       struct PushStateTrackerTestAccess
       {
+        static void defer(StateTracker &tracker, void (*fn)(void *), void *userData)
+        {
+          tracker.defer(TrackerDeferKey(), fn, userData);
+        }
         /** Counts actual invalidate deliveries while preserving their production route.
             The probe must outlive the tracker it instruments. */
         struct InvalidationProbe
