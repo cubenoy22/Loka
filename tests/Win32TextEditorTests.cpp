@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
@@ -528,7 +529,7 @@ namespace
       const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
       const PaintAnswer answer = observer.fixture.context->queryPaintDamage(query);
       LOKA_VERIFY(answer.kind == PAINT_ANSWER_EXACT);
-      observer.fixture.tracker.defer(&flushed, &observer);
+      loka::core::testing::PushStateTrackerTestAccess::defer(observer.fixture.tracker, &flushed, &observer);
       if (observer.nested)
       {
         observer.nested = false;

@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
 #include "MacTextEditorTests.hpp"
@@ -313,7 +314,7 @@ namespace
       {
         self.nested = false;
         if (self.deferred)
-          self.fixture.tracker.defer(&reenter, &self);
+          loka::core::testing::PushStateTrackerTestAccess::defer(self.fixture.tracker, &reenter, &self);
         else
           reenter(&self);
       }

@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "LazyScopeTests.hpp"
 #include "support/TestVerify.hpp"
@@ -457,7 +458,7 @@ void testLazyScopeUnmountCancelsWatch()
     const int calls = r.copyCalls;
     {
       loka::core::StateTrackerGuard guard(&tracker);
-      tracker.defer(&writePendingSource, &source);
+      loka::core::testing::PushStateTrackerTestAccess::defer(tracker, &writePendingSource, &source);
       loka::dsl::testing::SceneTestAccess::unmount(scene);
     }
     LOKA_VERIFY(r.copyCalls == calls);

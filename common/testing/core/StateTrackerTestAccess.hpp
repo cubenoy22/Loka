@@ -9,9 +9,13 @@ namespace loka
   {
     namespace testing
     {
-      /** Test-only access to walk identity and tracker-owned registration rows. */
+      /** Test-only access to deferred work, walk identity and tracker-owned registration rows. */
       struct PushStateTrackerTestAccess
       {
+        static void defer(StateTracker &tracker, void (*fn)(void *), void *userData)
+        {
+          tracker.defer(TrackerDeferKey(), fn, userData);
+        }
         static size_t currentDirtyCount(const PushStateTracker &tracker)
         {
           return tracker.transaction_.current.dirtyStates.size();

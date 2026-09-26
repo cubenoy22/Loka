@@ -6979,7 +6979,7 @@ namespace
       ++begins;
       currentPhase = loka::core::TRACKER_PRECOMMIT;
     }
-    void defer(void (*)(void *), void *)
+    void defer(loka::core::TrackerDeferKey, void (*)(void *), void *)
     {
     }
     void markDirty(loka::core::StateBase *)

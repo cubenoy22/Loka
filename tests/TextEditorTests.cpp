@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
@@ -91,7 +92,7 @@ namespace
     {
       Observer &self = *static_cast<Observer *>(data);
       ++self.immediate;
-      self.fixture.tracker.defer(&flushed, &self);
+      loka::core::testing::PushStateTrackerTestAccess::defer(self.fixture.tracker, &flushed, &self);
       LOKA_VERIFY(loka::app::testing::TextEditorAccess::document(self.fixture.node)
                       .moveCaret(self.fixture.cursor.state()->get())
                   == EDITOR_REENTRANT);

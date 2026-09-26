@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -276,8 +277,8 @@ namespace
                      static_cast<void *>(this->observed_.state()),
                      static_cast<void *>(this->props.trace->ownerDuringParent),
                      static_cast<void *>(this->tracker()));
-        this->tracker()->defer(&setChildStateFromParentCommit, this->props.trace);
-        this->tracker()->defer(&setObservedStateAgainFromParentCommit, this->props.trace);
+        loka::core::testing::PushStateTrackerTestAccess::defer(*this->tracker(), &setChildStateFromParentCommit, this->props.trace);
+        loka::core::testing::PushStateTrackerTestAccess::defer(*this->tracker(), &setObservedStateAgainFromParentCommit, this->props.trace);
       }
     }
 
@@ -521,7 +522,7 @@ void testUnobservedCommitDoesNotDirtyBoundary()
   {
     loka::core::StateTrackerGuard guard(boundary->tracker());
     boundary->privateCount.set(3);
-    boundary->tracker()->defer(&RemoveCommittedState::run, &removal);
+    loka::core::testing::PushStateTrackerTestAccess::defer(*boundary->tracker(), &RemoveCommittedState::run, &removal);
   }
   LOKA_VERIFY(removal.tracker->committedDirtyStates().empty());
   LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) ==
@@ -539,7 +540,7 @@ void testUnobservedCommitDoesNotDirtyBoundary()
     loka::core::StateTrackerGuard guard(boundary->tracker());
     boundary->layout.set(loka::app::STACK_AXIS_ROW);
     boundary->paint.set(false);
-    boundary->tracker()->defer(&RemoveCommittedState::run, &partialRemoval);
+    loka::core::testing::PushStateTrackerTestAccess::defer(*boundary->tracker(), &RemoveCommittedState::run, &partialRemoval);
   }
   LOKA_VERIFY(!partialRemoval.tracker->committedDirtyStates().empty());
   LOKA_VERIFY(!partialRemoval.tracker->committedIdentitiesComplete());

@@ -1,3 +1,4 @@
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorReportRefusal.hpp"
@@ -192,7 +193,7 @@ namespace
       if (o.external)
       {
         o.external = false;
-        o.f.tracker.defer(&settled, &o);
+        loka::core::testing::PushStateTrackerTestAccess::defer(o.f.tracker, &settled, &o);
       }
     }
     static void settled(void *p)
