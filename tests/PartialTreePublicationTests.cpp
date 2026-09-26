@@ -1646,3 +1646,243 @@ void testBranchSeatCaptureOverLiveLedgerAborts()
   std::printf("[skip] Live-ledger capture death pin requires TEST_BUILD Linux Debug with lifecycle audit and without ASan.\n");
 #endif
 }
+
+#include "RetiredStateParticipationTests.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
+
+namespace
+{
+  typedef loka::core::testing::PushStateTrackerTestAccess TrackerAccess;
+  class ParticipationScope;
+  struct ParticipationData
+  {
+    const bool observed;
+    const bool derived;
+    const bool pending;
+    const bool parkable;
+    int evaluations;
+    int destroyed;
+    ParticipationScope *scope;
+    loka::core::StateTrackerGuard *transaction;
+    TrackerAccess::InvalidationProbe publication;
+    ParticipationData(bool observe, bool derive, bool dirty = false, bool park = false)
+        : observed(observe), derived(derive), pending(dirty), parkable(park),
+          evaluations(0), destroyed(0), scope(0), transaction(0) {}
+    ~ParticipationData() { LOKA_VERIFY(this->transaction == 0); }
+  };
+  ParticipationData *participation = 0;
+
+  struct ParticipationEval : loka::core::DerivedState<int>::EvalFn
+  {
+    const NodeState<int> &input;
+    explicit ParticipationEval(const NodeState<int> &source) : input(source) {}
+    virtual int operator()()
+    {
+      ++participation->evaluations;
+      return this->input.get() + 1;
+    }
+  };
+  struct ParticipationTag {};
+  struct ParticipationProps : NodePropsBase<ParticipationProps>
+  {
+    typedef ParticipationTag TypeTag;
+    typedef ParticipationScope NodeType;
+    bool operator<(const PropsBase &) const { return false; }
+  };
+  class ParticipationScope : public LazyScopeNode
+  {
+  public:
+    typedef ParticipationProps Props;
+    typedef ParticipationTag TypeTag;
+    Props props;
+    NodeState<int> local;
+    DerivedNodeState<int> result;
+    explicit ParticipationScope(const Props &p) : props(p)
+    {
+      participation->scope = this;
+      this->state(this->local, 0);
+      if (participation->derived)
+        this->derived(this->result, this->local, new ParticipationEval(this->local));
+    }
+    virtual ~ParticipationScope() { ++participation->destroyed; }
+    virtual void declareDirtySources(DirtySourceRegistrar &registrar)
+    {
+      if (participation->observed)
+        registrar.markDirtyOnChange(this->local.state(), NODE_DIRTY_LAYOUT);
+    }
+    virtual void declareScope(NodeComposition &c)
+    {
+      BoundaryNode *boundary = this->componentContext()->boundary();
+      // The aggregate also makes an unobserved local commit externally visible.
+      boundary->addObservedDirtyFlags(NODE_DIRTY_LAYOUT);
+      if (participation->observed)
+        boundary->registerObservedState(this->local.state(), NODE_DIRTY_LAYOUT);
+      participation->publication.install(*this->asStateOwner()->tracker()->asPushTracker());
+      if (participation->pending)
+      {
+        participation->transaction = new loka::core::StateTrackerGuard(this->asStateOwner()->tracker());
+        this->local.set(1);
+      }
+      c.declare(FragmentDefinition().tag(1));
+    }
+  };
+  class ParticipationRoot : public BoundaryNodeFor<ParticipationRoot>
+  {
+  public:
+    explicit ParticipationRoot(const BoundaryPropsFor<ParticipationRoot> &p) : BoundaryNodeFor<ParticipationRoot>(p) {}
+    virtual void composeNode(NodeComposition &c)
+    {
+      if (participation->parkable)
+        c.declare(Show(fixture->condition) <<
+                  LazyScopeDefinition<bool, ParticipationScope>(fixture->nestedSelection, ParticipationProps()));
+      else
+        c.declare(FragmentDefinition() <<
+                  LazyScopeDefinition<bool, ParticipationScope>(fixture->nestedSelection, ParticipationProps()) <<
+                  RefusedChild().tag(2));
+    }
+  };
+
+  void holdUpdateCycle(Scene &scene)
+  {
+    scene.requestInvalidate(NODE_DIRTY_PROPS);
+    const bool began = SceneTestAccess::director(scene).beginRefreshCycle();
+    LOKA_VERIFY(began);
+  }
+
+  void discardParticipation(bool refuse, bool observed, bool derived, bool pending, bool activeCycle)
+  {
+    PublicationFixture data(PLAIN, 2, refuse);
+    FixtureScope fixtureScope(data);
+    ParticipationData state(observed, derived, pending);
+    participation = &state;
+    PublicationObserver platform;
+    Scene scene((Boundary<ParticipationRoot>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    LOKA_VERIFY(state.scope != 0 && state.destroyed == 0);
+    LOKA_VERIFY((data.refusals > 0) == refuse);
+    LOKA_VERIFY(state.scope->lifecycleFact() == (refuse ? NODE_FACT_RETIRED : NODE_FACT_ATTACHED));
+    BoundaryNode *boundary = SceneTestAccess::rootBoundary(scene);
+    if (!refuse)
+      state.publication.install(*state.scope->asStateOwner()->tracker()->asPushTracker());
+    if (activeCycle) holdUpdateCycle(scene);
+    const int evaluations = state.evaluations;
+    if (pending)
+    {
+      LOKA_VERIFY(state.scope->asStateOwner()->tracker()->phase() == loka::core::TRACKER_PRECOMMIT);
+      LOKA_VERIFY(state.scope->asStateOwner()->tracker()->asPushTracker()->transactionDirty());
+      delete state.transaction;
+      state.transaction = 0;
+    }
+    else
+      state.scope->local.set(7);
+    // No active cycle in the mode-4 pin: on the baseline the original
+    // invalidate callback drains the retired GenerationRoot inside end().
+    std::fprintf(stderr, "932 discard=%d observed=%d derived=%d pending=%d active=%d commits=%d evals=%d destroyed=%d dirty=%u\n",
+                 refuse, observed, derived, pending, activeCycle, state.publication.calls,
+                 state.evaluations - evaluations, state.destroyed, static_cast<unsigned>(SceneTestAccess::accumulatedBoundaryDirtyFlags(scene, boundary)));
+    LOKA_VERIFY(state.destroyed == 0);
+    LOKA_VERIFY(state.publication.calls == (refuse ? 0 : 1));
+    if (activeCycle)
+      LOKA_VERIFY((SceneTestAccess::accumulatedBoundaryDirtyFlags(scene, boundary) != NODE_DIRTY_NONE) == (!refuse && observed));
+    if (derived)
+      LOKA_VERIFY(state.evaluations - evaluations == (refuse ? 0 : 1));
+    LOKA_VERIFY(state.scope->local.get() == (pending ? 1 : 7));
+    if (activeCycle) SceneTestAccess::director(scene).completeUpdateCycle();
+    // Reclaim must tolerate the earlier removal without freeing anything twice.
+    scene.flushInvalidation();
+  }
+
+  void updateParticipationTree(Scene &scene, BoundaryNode &root)
+  {
+    ComponentContext context;
+    context.setBoundary(&root);
+    context.setStateOwner(&root);
+    context.setScene(&scene);
+    context.setPlatformController(SceneTestAccess::platformController(scene));
+    context.setDirtyFlags(NODE_DIRTY_CHILD);
+    BoundaryNode::composeSubtree(&root, context, COMPOSE_EVENT_UPDATE, 0);
+  }
+
+  void changeParticipationSelection(Scene &scene, BoundaryNode &root,
+                                    loka::core::MutableState<bool> &selection, bool value)
+  {
+    {
+      loka::core::StateTrackerGuard guard(root.tracker());
+      selection.set(value);
+    }
+    updateParticipationTree(scene, root);
+  }
+
+  void ordinaryParticipation(bool park)
+  {
+    PublicationFixture data(PLAIN, 2, false);
+    FixtureScope fixtureScope(data);
+    ParticipationData state(true, true, false, park);
+    participation = &state;
+    PublicationObserver platform;
+    Scene scene((Boundary<ParticipationRoot>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    BoundaryNode *root = SceneTestAccess::rootBoundary(scene);
+    ParticipationScope *original = state.scope;
+    state.publication.install(*original->asStateOwner()->tracker()->asPushTracker());
+    holdUpdateCycle(scene);
+    original->local.set(1);
+    LOKA_VERIFY(state.publication.calls == 1 && state.evaluations == 2);
+    if (park)
+    {
+      changeParticipationSelection(scene, *root, data.condition, false);
+      LOKA_VERIFY(original->lifecycleFact() == NODE_FACT_DETACHED_RETAINED);
+      changeParticipationSelection(scene, *root, data.condition, true);
+      LOKA_VERIFY(original->lifecycleFact() == NODE_FACT_ATTACHED);
+      LOKA_VERIFY(state.scope == original);
+      state.publication.install(*original->asStateOwner()->tracker()->asPushTracker());
+    }
+    else
+    {
+      changeParticipationSelection(scene, *root, data.nestedSelection, true);
+      LOKA_VERIFY(original->lifecycleFact() == NODE_FACT_RETIRED);
+    }
+    LOKA_VERIFY(state.destroyed == 0);
+    SceneTestAccess::director(scene).completeUpdateCycle();
+    holdUpdateCycle(scene);
+    const int evaluationsBeforeWrite = state.evaluations;
+    original->local.set(2);
+    std::fprintf(stderr, "932 ordinary park=%d commits=%d evals=%d->%d destroyed=%d\n",
+                 park, state.publication.calls, evaluationsBeforeWrite, state.evaluations, state.destroyed);
+    LOKA_VERIFY(state.publication.calls == (park ? 2 : 1));
+    LOKA_VERIFY(state.evaluations - evaluationsBeforeWrite == (park ? 1 : 0));
+    LOKA_VERIFY((SceneTestAccess::accumulatedBoundaryDirtyFlags(scene, root) != NODE_DIRTY_NONE) == park);
+    SceneTestAccess::director(scene).completeUpdateCycle();
+    scene.flushInvalidation();
+  }
+}
+
+void testRetiredStateDiscardStopsPublication()
+{
+  discardParticipation(false, false, false, false, true);
+  discardParticipation(true, false, false, false, true);
+}
+void testRetiredStateDiscardStopsDerivedEvaluation()
+{
+  discardParticipation(false, false, true, false, true);
+  discardParticipation(true, false, true, false, true);
+}
+void testRetiredStateObservedWriteDoesNotDrainInsideEnd()
+{
+  discardParticipation(false, true, true, false, false);
+  discardParticipation(true, true, true, false, false);
+}
+void testRetiredStateDiscardForgetsAncestorObservation()
+{
+  discardParticipation(false, true, false, false, true);
+  discardParticipation(true, true, false, false, true);
+}
+void testRetiredStateDirtyTransactionCannotPublish()
+{
+  discardParticipation(false, true, true, true, true);
+  discardParticipation(true, true, true, true, true);
+}
+void testRetiredStateGenerationReplacementWithdraws() { ordinaryParticipation(false); }
+void testRetiredStateParkAndReattachKeepsParticipation() { ordinaryParticipation(true); }

@@ -28,6 +28,15 @@ namespace loka
         virtual void adoptState(core::StateBase *state) = 0;
         virtual void adoptStateUnchecked(core::StateBase *state) = 0;
         virtual void releaseState(core::StateBase *state) = 0;
+        /** Disconnects one inner-owned row without releasing its storage.
+            Broad owners keep their participation until their own teardown. */
+        virtual void withdrawState(core::StateBase *state)
+        {
+          (void)state;
+        }
+        /** Terminal withdrawal of an inner owner's rows and publication route.
+            Broad owners deliberately keep the no-op. */
+        virtual void withdrawOwnedStates() {}
         virtual void reserveStates(size_t count) = 0;
         /** Ensures arena capacity for one allocation batch. An arena
             reservation refusal is storage-strategy degradation, not a logical

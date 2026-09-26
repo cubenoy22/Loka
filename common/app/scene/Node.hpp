@@ -735,7 +735,15 @@ namespace loka
             if (next == NODE_FACT_RETIRED) focusRow->unlink();
           }
           this->onLifecycleFactChanged(previous, next);
+          if (next == NODE_FACT_RETIRED)
+            this->withdrawStateParticipation();
         }
+        /** After RETIRED, a write to a withdrawn State may change its value
+            but propagates nothing. Withdraw the inner owner's participation;
+            storage stays on the owning clock. In ~Node, base-only
+            asStateOwner() returns null: derived owners are already gone. */
+        void withdrawStateParticipation();
+
         static void MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact);
         static void DeliverLifecycleFactsSubtree(Node *node);
 

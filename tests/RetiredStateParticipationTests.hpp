@@ -1,0 +1,10 @@
+#ifndef LOKA_TESTS_RETIRED_STATE_PARTICIPATION_TESTS_HPP
+#define LOKA_TESTS_RETIRED_STATE_PARTICIPATION_TESTS_HPP
+void testRetiredStateDiscardStopsPublication();
+void testRetiredStateDiscardStopsDerivedEvaluation();
+void testRetiredStateObservedWriteDoesNotDrainInsideEnd();
+void testRetiredStateDiscardForgetsAncestorObservation();
+void testRetiredStateDirtyTransactionCannotPublish();
+void testRetiredStateGenerationReplacementWithdraws();
+void testRetiredStateParkAndReattachKeepsParticipation();
+#endif

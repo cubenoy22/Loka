@@ -12,6 +12,29 @@ namespace loka
       /** Test-only access to walk identity and tracker-owned registration rows. */
       struct PushStateTrackerTestAccess
       {
+        /** Counts actual invalidate deliveries while preserving their production route.
+            The probe must outlive the tracker it instruments. */
+        struct InvalidationProbe
+        {
+          InvalidationProbe() : calls(0), callback(0), data(0) {}
+          void install(PushStateTracker &tracker)
+          {
+            this->callback = tracker.invalidateFn_;
+            this->data = tracker.invalidateUserData_;
+            tracker.setInvalidateCallback(&InvalidationProbe::invoke, this);
+          }
+          int calls;
+        private:
+          PushStateTracker::InvalidateFn callback;
+          void *data;
+          static void invoke(void *data)
+          {
+            InvalidationProbe *self = static_cast<InvalidationProbe *>(data);
+            ++self->calls;
+            if (self->callback) self->callback(self->data);
+          }
+        };
+
         static size_t currentDirtyCount(const PushStateTracker &tracker)
         {
           return tracker.transaction_.current.dirtyStates.size();
