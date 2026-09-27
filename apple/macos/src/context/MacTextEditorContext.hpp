@@ -62,13 +62,13 @@ private:
   void *parent_;
   void *scroll_;
   void *delegate_;
-  /** Project only; return scheduling/paint intent to the owning operation. */
-  loka::app::scene::FollowUp syncFromNode(bool force, bool nativeCommit = false);
-  void projectHighlights();
-  /** Restore the committed selection without replacing text or clearing undo. */
-  void restoreSelectionFromFact();
-  bool queryVisibleLines(unsigned &) const;
   class RailOperation;
+  /** Project only; return scheduling/paint intent to the owning operation. */
+  loka::app::scene::FollowUp syncFromNode(RailOperation &op, bool force, bool nativeCommit = false);
+  void projectHighlights(RailOperation &op);
+  /** Restore the committed selection without replacing text or clearing undo. */
+  void restoreSelectionFromFact(RailOperation &op);
+  bool queryVisibleLines(unsigned &) const;
   class CommandOperation;
   void settle(loka::app::scene::Settlement, RailOperation &);
   loka::app::scene::FollowUp prepareRestore();

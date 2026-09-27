@@ -603,7 +603,6 @@ EditorResult ToolboxTextEditorContext::key(char key)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  scene::Node *const liveNode = this->node_;
   const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
   const Rect scroll = (**this->te_).destRect;
   // One controller call per key: scan this TE's CR prefix for each endpoint,
@@ -628,7 +627,7 @@ EditorResult ToolboxTextEditorContext::key(char key)
     result = EDITOR_STALE_ID;
   else
     result = this->node_->seam(this->key_).applyReplace(from, to, key == '\b' ? "" : &key, key == '\b' ? 0 : 1);
-  if (liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return result;
   const bool refused = result != EDITOR_OK || this->phase_ == RECONCILE;
   if (refused)
@@ -641,10 +640,9 @@ EditorResult ToolboxTextEditorContext::click(const Point &point)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  scene::Node *const liveNode = this->node_;
   TEClick(point, false, this->te_);
   result = this->node_->seam(this->key_).moveCaret(this->cursorAt((**this->te_).selStart));
-  if (liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return result;
   return this->finishInput(result, CARET_CHANGE, op);
 }
@@ -654,7 +652,6 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  scene::Node *const liveNode = this->node_;
   // Refuse before TE's signed-short storage can overflow.
   if (length > TextEditorProps::kMaxBytes)
     result = EDITOR_CAPACITY;
@@ -667,7 +664,7 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
     const LineCursor to = start == end ? from : this->cursorAt(end);
     result = this->node_->seam(this->key_).applyReplace(from, to, bytes, length);
   }
-  if (liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return result;
   result = this->finishInput(result, CARET_CHANGE, op);
   return result;
@@ -729,7 +726,6 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
 {
   if (!this->controller() || !this->node_)
     return;
-  scene::Node *const liveNode = this->node_;
   RailOperation op(*this);
   TEHandle te = this->controller()->ensureTextEditorControl(this, this->rect_, this->lifetimeHint());
   if (te != this->te_)
@@ -740,7 +736,7 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
   }
   else if (!te)
     this->settle(scene::SETTLE_ATTACH, op);
-  if (liveNode->getContext() == this)
+  if (op.hasSameContext())
     this->repaint(this->te_);
 }
 bool RegisterToolboxTextEditorNodeHandler(scene::PlatformNodeHandlerRegistry &registry)
