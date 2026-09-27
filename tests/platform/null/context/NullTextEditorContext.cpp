@@ -14,15 +14,16 @@ namespace
       return node && node->nodeTypeKey() == scene::NodeTypeToken<TextEditorNode>() ? static_cast<TextEditorNode *>(node)
                                                                                    : 0;
     }
-    static NullTextEditorContext *create(TextEditorNode *node, scene::IPlatformController *, const scene::LayoutState &)
+    static NullTextEditorContext *create(TextEditorNode *node, scene::IPlatformController *controller, const scene::LayoutState &)
     {
-      return new NullTextEditorContext(node, seamKey());
+      return new NullTextEditorContext(*controller, node, seamKey());
     }
   };
   NullTextEditorHandler textEditorHandler;
 } // namespace
-NullTextEditorContext::NullTextEditorContext(TextEditorNode *node, const scene::SeamKey<TextEditorNode> &key)
+NullTextEditorContext::NullTextEditorContext(scene::IPlatformController &controller, TextEditorNode *node, const scene::SeamKey<TextEditorNode> &key)
     : key_(key),
+      controller_(controller),
       node_(node),
       buffer_(),
       caret_(),
@@ -104,78 +105,6 @@ std::size_t NullTextEditorContext::nativeOffset() const
   }
   return std::min(this->buffer_.size(), offset + static_cast<std::size_t>(std::max(0, this->caret_.column)));
 }
-EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, const LineCursor *move)
-{
-  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
-  {
-    this->settle(scene::SETTLE_INPUT,
-                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
-                                                                 : LineCursor::None());
-    return EDITOR_UNAVAILABLE;
-  }
-  if (this->status_ != EDITOR_OK)
-  {
-    const EditorResult status = this->status_;
-    this->settle(scene::SETTLE_INPUT,
-                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
-                                                                 : LineCursor::None());
-    return status;
-  }
-  const LineCursor factBefore = this->node_->props.cursorState()->get();
-  scene::Node *const liveNode = this->node_;
-  const LineCursor before = this->caret_;
-  const std::size_t offset = this->nativeOffset();
-  // A real native control has already changed before its owner is notified.
-  if (move)
-    this->caret_ = *move;
-  else if (join)
-  {
-    if (offset)
-      this->buffer_.erase(offset - 1, 1);
-  }
-  else
-    this->buffer_.insert(offset, bytes);
-  if (this->phase_ != IDLE)
-  {
-    this->phase_ = RECONCILE;
-    return EDITOR_REENTRANT;
-  }
-  this->phase_ = INPUT;
-  EditorResult result;
-  if (move)
-    result = this->node_->seam(this->key_).moveCaret(*move);
-  else if (join)
-  {
-    const loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
-    const int index = lines.find(before.line);
-    if (before.column != 0)
-      result = EDITOR_INVALID_CURSOR;
-    else if (index < 0)
-      result = EDITOR_STALE_ID;
-    else if (!index)
-      result = EDITOR_OK;
-    else
-    {
-      const unsigned short previous = static_cast<unsigned short>(index - 1);
-      const LineCursor from(lines.at(previous).id,
-                            static_cast<LineCursor::Column>(
-                                lines.at(previous).value.bufferWithEncoding(loka::core::StringEncodingUtf8).length()));
-      result = this->node_->seam(this->key_).applyReplace(from, before, "", 0);
-    }
-  }
-  else
-    result = this->node_->seam(this->key_).applyReplace(before, before, bytes.data(), bytes.size());
-  if (liveNode->getContext() != this)
-    return result;
-  const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
-  this->phase_ = IDLE;
-  if (reconcile)
-    this->restoreCommittedProjection(before);
-  else
-    this->project(before);
-  this->settle(scene::SETTLE_INPUT, factBefore);
-  return result;
-}
 void NullTextEditorContext::syncFromNode()
 {
   if (this->phase_ == IDLE)
@@ -190,6 +119,8 @@ void NullTextEditorContext::syncFromNode()
 class NullTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
+  explicit RailOperation(NullTextEditorContext &context)
+      : scene::RailOperation<LineCursor>(context.controller_, context.node_, &context) {}
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
     request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;
@@ -374,7 +305,7 @@ scene::Admission loka::testing::TextEditorInput::probeAdmission(
 {
   const NullTextEditorContext::Phase before = c.phase_;
   c.phase_ = busy ? NullTextEditorContext::RECONCILE : NullTextEditorContext::IDLE;
-  NullTextEditorContext::RailOperation rail;
+  NullTextEditorContext::RailOperation rail(c);
   scene::Admission admission;
   if (command)
   {
@@ -394,6 +325,79 @@ scene::Admission loka::testing::TextEditorInput::probeAdmission(
   return admission;
 }
 #endif
+EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, const LineCursor *move)
+{
+  RailOperation op(*this);
+  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
+  {
+    this->settle(scene::SETTLE_INPUT,
+                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                                 : LineCursor::None());
+    return EDITOR_UNAVAILABLE;
+  }
+  if (this->status_ != EDITOR_OK)
+  {
+    const EditorResult status = this->status_;
+    this->settle(scene::SETTLE_INPUT,
+                 this->node_ && this->node_->props.cursorState() ? this->node_->props.cursorState()->get()
+                                                                 : LineCursor::None());
+    return status;
+  }
+  const LineCursor factBefore = this->node_->props.cursorState()->get();
+  scene::Node *const liveNode = this->node_;
+  const LineCursor before = this->caret_;
+  const std::size_t offset = this->nativeOffset();
+  // A real native control has already changed before its owner is notified.
+  if (move)
+    this->caret_ = *move;
+  else if (join)
+  {
+    if (offset)
+      this->buffer_.erase(offset - 1, 1);
+  }
+  else
+    this->buffer_.insert(offset, bytes);
+  if (this->phase_ != IDLE)
+  {
+    this->phase_ = RECONCILE;
+    return EDITOR_REENTRANT;
+  }
+  this->phase_ = INPUT;
+  EditorResult result;
+  if (move)
+    result = this->node_->seam(this->key_).moveCaret(*move);
+  else if (join)
+  {
+    const loka::core::ObservableList<loka::core::String> &lines = *this->node_->props.lines_;
+    const int index = lines.find(before.line);
+    if (before.column != 0)
+      result = EDITOR_INVALID_CURSOR;
+    else if (index < 0)
+      result = EDITOR_STALE_ID;
+    else if (!index)
+      result = EDITOR_OK;
+    else
+    {
+      const unsigned short previous = static_cast<unsigned short>(index - 1);
+      const LineCursor from(lines.at(previous).id,
+                            static_cast<LineCursor::Column>(
+                                lines.at(previous).value.bufferWithEncoding(loka::core::StringEncodingUtf8).length()));
+      result = this->node_->seam(this->key_).applyReplace(from, before, "", 0);
+    }
+  }
+  else
+    result = this->node_->seam(this->key_).applyReplace(before, before, bytes.data(), bytes.size());
+  if (liveNode->getContext() != this)
+    return result;
+  const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
+  this->phase_ = IDLE;
+  if (reconcile)
+    this->restoreCommittedProjection(before);
+  else
+    this->project(before);
+  this->settle(scene::SETTLE_INPUT, factBefore);
+  return result;
+}
 void NullTextEditorContext::settle(scene::Settlement stimulus
 #ifdef TEST_BUILD
                                    ,
@@ -401,11 +405,9 @@ void NullTextEditorContext::settle(scene::Settlement stimulus
 #endif
 )
 {
-  RailOperation op;
+  RailOperation op(*this);
   CommandOperation command(op);
-  scene::RequestSettlement<LineCursor>::settle(this->node_,
-                                               this,
-                                               op,
+  scene::RequestSettlement<LineCursor>::settle(op,
                                                op,
                                                command,
                                                stimulus

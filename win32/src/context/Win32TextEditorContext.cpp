@@ -135,15 +135,15 @@ Win32TextEditorContext *Win32TextEditorContext::fromWindow(HWND window)
 class Win32TextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(TextEditorNode *node)
-      : binding_(),
+  explicit RailOperation(Win32TextEditorContext &context)
+      : loka::app::scene::RailOperation<LineCursor>(*context.controller(), context.node_, &context),
+        binding_(),
         follow_()
 #ifdef TEST_BUILD
         ,
-        before_(node && node->props.cursorState() ? node->props.cursorState()->get() : LineCursor::None())
+        before_(context.node_ && context.node_->props.cursorState() ? context.node_->props.cursorState()->get() : LineCursor::None())
 #endif
   {
-    (void)node;
   }
   void project(scene::Node &base)
   {
@@ -435,16 +435,14 @@ private:
 };
 void Win32TextEditorContext::settle(scene::Settlement stimulus)
 {
-  RailOperation op(this->node_);
+  RailOperation op(*this);
   this->settle(stimulus, op);
 }
 void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
   scene::Node *const liveNode = this->node_;
   CommandOperation command(op);
-  const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(liveNode,
-                                                                                    this,
-                                                                                    op,
+  const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(op,
                                                                                     op,
                                                                                     command,
                                                                                     stimulus
@@ -459,6 +457,7 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &o
 }
 void Win32TextEditorContext::readLifecycleFactOnAttach()
 {
+  RailOperation op(*this);
   if (this->hwnd_ && this->node_ && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
     Win32FocusParticipant::attach(this->hwnd_, this);
   this->syncFromNode(scene::SETTLE_ATTACH);
@@ -470,14 +469,14 @@ void Win32TextEditorContext::onPropsApplied()
 }
 void Win32TextEditorContext::onFactChanged(scene::NodeLifecycleFact, scene::NodeLifecycleFact next)
 {
+  RailOperation op(*this);
   if (!this->hwnd_)
     return;
   if (next == scene::NODE_FACT_ATTACHED)
   {
     Win32FocusParticipant::attach(this->hwnd_, this);
-    scene::Node *const liveNode = this->node_;
     this->syncFromNode(scene::SETTLE_ATTACH);
-    if (liveNode && liveNode->getContext() == this && liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED)
+    if (op.hasSameContext() && this->node_->lifecycleFact() == scene::NODE_FACT_ATTACHED)
       ShowWindow(this->hwnd_, SW_SHOW);
     return;
   }
@@ -571,7 +570,7 @@ void Win32TextEditorContext::syncFromNode(scene::Settlement stimulus)
 {
   if (this->phase_ != IDLE && this->phase_ != RETRY)
     return;
-  RailOperation op(this->node_);
+  RailOperation op(*this);
   if (!this->hwnd_ || !this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED)
   {
     this->settle(stimulus, op);
@@ -698,13 +697,13 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
       this->phase_ = REJECTED;
     return true;
   }
+  RailOperation op(*this);
   const Phase inputPhase = this->phase_ == PASTING ? PASTING : INPUT;
   const bool outsideInput = this->phase_ == IDLE;
   if (outsideInput)
     this->captureSelection();
   this->phase_ = COMMIT;
   scene::Node *const liveNode = this->node_;
-  RailOperation op(this->node_);
   const EditorResult result = this->status_ == EDITOR_OK ? this->commitNativeChange() : this->status_;
   if (!liveNode || liveNode->getContext() != this)
     return true;
@@ -733,6 +732,7 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
 }
 void Win32TextEditorContext::syncCaret()
 {
+  RailOperation op(*this);
   if (!this->node_ || (this->phase_ != INPUT && this->phase_ != PASTING) || this->status_ != EDITOR_OK)
     return;
   const LineCursor cursor = this->nativeCaret();
@@ -753,10 +753,10 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     return DefWindowProcW(window, message, wParam, lParam);
   if (message == WM_TIMER && wParam == kRestoreTimer)
   {
+    RailOperation op(*self);
     KillTimer(window, kRestoreTimer);
     if (self->phase_ == RETRY)
     {
-      RailOperation op(self->node_);
       if (self->node_)
         op.restore(*self->node_);
       self->settle(scene::SETTLE_DEFERRED, op);
@@ -786,7 +786,7 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     return 0;
   }
   scene::Node *const liveNode = self->node_;
-  RailOperation op(self->node_);
+  RailOperation op(*self);
   self->captureSelection();
   self->phase_ = message == WM_PASTE ? PASTING : INPUT;
   const LRESULT result = CallWindowProcW(self->previousProc_, window, message, wParam, lParam);

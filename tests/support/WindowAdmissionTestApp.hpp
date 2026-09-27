@@ -19,6 +19,13 @@ public:
   virtual void quit() {}
   using App::flushWindowInvalidations;
   void flush() { this->flushWindowInvalidations(); }
+  /** Null model of the two scheduled Win32 tail flushes. */
+  void operationLoop()
+  {
+    this->flushWindowInvalidations();
+    this->reconcileFocus();
+    this->flushWindowInvalidations();
+  }
 };
 
 #endif

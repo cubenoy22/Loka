@@ -706,21 +706,29 @@ void testFocusSceneReplacement()
   std::vector<int> events;
   data.facts.first.state()->bind(&cardCleared, &events, false, true);
   cardKey = FOCUS_WEIGHT;
+  {
+    // An independent prepared projection exercises wrong-Scene membership.
+    // Tear it down before preparing the real replacement: mount refuses a
+    // second mount of the same Scene, and state handles follow their first root.
+    CardData preparedData;
+    cardData = &preparedData;
+    ReadController preparationController;
+    Scene prepared((Boundary<Card>()));
+    LOKA_VERIFY(prepared.mount(&preparationController));
+    loka::dsl::testing::SceneTestAccess::prepareComposition(prepared);
+    EditTextNode *target = cardField(prepared);
+    target->setContext(new NodeContext(target));
+    controller.simulateNativeFocus(target->getContext());
+    app.reconcileFocus();
+    LOKA_VERIFY(events.size() == 1 && events[0] == 0);
+    LOKA_VERIFY(!(data.facts.first.state()->get() != Fact::none()));
+    controller.simulateNativeFocus(cardField(*window.scene())->getContext());
+    app.reconcileFocus();
+    loka::dsl::testing::SceneTestAccess::unmount(prepared);
+  }
   cardData = &replacementData;
   Scene *next = new Scene(Boundary<Card>());
   LOKA_VERIFY(window.sceneManager()->commitTransaction(0, next));
-  // Prepare the candidate with the same borrowed rail, without installing it.
-  next->mount(&controller);
-  loka::dsl::testing::SceneTestAccess::prepareComposition(*next);
-  EditTextNode *target = cardField(*next);
-  target->setContext(new NodeContext(target));
-  controller.simulateNativeFocus(target->getContext());
-  app.reconcileFocus();
-  LOKA_VERIFY(events.size() == 1 && events[0] == 0);
-  LOKA_VERIFY(!(data.facts.first.state()->get() != Fact::none()));
-  // Restore A, then exercise real SceneManager preparation/install and A teardown.
-  controller.simulateNativeFocus(cardField(*window.scene())->getContext());
-  app.reconcileFocus();
   events.clear();
   data.facts.first.state()->bind(&cardCleared, &events, false, true);
   ApplyingProbe probe = {&window, &app, &controller, 0};
@@ -729,6 +737,7 @@ void testFocusSceneReplacement()
   app.flush();
   controller.duringApply = 0;
   LOKA_VERIFY(probe.calls > 0 && window.scene() == next);
+  EditTextNode *target = cardField(*next);
   LOKA_VERIFY(events.size() == 1 && events[0] == 0);
   controller.simulateNativeFocus(target->getContext());
   app.reconcileFocus();

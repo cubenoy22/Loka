@@ -265,3 +265,53 @@ namespace loka { namespace testing {
   }
 } }
 #endif
+
+
+#ifdef TEST_BUILD
+// Settlement lifetime pin ledger: compare addresses only, never read a dead node.
+namespace loka { namespace app { namespace scene { class Node; }
+namespace testing {
+namespace {
+  const scene::Node *settlementProbeTarget = 0;
+  unsigned settlementProbeDestructors = 0;
+  unsigned settlementProbeEntries = 0;
+  unsigned settlementProbeDeadEntries = 0;
+}
+void resetSettlementProbe(const scene::Node *node)
+{
+  settlementProbeTarget = node;
+  settlementProbeDestructors = settlementProbeEntries = settlementProbeDeadEntries = 0;
+}
+unsigned settlementProbeDestroyed() { return settlementProbeDestructors; }
+unsigned settlementProbeEntered() { return settlementProbeEntries; }
+unsigned settlementProbeEnteredDead() { return settlementProbeDeadEntries; }
+void recordSettlementProbeDestruction(const scene::Node *node)
+{
+  if (node == settlementProbeTarget)
+  {
+    ++settlementProbeDestructors;
+  }
+}
+void recordSettlementProbeEntry(const scene::Node *node)
+{
+  if (node && node == settlementProbeTarget)
+  {
+    ++settlementProbeEntries;
+    if (settlementProbeDestructors)
+    {
+      ++settlementProbeDeadEntries;
+    }
+  }
+}
+} } }
+
+#endif
+
+#ifdef TEST_BUILD
+namespace loka { namespace app { namespace scene {
+namespace { unsigned settlementProbeRefreshes = 0; }
+void recordSettlementProbeRefresh() { ++settlementProbeRefreshes; }
+} namespace testing {
+unsigned settlementProbeRefreshCount() { return scene::settlementProbeRefreshes; }
+} } }
+#endif

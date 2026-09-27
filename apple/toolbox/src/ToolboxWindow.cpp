@@ -645,8 +645,7 @@ bool ToolboxWindow::mountReplacementScene(loka::app::scene::Scene *next)
     this->scenePlatformController_ = new ToolboxScenePlatformController(this);
   if (!this->scenePlatformController_)
     return false;
-  next->mount(this->scenePlatformController_);
-  return true;
+  return next->mount(this->scenePlatformController_);
 }
 
 bool ToolboxWindow::dumpDebugStatsToTimestampedFile()

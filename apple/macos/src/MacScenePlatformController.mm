@@ -252,6 +252,9 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                           loka::app::scene::NodeDirtyFlags flags,
                                           bool fullRebuild)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   rootNode_ = rootNode;
   lastChangeFlags_ = flags;
   relayoutPending_ = false;
@@ -325,6 +328,9 @@ void MacScenePlatformController::queueNativeRetirement(void *primary, void *auxi
 
 void MacScenePlatformController::drainNativeRetirements()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   for (size_t i = 0; i < this->nativeRetirements_.size(); ++i)
   {
     NativeRetirement &entry = this->nativeRetirements_[i];
@@ -342,6 +348,9 @@ void MacScenePlatformController::drainNativeRetirements()
 
 void MacScenePlatformController::destroy()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   clearContexts();
   this->drainNativeRetirements();
   rootNode_ = 0;
@@ -1143,6 +1152,9 @@ void MacScenePlatformController::restoreFocusedEditField()
 
 void MacScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   clearNodeContexts(node);
 }
 

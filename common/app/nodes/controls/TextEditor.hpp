@@ -15,6 +15,9 @@ namespace loka
     namespace testing
     {
       class TextEditorAccess;
+#ifdef TEST_BUILD
+      void recordSettlementProbeDestruction(const scene::Node *node);
+#endif
     }
     struct TextEditorTypeTag
     {
@@ -191,6 +194,12 @@ namespace loka
             document(this->props)
       {
       }
+#ifdef TEST_BUILD
+      virtual ~TextEditorNode()
+      {
+        testing::recordSettlementProbeDestruction(this);
+      }
+#endif
       /** Native projection access; the key grants no lifetime extension. */
       TextEditorDocument &seam(const scene::SeamKey<TextEditorNode> &)
       {

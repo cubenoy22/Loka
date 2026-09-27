@@ -371,6 +371,9 @@ namespace loka
         }
         virtual ~Scene()
         {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->isOperationOpen());
+#endif
           director_.detach();
           unmount();
           rootDefinition_.reset();
@@ -448,9 +451,16 @@ namespace loka
         }
 
       public:
-        void mount(IPlatformController *platformController)
+        bool mount(IPlatformController *platformController)
         {
           assert(platformController && "Scene::mount requires a platform controller");
+          if (this->mounted_ || platformController->operationPhase().open())
+          {
+#ifdef LOKA_LIFECYCLE_AUDIT
+            assert(false && "Scene mount during an operation or remount");
+#endif
+            return false;
+          }
           platformController_ = platformController;
           mounted_ = true;
           ensureRootNode();
@@ -458,11 +468,15 @@ namespace loka
           {
             composeIfNeeded(COMPOSE_EVENT_ATTACH);
           }
+          return true;
         }
 
       private:
         void unmount()
         {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->isOperationOpen());
+#endif
           notifyComposeEvent(COMPOSE_EVENT_DETACH);
           teardownComposition();
           mounted_ = false;
@@ -503,6 +517,8 @@ namespace loka
 
         bool flushInvalidation()
         {
+          if (this->isOperationOpen())
+            return false;
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
 
@@ -516,10 +532,16 @@ namespace loka
         /** Focus membership survives parking and is emptied by composition teardown. */
         SceneFocus &focus() { return this->focus_; }
 
-        /** Admission and close reclamation exclude both running phases. */
+        /** The controller borrow interval is independent of focus publication. */
+        bool isOperationOpen() const
+        {
+          return this->platformController_ && this->platformController_->operationPhase().open();
+        }
+
+        /** Admission and close reclamation exclude all active borrow phases. */
         bool isBusy() const
         {
-          return this->isRunInProgress() || this->focus_.isPublishing();
+          return this->isRunInProgress() || this->focus_.isPublishing() || this->isOperationOpen();
         }
 
         bool hasPendingInvalidation() const
@@ -600,6 +622,10 @@ namespace loka
           {
             return false;
           }
+#ifdef TEST_BUILD
+          extern void recordSettlementProbeRefresh();
+          recordSettlementProbeRefresh();
+#endif
           drainLiveBoundaryRetireQueues(scene->rootNode_);
           // Reclamation alone is silent and must not produce an apply snapshot.
           return scene->refreshComposition();
@@ -1005,6 +1031,9 @@ namespace loka
 
         void teardownComposition()
         {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->isOperationOpen());
+#endif
           if (!rootNode_)
           {
             this->focus_.disconnectAll();

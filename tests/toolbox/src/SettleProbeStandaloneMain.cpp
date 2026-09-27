@@ -4,7 +4,8 @@
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "app/scene/state/RequestSettlement.hpp"
-#include "support/Headless.hpp"
+#include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
+#include "app/scene/state/StateBatchBase.hpp"
 #include "core/io/File.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
@@ -68,11 +69,20 @@ namespace
     const bool defer_;
     unsigned applications_;
   };
+  /** Fixture-owned projection: production settlement without native editing. */
+  class ProbeController : public IPlatformController
+  {
+  public:
+    virtual void onChange(Node *, NodeDirtyFlags, bool) {}
+    virtual void synchronize() {}
+    virtual bool hasPendingSync() const { return false; }
+    virtual void destroy() {}
+  };
   class ProbeOwner : public SettleOwner<LineCursor>
   {
   public:
-    explicit ProbeOwner(bool failed)
-        : failed_(failed)
+    explicit ProbeOwner(IPlatformController &controller, Node &node, bool failed)
+        : SettleOwner<LineCursor>(controller, &node, node.getContext()), failed_(failed)
     {
     }
     virtual FollowUpResult finishSettle(Node &, const FollowUps &)
@@ -83,12 +93,17 @@ namespace
   private:
     const bool failed_;
   };
-  struct Fixture : HeadlessStateOwner
+  struct Fixture : BoundaryInnerStateOwner
   {
+    virtual void noteStateAllocationFailure()
+    {
+      assert(false && "unexpected state OOM in settlement cost probe");
+    }
     Reported<LineCursor> cursor;
     RequestQueue<LineCursor, 4> carets;
     RequestQueue<EditorCommand, 4> commands;
     loka::core::ObservableList<loka::core::String> lines;
+    ProbeController controller;
     TextEditorNode node;
     Fixture()
         : node(TextEditorProps(lines, cursor))
@@ -120,12 +135,12 @@ namespace
           return false;
         if (mode == 3 && (f.carets.post(caret) != POST_ACCEPTED || f.commands.post(command) != POST_ACCEPTED))
           return false;
-        ProbeOwner owner(mode == 3);
+        ProbeOwner owner(f.controller, f.node, mode == 3);
         ProbeSeat<LineCursor> carets(f.node.props.moveCaretTo_, mode == 3);
         ProbeSeat<EditorCommand> commands(f.node.props.command_, mode == 3);
         const loka_toolbox_probe::Timer timer;
         const FollowUpResult result = RequestSettlement<LineCursor>::settle(
-            &f.node, f.node.getContext(), owner, carets, commands, SETTLE_DEFERRED);
+            owner, carets, commands, SETTLE_DEFERRED);
         elapsed += timer.elapsed();
         if (result != (mode == 3 ? FOLLOW_UP_FAILED : FOLLOW_UP_NONE) || carets.applications() != (mode == 1 ? 2u : 0u)
             || commands.applications() != (mode == 2 ? 2u : 0u) || !f.carets.state()->get().isNone()

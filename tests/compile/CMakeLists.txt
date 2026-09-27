@@ -441,3 +441,33 @@ loka_compile_pin(observed-use-copy
   REFUSES pins/refuses_observed_use_copy.cpp
   ACCEPTS pins/accepts_observed_use_borrow.cpp
 )
+
+loka_compile_pin(operation-scope-copy
+  REFUSES pins/refuses_operation-scope-copy.cpp
+  ACCEPTS pins/accepts_operation-scope-copy.cpp
+)
+
+loka_compile_pin(operation-phase-copy
+  REFUSES pins/refuses_operation-phase-copy.cpp
+  ACCEPTS pins/accepts_operation-phase-copy.cpp
+)
+
+loka_compile_pin(operation-controller-copy
+  REFUSES pins/refuses_operation-controller-copy.cpp
+  ACCEPTS pins/accepts_operation-controller-copy.cpp
+)
+
+loka_compile_pin(settle-single-owner
+  REFUSES pins/refuses_settle-single-owner.cpp
+  ACCEPTS pins/accepts_settle-single-owner.cpp
+)
+
+loka_compile_pin(settle-multi-owner
+  REFUSES pins/refuses_settle-multi-owner.cpp
+  ACCEPTS pins/accepts_settle-multi-owner.cpp
+)
+
+loka_compile_pin(operation-owner-construction
+  REFUSES pins/refuses_operation-owner-construction.cpp
+  ACCEPTS pins/accepts_operation-owner-construction.cpp
+)
