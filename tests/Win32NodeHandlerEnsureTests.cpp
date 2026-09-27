@@ -480,7 +480,7 @@ void testWin32TextFontTable()
     TextNode wrappedLarge(wrappedProps);
     HWND wrappedLargeWindow = projectFontText(controller, root, wrappedLarge);
     LOKA_VERIFY(layoutFontText(controller, wrappedLarge) > layoutFontText(controller, wrapped));
-    LayoutState repeated;
+    loka::app::scene::LayoutState repeated;
     repeated.width = 160;
     wrappedLarge.layout(&controller, repeated);
     const short measuredHeight = repeated.height;
