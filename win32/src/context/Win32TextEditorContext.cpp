@@ -441,7 +441,6 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus)
 }
 void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
-  scene::Node *const liveNode = this->node_;
   CommandOperation command(op);
   const scene::FollowUpResult result = scene::RequestSettlement<LineCursor>::settle(op,
                                                                                     op,
@@ -452,9 +451,9 @@ void Win32TextEditorContext::settle(scene::Settlement stimulus, RailOperation &o
                                                                                     op.before()
 #endif
   );
-  if (liveNode && liveNode->getContext() == this && result == scene::FOLLOW_UP_FAILED
+  if (op.hasSameContext() && result == scene::FOLLOW_UP_FAILED
       && (this->phase_ == COMMIT || this->phase_ == REJECTED))
-    this->phase_ = liveNode->lifecycleFact() == scene::NODE_FACT_ATTACHED ? RETRY : IDLE;
+    this->phase_ = op.node()->lifecycleFact() == scene::NODE_FACT_ATTACHED ? RETRY : IDLE;
 }
 void Win32TextEditorContext::readLifecycleFactOnAttach()
 {
@@ -704,9 +703,8 @@ bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
   if (outsideInput)
     this->captureSelection();
   this->phase_ = COMMIT;
-  scene::Node *const liveNode = this->node_;
   const EditorResult result = this->status_ == EDITOR_OK ? this->commitNativeChange() : this->status_;
-  if (!liveNode || liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return true;
   if (result == EDITOR_OK && this->node_)
   {
@@ -741,9 +739,8 @@ void Win32TextEditorContext::syncCaret()
     return;
   const Phase inputPhase = this->phase_;
   this->phase_ = COMMIT;
-  scene::Node *const liveNode = this->node_;
   const EditorResult result = this->node_->seam(this->key_).moveCaret(cursor);
-  if (liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return;
   this->phase_ = result == EDITOR_OK && this->phase_ != REJECTED ? inputPhase : REJECTED;
 }
@@ -786,17 +783,16 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     self->settle(scene::SETTLE_INPUT);
     return 0;
   }
-  scene::Node *const liveNode = self->node_;
   RailOperation op(*self);
   self->captureSelection();
   self->phase_ = message == WM_PASTE ? PASTING : INPUT;
   const LRESULT result = CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
-  if (liveNode->getContext() != self)
+  if (!op.hasSameContext())
     return result;
   if (!self->hwnd_ || !self->node_)
     return result;
   self->syncCaret();
-  if (liveNode->getContext() != self)
+  if (!op.hasSameContext())
     return result;
   const bool rejected = self->phase_ == REJECTED;
   self->phase_ = IDLE;

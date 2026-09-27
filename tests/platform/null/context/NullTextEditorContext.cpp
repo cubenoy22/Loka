@@ -344,7 +344,6 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
     return status;
   }
   const LineCursor factBefore = this->node_->props.cursorState()->get();
-  scene::Node *const liveNode = this->node_;
   const LineCursor before = this->caret_;
   const std::size_t offset = this->nativeOffset();
   // A real native control has already changed before its owner is notified.
@@ -387,7 +386,7 @@ EditorResult NullTextEditorContext::input(const std::string &bytes, bool join, c
   }
   else
     result = this->node_->seam(this->key_).applyReplace(before, before, bytes.data(), bytes.size());
-  if (liveNode->getContext() != this)
+  if (!op.hasSameContext())
     return result;
   const bool reconcile = result != EDITOR_OK || this->phase_ == RECONCILE;
   this->phase_ = IDLE;
