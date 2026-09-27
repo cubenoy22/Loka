@@ -455,7 +455,7 @@ namespace
     NSText *fieldEditor = [target currentEditor];
     LOKA_VERIFY(fieldEditor != nil);
     LOKA_VERIFY([f.native firstResponder] == fieldEditor);
-    LOKA_VERIFY([(NSTextView *)fieldEditor delegate] == target);
+    LOKA_VERIFY([(NSTextView *)fieldEditor delegate] == (id)target);
     LOKA_VERIFY(f.facts.focus.state()->get().is(key));
     LOKA_VERIFY(!f.binding(key).requested());
     LOKA_VERIFY([f.native isKeyWindow]);
@@ -520,7 +520,7 @@ void testMacFocusPostedRequest()
       f.app.flushInvalidationsTick();
       verifyFieldFocus(f, second, 2u);
       beforeField.verify((NSTextView *)[second currentEditor]);
-      LOKA_VERIFY(!(f.facts.secondText.get() != beforeText));
+      LOKA_VERIFY(f.facts.secondText.get().equals(beforeText));
 
       // A repeated post also leaves a nontrivial selection untouched.
       editing = (NSTextView *)[second currentEditor];
@@ -729,7 +729,7 @@ void testMacFocusWriteReentry()
       [commit release];
       // Positive control: no notification/observer is a failure, not a quiet pass.
       LOKA_VERIFY(retirement.calls() == 1);
-      LOKA_VERIFY(!(f.facts.firstText.get() != String("committed on resign")));
+      LOKA_VERIFY(f.facts.firstText.get().equals(String("committed on resign")));
       LOKA_VERIFY(f.secondNode->lifecycleFact() == NODE_FACT_RETIRED);
       LOKA_VERIFY(f.secondNode->getContext() == 0);
       LOKA_VERIFY(!f.facts.focus.state()->get().is(2u));
