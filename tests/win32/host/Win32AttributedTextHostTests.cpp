@@ -4,6 +4,7 @@
 #include "support/LokaAllocFailure.hpp"
 #include <cstdio>
 #include <climits>
+#include "Win32ContextHost.inc"
 
 namespace win32_host
 {
@@ -31,6 +32,8 @@ HGDIOBJ SelectObject(HDC dc, HGDIOBJ font)
 BOOL GetTextMetricsW(HDC dc, TEXTMETRICW *out)
 {
   ++win32_host::metrics;
+  if (win32_host::failMetrics) return FALSE;
+  out->tmHeight = dc->font->ascent + dc->font->descent;
   out->tmAscent = dc->font->ascent;
   out->tmDescent = dc->font->descent;
   out->tmExternalLeading = dc->font->leading;
@@ -84,8 +87,16 @@ BOOL ExtTextOutW(HDC dc, int x, int y, UINT flags, const RECT *, const WCHAR *te
   win32_host::draws.push_back(draw);
   return TRUE;
 }
-int main()
+#include "Win32MeasurementPins.inc"
+
+int main(int argc, char **)
 {
+  if (argc > 1)
+  {
+    pinMeasurement(true);
+    pinMeasurement(false);
+    return 0;
+  }
   using namespace loka::app;
   using namespace loka::core::testing;
   Win32ScenePlatformController controller;
@@ -184,5 +195,8 @@ int main()
   }
   LOKA_VERIFY(lokaAllocRawLive() == 0);
   allowLokaAllocRaw();
+  pinMeasurement(true);
+  pinMeasurement(false);
+  LOKA_VERIFY(win32_host::windows.empty());
   return 0;
 }

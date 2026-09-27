@@ -72,86 +72,64 @@ namespace
   }
 
   /** A null selected font preserves the historical unstyled height. */
-  int MinimumTextHeight(HWND hwnd, HFONT font, const Win32ScenePlatformController *controller)
+  bool MinimumTextHeight(HWND hwnd, HFONT font, const Win32ScenePlatformController *controller, int &height)
   {
     const int fallback = loka::app::layout::FallbackControlMetrics::kTextHeight;
-    if (!hwnd || !font || !controller)
-      return fallback;
+    height = fallback;
+    if (!hwnd || !controller)
+      return false;
+    if (!font)
+      return true;
     HDC hdc = GetDC(hwnd);
     if (!hdc)
-      return fallback;
+      return false;
     HGDIOBJ previous = SelectObject(hdc, font);
     TEXTMETRICW metrics;
-    const bool measured = GetTextMetricsW(hdc, &metrics) != FALSE;
-    if (previous)
+    const bool measured = previous && previous != HGDI_ERROR && GetTextMetricsW(hdc, &metrics) != FALSE;
+    if (previous && previous != HGDI_ERROR)
       SelectObject(hdc, previous);
     ReleaseDC(hwnd, hdc);
-    const int height =
-        measured ? controller->displayScale().measurementToLu(metrics.tmHeight + metrics.tmExternalLeading) : fallback;
-    return height > fallback ? height : fallback;
+    if (!measured)
+      return false;
+    const int measuredHeight = controller->displayScale().measurementToLu(metrics.tmHeight + metrics.tmExternalLeading);
+    height = measuredHeight > fallback ? measuredHeight : fallback;
+    return true;
   }
 
-  int MeasureTextHeightForWidth(HWND hwnd,
+  bool MeasureTextHeightForWidth(HWND hwnd,
                                 const Win32ScenePlatformController *controller,
                                 const loka::app::TextNode *text,
-                                int width,
-                                int defaultHeight,
-                                HFONT selectedFont)
+                                int nativeWidth,
+                                HFONT selectedFont,
+                                int &height)
   {
     if (!hwnd || !controller || !text || !text->props.text_)
-    {
-      return defaultHeight;
-    }
+      return false;
     if (!text->props.blockStyle_.hasWrap_
-        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
-    {
-      return defaultHeight;
-    }
-    if (width <= 0)
-    {
-      return defaultHeight;
-    }
-
+        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE || nativeWidth <= 0)
+      return true;
     std::wstring wide;
     if (!loka::win32::MaterializeWideString(text->props.text_->get(), wide))
-    {
-      return defaultHeight;
-    }
+      return false;
     if (wide.empty())
-    {
-      return defaultHeight;
-    }
-
+      return true;
     HDC hdc = GetDC(hwnd);
     if (!hdc)
-    {
-      return defaultHeight;
-    }
-    RECT rc;
-    rc.left = 0;
-    rc.top = 0;
-    rc.right = controller->displayScale().nativeLength(0, width).px;
-    rc.bottom = 0;
-    HGDIOBJ previousFont = 0;
-    if (selectedFont)
-    {
-      previousFont = SelectObject(hdc, selectedFont);
-    }
-    UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
-    DrawTextW(hdc, wide.c_str(), -1, &rc, flags);
-    if (previousFont)
-    {
+      return false;
+    RECT rc = {0, 0, nativeWidth, 0};
+    HGDIOBJ previousFont = selectedFont ? SelectObject(hdc, selectedFont) : 0;
+    const bool selected = !selectedFont || (previousFont && previousFont != HGDI_ERROR);
+    const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
+    const bool measured = selected && DrawTextW(hdc, wide.c_str(), -1, &rc, flags) != 0;
+    if (previousFont && previousFont != HGDI_ERROR)
       SelectObject(hdc, previousFont);
-    }
     ReleaseDC(hwnd, hdc);
-
-    const int measured = controller->displayScale().measurementToLu(rc.bottom - rc.top);
-    const int measuredWithPadding = measured + 8;
-    if (measuredWithPadding > defaultHeight)
-    {
-      return measuredWithPadding;
-    }
-    return defaultHeight;
+    if (!measured)
+      return false;
+    const int measuredWithPadding = controller->displayScale().measurementToLu(rc.bottom - rc.top) + 8;
+    if (measuredWithPadding > height)
+      height = measuredWithPadding;
+    return true;
   }
 
 } // namespace
@@ -225,7 +203,8 @@ loka::app::scene::PaintAnswer Win32TextContext::queryPaintDamage(const loka::app
   using namespace loka::app::scene;
   if (!this->hwnd_)
     return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
-  if (query.placement != PLACEMENT_ELIGIBLE)
+  RECT placement;
+  if (query.placement != PLACEMENT_ELIGIBLE || !GetClientRect(this->hwnd_, &placement) || IsRectEmpty(&placement))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || (!this->node_->props.ownsText && this->node_->props.text_ != this->textState_))
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
@@ -259,6 +238,7 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
+      this->clearMeasurement();
       this->unbindText();
       this->retireWindow(this->hwnd_);
       this->node_ = 0;
@@ -345,17 +325,39 @@ bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
   return loka::win32::CaptureWindowClientBitmap(this->hwnd_, out);
 }
 
+void Win32TextContext::clearMeasurement()
+{
+  this->measurement_.invalidate();
+  this->textDelivery_ = loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN);
+  if (this->hwnd_)
+    this->relayout(0, 0, 0, 0);
+}
+
+void Win32TextContext::onTextEnvironmentChanged()
+{
+  this->clearMeasurement();
+}
+
 short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   this->applyStyle();
   const HFONT font = ResolveTextFont(this->node_, this->controller());
-  const int textHeight = MeasureTextHeightForWidth(
-      this->hwnd_,
-      this->controller(),
-      this->node_,
-      state.width,
-      MinimumTextHeight(this->hwnd_, font, this->controller()),
-      font ? font : this->controller()->displayFont());
+  const Constraint constraint(this->controller()->displayScale().nativeLength(0, state.width).px,
+                              font ? font : this->controller()->displayFont());
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
+  {
+    int height = 0;
+    if (!MinimumTextHeight(this->hwnd_, font, this->controller(), height)
+        || !MeasureTextHeightForWidth(this->hwnd_, this->controller(), this->node_,
+                                      constraint.width, constraint.font, height))
+    {
+      this->clearMeasurement();
+      state.height = 0;
+      return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+    }
+    this->measurement_.commit(constraint, height);
+  }
+  const int textHeight = this->measurement_.extent();
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);

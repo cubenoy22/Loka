@@ -478,8 +478,27 @@ void testWin32TextFontTable()
     projectFontText(controller, root, wrapped);
     wrappedProps.textStyle_ = FontSize<24>();
     TextNode wrappedLarge(wrappedProps);
-    projectFontText(controller, root, wrappedLarge);
+    HWND wrappedLargeWindow = projectFontText(controller, root, wrappedLarge);
     LOKA_VERIFY(layoutFontText(controller, wrappedLarge) > layoutFontText(controller, wrapped));
+    LayoutState repeated;
+    repeated.width = 160;
+    wrappedLarge.layout(&controller, repeated);
+    const short measuredHeight = repeated.height;
+    repeated.x = 9;
+    repeated.y = 27;
+    LOKA_VERIFY(controller.prepareProjectedLayout(&wrappedLarge, repeated));
+    wrappedLarge.layout(&controller, repeated);
+    LOKA_VERIFY(repeated.height == measuredHeight);
+    RECT repeatedFrame;
+    LOKA_VERIFY(GetWindowRect(wrappedLargeWindow, &repeatedFrame));
+    MapWindowPoints(NULL, root, reinterpret_cast<POINT *>(&repeatedFrame), 2);
+    LOKA_VERIFY(repeatedFrame.left == controller.displayScale().nativeEdge(repeated.x).px);
+    LOKA_VERIFY(repeatedFrame.top == controller.displayScale().nativeEdge(repeated.y).px);
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(144));
+    LOKA_VERIFY(GetClientRect(wrappedLargeWindow, &repeatedFrame) && IsRectEmpty(&repeatedFrame));
+    wrappedLarge.layout(&controller, repeated);
+    LOKA_VERIFY(repeated.height > 0);
+    controller.updateDisplayScale(loka::win32::Win32DisplayScale(96));
 
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<TextStyle> liveStyle((FontSize<12>()));
@@ -753,6 +772,17 @@ void testWin32AttributedTextAllocationFailure()
     context->layout(&controller, state);
     LOKA_VERIFY(AttributedAccess::table(*context).valid());
     failLokaAllocRaw("Win32AttributedText", "Break", 1);
+    // A same-width ensure/layout must reuse the completed table: the armed
+    // allocator refusal is not consumed, while placement still moves.
+    state.y += 11;
+    LOKA_VERIFY(controller.prepareProjectedLayout(&node, state));
+    context->layout(&controller, state);
+    LOKA_VERIFY(AttributedAccess::table(*context).valid());
+    RECT placed;
+    LOKA_VERIFY(GetWindowRect(context->paintHwnd(), &placed));
+    MapWindowPoints(NULL, root, reinterpret_cast<POINT *>(&placed), 2);
+    LOKA_VERIFY(placed.top == controller.displayScale().nativeEdge(state.y).px);
+    ++state.width; // A real miss consumes the still-armed refusal.
     context->layout(&controller, state);
     LOKA_VERIFY(!AttributedAccess::table(*context).valid() && !AttributedAccess::known(*context));
     const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
@@ -792,6 +822,8 @@ void testWin32AttributedTextLiveDpiChange()
     // Generation change: the table is revoked before the old handles die.
     controller.updateDisplayScale(loka::win32::Win32DisplayScale(144, loka::win32::DefaultRailMetrics()));
     LOKA_VERIFY(!table.valid() && !AttributedAccess::known(*context));
+    RECT revoked;
+    LOKA_VERIFY(GetClientRect(child, &revoked) && IsRectEmpty(&revoked));
     LOKA_VERIFY(GetObjectW(oldFont, sizeof(descriptor), &descriptor) == 0);
     // The next layout rebuilds against the new generation, never the dead handle.
     context->layout(&controller, state);

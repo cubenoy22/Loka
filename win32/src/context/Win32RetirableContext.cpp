@@ -5,6 +5,7 @@
 
 Win32RetirableContext::Win32RetirableContext(Win32ScenePlatformController *controller)
     : loka::app::scene::NativeNodeContext(),
+      Win32TextEnvironment::Subscription(controller->textEnvironment_),
       controller_(controller)
 {
 }
@@ -46,6 +47,7 @@ HWND Win32RetirableContext::createNativeChildWindow(DWORD exStyle,
 
 void Win32RetirableContext::retireWindow(HWND &hwnd)
 {
+  this->disconnectTextEnvironment();
   if (!hwnd)
   {
     return;

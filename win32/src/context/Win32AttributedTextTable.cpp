@@ -94,6 +94,7 @@ Win32AttributedTextTable::~Win32AttributedTextTable()
 }
 void Win32AttributedTextTable::clear()
 {
+  this->measurement_.invalidate();
   loka::core::LokaDelete(this->lines_, BreakSite());
   this->lines_ = 0;
   this->snapshot_ = AttributedString();
@@ -117,6 +118,22 @@ bool Win32AttributedTextTable::build(const AttributedString &value,
     return false;
   }
   this->snapshot_ = value;
+  const loka::win32::Win32DisplayScale &scale = controller.displayScale();
+  int height = 0, intrinsicWidth = 0;
+  for (std::size_t i = 0; i < this->lines_->lineCount(); ++i)
+  {
+    const TextLineRecord &line = this->lines_->line(i);
+    const int lineWidth = scale.measurementToLu(line.width);
+    if (lineWidth > intrinsicWidth)
+      intrinsicWidth = lineWidth;
+    height += scale.measurementToLu(line.metrics.ascent + line.metrics.descent + line.metrics.leading);
+    if (height > SHRT_MAX)
+    {
+      height = SHRT_MAX;
+      break;
+    }
+  }
+  this->measurement_.commit(width, Extent(intrinsicWidth, height));
   return true;
 }
 bool Win32AttributedTextTable::buildRows(const AttributedString &value,

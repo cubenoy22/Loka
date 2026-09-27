@@ -18,6 +18,7 @@ public:
   void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact);
   virtual void onPropsApplied();
+  virtual void onTextEnvironmentChanged();
   virtual short layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &);
   virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &) const;
   virtual HWND paintHwnd() const
@@ -29,6 +30,7 @@ private:
   friend class loka::testing::Win32AttributedTextAccess;
   static void EnsureClassRegistered();
   static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+  void clearMeasurement();
   void draw(HDC, const RECT &);
   void relayout(int, int, int, int);
   loka::app::AttributedTextNode *node_;

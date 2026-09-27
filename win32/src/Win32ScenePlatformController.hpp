@@ -2,6 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <windows.h>
+#include "Win32TextEnvironment.hpp"
 #include "app/layout/TextShaping.hpp"
 #include <vector>
 #include "app/RectSurface.hpp"
@@ -389,6 +390,7 @@ private:
                                HINSTANCE instance,
                                void *createParameter);
   void applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &replacement);
+  Win32TextEnvironment textEnvironment_;
   void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);
