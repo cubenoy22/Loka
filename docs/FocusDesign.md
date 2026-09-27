@@ -448,7 +448,8 @@ status operations. A clipped control can become first responder while invisible
 refusal after take consumes the request without retry.
 
 Initial focus uses `state(focus, KEY)`: the first eligible completion after the
-window becomes key takes it, after AppKit's `setInitialFirstResponder` choice.
+window becomes key takes it, moving focus from whatever responder AppKit chose
+first (the content view in the Tahoe pin).
 Legacy `captureFocusedEditField` / `restoreFocusedEditField` and key-loop setup
 remain unchanged. Ordinary pending relayout capture/restore precedes focus
 completion; the one-shot post is not a lock against later restoration. The

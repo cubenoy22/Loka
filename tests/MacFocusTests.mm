@@ -644,7 +644,6 @@ void testMacFocusInitialRequest()
   {
     WriteFixture f(2u);
     LOKA_VERIFY(f.binding(2u).requested());
-    LOKA_VERIFY([f.native initialFirstResponder] == field(f.firstNode));
     if (f.key("testMacFocusInitialRequest"))
     {
       f.app.flushInvalidationsTick();
