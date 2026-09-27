@@ -371,7 +371,9 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY(NativeAccess::nativeWindow(*window) == 0);
     LOKA_VERIFY(MacEditTextContext::fromNativeFocus(first) == 0);
     LOKA_VERIFY(MacTextEditorContext::fromNativeFocus(textEditor) == 0);
-    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
+    // The FocusFact is declared by FocusRoot inside this Scene (#960), so closing
+    // the window reclaims it with the Scene: there is no fact left to read here.
+    // Clearing on leave is pinned headless in FocusPublisherTests.
     [first release];
     [textEditor release];
   }
