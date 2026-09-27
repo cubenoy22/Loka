@@ -733,6 +733,26 @@ namespace
       LOKA_VERIFY(!NSIsEmptyRect([field frame]));
       node.layout(&controller, state);
       LOKA_VERIFY(counter.calls() == 2);
+      // Establish the controller's root, then retry only through its native queue.
+      controller.onChange(&node, NODE_DIRTY_LAYOUT, false);
+      const unsigned beforeRetry = counter.calls();
+      node.requeueLayoutInputs(NODE_DIRTY_PROPS);
+      source.available(false);
+      controller.relayout(0, 0);
+      LOKA_VERIFY(controller.hasPendingRelayout());
+      const unsigned beforeFlush = source.attempts();
+      MacScenePlatformController::flushPendingRelayouts();
+      LOKA_VERIFY(source.attempts() > beforeFlush);
+      LOKA_VERIFY(controller.hasPendingRelayout());
+      LOKA_VERIFY(counter.calls() == beforeRetry);
+      source.available(true);
+      MacScenePlatformController::flushPendingRelayouts();
+      LOKA_VERIFY(!controller.hasPendingRelayout());
+      LOKA_VERIFY(counter.calls() == beforeRetry + 1);
+      LOKA_VERIFY([[field stringValue] isEqualToString:@"retry the same wrapped text"]);
+      LOKA_VERIFY(!NSIsEmptyRect([field frame]));
+      controller.relayout(0, 0);
+      LOKA_VERIFY(counter.calls() == beforeRetry + 1);
       LifecycleFactTestAccess::MarkSubtreeRetired(&node);
       LifecycleFactTestAccess::DeliverFacts(&node);
       node.setContext(0);

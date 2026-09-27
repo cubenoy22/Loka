@@ -135,7 +135,10 @@ short Win32AttributedTextContext::layout(loka::app::scene::IPlatformController *
     if (dc)
       ReleaseDC(this->hwnd_, dc);
     if (!built)
+    {
+      this->controller()->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
+    }
   }
   const int height = this->table_.height();
   const int width = state.width > 0 ? state.width : this->table_.width();

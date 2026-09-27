@@ -180,6 +180,7 @@ public:
   {
     return true;
   }
+  virtual void requestRelayout();
   virtual void synchronize();
   /** The null arm's paint channel. Toolbox re-applies scroll-bar props at
       draw (ensureScrollBarControl inside ToolboxScrollBarContext::draw), so

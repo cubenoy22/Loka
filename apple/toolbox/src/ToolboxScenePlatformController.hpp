@@ -66,6 +66,7 @@ public:
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
   virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
+  virtual void requestRelayout();
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void drainNativeRetirements();

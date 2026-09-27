@@ -880,10 +880,11 @@ void Win32ScenePlatformController::relayoutNativeClientPixels(int clientWidth,
 
 void Win32ScenePlatformController::requestRelayout()
 {
-  RECT client;
-  if (this->rootHwnd_ && GetClientRect(this->rootHwnd_, &client))
-    PostMessageW(this->rootHwnd_, WM_SIZE, static_cast<WPARAM>(SIZE_RESTORED),
-                 static_cast<LPARAM>(MAKELPARAM(client.right - client.left, client.bottom - client.top)));
+  // Posting WM_SIZE here re-enters the native message drain on every refusal.
+  this->requestSceneRelayout(this->rootNode_);
+  // Wake an idle-none loop without doing layout inside its message drain.
+  if (this->rootHwnd_)
+    PostMessageW(this->rootHwnd_, WM_NULL, 0, 0);
 }
 
 void Win32ScenePlatformController::updateDisplayScale(const loka::win32::Win32DisplayScale &displayScale)

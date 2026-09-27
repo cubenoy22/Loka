@@ -420,6 +420,7 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     if (!ResolveTextGeometry(style, state, value, this->wrapMode_, measure, geometry)
         || !measure.measure(value, measuredWidth))
     {
+      controller->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
       return 0;
     }

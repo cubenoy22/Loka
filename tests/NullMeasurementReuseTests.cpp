@@ -1,4 +1,6 @@
 #include "NullMeasurementReuseTests.hpp"
+#include "support/NullLayoutRefusal.hpp"
+#include "testing/scene/NodeObservedUsesTestAccess.hpp"
 #include "support/TestVerify.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "platform/null/context/NullTextContext.hpp"
@@ -180,7 +182,7 @@ namespace
     virtual void composeNode(NodeComposition &composition)
     {
       composition.declare(Show(*this->shown.state())
-                          << (Column() << Text(this->text.state()).testId("plain")
+                          << (Column() << (Text(this->text.state()) + BlockStyle().wrap(TEXT_WRAP_WORD)).testId("plain")
                                        << AttributedText(this->rich.state()).testId("rich")));
     }
   };
@@ -258,4 +260,52 @@ void testSyntheticMeasurementRefusal()
   LOKA_VERIFY(out.reusable(100));
   out.invalidate();
   LOKA_VERIFY(!out.reusable(100));
+}
+
+void testNullMeasurementRefusalRetry()
+{
+  using loka::app::testing::NodeObservedUsesTestAccess;
+  for (int attributed = 0; attributed != 2; ++attributed)
+  {
+    NullScenePlatformController platform;
+    Scene scene((Boundary<ParkedRoot>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    ParkedRoot *root = static_cast<ParkedRoot *>(SceneTestAccess::rootBoundary(scene));
+    Node *leaf = 0;
+    loka::dsl::FlowError error;
+    loka::dsl::testing::LookupNodeById(&scene, attributed ? "rich" : "plain", leaf, error);
+    LOKA_VERIFY(leaf);
+    NullTextContext *plain = attributed ? 0 : static_cast<NullTextContext *>(leaf->getContext());
+    NullAttributedTextContext *rich = attributed ? static_cast<NullAttributedTextContext *>(leaf->getContext()) : 0;
+    {
+      StateTrackerGuard guard(root->tracker());
+      if (attributed) root->rich.set(Styled("aaaa", TextStyle()));
+      else root->text.set(String::Literal("aaaa"));
+    }
+    const NodeDirtyFlags consumed = NodeObservedUsesTestAccess::mark(*leaf);
+    LOKA_VERIFY(consumed != NODE_DIRTY_NONE);
+    LOKA_VERIFY(!(consumed & NODE_DIRTY_INITIAL));
+    loka::testing::failNullTextMeasurements(3, leaf);
+    for (unsigned attempt = 0; attempt != 3; ++attempt)
+    {
+      scene.flushInvalidation();
+      const unsigned builds = attributed ? NullTextMeasurementAccess::builds(*rich) : NullTextMeasurementAccess::builds(*plain);
+      std::fprintf(stderr, "refusal attributed=%d flush=%u builds=%u mark=%u pending=%d\n", attributed, attempt + 1, builds, static_cast<unsigned>(NodeObservedUsesTestAccess::mark(*leaf)), scene.hasPendingInvalidation());
+      LOKA_VERIFY(builds == attempt + 2);
+      const NodeDirtyFlags pending = NodeObservedUsesTestAccess::mark(*leaf);
+      LOKA_VERIFY((pending & consumed) == consumed);
+      LOKA_VERIFY(pending & NODE_DIRTY_INITIAL);
+      LOKA_VERIFY(scene.hasPendingInvalidation());
+    }
+    loka::testing::failNullTextMeasurements(0);
+    scene.flushInvalidation();
+    LOKA_VERIFY((attributed ? rich->measurement().width() : plain->measurement().width()) == 16);
+    LOKA_VERIFY((attributed ? NullTextMeasurementAccess::builds(*rich) : NullTextMeasurementAccess::builds(*plain)) == 5);
+    LOKA_VERIFY(NodeObservedUsesTestAccess::mark(*leaf) == NODE_DIRTY_NONE);
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+    scene.flushInvalidation();
+    LOKA_VERIFY((attributed ? NullTextMeasurementAccess::builds(*rich) : NullTextMeasurementAccess::builds(*plain)) == 5);
+    SceneTestAccess::unmount(scene);
+  }
 }

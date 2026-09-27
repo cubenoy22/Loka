@@ -130,7 +130,7 @@ namespace
     LOKA_VERIFY(MeasurementCalls() == before);
 
     // Refuse after a completed result, at the SAME constraint. The input mark
-    // is consumed on refusal; retry must depend on the measurement owner.
+    // must survive refusal along with a queued controller retry.
     NotifySubtreeNodeAttached(&node);
     LifecycleFactTestAccess::DeliverFacts(&node);
     ToolboxWindow *window = controller.window_;
@@ -140,6 +140,12 @@ namespace
     seat.x = 80;
     seat.y = 90;
     LOKA_VERIFY(node.layout(&controller, seat) == 0);
+    LOKA_VERIFY(controller.relayoutRetries.pending());
+    for (int retry = 0; retry != 3; ++retry)
+    {
+      controller.relayoutRetries.flush(controller, node, seat);
+      LOKA_VERIFY(controller.relayoutRetries.pending());
+    }
     controller.window_ = window;
     // Recovery can precede the retry layout. Refusal must revoke the old seat,
     // including the inactive-clip fallback, before any paint/hit can observe it.
@@ -159,7 +165,8 @@ namespace
     before = MeasurementCalls();
     seat = Seat(-1);
     seat.lineHeight = 14;
-    node.layout(&controller, seat);
+    controller.relayoutRetries.flush(controller, node, seat);
+    LOKA_VERIFY(!controller.relayoutRetries.pending());
     LOKA_VERIFY(MeasurementCalls() > before);
     before = MeasurementCalls();
     seat = Seat(-1);

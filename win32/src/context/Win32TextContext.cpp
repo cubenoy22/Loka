@@ -354,6 +354,7 @@ short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::ap
         || !MeasureTextHeightForWidth(this->hwnd_, this->controller(), this->node_,
                                       constraint.width, constraint.font, height))
     {
+      this->controller()->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
       state.height = 0;
       return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);

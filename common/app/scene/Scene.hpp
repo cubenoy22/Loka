@@ -534,6 +534,13 @@ namespace loka
           nextTickTracker_.requestAfterRun();
         }
 
+        /** Requeues layout work without entering the current scheduler drain. */
+        void requestLayoutAfterRun()
+        {
+          this->requestInvalidate(NODE_DIRTY_LAYOUT);
+          this->nextTickTracker_.requestAfterRun();
+        }
+
         void invalidate(NodeDirtyFlags flags = NODE_DIRTY_PROPS)
         {
           requestInvalidate(flags);
