@@ -57,6 +57,7 @@ void ToolboxAttributedTextContext::retireNativeProjection()
 
 void ToolboxAttributedTextContext::onPropsApplied()
 {
+  // The input mark also forces rebuild; eagerly dropping derived rows is harmless.
   this->table_.clear();
   this->presented_.invalidate();
 }
@@ -83,13 +84,16 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
   }
   assert(toolbox->textShaping() == loka::app::PER_RUN);
   const loka::app::AttributedString &value = this->node_->props.text_->get();
-  if (!this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
+  // The builder reads width, not lineHeight. Ambient fonts follow the frozen
+  // environment contract on ToolboxTextMeasureScope.
+  if ((state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->table_.reusable(state.width))
+      && !this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
   {
     this->presented_.invalidate();
     return 0;
   }
   this->presented_.invalidate();
-  const short width = state.width > 0 ? state.width : this->table_.lines().width();
+  const short width = state.width > 0 ? state.width : this->table_.width();
   this->rect_.left = state.x;
   this->rect_.top = state.y;
   this->rect_.right = Coordinate(state.x + width);
