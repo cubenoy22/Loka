@@ -133,8 +133,7 @@ namespace
   {
     const DisplayFontReplacement &fonts = *reinterpret_cast<const DisplayFontReplacement *>(fontValue);
     const HFONT previous = reinterpret_cast<HFONT>(SendMessageW(hwnd, WM_GETFONT, 0, 0));
-    SendMessageW(hwnd, WM_SETFONT,
-                 reinterpret_cast<WPARAM>(fonts.previous.replacementFor(previous, fonts.next)), TRUE);
+    SendMessageW(hwnd, WM_SETFONT, reinterpret_cast<WPARAM>(fonts.previous.replacementFor(previous, fonts.next)), TRUE);
     return TRUE;
   }
 
@@ -887,10 +886,10 @@ void Win32ScenePlatformController::requestRelayout()
                  static_cast<LPARAM>(MAKELPARAM(client.right - client.left, client.bottom - client.top)));
 }
 
-void Win32ScenePlatformController::updateDisplayScale(
-    const loka::win32::Win32DisplayScale &displayScale)
+void Win32ScenePlatformController::updateDisplayScale(const loka::win32::Win32DisplayScale &displayScale)
 {
   this->displayScale_ = loka::win32::Win32DisplayScale(displayScale.dpi(), this->railMetrics_);
+  this->textEnvironment_.changed();
   this->ensureDisplayFont();
 }
 
@@ -903,13 +902,13 @@ void Win32ScenePlatformController::ensureDisplayFont()
   loka::win32::Win32DisplayFont replacement;
   if (replacement.create(this->displayScale_))
   {
+    this->textEnvironment_.changed();
     this->applyDisplayFontToNativeSubtree(replacement);
     this->displayFont_.swap(replacement);
   }
 }
 
-void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(
-    const loka::win32::Win32DisplayFont &replacement)
+void Win32ScenePlatformController::applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &replacement)
 {
   if (!this->rootHwnd_ || !replacement.get())
   {

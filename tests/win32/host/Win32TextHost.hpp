@@ -1,14 +1,20 @@
 #ifndef LOKA_TEST_WIN32_TEXT_HOST_HPP
 #define LOKA_TEST_WIN32_TEXT_HOST_HPP
-// Replace only the platform neighbors; compile the actual production table.
+// Replace platform neighbors; compile the real contexts, table and environment delivery.
 #define LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
 #include "windows.h"
 #include "app/style/Style.hpp"
-class Win32ScenePlatformController
+#include "app/layout/TextShaping.hpp"
+#include "app/scene/projection/PlatformController.hpp"
+#include "platform/Win32DisplayScale.hpp"
+#include "platform/Win32DisplayFont.hpp"
+#include "Win32TextEnvironment.hpp"
+class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
   Win32ScenePlatformController()
-      : small_(),
+      : rootHwnd_(0),
+        small_(),
         large_()
   {
     this->small_.ascent = 10;
@@ -22,8 +28,57 @@ public:
   }
   HFONT textFont(const loka::app::TextStyle &style) const
   {
+    if (this->displayFont_.get())
+      return this->displayFont_.find(style);
     return style.hasItalic_ && style.italic_ ? &this->large_ : &this->small_;
   }
+  const loka::win32::Win32DisplayScale &displayScale() const
+  {
+    return this->displayScale_;
+  }
+  HFONT displayFont() const
+  {
+    return this->displayFont_.get() ? this->displayFont_.get() : &this->small_;
+  }
+  loka::app::TextShaping textShaping() const
+  {
+    return loka::app::PER_RUN;
+  }
+  HWND projectionParentHwnd() const
+  {
+    return this->rootHwnd_;
+  }
+  void requestRelayout() {}
+  void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
+  void synchronize() {}
+  bool hasPendingSync() const
+  {
+    return false;
+  }
+  void destroy() {}
+  static void requestDirtyRect(HWND, const RECT *, BOOL) {}
+  static void requestDirtySubtree(HWND, const RECT *, BOOL) {}
+  enum
+  {
+    NATIVE_PAINT_RECT_SURFACE
+  };
+  static void noteNativePaint(HWND, int, bool) {}
+  void updateDisplayScale(const loka::win32::Win32DisplayScale &);
+  void ensureDisplayFont();
+  void applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &);
+  void positionNativeWindow(HWND, const loka::win32::NativeRect &);
+  void resizeNativeWindow(HWND h, const loka::win32::NativeRect &r)
+  {
+    this->positionNativeWindow(h, r);
+  }
+  HWND createNativeChildWindow(
+      DWORD, LPCWSTR, LPCWSTR, DWORD, const loka::win32::NativeRect &, HWND, HMENU, HINSTANCE, void *);
+  void queueNativeRetirement(HWND);
+  Win32TextEnvironment textEnvironment_;
+  HWND rootHwnd_;
+  loka::app::RailMetrics railMetrics_;
+  loka::win32::Win32DisplayScale displayScale_;
+  loka::win32::Win32DisplayFont displayFont_;
 
 private:
   mutable HostFont small_, large_;

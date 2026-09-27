@@ -45,6 +45,7 @@ Win32AttributedTextContext::Win32AttributedTextContext(Win32ScenePlatformControl
                                                        int height,
                                                        loka::app::AttributedTextNode *node)
     : Win32RetirableContext(controller),
+      textEnvironmentSubscription_(controller->textEnvironment_, *this),
       node_(node),
       hwnd_(0)
 {
@@ -92,57 +93,52 @@ void Win32AttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFa
     ShowWindow(this->hwnd_, SW_HIDE);
   if (next == NODE_FACT_RETIRED)
   {
-    this->table_.clear();
+    this->clearMeasurement();
+    this->textEnvironmentSubscription_.disconnectTextEnvironment();
     this->retireWindow(this->hwnd_);
     this->node_ = 0;
   }
 }
 void Win32AttributedTextContext::onPropsApplied()
 {
-  this->table_.clear();
-  this->presented_.invalidate();
+  // The #965 input mark also forces rebuild on retained props application.
+  this->clearMeasurement();
   if (this->hwnd_)
   {
     Win32ScenePlatformController::requestDirtyRect(this->hwnd_, NULL, FALSE);
     this->controller()->requestRelayout();
   }
 }
+void Win32AttributedTextContext::clearMeasurement()
+{
+  this->table_.clear();
+  this->presented_.invalidate();
+  if (this->hwnd_)
+    this->relayout(0, 0, 0, 0);
+}
+void Win32AttributedTextContext::onTextEnvironmentChanged()
+{
+  this->clearMeasurement();
+}
 short Win32AttributedTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
   assert(this->controller()->textShaping() == loka::app::PER_RUN);
   this->presented_.invalidate();
-  this->table_.clear();
   const loka::win32::Win32DisplayScale &scale = this->controller()->displayScale();
-  HDC dc = this->hwnd_ ? GetDC(this->hwnd_) : 0;
-  const bool built = dc && this->node_ && this->node_->props.text_
-                     && this->table_.build(this->node_->props.text_->get(),
-                                           this->node_->props.blockStyle_,
-                                           scale.nativeLength(state.x, state.x + state.width).px,
-                                           dc,
-                                           *this->controller());
-  if (dc)
-    ReleaseDC(this->hwnd_, dc);
-  int height = 0;
-  int width = state.width;
-  if (built)
+  const int constraint = scale.nativeLength(state.x, state.x + state.width).px;
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->table_.reusable(constraint))
   {
-    int intrinsicWidth = 0;
-    for (std::size_t i = 0; i < this->table_.lines().lineCount(); ++i)
-    {
-      const loka::app::TextLineRecord &line = this->table_.lines().line(i);
-      const int lineWidth = scale.measurementToLu(line.width);
-      if (lineWidth > intrinsicWidth)
-        intrinsicWidth = lineWidth;
-      height += scale.measurementToLu(line.metrics.ascent + line.metrics.descent + line.metrics.leading);
-      if (height > SHRT_MAX)
-      {
-        height = SHRT_MAX;
-        break;
-      }
-    }
-    if (width <= 0)
-      width = intrinsicWidth;
+    HDC dc = this->hwnd_ ? GetDC(this->hwnd_) : 0;
+    const bool built = dc && this->node_ && this->node_->props.text_
+                       && this->table_.build(this->node_->props.text_->get(),
+                                             this->node_->props.blockStyle_, constraint, dc, *this->controller());
+    if (dc)
+      ReleaseDC(this->hwnd_, dc);
+    if (!built)
+      this->clearMeasurement();
   }
+  const int height = this->table_.height();
+  const int width = state.width > 0 ? state.width : this->table_.width();
   state.height = Coordinate(height);
   this->relayout(state.x, state.y, Coordinate(width), state.height);
   if (this->hwnd_)
@@ -166,7 +162,8 @@ Win32AttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuery 
   RECT rect;
   if (!this->hwnd_)
     return PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
-  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != paintScope() || !GetClientRect(this->hwnd_, &rect))
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != paintScope() || !GetClientRect(this->hwnd_, &rect)
+      || IsRectEmpty(&rect))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->table_.valid() || !this->node_ || !this->node_->props.text_
       || this->node_->props.text_->get() != this->table_.value())
@@ -209,7 +206,7 @@ LRESULT CALLBACK Win32AttributedTextContext::WndProc(HWND hwnd, UINT msg, WPARAM
     // The controller broadcasts before swapping/deleting its font table.
     // Do not rebuild here: the replacement is not yet installed.
     if (self)
-      self->onPropsApplied();
+      self->onTextEnvironmentChanged();
     return 0;
   case WM_SIZE:
     if (self)
@@ -240,7 +237,7 @@ LRESULT CALLBACK Win32AttributedTextContext::WndProc(HWND hwnd, UINT msg, WPARAM
 void Win32AttributedTextContext::draw(HDC dc, const RECT &rect)
 {
   this->presented_.invalidate();
-  if (!dc)
+  if (!dc || IsRectEmpty(&rect))
     return;
   RECT clip;
   const bool complete = GetClipBox(dc, &clip) == SIMPLEREGION && EqualRect(&clip, &rect);

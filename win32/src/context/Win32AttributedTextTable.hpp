@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include "app/layout/TextLineBreaker.hpp"
+#include "app/layout/MeasurementResult.hpp"
 
 class Win32ScenePlatformController;
 namespace loka
@@ -26,6 +27,9 @@ public:
              int width,
              HDC,
              const Win32ScenePlatformController &);
+  bool reusable(int width) const { return this->measurement_.reusable(width); }
+  int width() const { return this->valid() ? this->measurement_.extent().width : 0; }
+  int height() const { return this->valid() ? this->measurement_.extent().height : 0; }
   bool valid() const
   {
     return this->lines_ != 0;
@@ -43,6 +47,12 @@ public:
 
 private:
   friend class loka::testing::Win32AttributedTextAccess;
+  struct Extent
+  {
+    Extent(int w = 0, int h = 0) : width(w), height(h) {}
+    int width, height;
+  };
+  loka::app::MeasurementResult<int, Extent> measurement_;
   class WidthSource;
   bool buildRows(const loka::app::AttributedString &,
                  const loka::app::BlockStyle &,
