@@ -222,8 +222,9 @@ namespace loka
     int SyntheticTextLineWidth(const TextLineRecord &line, const BlockStyle &block, short availableWidth);
 
     /** Synthetic projection of a valid completed break, including Null's
-        truncation rule. Extent origin is (0,0); this is not native rail geometry. */
-    core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth);
+        truncation rule. Refusal leaves out unchanged. Extent origin is (0,0);
+        this is not native rail geometry. */
+    bool SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth, core::Frame &out);
   } // namespace app
 } // namespace loka
 #endif

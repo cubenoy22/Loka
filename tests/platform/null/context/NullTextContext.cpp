@@ -21,10 +21,10 @@ namespace
     return static_cast<short>(value);
   }
 
-  NullTextMeasurement MeasureText(const loka::app::TextNode *node,
-                                  const loka::app::scene::LayoutState &state,
-                                  const loka::core::String *rendered = 0,
-                                  bool *materialized = 0)
+  bool MeasureText(const loka::app::TextNode *node,
+                   const loka::app::scene::LayoutState &state,
+                   NullTextMeasurement &out,
+                   const loka::core::String *rendered = 0)
   {
     const loka::core::String value =
         node && node->props.text_ ? (rendered ? *rendered : node->props.text_->get()) : loka::core::String();
@@ -32,7 +32,7 @@ namespace
                            node ? node->props.blockStyle_ : loka::app::BlockStyle(),
                            node && node->props.text_ ? &value : 0,
                            state,
-                           materialized);
+                           out);
   }
 
   bool FitsTextSeat(const loka::app::TextNode *node,
@@ -43,8 +43,8 @@ namespace
     loka::app::scene::LayoutState measure;
     measure.width = static_cast<short>(seat.width);
     measure.lineHeight = placed.lineCount() > 0 ? placed.height() / placed.lineCount() : 0;
-    bool materialized = true;
-    const NullTextMeasurement output = MeasureText(node, measure, &value, &materialized);
+    NullTextMeasurement output;
+    const bool materialized = MeasureText(node, measure, output, &value);
     return materialized && output.width() <= seat.width && output.height() <= seat.height;
   }
 
@@ -75,6 +75,7 @@ namespace
 
 NullTextContext::NullTextContext(loka::app::TextNode *node)
     : loka::app::scene::NativeNodeContext(),
+      measurementBuilds_(0),
       node_(node),
       measurement_()
 {
@@ -93,7 +94,11 @@ void NullTextContext::readLifecycleFactOnAttach()
 short NullTextContext::layout(loka::app::scene::IPlatformController *controller, loka::app::scene::LayoutState &state)
 {
   bool materialized = true;
-  this->measurement_ = MeasureText(this->node_, state, 0, &materialized);
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(state.width))
+  {
+    ++this->measurementBuilds_;
+    materialized = MeasureText(this->node_, state, this->measurement_);
+  }
   state.height = this->measurement_.height();
   this->placement_.invalidate();
   this->presented_.invalidate();
@@ -143,6 +148,8 @@ NullTextPaintStyle::NullTextPaintStyle(const loka::app::TextProps &props)
 }
 void NullTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact next)
 {
+  if (next == loka::app::scene::NODE_FACT_RETIRED)
+    this->measurement_ = NullTextMeasurement();
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
   {
     this->presented_.invalidate();
@@ -216,4 +223,9 @@ const void *NullTextNodeHandlerKey()
 bool IsNullTextNodeHandler(const loka::app::scene::IPlatformNodeHandler *handler)
 {
   return handler == &gNullTextNodeHandler;
+}
+
+unsigned loka::app::testing::NullTextMeasurementAccess::builds(const NullTextContext &context)
+{
+  return context.measurementBuilds_;
 }

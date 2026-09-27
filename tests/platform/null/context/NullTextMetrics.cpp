@@ -2,18 +2,21 @@
 #include <climits>
 #include "app/layout/AlignedLineOffset.hpp"
 
-NullTextMeasurement MeasureNullText(const loka::app::TextStyle &style,
-                                    const loka::app::BlockStyle &block,
-                                    const loka::core::String *value,
-                                    const loka::app::scene::LayoutState &state,
-                                    bool *materialized)
+bool MeasureNullText(const loka::app::TextStyle &style,
+                     const loka::app::BlockStyle &block,
+                     const loka::core::String *value,
+                     const loka::app::scene::LayoutState &state,
+                     NullTextMeasurement &out)
 {
+  out = NullTextMeasurement(0, static_cast<short>(style.hasFontSize_ ? style.fontSize_ : 12), 1);
+  if (RefuseNullTextMeasurement())
+    return false;
   const loka::app::SyntheticTextWidthSource source(value ? *value : loka::core::String(), style);
   const loka::app::TextLineBreaker result(source, block, state.width, style);
-  if (materialized)
-    *materialized = result.valid();
-  return result.valid() ? MeasureNullTextLines(result, block, state.width)
-                        : NullTextMeasurement(0, static_cast<short>(style.hasFontSize_ ? style.fontSize_ : 12), 1);
+  if (!result.valid())
+    return false;
+  out = MeasureNullTextLines(result, block, state.width);
+  return true;
 }
 
 NullTextMeasurement
@@ -25,10 +28,11 @@ MeasureNullTextLines(const loka::app::TextLineBreaker &result, const loka::app::
 NullTextMeasurement::NullTextMeasurement(const loka::app::TextLineBreaker &result,
                                          const loka::app::BlockStyle &block,
                                          short availableWidth)
-    : width_(0),
-      height_(result.height()),
+    : result_(),
       lineCount_(static_cast<short>(result.lineCount() > SHRT_MAX ? SHRT_MAX : result.lineCount()))
 {
+  if (!result.valid())
+    return;
   int y = 0;
   int maxWidth = 0;
   if (result.lineCount() > 1)
@@ -49,5 +53,18 @@ NullTextMeasurement::NullTextMeasurement(const loka::app::TextLineBreaker &resul
       maxWidth = painted;
     y += height;
   }
-  this->width_ = static_cast<short>(maxWidth);
+  this->result_.commit(availableWidth, loka::core::Frame(0, 0, maxWidth, result.height()));
+}
+
+namespace
+{
+  int failMeasureCount = 0;
+}
+void loka::app::testing::NullTextMeasurementAccess::failMeasure(int count)
+{
+  failMeasureCount = count;
+}
+bool RefuseNullTextMeasurement()
+{
+  return failMeasureCount > 0 && --failMeasureCount == 0;
 }

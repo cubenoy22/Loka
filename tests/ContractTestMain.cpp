@@ -34,6 +34,7 @@
 #include "StateTrackerCommitTests.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "NodeObservedUsesTests.hpp"
+#include "NullMeasurementReuseTests.hpp"
 #include "ObservedLayoutInputsTests.hpp"
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32

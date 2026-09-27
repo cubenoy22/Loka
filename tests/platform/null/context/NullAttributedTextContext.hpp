@@ -27,6 +27,8 @@ public:
   void invalidatePresentation();
 
 private:
+  friend struct loka::app::testing::NullTextMeasurementAccess;
+  unsigned measurementBuilds_;
   loka::app::AttributedTextNode *node_;
   NullScenePlatformController &controller_;
   loka::app::scene::PaintFact<loka::app::AttributedString> presented_;
