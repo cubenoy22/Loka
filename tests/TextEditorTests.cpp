@@ -2692,15 +2692,17 @@ void testTextEditorCommandLinesReplacement()
 #include "support/WindowAdmissionTestApp.hpp"
 #include "testing/app/WindowTestAccess.hpp"
 #include "testing/scene/NodeObservedUsesTestAccess.hpp"
-namespace loka { namespace app { namespace testing {
-void resetSettlementProbe(const scene::Node *);
-unsigned settlementProbeDestroyed();
-unsigned settlementProbeEntered();
-unsigned settlementProbeEnteredDead();
-unsigned settlementProbeRefreshCount();
-} } }
 namespace
 {
+  unsigned settlementProbeDestructors = 0;
+  // The fixture keeps the real TextEditor native identity and behavior; only
+  // its own destructor is observed, without a production-header hook.
+  class SettlementProbeEditor : public TextEditorNode
+  {
+  public:
+    explicit SettlementProbeEditor(const TextEditorProps &p) : TextEditorNode(p) {}
+    virtual ~SettlementProbeEditor() { ++settlementProbeDestructors; }
+  };
   class SettlementProbeSeat;
   SettlementProbeSeat *settlementProbeSeat = 0;
   class SettlementProbeRoot;
@@ -2744,7 +2746,8 @@ namespace
     virtual void composeNode(NodeComposition &c)
     {
       c.declare(Show(*this->shown.state()).destroyOnDetach()
-                << TextEditor(this->model.lines, this->model.cursor).moveCaretTo(this->model.request));
+                << NodeDefinition<TextEditorProps, SettlementProbeEditor>(
+                    TextEditorProps(this->model.lines, this->model.cursor).moveCaretTo(this->model.request)));
     }
   };
   void SettlementProbeRoot::composeNode(NodeComposition &c)
@@ -2808,6 +2811,7 @@ namespace
     SettlementProbeObserver(SettlementProbeRoot &r, SettlementProbePresenter &p, bool input)
         : root(r), platform(p), replied(false), posted(false), replies(0), postOnCursor(input)
     {
+      settlementProbeDestructors = 0;
       this->root.request.reply().state()->bind(&reply, this, false);
       this->root.cursor.state()->bind(&cursor, this, false);
     }
@@ -2830,15 +2834,15 @@ namespace
       if (self.replied) return;
       self.replied = true;
       const unsigned before = self.platform.applies;
-      const unsigned refreshes = loka::app::testing::settlementProbeRefreshCount();
+      const unsigned drains = self.platform.drains;
       const bool values[] = {false, true, false};
       for (unsigned i = 0; i < 3; ++i)
       {
         settlementProbeSeat->shown.set(values[i]);
-        LOKA_VERIFY(loka::app::testing::settlementProbeDestroyed() == 0);
+        LOKA_VERIFY(settlementProbeDestructors == 0);
       }
       LOKA_VERIFY(self.platform.applies == before);
-      LOKA_VERIFY(loka::app::testing::settlementProbeRefreshCount() == refreshes);
+      LOKA_VERIFY(self.platform.drains == drains);
       TextEditorNode *editor = settlementProbeFind(&self.root);
       LOKA_VERIFY(editor && editor->lifecycleFact() == NODE_FACT_ATTACHED);
       LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::useCount(*editor) != 0);
@@ -2850,7 +2854,7 @@ namespace
 void probeRequestSettlementLifecycle()
 {
   using namespace loka::app::testing;
-  // First verify the destructor instrument on ordinary app flushes.
+  // First verify the test-local destructor counter on ordinary app flushes.
   for (unsigned mode = 0; mode < 3; ++mode)
   {
     NullPlatformContext context;
@@ -2865,12 +2869,12 @@ void probeRequestSettlementLifecycle()
         loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
     TextEditorNode *node = settlementProbeFind(root);
     LOKA_VERIFY(node && node->getContext());
-    resetSettlementProbe(node);
+    settlementProbeDestructors = 0;
     if (mode == 0)
     {
       settlementProbeSeat->shown.set(false);
       app.flush();
-      LOKA_VERIFY(settlementProbeDestroyed() == 1);
+      LOKA_VERIFY(settlementProbeDestructors == 1);
     }
     else
     {
@@ -2882,18 +2886,24 @@ void probeRequestSettlementLifecycle()
       app.flush();
       if (mode == 2)
       {
-        LOKA_VERIFY(settlementProbeDestroyed() == 0);
+        // The first later run retires the node. Its owning queue must still
+        // hold it across a new operation, even when completion is pumped.
+        OperationScope scope(platform);
+        const unsigned drains = platform.drains;
+        LOKA_VERIFY(!scene.flushInvalidation());
+        LOKA_VERIFY(!window.flushSceneInvalidation());
+        app.flush();
+        LOKA_VERIFY(platform.drains == drains);
+        LOKA_VERIFY(settlementProbeDestructors == 0);
+        LOKA_VERIFY(node->lifecycleFact() == NODE_FACT_RETIRED);
         LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(*node) == 0);
       }
       app.flush();
       LOKA_VERIFY(observer.replied && observer.replies == 2);
       LOKA_VERIFY(root->request.get().isNone());
       // Later takes complete before the hide retires and reclaims the editor.
-      LOKA_VERIFY(settlementProbeDestroyed() == 1);
-      LOKA_VERIFY(settlementProbeEntered() != 0);
-      LOKA_VERIFY(settlementProbeEnteredDead() == 0);
+      LOKA_VERIFY(settlementProbeDestructors == 1);
     }
-    resetSettlementProbe(0);
   }
 }
 
@@ -2911,7 +2921,6 @@ void testPlatformOperationPumps()
   const unsigned applies = platform.applies;
   const unsigned drains = platform.drains;
   const unsigned reads = platform.focusReads;
-  const unsigned refreshes = settlementProbeRefreshCount();
   {
     OperationScope outer(platform);
     LOKA_VERIFY(scene.isBusy());
@@ -2927,17 +2936,16 @@ void testPlatformOperationPumps()
     WindowTestAccess::reconcileFocus(window);
     LOKA_VERIFY(platform.applies == applies && platform.drains == drains);
     LOKA_VERIFY(platform.focusReads == reads);
-    LOKA_VERIFY(settlementProbeRefreshCount() == refreshes);
     LOKA_VERIFY(scene.hasPendingInvalidation());
   }
   LOKA_VERIFY(!scene.isBusy());
   app.flush();
   LOKA_VERIFY(platform.applies > applies && platform.drains > drains);
   // Positive controls for the pump and completion instruments.
-  const unsigned ran = settlementProbeRefreshCount();
+  const unsigned ran = platform.applies;
   scene.requestInvalidate();
   scene.flushInvalidation();
-  LOKA_VERIFY(settlementProbeRefreshCount() > ran);
+  LOKA_VERIFY(platform.applies > ran);
   WindowTestAccess::reconcileFocus(window);
   LOKA_VERIFY(platform.focusReads > reads);
 }

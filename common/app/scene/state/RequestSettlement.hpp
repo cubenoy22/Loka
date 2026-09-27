@@ -10,9 +10,6 @@ namespace loka
 {
   namespace app
   {
-#ifdef TEST_BUILD
-    namespace testing { void recordSettlementProbeEntry(const scene::Node *node); }
-#endif
     namespace scene
     {
 #ifdef TEST_BUILD
@@ -128,9 +125,6 @@ namespace loka
         /** Identity only; a parked context may still match. */
         bool hasSameContext() const
         {
-#ifdef TEST_BUILD
-          loka::app::testing::recordSettlementProbeEntry(this->node_);
-#endif
           return this->node_ && this->node_->getContext() == this->identity_;
         }
       protected:

@@ -479,7 +479,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_test(NAME LokaWin32AttributedTextHostTests COMMAND LokaWin32AttributedTextHostTests)
 
   # Isolated S1 pool simulation: deny Source and count global new during reclaim.
-  add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp tests/TestingHooks.cpp)
+  add_executable(LokaReclaimGaugePins tests/ReclaimGaugeMain.cpp tests/ReclaimScratchTests.cpp)
   loka_enable_warnings(LokaReclaimGaugePins)
   target_include_directories(LokaReclaimGaugePins PRIVATE tests)
   target_compile_definitions(LokaReclaimGaugePins PRIVATE TEST_BUILD LOKA_RECLAIM_GAUGE_PIN)

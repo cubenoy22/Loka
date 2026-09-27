@@ -622,10 +622,6 @@ namespace loka
           {
             return false;
           }
-#ifdef TEST_BUILD
-          extern void recordSettlementProbeRefresh();
-          recordSettlementProbeRefresh();
-#endif
           drainLiveBoundaryRetireQueues(scene->rootNode_);
           // Reclamation alone is silent and must not produce an apply snapshot.
           return scene->refreshComposition();
