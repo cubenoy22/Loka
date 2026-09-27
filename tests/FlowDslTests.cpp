@@ -3465,9 +3465,11 @@ void testLokaFlowDslV1Core()
     long dirtyMask = -1;
     (void)dirtyMask;
     assert(captured.getInt("dirty.mask", dirtyMask));
-    assert(dirtyMask == 0);
+    // This controller never lays out the leaf: its initial input fact remains
+    // pending. SnapText now reports that fact instead of the unused State.
+    assert(dirtyMask == (NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
     assert(captured.get("dirty.flags", value));
-    assert(value == "NONE");
+    assert(value == "PROPS|LAYOUT");
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> failChain =
@@ -3729,7 +3731,7 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, Scene *> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", loka::app::scene::NODE_DIRTY_NONE))
+        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT)))
               .input(&scenePtr);
 
     LOKA_VERIFY(okChain.run());
@@ -3737,7 +3739,7 @@ void testLokaFlowDslV1Core()
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, Scene *> failChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyHasBits("MainText", loka::app::scene::NODE_DIRTY_LAYOUT))
+        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyHasBits("MainText", loka::app::scene::NODE_DIRTY_CHILD))
               .input(&scenePtr)
               .onFailure(&FlowTestMarker::captureFailure, &failCapture);
 
@@ -3945,7 +3947,7 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, Scene *> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", loka::app::scene::NODE_DIRTY_NONE))
+        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT)))
               .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::SetStringStateAndFlush(&textState, "After"))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("MainText", "After"));

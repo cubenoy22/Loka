@@ -58,6 +58,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateTrackerAllocationTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StateTrackerCommitTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/BoundaryObservedStateTrackerTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeObservedUsesTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DerivedNodeStateTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/WindowFrameStateTests.cpp

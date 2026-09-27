@@ -18,12 +18,14 @@ namespace loka
           PaintBaselineStats()
               : boundaryUpdateVisits(0),
                 dirtySourceDeclarations(0),
-                boundaryApplyCallbacks(0)
+                boundaryApplyCallbacks(0),
+                observedUses(0)
           {
           }
           unsigned long boundaryUpdateVisits;
           unsigned long dirtySourceDeclarations;
           unsigned long boundaryApplyCallbacks;
+          unsigned long observedUses;
         };
 
         inline PaintBaselineStats &paintBaselineStats()

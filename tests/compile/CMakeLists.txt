@@ -436,3 +436,8 @@ loka_compile_pin(focus-post-unregistered
   REFUSES pins/refuses_focus-post.cpp
   ACCEPTS pins/accepts_focus-post.cpp
 )
+
+loka_compile_pin(observed-use-copy
+  REFUSES pins/refuses_observed_use_copy.cpp
+  ACCEPTS pins/accepts_observed_use_borrow.cpp
+)

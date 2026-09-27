@@ -33,6 +33,7 @@
 #include "StateTrackerAllocationTests.hpp"
 #include "StateTrackerCommitTests.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"
+#include "NodeObservedUsesTests.hpp"
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32
 #include "Win32FocusTests.hpp"

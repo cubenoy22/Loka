@@ -520,7 +520,9 @@ void allocpin::RunLazyFlexPageFlipAllocPin()
   std::fprintf(stderr, "LazyFlex warmed eight-card page flip: %lu / %lu allocations\n",
                CaptureAllocCount(0), CaptureAllocCount(1));
   // A ceiling for a full warmed page flip, including materialization and retirement.
-  enum { kWarmedPageFlipAllocBudget = 257 };
+  // #965 adds one node-owned observation row per rebuilt card. The measured
+  // eight-card flip is 265 / 264; upstream pool ceilings above stay unchanged.
+  enum { kWarmedPageFlipAllocBudget = 257 + 8 };
   LOKA_VERIFY(CaptureAllocCount(0) <= kWarmedPageFlipAllocBudget);
   LOKA_VERIFY(CaptureAllocCount(1) <= kWarmedPageFlipAllocBudget);
 }
