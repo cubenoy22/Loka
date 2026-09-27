@@ -1,4 +1,3 @@
-#include "testing/scene/NodeObservedUsesTestAccess.hpp"
 #ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 #define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 
@@ -959,52 +958,6 @@ namespace loka
 
       namespace scene_test_detail
       {
-        inline void appendDirtyFlagName(std::string &out, const char *name)
-        {
-          if (!out.empty())
-          {
-            out += '|';
-          }
-          out += name;
-        }
-
-        inline std::string nodeDirtyFlagsToString(::loka::app::scene::NodeDirtyFlags flags)
-        {
-          if (flags == ::loka::app::scene::NODE_DIRTY_NONE)
-          {
-            return std::string("NONE");
-          }
-
-          std::string result;
-          if (flags & ::loka::app::scene::NODE_DIRTY_PROPS)
-          {
-            appendDirtyFlagName(result, "PROPS");
-          }
-          if (flags & ::loka::app::scene::NODE_DIRTY_CHILD)
-          {
-            appendDirtyFlagName(result, "CHILD");
-          }
-          if (flags & ::loka::app::scene::NODE_DIRTY_LAYOUT)
-          {
-            appendDirtyFlagName(result, "LAYOUT");
-          }
-          if (flags & ::loka::app::scene::NODE_DIRTY_INITIAL)
-          {
-            appendDirtyFlagName(result, "INITIAL");
-          }
-
-          const int knownMask = ::loka::app::scene::NODE_DIRTY_PROPS | ::loka::app::scene::NODE_DIRTY_CHILD
-                                | ::loka::app::scene::NODE_DIRTY_LAYOUT | ::loka::app::scene::NODE_DIRTY_INITIAL;
-          const int unknownBits = static_cast<int>(flags) & ~knownMask;
-          if (unknownBits != 0)
-          {
-            char buf[32];
-            ::snprintf(buf, sizeof(buf), "0x%X", unknownBits);
-            appendDirtyFlagName(result, buf);
-          }
-          return result.empty() ? std::string("NONE") : result;
-        }
-
         template <class NodeT>
         static void findNodeByIdRecursive(::loka::app::scene::Node *node,
                                           const std::string &testId,
@@ -1264,9 +1217,6 @@ namespace loka
             return false;
           }
           out.set("text.value", utf8.c_str());
-          const ::loka::app::scene::NodeDirtyFlags dirtyFlags = ::loka::app::testing::NodeObservedUsesTestAccess::mark(*node);
-          out.setInt("dirty.mask", static_cast<long>(dirtyFlags));
-          out.set("dirty.flags", scene_test_detail::nodeDirtyFlagsToString(dirtyFlags).c_str());
           return true;
         }
       };
@@ -2208,80 +2158,6 @@ namespace loka
       inline CheckTextAdapter CheckText(const NodeSelector< ::loka::app::TextNode> &selector, const char *expected)
       {
         return CheckTextAdapter(selector, expected);
-      }
-
-      class CheckTextDirtyHasBitsAdapter
-      {
-      public:
-        typedef ::loka::app::scene::Scene *In;
-        typedef ::loka::app::scene::Scene *Out;
-
-        CheckTextDirtyHasBitsAdapter(const char *testId, long mask)
-            : testId_(testId ? testId : ""),
-              mask_(mask)
-        {
-        }
-
-        StepRunStatus run(In const &in, Out &out, FlowError &error) const
-        {
-          out = in;
-          // Internal snap only: used as a transient assertion payload, not for file output.
-          SnapRecord snap;
-          StepRunStatus snapStatus =
-              SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
-          if (snapStatus != FLOW_STEP_SUCCEEDED)
-          {
-            return snapStatus;
-          }
-          SnapRecord ignored;
-          return CheckDirtyHasBits(mask_).run(snap, ignored, error);
-        }
-
-      private:
-        std::string testId_;
-        long mask_;
-      };
-
-      inline CheckTextDirtyHasBitsAdapter CheckTextDirtyHasBits(const char *testId, long mask)
-      {
-        return CheckTextDirtyHasBitsAdapter(testId, mask);
-      }
-
-      class CheckTextDirtyEqualsAdapter
-      {
-      public:
-        typedef ::loka::app::scene::Scene *In;
-        typedef ::loka::app::scene::Scene *Out;
-
-        CheckTextDirtyEqualsAdapter(const char *testId, long expectedMask)
-            : testId_(testId ? testId : ""),
-              expectedMask_(expectedMask)
-        {
-        }
-
-        StepRunStatus run(In const &in, Out &out, FlowError &error) const
-        {
-          out = in;
-          // Internal snap only: used as a transient assertion payload, not for file output.
-          SnapRecord snap;
-          StepRunStatus snapStatus =
-              SnapText(testId_.c_str(), "SceneCheck", "check-text-dirty", 0, 0).run(in, snap, error);
-          if (snapStatus != FLOW_STEP_SUCCEEDED)
-          {
-            return snapStatus;
-          }
-          SnapRecord ignored;
-          return CheckDirtyEquals(expectedMask_).run(snap, ignored, error);
-        }
-
-      private:
-        std::string testId_;
-        long expectedMask_;
-      };
-
-      inline CheckTextDirtyEqualsAdapter CheckTextDirtyEquals(const char *testId, long expectedMask)
-      {
-        return CheckTextDirtyEqualsAdapter(testId, expectedMask);
       }
 
       class FlushSceneInvalidationAdapter

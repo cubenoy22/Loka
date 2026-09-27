@@ -3462,14 +3462,9 @@ void testLokaFlowDslV1Core()
     std::string value;
     assert(captured.get("text.value", value));
     assert(value == "Hello SnapText");
-    long dirtyMask = -1;
-    (void)dirtyMask;
-    assert(captured.getInt("dirty.mask", dirtyMask));
-    // This controller never lays out the leaf: its initial input fact remains
-    // pending. SnapText now reports that fact instead of the unused State.
-    assert(dirtyMask == (NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
-    assert(captured.get("dirty.flags", value));
-    assert(value == "PROPS|LAYOUT");
+    // Scenario snapshots describe logical values, independent of layout visits.
+    LOKA_VERIFY(!captured.get("dirty.mask", value));
+    LOKA_VERIFY(!captured.get("dirty.flags", value));
 
     FlowErrorCapture failCapture = {0, 0, 0};
     loka::dsl::FlowChain<Scene *, loka::dsl::SnapRecord> failChain =
@@ -3718,45 +3713,6 @@ void testLokaFlowDslV1Core()
 
     NodeComposition composition;
     BoxDefinition &root = composition.declare(Box().testId("RootBox"));
-    root << Text("Hello Dirty").testId("MainText");
-
-    NodeDefinitionBase *rootDefinition = composition.root()->clone();
-    LOKA_VERIFY(rootDefinition != 0);
-    Scene scene(rootDefinition);
-    FlowScenePlatformController platform;
-    scene.mount(&platform);
-    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
-
-    Scene *scenePtr = &scene;
-
-    loka::dsl::FlowChain<Scene *, Scene *> okChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT)))
-              .input(&scenePtr);
-
-    LOKA_VERIFY(okChain.run());
-
-    FlowErrorCapture failCapture = {0, 0, 0};
-    loka::dsl::FlowChain<Scene *, Scene *> failChain =
-        loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyHasBits("MainText", loka::app::scene::NODE_DIRTY_CHILD))
-              .input(&scenePtr)
-              .onFailure(&FlowTestMarker::captureFailure, &failCapture);
-
-    LOKA_VERIFY(failChain.run());
-    assert(failCapture.calls == 1);
-    assert(failCapture.kind == loka::dsl::testing::FLOW_ERROR_KIND_SCENE_TEST_ASSERT);
-    assert(failCapture.code == loka::dsl::testing::FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED);
-
-    loka::dsl::testing::SceneTestAccess::unmount(scene);
-  }
-
-  {
-    using namespace loka::app;
-    using namespace loka::app::scene;
-
-    NodeComposition composition;
-    BoxDefinition &root = composition.declare(Box().testId("RootBox"));
     root << Button("Press").testId("ActionButton");
 
     NodeDefinitionBase *rootDefinition = composition.root()->clone();
@@ -3947,7 +3903,7 @@ void testLokaFlowDslV1Core()
 
     loka::dsl::FlowChain<Scene *, Scene *> okChain =
         loka::dsl::Flow()
-        | loka::dsl::Step(1, loka::dsl::testing::CheckTextDirtyEquals("MainText", static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT)))
+        | loka::dsl::Step(1, loka::dsl::testing::CheckText("MainText", "Before"))
               .input(&scenePtr)
         | loka::dsl::Step(2, loka::dsl::testing::SetStringStateAndFlush(&textState, "After"))
         | loka::dsl::Step(3, loka::dsl::testing::CheckText("MainText", "After"));

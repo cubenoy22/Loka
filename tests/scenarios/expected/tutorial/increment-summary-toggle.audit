@@ -13,8 +13,6 @@ crop_bottom	280
 crop_left	0
 crop_right	360
 crop_top	0
-dirty.flags	NONE
-dirty.mask	0
 format_version	1
 increment_count	2
 node	Tutorial.Step4.Summary

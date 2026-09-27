@@ -2,6 +2,7 @@
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/scene/NodeObservedUsesTestAccess.hpp"
 
 #include <cassert>
 #include <cstdio>
