@@ -36,57 +36,40 @@ namespace
     return TextGeometry(font, lineHeight > fallback ? lineHeight : fallback);
   }
 
-  int MeasureTextHeightForWidth(const loka::app::TextNode *text, int width,
-                                int defaultHeight, NSFont *selectedFont,
-                                const loka::macos::MacProjection &projection)
+  // Miss only: materialize this leaf's text and measure one temporary cell if wrapped.
+  bool MeasureTextHeightForWidth(const loka::app::TextNode *text,
+                                 const loka::macos::MacLength &width,
+                                 int defaultHeight, NSFont *selectedFont,
+                                 const loka::macos::MacProjection &projection,
+                                 int &height, NSString *&string)
   {
+    height = defaultHeight;
+    string = @"";
     if (!text || !text->props.text_)
-    {
-      return defaultHeight;
-    }
-    if (!text->props.blockStyle_.hasWrap_
-        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
-    {
-      return defaultHeight;
-    }
-    if (width <= 0)
-    {
-      return defaultHeight;
-    }
-
+      return true;
     std::string utf8;
     if (!loka::platform::CollectUtf8(text->props.text_->get(), utf8))
-    {
-      return defaultHeight;
-    }
-    if (utf8.empty())
-    {
-      return defaultHeight;
-    }
-
-    NSString *string = [NSString stringWithUTF8String:utf8.c_str()];
+      return false;
+    string = [NSString stringWithUTF8String:utf8.c_str()];
     if (!string)
-    {
-      return defaultHeight;
-    }
+      return false;
+    if (utf8.empty() || width.pt <= 0 || !text->props.blockStyle_.hasWrap_
+        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE)
+      return true;
+
     NSFont *font = selectedFont ? selectedFont : [NSFont systemFontOfSize:[NSFont systemFontSize]];
-    int measured = defaultHeight;
     NSTextFieldCell *cell = [[[NSTextFieldCell alloc] initTextCell:string] autorelease];
-    if (cell)
-    {
-      [cell setFont:font];
-      [cell setWraps:YES];
-      [cell setScrollable:NO];
-      [cell setLineBreakMode:NSLineBreakByWordWrapping];
-      NSSize size = [cell cellSizeForBounds:loka::macos::MacMeasurementBounds(projection.projectLength(0, width))];
-      measured = projection.measurementToLu(size.height);
-    }
-    const int measuredWithPadding = measured + 2;
-    if (measuredWithPadding > defaultHeight)
-    {
-      return measuredWithPadding;
-    }
-    return defaultHeight;
+    if (!cell || !font)
+      return false;
+    [cell setFont:font];
+    [cell setWraps:YES];
+    [cell setScrollable:NO];
+    [cell setLineBreakMode:NSLineBreakByWordWrapping];
+    const NSSize size = [cell cellSizeForBounds:loka::macos::MacMeasurementBounds(width)];
+    const int measuredWithPadding = projection.measurementToLu(size.height) + 2;
+    if (measuredWithPadding > height)
+      height = measuredWithPadding;
+    return true;
   }
 
   static void SetUsesSingleLineModeCompat(NSTextField *label, BOOL value)
@@ -300,6 +283,7 @@ void MacTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
     this->applyDetachedPresentation();
     if (next == loka::app::scene::NODE_FACT_RETIRED)
     {
+      this->clearMeasurement();
       this->unbindText();
       [(NSTextField *)this->label_ removeFromSuperview];
       this->retireNativeObject(this->label_);
@@ -332,14 +316,38 @@ bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
   return CaptureViewBitmap((NSView *)label_, out);
 }
 
+void MacTextContext::clearMeasurement()
+{
+  // Refusal/retirement: O(1), revoke this label's presentation and placement together.
+  this->measurement_.invalidate();
+  [(NSTextField *)this->label_ setStringValue:@""];
+  this->relayout(0, 0, 0, 0);
+}
+
 short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  // Live TextStyle is a layout dirty source, not a retained-props callback.
+  // Per visited leaf: reconcile native style even on the O(1) measurement hit.
   this->applyStyle();
-  const TextGeometry geometry = ResolveTextGeometry(
-      this->node_ ? this->node_->props.resolvedTextStyle() : loka::app::TextStyle(), this->controller());
-  const int textHeight = MeasureTextHeightForWidth(
-      this->node_, state.width, geometry.minimumHeight, geometry.font, this->controller()->projection());
+  const loka::macos::MacProjection &projection = this->controller()->projection();
+  const loka::macos::MacLength constraint = projection.projectLength(0, state.width);
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint.pt))
+  {
+    const TextGeometry geometry = ResolveTextGeometry(
+        this->node_ ? this->node_->props.resolvedTextStyle() : loka::app::TextStyle(), this->controller());
+    int height = 0;
+    NSString *string = nil;
+    if (!this->label_ || !MeasureTextHeightForWidth(
+        this->node_, constraint, geometry.minimumHeight, geometry.font, projection, height, string))
+    {
+      this->clearMeasurement();
+      state.height = 0;
+      return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
+    }
+    // Also restores presentation after refusal without needing a new State publication.
+    [(NSTextField *)this->label_ setStringValue:string];
+    this->measurement_.commit(constraint.pt, height);
+  }
+  const int textHeight = this->measurement_.extent();
   this->relayout(state.x, state.y, state.width, textHeight);
   state.height = static_cast<short>(textHeight);
   return static_cast<short>(state.y + textHeight + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
