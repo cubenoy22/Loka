@@ -417,9 +417,10 @@ namespace loka
       return width;
     }
 
-    core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth)
+    bool SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth, core::Frame &out)
     {
-      assert(result.valid());
+      if (!result.valid())
+        return false;
       int maxWidth = 0;
       for (std::size_t i = 0; i < result.lineCount(); ++i)
       {
@@ -428,7 +429,8 @@ namespace loka
         if (width > maxWidth)
           maxWidth = width;
       }
-      return core::Frame(0, 0, maxWidth, result.height());
+      out = core::Frame(0, 0, maxWidth, result.height());
+      return true;
     }
   } // namespace app
 } // namespace loka

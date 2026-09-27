@@ -400,7 +400,8 @@ void testTextBreakerCharacterization()
     LayoutState state;
     state.width = 12;
     bool valid = false;
-    const NullTextMeasurement plain = MeasureNullText(TextStyle(), block, &text, state, &valid);
+    NullTextMeasurement plain;
+    valid = MeasureNullText(TextStyle(), block, &text, state, plain);
     const NullTextMeasurement attributed = measured(Styled(text, TextStyle()), 12, block);
     LOKA_VERIFY(valid);
     LOKA_VERIFY(plain.width() == cases[i].width && plain.height() == cases[i].height
@@ -427,7 +428,8 @@ void testTextBreakerCharacterization()
     state.width = SHRT_MAX;
     bool valid = false;
     const BlockStyle wrap = BlockStyle().wrap(static_cast<TextWrap>(mode));
-    const NullTextMeasurement plain = MeasureNullText(TextStyle(), wrap, &maximum, state, &valid);
+    NullTextMeasurement plain;
+    valid = MeasureNullText(TextStyle(), wrap, &maximum, state, plain);
     const NullTextMeasurement attributed = measured(Styled(maximum, TextStyle()), SHRT_MAX, wrap);
     LOKA_VERIFY(valid && plain.width() == 32764 && plain.height() == 24 && plain.lineCount() == 2);
     LOKA_VERIFY(attributed.width() == 32764 && attributed.height() == 24 && attributed.lineCount() == 2);

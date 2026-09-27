@@ -15,10 +15,7 @@ namespace loka
     {
       const SyntheticTextWidthSource source(*this);
       const TextLineBreaker result(source, block, availableWidth);
-      if (!result.valid())
-        return false;
-      out = SyntheticTextExtent(result, block, availableWidth);
-      return true;
+      return SyntheticTextExtent(result, block, availableWidth, out);
     }
 
     namespace

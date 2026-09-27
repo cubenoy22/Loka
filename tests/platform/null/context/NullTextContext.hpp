@@ -71,6 +71,8 @@ public:
   }
 
 private:
+  friend struct loka::app::testing::NullTextMeasurementAccess;
+  unsigned measurementBuilds_;
   loka::app::scene::PaintFact<loka::core::String> presented_;
   NullPaintPlacement placement_;
   NullTextPaintStyle placedStyle_;

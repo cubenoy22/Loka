@@ -22,6 +22,11 @@ namespace
                               bool &materialized,
                               const NullScenePlatformController &controller)
   {
+    if (RefuseNullTextMeasurement())
+    {
+      materialized = false;
+      return emptyMeasurement();
+    }
     const loka::app::SyntheticTextWidthSource synthetic(value);
     const loka::app::TextWidthSource *source = &synthetic;
     {
@@ -75,7 +80,8 @@ namespace
 
 NullAttributedTextContext::NullAttributedTextContext(loka::app::AttributedTextNode *node,
                                                      NullScenePlatformController &controller)
-    : node_(node),
+    : measurementBuilds_(0),
+      node_(node),
       controller_(controller)
 {
 }
@@ -83,13 +89,17 @@ NullAttributedTextContext::NullAttributedTextContext(loka::app::AttributedTextNo
 short NullAttributedTextContext::layout(loka::app::scene::IPlatformController *controller,
                                         loka::app::scene::LayoutState &state)
 {
-  bool materialized = false;
-  const loka::app::AttributedString empty;
-  this->measurement_ = measure(this->node_->props.text_ ? this->node_->props.text_->get() : empty,
-                               this->node_->props.blockStyle_,
-                               state,
-                               materialized,
-                               this->controller_);
+  bool materialized = true;
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(state.width))
+  {
+    ++this->measurementBuilds_;
+    const loka::app::AttributedString empty;
+    this->measurement_ = measure(this->node_->props.text_ ? this->node_->props.text_->get() : empty,
+                                 this->node_->props.blockStyle_,
+                                 state,
+                                 materialized,
+                                 this->controller_);
+  }
   state.height = this->measurement_.height();
   this->invalidatePresentation();
   loka::app::scene::PaintScope scope;
@@ -112,6 +122,8 @@ void NullAttributedTextContext::invalidatePresentation()
 void NullAttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact,
                                               loka::app::scene::NodeLifecycleFact next)
 {
+  if (next == loka::app::scene::NODE_FACT_RETIRED)
+    this->measurement_ = NullTextMeasurement();
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
     this->invalidatePresentation();
 }
@@ -166,4 +178,9 @@ const void *NullAttributedTextNodeHandlerKey()
 bool IsNullAttributedTextNodeHandler(const loka::app::scene::IPlatformNodeHandler *candidate)
 {
   return candidate == &handler;
+}
+
+unsigned loka::app::testing::NullTextMeasurementAccess::builds(const NullAttributedTextContext &context)
+{
+  return context.measurementBuilds_;
 }
