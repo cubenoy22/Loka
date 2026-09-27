@@ -677,6 +677,25 @@ namespace loka
         }
         /** Reserve the declared observation rows before publishing a candidate. */
         bool prepareObservedUses();
+        /** Restores a refused layout's inputs without losing newer marks. */
+        void requeueLayoutInputs(NodeDirtyFlags inputs)
+        { this->uses_.include(inputs); }
+
+        /** Stack-local checkpoint for a projection whose restore can refuse.
+            The node retains ownership; only refusal requeues the saved fact. */
+        class LayoutInputsCheckpoint
+        {
+        public:
+          explicit LayoutInputsCheckpoint(Node &node)
+              : node_(node), inputs_(node.uses_.mark) {}
+          void requeue() const { this->node_.requeueLayoutInputs(this->inputs_); }
+        private:
+          Node &node_;
+          const NodeDirtyFlags inputs_;
+          LayoutInputsCheckpoint(const LayoutInputsCheckpoint &);
+          LayoutInputsCheckpoint &operator=(const LayoutInputsCheckpoint &);
+        };
+
         virtual short layout(IPlatformController *controller, LayoutState &state)
         {
           PROFILE_SECTION("layoutNode");

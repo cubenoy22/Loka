@@ -422,8 +422,8 @@ void testObservedUsesRegistrationRefusalPublishesNoPartialUses()
     owner.completeObservedStatePass();
     LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(node) == 1);
 
-    // Model a changed declaration. Its old observation stays subscribed until
-    // pass completion; neither new source may publish if the second row refuses.
+    // A refused declaration keeps its old observation through pass completion;
+    // neither new source may publish if the second row refuses.
     loka::core::testing::failLokaAllocRaw("Node", "ObservedUse", 2);
     owner.beginComposeResult(COMPOSE_EVENT_UPDATE, NODE_DIRTY_PROPS);
     owner.beginObservedStatePass();
@@ -433,7 +433,7 @@ void testObservedUsesRegistrationRefusalPublishesNoPartialUses()
     owner.completeComposeResult();
     LOKA_VERIFY(owner.composeResult().allocationFailed);
     LOKA_VERIFY(!owner.composeResult().composed);
-    LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(node) == 0);
+    LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(node) == 1);
 
     // Outside retry reuses prepared storage only after the failed pass closed.
     owner.beginComposeResult(COMPOSE_EVENT_UPDATE, NODE_DIRTY_PROPS);
@@ -508,6 +508,74 @@ void testObservedUsesRepeatedSeatRefusal()
     { StateTrackerGuard guard(root->tracker()); root->shown.set(true); }
     scene.flushInvalidation();
     LOKA_VERIFY(findText(root) == leaf);
+    SceneTestAccess::unmount(scene);
+  }
+  LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+  loka::core::testing::allowLokaAllocRaw();
+}
+
+namespace
+{
+  class UpdateRefusalRoot : public BoundaryNodeFor<UpdateRefusalRoot>
+  {
+  public:
+    NodeState<String> text;
+    explicit UpdateRefusalRoot(const BoundaryPropsFor<UpdateRefusalRoot> &props)
+        : BoundaryNodeFor<UpdateRefusalRoot>(props)
+    {
+      this->state(this->text, String::Literal("before refusal"));
+    }
+    virtual bool flushViewDirtyImmediately(NodeDirtyFlags) const { return false; }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(Row() << Text(this->text.state()) << Text(this->text.state()));
+    }
+  };
+}
+
+void testObservedUsesRefusedUpdateKeepsStateRetry()
+{
+  loka::core::testing::failLokaAllocRaw("Node", "ObservedUse", 0);
+  {
+    NullScenePlatformController platform;
+    Scene scene((Boundary<UpdateRefusalRoot>()));
+    scene.mount(&platform);
+    SceneTestAccess::updateAttached(scene, true);
+    UpdateRefusalRoot *root =
+        static_cast<UpdateRefusalRoot *>(SceneTestAccess::rootBoundary(scene));
+    LOKA_VERIFY(root != 0);
+    LOKA_VERIFY(ObservedUseTestSupport::activeUses(root) == 2);
+    const NodeDirtyFlags originalUnion = root->observedDirtyFlags();
+    LOKA_VERIFY(originalUnion == NODE_DIRTY_PROPS);
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+
+    // Stop an UPDATE declaration before visiting either retained Text. The
+    // existing compose-failure fact closes the same scope as the production walk.
+    MutableState<bool> first(false), second(false);
+    TwoBorrowedSources candidate(first, second);
+    loka::core::testing::failLokaAllocRaw("Node", "ObservedUse", 2);
+    {
+      BoundaryNode::ObservedStatePassScope pass(root, COMPOSE_EVENT_UPDATE);
+      root->beginComposeResult(COMPOSE_EVENT_UPDATE, NODE_DIRTY_PROPS);
+      root->clearObservedDirtyFlags();
+      BoundaryNode::declareBoundaryDirtySources(&candidate, root);
+      root->completeComposeResult();
+      LOKA_VERIFY(root->composeResult().allocationFailed);
+      LOKA_VERIFY(!root->composeResult().composed);
+    }
+    loka::core::testing::failLokaAllocRaw("Node", "ObservedUse", 0);
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+    { StateTrackerGuard guard(root->tracker()); root->text.set(String::Literal("retry input")); }
+    LOKA_VERIFY(SceneTestAccess::requestedDirtyFlags(scene) == originalUnion);
+    LOKA_VERIFY(scene.hasPendingInvalidation());
+    LOKA_VERIFY(root->observedDirtyFlags() == originalUnion);
+    LOKA_VERIFY(ObservedUseTestSupport::activeUses(root) == 2);
+    LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(candidate) == 0);
+    scene.flushInvalidation();
+    LOKA_VERIFY(!root->composeResult().allocationFailed);
+    LOKA_VERIFY(root->composeResult().composed);
+    LOKA_VERIFY(ObservedUseTestSupport::activeUses(root) == 2);
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
     SceneTestAccess::unmount(scene);
   }
   LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);

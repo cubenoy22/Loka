@@ -186,10 +186,26 @@ namespace loka
           }
         }
 
-        /** Close the owner's registration pass after its committed tree has
-            been visited. Untouched entries no longer have a logical user. */
-        void finishPass(void (*changedThunk)(void *))
+        /** Only a completed declaration can retire unvisited uses. A refused
+            walk keeps live subscriptions available to request the next retry. */
+        void finishPass(void (*changedThunk)(void *), bool refused)
         {
+          if (refused)
+          {
+            // beginPass cleared scheduling contributions, but the incomplete
+            // walk cannot replace the union of the still-live use set.
+            for (size_t i = 0; i < entries.size(); ++i)
+            {
+              BoundaryObservedStateEntry &entry = entries[i];
+              entry.flags = NODE_DIRTY_NONE;
+              for (ObservedUse *use = entry.binding ? entry.binding->uses : 0;
+                   use; use = use->nextSubscription)
+                entry.flags = static_cast<NodeDirtyFlags>(entry.flags | use->flags);
+              if (entry.binding) entry.binding->flags = entry.flags;
+              dirty.include(entry.flags);
+            }
+            return;
+          }
           for (size_t i = 0; i < entries.size();)
           {
             BoundaryObservedStateBinding *binding = entries[i].binding;

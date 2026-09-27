@@ -1,0 +1,6 @@
+#ifndef LOKA_TESTS_OBSERVED_LAYOUT_INPUTS_TESTS_HPP
+#define LOKA_TESTS_OBSERVED_LAYOUT_INPUTS_TESTS_HPP
+void testObservedLayoutInputsRequeuedAfterProjectionRefusal();
+void testObservedLayoutInputsRequeuedAfterSurfaceRefusal();
+void testObservedLayoutInputsHandlerStackKeepsMark();
+#endif

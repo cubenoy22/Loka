@@ -10,4 +10,5 @@ void testObservedUsesFinishPassPrunesOneSharedBorrower();
 void testObservedUsesAllocationRefusesWholeCandidate();
 void testObservedUsesRegistrationRefusalPublishesNoPartialUses();
 void testObservedUsesRepeatedSeatRefusal();
+void testObservedUsesRefusedUpdateKeepsStateRetry();
 #endif

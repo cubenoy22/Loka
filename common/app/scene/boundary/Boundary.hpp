@@ -435,7 +435,9 @@ namespace loka
         /** Close the registration pass after every composition exit. */
         void completeObservedStatePass()
         {
-          this->observedState_.finishPass(&BoundaryNode::ObservedStateChangedThunk);
+          this->observedState_.finishPass(&BoundaryNode::ObservedStateChangedThunk,
+              this->compositionState_.allocationFailedValue() ||
+              this->compositionState_.boundaryPlanRequiredValue());
         }
         /** Keeps observation registration bounded by the composition walk,
             including early returns; detach never opens a registration pass. */
