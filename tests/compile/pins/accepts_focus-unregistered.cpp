@@ -19,10 +19,10 @@ namespace loka
 } // namespace loka
 void pin()
 {
-  loka::app::scene::Reported<loka::app::Focused<RegisteredFocusKey> > fact;
+  loka::app::FocusFact<RegisteredFocusKey> fact;
   loka::app::EditText().focusedAs(fact, FIELD);
   loka::app::TextEditor().focusedAs(fact, FIELD);
-  loka::app::scene::Reported<loka::app::Focused<int> > ids;
+  loka::app::FocusFact<int> ids;
   loka::app::EditText().focusedAs(ids, -7);
   loka::app::TextEditor().focusedAs(ids, 7);
   loka::app::FocusBinding empty, copy(empty);

@@ -431,3 +431,8 @@ loka_compile_pin(flowslot-testing-key-is-private
   REFUSES pins/refuses_flowslot_key.cpp
   ACCEPTS pins/accepts_flowslot_testing.cpp
 )
+
+loka_compile_pin(focus-post-unregistered
+  REFUSES pins/refuses_focus-post.cpp
+  ACCEPTS pins/accepts_focus-post.cpp
+)

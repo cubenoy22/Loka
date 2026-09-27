@@ -9,6 +9,7 @@
 #include "app/scene/composition/NodeComposition.hpp"
 #include "app/scene/state/StateBatchBase.hpp"
 #include "app/scene/state/Reported.hpp"
+#include "app/FocusFact.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
 
@@ -329,6 +330,19 @@ namespace loka
         // This does not make ComposableNode a state owner; nodes that need a
         // shorter ownership scope than Boundary should expose an explicit
         // IStateOwner through asStateOwner().
+        template <typename K> void state(FocusFact<K> &out)
+        {
+          this->state(out.fact_, Focused<K>::none());
+          this->state(out.request_, ::loka::app::detail::FocusTarget<K>::None());
+        }
+
+        /** Initial focus is a request initializer, never an initial reported fact. */
+        template <typename K> void state(FocusFact<K> &out, K initial)
+        {
+          this->state(out.fact_, Focused<K>::none());
+          this->state(out.request_, ::loka::app::detail::FocusTarget<K>(initial));
+        }
+
         template <typename T> void state(Request<T> &out, const T &initial)
         {
           (void)sizeof(typename RequestDeclarationWall<T>::Wall);
@@ -415,6 +429,19 @@ namespace loka
           ~NodeStateBatch()
           {
             this->releaseBlock();
+          }
+
+          /** A focus bundle reserves two physical state rows. */
+          template <typename K> NodeStateBatch &state(FocusFact<K> &out)
+          {
+            this->state(out.fact_, Focused<K>::none());
+            return this->state(out.request_, ::loka::app::detail::FocusTarget<K>::None());
+          }
+
+          template <typename K> NodeStateBatch &state(FocusFact<K> &out, K initial)
+          {
+            this->state(out.fact_, Focused<K>::none());
+            return this->state(out.request_, ::loka::app::detail::FocusTarget<K>(initial));
           }
 
           /** RequestWithReply uses two physical entries in declareStates capacity. */

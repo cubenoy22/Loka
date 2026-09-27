@@ -32,6 +32,16 @@ namespace loka
           return false;
         }
 
+        /** Attempts native focus without activating the window. Copy native handles
+            and the context identity BEFORE any native call. Callbacks may retire
+            and free the context: afterwards never touch ctx, only compare identities.
+            Completion re-reads native focus; the return is not publication authority. */
+        virtual bool applyNativeFocus(NodeContext &ctx)
+        {
+          (void)ctx;
+          return false;
+        }
+
         // Project a changed node tree into native UI.
         virtual void onChange(Node *rootNode, NodeDirtyFlags flags, bool fullRebuild) = 0;
 

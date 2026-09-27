@@ -3,6 +3,7 @@
 
 #include "app/FocusParticipant.hpp"
 class Window;
+namespace loka { namespace app { namespace scene { class IPlatformController; } } }
 
 namespace loka
 {
@@ -10,12 +11,14 @@ namespace loka
   {
     namespace detail
     {
-      /** Stateless publication policy, entered through Window completion.
-          Debug audits run only on publication and published binding exchange:
-          they detect attached duplicates in that Scene and facts simultaneously
-          published by another live Scene, not every borrowed or registered fact. */
+      /** Stateless take and publication policy, entered through Window completion.
+          Completion audits same-Scene placement for inspected bound rows.
+          Publication and published binding exchange additionally audit attached
+          duplicates and facts simultaneously published by another live Scene. */
       class FocusPublisher
       {
+        static void complete(scene::SceneFocus &current, scene::IPlatformController &platform, scene::Node &root);
+        static scene::NodeContext *resolve(scene::SceneFocus &current, const FocusBinding &identity);
         static scene::NodeContext *publishedContext(scene::SceneFocus &current);
         static void reconcile(scene::SceneFocus &current, bool answered, scene::NodeContext *target);
         static void leave(FocusParticipant &row);
