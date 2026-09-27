@@ -1152,11 +1152,12 @@ Text("A long paragraph")
 ```
 
 Horizontal alignment is a block property too. Left is the default; the two
-other alignments have scoped names so the call site says what is aligned:
+other alignments have names in the `block` namespace, so the call site says
+what is aligned (Row and Column align child boxes, which is a different thing):
 
 ```cpp
-Text("Card One") + Title + BlockStyle::Centered
-Text("a caption") + Italic + BlockStyle::RightAligned
+Text("Card One") + Title + block::Centered
+Text("a caption") + Italic + block::RightAligned
 Text("x") + BlockStyle().align(TEXT_ALIGN_CENTER)   // the same, spelled out
 ```
 
