@@ -409,12 +409,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
           && !HIWORD(wParam))
       {
         loka::app::scene::NodeContext *context = self->publishedFocusContext();
-        loka::app::scene::Node *node = context ? context->owner() : 0;
-        HWND target = 0;
-        if (node && node->asEditTextNode())
-          target = static_cast<Win32EditTextContext *>(context)->hwnd();
-        else if (node && node->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>())
-          target = static_cast<Win32TextEditorContext *>(context)->hwnd();
+        const HWND target = Win32FocusParticipant::target(context);
         if (target && Win32FocusParticipant::read(target) == context)
         {
           SetFocus(target);

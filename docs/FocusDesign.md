@@ -340,7 +340,7 @@ prevent a callback from running its own Scene synchronously.
 belonging to the controller's Scene, connects its source link, and compares
 the subsequent read with the copied context identity.
 All rails must copy handles/identity before a callback-capable native call and
-never dereference the context afterward. Win32 and macOS continue to decline writes until their own PRs; their focus
+never dereference the context afterward. macOS continues to decline writes until its own PR; its focus
 reporting remains.
 Null's confirming read adds a read inside its write door to common admission
 and readback. No normal-path allocation or retained candidate is added.
@@ -348,9 +348,8 @@ and readback. No normal-path allocation or retained candidate is added.
 An absent LazyFlex row or parked Show field is deferred until it appears and a
 later completion runs. An inactive window does not take or activate itself.
 An attempted native refusal consumes the request with no retry (D2). A clipped Toolbox field has no TE or usable fallback hit, so its request is
-refused and consumed. Win32/macOS may focus an invisible control under their
-later write-door contract; this rail difference is not runtime evidence for
-those implementations.
+refused and consumed. Win32 accepts a clipped control even when the user cannot see it; macOS
+retains that intended difference for its later write-door implementation.
 There is no reply, autonomous wake-up, timeout or fairness guarantee between
 facts. Membership order is reverse attach order; one fact per screen is the
 convention. On Win32 a post made inside completion may wait for the next
@@ -386,3 +385,42 @@ native edit rows, then O(H) over its fallback hits when no native row exists.
 The shared activation step is O(1), with no allocation or new retained state.
 Host pins cover activation, refusal, key delivery, selection/scroll preservation
 and port restoration; Classic runtime verification belongs to the MAME rig.
+
+
+### Win32 write door (PR c)
+
+The root HWND must exist and be this thread's active window. The context must
+have an owner, be that owner's current context, and be ATTACHED. The shared
+`Win32FocusParticipant::target` resolver maps EditText and TextEditor contexts
+to HWNDs for both this door and `WM_ACTIVATE` reactivation restore. Restore
+keeps its existing mark check. The write door additionally requires a child
+of its own root and a matching context mark; any admission failure returns
+false without changing focus or activating a window. A disabled HWND needs no
+check of its own: Windows does not move focus to it, so the readback refuses.
+
+The door copies the HWND before `SetFocus`. IME commit
+can re-enter through `WM_KILLFOCUS`, `EN_CHANGE`, a text State write and a
+synchronous Scene run, retiring the target context. After the native call,
+it never dereferences that context: it compares `GetFocus()` with the saved
+HWND. Which context, if any, that HWND still represents is the common
+readback's question, not the door's. `SetFocus`'s return
+is the previous handle, not a success result. Common completion re-reads
+native focus before publishing; a retired, unmarked HWND can publish none.
+
+A post changes only native keyboard focus: it does not issue text, selection,
+scroll or activation operations. There is no clip check or scroll-to-reveal:
+a clipped or scrolled-out control can receive focus although the user cannot
+see it (D2), unlike Toolbox's refusal when no usable TE/hit exists. A refusal
+after take consumes the attempt. A post made inside completion waits for the
+next message when the loop reaches `WaitMessage`; it does not wake the loop.
+
+Initial focus is declared with `this->state(focus_, KEY)`. Its request is taken
+at the first completion after activation. The first `WM_ACTIVATE` has no
+published focus, so no restore competes with that request.
+
+The door runs at most once per taken request and the resolver once per write
+or activation restore. They walk no framework rows and allocate nothing;
+`IsChild` checks native ancestry under this controller's root. Win32 pins cover
+posts to both field types, initial focus, inactive retention, mark/disabled/
+foreign-controller refusal, preservation and kill-focus retirement. Their
+runtime verdict belongs to the Windows VM; Linux suites do not compile them.
