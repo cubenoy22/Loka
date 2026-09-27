@@ -10,6 +10,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Show.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "support/Headless.hpp"
@@ -397,6 +398,184 @@ void testWin32FocusCompletion()
     LOKA_VERIFY(probe.step == 4);
     f.expect(3);
   }
+}
+
+
+namespace
+{
+  class CompletionTailRoot : public BoundaryNodeFor<CompletionTailRoot>
+  {
+  public:
+    Focus<unsigned short> focus;
+    NodeState<bool> shown;
+    Reported<LineCursor> cursor;
+    RequestWithReply<LineCursor> request;
+    ObservableList<String> lines;
+
+    explicit CompletionTailRoot(const BoundaryPropsFor<CompletionTailRoot> &p)
+        : BoundaryNodeFor<CompletionTailRoot>(p)
+    {
+      this->state(this->focus);
+      this->state(this->shown, true);
+      this->state(this->cursor, LineCursor::None());
+      this->state(this->request, LineCursor::None());
+    }
+    virtual void attachNode(NodeComposition &)
+    {
+      StateTracker *owner = 0;
+      if (this->lines.queryMutationTracker(owner) == EDIT_OK)
+        return;
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 4) == ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, String("focus tail")) == EDIT_OK);
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(Show(*this->shown.state()).destroyOnDetach()
+                << TextEditor(TextEditorProps(this->lines, this->cursor).moveCaretTo(this->request)
+                                  .focusedAs(this->focus, static_cast<unsigned short>(1))));
+    }
+  };
+
+  TextEditorNode *completionTailEditor(Node *node)
+  {
+    if (node->nodeTypeKey() == NodeTypeToken<TextEditorNode>())
+      return static_cast<TextEditorNode *>(node);
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0; child; child = child->nextInComposition)
+    {
+      TextEditorNode *found = completionTailEditor(child);
+      if (found) return found;
+    }
+    return 0;
+  }
+
+  class CompletionTailProbe
+  {
+  public:
+    explicit CompletionTailProbe(Scene &scene)
+        : scene_(scene), root_(*static_cast<CompletionTailRoot *>(
+              loka::dsl::testing::SceneTestAccess::rootBoundary(scene))), replies_(0), fallbackFired_(false)
+    {
+      this->root_.cursor.state()->bind(&moved, this, false);
+      this->root_.request.reply().state()->bind(&replied, this, false);
+    }
+    ~CompletionTailProbe()
+    {
+      this->root_.request.reply().state()->unbind(&replied, this);
+      this->root_.cursor.state()->unbind(&moved, this);
+    }
+    void timeout()
+    {
+      this->fallbackFired_ = true;
+      PostQuitMessage(0);
+    }
+    void verify()
+    {
+      LOKA_VERIFY(!this->fallbackFired_);
+      LOKA_VERIFY(this->replies_ == 1);
+      LOKA_VERIFY(!completionTailEditor(&this->root_));
+      LOKA_VERIFY(!this->scene_.isOperationOpen());
+      LOKA_VERIFY(!this->scene_.focus().isPublishing());
+    }
+
+  private:
+    static void moved(void *data)
+    {
+      CompletionTailProbe &self = *static_cast<CompletionTailProbe *>(data);
+      const ItemId line = self.root_.lines.at(0).id;
+      if (self.root_.cursor.state()->get() != LineCursor(line, 1))
+        return;
+      LOKA_VERIFY(self.scene_.isOperationOpen());
+      LOKA_VERIFY(self.scene_.focus().isPublishing());
+      self.root_.request.set(LineCursor(line, 3));
+    }
+    static void replied(void *data)
+    {
+      CompletionTailProbe &self = *static_cast<CompletionTailProbe *>(data);
+      ++self.replies_;
+      const Reply<LineCursor> reply = self.root_.request.reply().state()->get();
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::GRANTED);
+      LOKA_VERIFY(reply.applied() == LineCursor(self.root_.lines.at(0).id, 3));
+      LOKA_VERIFY(self.scene_.isOperationOpen());
+      LOKA_VERIFY(self.scene_.focus().isPublishing());
+      self.root_.shown.set(false);
+      LOKA_VERIFY(completionTailEditor(&self.root_));
+      // Quit here: the next PeekMessage must exit before another iteration
+      // can hide a missing second flush with its first flush.
+      PostQuitMessage(0);
+    }
+    Scene &scene_;
+    CompletionTailRoot &root_;
+    unsigned replies_;
+    bool fallbackFired_;
+  };
+
+  WNDPROC completionTailPrevious = 0;
+  LRESULT CALLBACK completionTailFocusInput(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  {
+    const WNDPROC previous = completionTailPrevious;
+    if (message != WM_SETFOCUS)
+      return CallWindowProcW(previous, hwnd, message, wParam, lParam);
+    // One-shot native input inside SetFocus, before the focus fact's tracker
+    // transaction. Restore the context's procedure before input can retire it.
+    SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(previous));
+    const LRESULT result = CallWindowProcW(previous, hwnd, message, wParam, lParam);
+    SendMessageW(hwnd, EM_SETSEL, 0, 0);
+    SendMessageW(hwnd, WM_KEYDOWN, VK_RIGHT, 0);
+    return result;
+  }
+
+  CompletionTailProbe *completionTailProbe = 0;
+  void CALLBACK completionTailTimer(HWND, UINT, UINT_PTR, DWORD)
+  {
+    completionTailProbe->timeout();
+  }
+}
+
+void testWin32FocusCompletionTailFlush()
+{
+  ActivationRefusal refusal;
+  NullPlatformContext context;
+  Win32Window window(&context, WindowProps().frame(60, 60, 400, 300).visible(true)
+                                   .scene(new Scene(Boundary<CompletionTailRoot>())));
+  WindowAdmissionTestApp admission(window);
+  admission.flush();
+  LOKA_VERIFY(window.hwnd());
+  Scene &scene = *window.scene();
+  CompletionTailRoot &root = *static_cast<CompletionTailRoot *>(
+      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(completionTailEditor(&root) && completionTailEditor(&root)->getContext());
+  SetActiveWindow(window.hwnd());
+  SetFocus(window.hwnd());
+  if (GetActiveWindow() != window.hwnd())
+  {
+    skipWithoutActivation("testWin32FocusCompletionTailFlush",
+                          "the focus completion and same-iteration retirement checks",
+                          "the initial editor attachment was verified.");
+    return;
+  }
+  CompletionApp app(window);
+  CompletionTailProbe probe(scene);
+  completionTailProbe = &probe;
+  const UINT_PTR timer = SetTimer(0, 0, 2000, &completionTailTimer);
+  LOKA_VERIFY(timer);
+  const HWND editor = static_cast<Win32TextEditorContext *>(completionTailEditor(&root)->getContext())->hwnd();
+  completionTailPrevious = reinterpret_cast<WNDPROC>(
+      SetWindowLongPtrW(editor, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&completionTailFocusInput)));
+  LOKA_VERIFY(completionTailPrevious);
+  root.focus.post(static_cast<unsigned short>(1));
+  // Ensure this iteration handled a message. The late-quit mutation then
+  // reaches another tail before waiting for the timer, even on a quiet queue.
+  LOKA_VERIFY(PostMessageW(window.hwnd(), WM_NULL, 0, 0));
+  app.run();
+  KillTimer(0, timer);
+  completionTailProbe = 0;
+  // The fallback may quit before WM_SETFOCUS consumed the one-shot hook.
+  if (IsWindow(editor))
+    SetWindowLongPtrW(editor, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(completionTailPrevious));
+  completionTailPrevious = 0;
+  window.setApp(0);
+  probe.verify();
 }
 
 

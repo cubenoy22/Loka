@@ -19,7 +19,8 @@ public:
   virtual void quit() {}
   using App::flushWindowInvalidations;
   void flush() { this->flushWindowInvalidations(); }
-  /** Null model of the two scheduled Win32 tail flushes. */
+  /** Null model of Win32App::flushIterationTail() and its two scheduled
+      window flushes. */
   void operationLoop()
   {
     this->flushWindowInvalidations();
