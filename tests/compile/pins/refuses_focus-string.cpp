@@ -19,7 +19,7 @@ namespace loka
 } // namespace loka
 void pin()
 {
-  loka::app::FocusFact<loka::core::String> fact;
+  loka::app::Focus<loka::core::String> fact;
   loka::app::EditText().focusedAs(fact, loka::core::String("bad"));
   loka::app::TextEditor().focusedAs(fact, loka::core::String("bad"));
 }

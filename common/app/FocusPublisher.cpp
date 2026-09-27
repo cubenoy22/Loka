@@ -66,7 +66,7 @@ namespace loka
           FocusParticipant *target = FocusParticipant::from(row);
           if (!target || !attached(*target) || !target->context() || !target->binding_.state()) continue;
 #ifndef NDEBUG
-          assert(ownsFocusState(root, target->binding_) && "FocusFact must be declared in this Scene");
+          assert(ownsFocusState(root, target->binding_) && "Focus must be declared in this Scene");
 #endif
           if (target->context() == identity && target->binding_.same(observation))
             context = target->context();

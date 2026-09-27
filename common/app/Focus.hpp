@@ -1,5 +1,5 @@
-#ifndef LOKA_APP_FOCUS_FACT_HPP
-#define LOKA_APP_FOCUS_FACT_HPP
+#ifndef LOKA_APP_FOCUS_HPP
+#define LOKA_APP_FOCUS_HPP
 
 #include "app/Focused.hpp"
 #include "app/scene/state/Reported.hpp"
@@ -56,10 +56,10 @@ namespace loka
     } // namespace scene
     /** Scene-local app declaration: rail-written observation and app-posted request.
         Declare in an ancestor of borrowing fields. Copies would hide that ownership. */
-    template <typename K> class FocusFact
+    template <typename K> class Focus
     {
     public:
-      FocusFact() {}
+      Focus() {}
       bool isValid() const
       {
         return this->fact_.isValid() && this->request_.isValid();
@@ -76,8 +76,8 @@ namespace loka
       }
 
     private:
-      FocusFact(const FocusFact &);
-      FocusFact &operator=(const FocusFact &);
+      Focus(const Focus &);
+      Focus &operator=(const Focus &);
       scene::Reported<Focused<K> > fact_;
       scene::Request<detail::FocusTarget<K> > request_;
       friend class scene::ComposableNode;

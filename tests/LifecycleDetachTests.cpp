@@ -2628,7 +2628,7 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable()
 {
   using namespace loka::core;
   using loka::dsl::testing::SceneTestAccess;
-  loka::app::FocusFact<unsigned> focus;
+  loka::app::Focus<unsigned> focus;
   NullScenePlatformController platform;
   NullPlatformContext platformContext;
   WindowProps props;

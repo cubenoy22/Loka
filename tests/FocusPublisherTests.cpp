@@ -49,7 +49,7 @@ namespace
   typedef Focused<FocusTestField> Fact;
   struct Facts : HeadlessStateOwner
   {
-    FocusFact<FocusTestField> first, second;
+    Focus<FocusTestField> first, second;
     Reported<LineCursor> cursor;
     unsigned invalidations;
     static void invalidated(void *data)
@@ -72,7 +72,7 @@ namespace
   };
   struct Watch
   {
-    FocusFact<FocusTestField> &fact;
+    Focus<FocusTestField> &fact;
     std::vector<int> &events;
     int prefix;
     Node *retire;
@@ -82,7 +82,7 @@ namespace
     NullScenePlatformController *nestedPlatform;
     Window *nestedWindow;
     NodeContext *nestedTarget;
-    Watch(FocusFact<FocusTestField> &value, std::vector<int> &log, int id = 0)
+    Watch(Focus<FocusTestField> &value, std::vector<int> &log, int id = 0)
         : fact(value),
           events(log),
           prefix(id),
@@ -248,7 +248,7 @@ namespace
       this->app.reconcileFocus();
     }
   };
-  void replace(EditTextNode &node, FocusFact<FocusTestField> &fact, FocusTestField key)
+  void replace(EditTextNode &node, Focus<FocusTestField> &fact, FocusTestField key)
   {
     EditText definition(EditTextProps().focusedAs(fact, key));
     LOKA_VERIFY(definition.applyPropsToNode(&node));
@@ -449,7 +449,7 @@ void testFocusValues()
   assigned.publish();
   LOKA_VERIFY(!assigned.state());
   LOKA_VERIFY(first.same(copy));
-  FocusFact<FocusTestField> &alias = facts.first;
+  Focus<FocusTestField> &alias = facts.first;
   LOKA_VERIFY(EditTextProps().focusedAs(alias, FOCUS_HEIGHT).focus_.same(first));
   const EditTextProps editHeight = EditTextProps().focusedAs(facts.first, FOCUS_HEIGHT);
   const EditTextProps editWeight = EditTextProps().focusedAs(facts.first, FOCUS_WEIGHT);
@@ -642,14 +642,14 @@ namespace
 {
   struct CardData
   {
-    struct { FocusFact<FocusTestField> first; } facts;
+    struct { Focus<FocusTestField> first; } facts;
   };
   CardData *cardData = 0;
   FocusTestField cardKey = FOCUS_HEIGHT;
   class Card : public BoundaryNodeFor<Card>
   {
   public:
-    FocusFact<FocusTestField> &focus;
+    Focus<FocusTestField> &focus;
     explicit Card(const BoundaryPropsFor<Card> &p)
         : BoundaryNodeFor<Card>(p), focus(cardData->facts.first)
     {
@@ -879,7 +879,7 @@ namespace
   struct RebindObserver
   {
     EditTextNode *target;
-    FocusFact<FocusTestField> *next;
+    Focus<FocusTestField> *next;
     static void changed(void *data)
     {
       RebindObserver &p = *static_cast<RebindObserver *>(data);
@@ -1330,7 +1330,7 @@ void testFocusPostNativeCallback()
   FocusWindow window(&context, Fixture::props(), &platform);
   WindowAdmissionTestApp app(window);
   app.flush();
-  FocusFact<FocusTestField> fact;
+  Focus<FocusTestField> fact;
   StateBatchBase::CreateImmediateState(loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene()), fact);
   EditTextNode target(EditTextProps().focusedAs(fact, FOCUS_HEIGHT));
   project(platform, *window.scene(), target);
@@ -1349,7 +1349,7 @@ namespace
   class PostScreen : public BoundaryNodeFor<PostScreen>
   {
   public:
-    FocusFact<FocusTestField> focus;
+    Focus<FocusTestField> focus;
     NodeState<bool> shown, parked;
     explicit PostScreen(const BoundaryPropsFor<PostScreen> &p) : BoundaryNodeFor<PostScreen>(p)
     {
@@ -1406,7 +1406,7 @@ void testFocusPostInitialAndShow()
 }
 void testFocusPostInvalidBundle()
 {
-  FocusFact<FocusTestField> fact;
+  Focus<FocusTestField> fact;
   fact.post(FOCUS_HEIGHT);
   LOKA_VERIFY(!fact.isValid());
   LOKA_VERIFY(!EditTextProps().focusedAs(fact, FOCUS_HEIGHT).focus_.state());
@@ -1431,7 +1431,7 @@ void testFocusPostAllocationFailure()
     loka::core::testing::failLokaAllocRaw("StateOwner", "MutableState", box);
     {
       FocusFailureOwner owner;
-      FocusFact<FocusTestField> focus;
+      Focus<FocusTestField> focus;
       StateBatchBase::CreateImmediateState(&owner, focus);
       LOKA_VERIFY(owner.failures == 1 && !focus.isValid());
       focus.post(FOCUS_HEIGHT);
@@ -1449,7 +1449,7 @@ namespace
   class PostDeclarationScreen : public BoundaryNodeFor<PostDeclarationScreen>
   {
   public:
-    FocusFact<FocusTestField> focus;
+    Focus<FocusTestField> focus;
     explicit PostDeclarationScreen(const BoundaryPropsFor<PostDeclarationScreen> &p)
       : BoundaryNodeFor<PostDeclarationScreen>(p)
     {
@@ -1504,14 +1504,14 @@ namespace
   {
     typedef FocusItem NodeType;
     typedef FocusItemProps TypeTag;
-    FocusFact<int> *focus;
+    Focus<int> *focus;
     int key;
-    FocusItemProps(FocusFact<int> *value = 0, int id = 0) : focus(value), key(id) {}
+    FocusItemProps(Focus<int> *value = 0, int id = 0) : focus(value), key(id) {}
     bool operator<(const PropsBase &rhs) const
     {
       if (rhs.propsTypeId() != this->propsTypeId()) return false;
       const FocusItemProps &other = static_cast<const FocusItemProps &>(rhs);
-      return this->focus != other.focus ? std::less<FocusFact<int> *>()(this->focus, other.focus) : this->key < other.key;
+      return this->focus != other.focus ? std::less<Focus<int> *>()(this->focus, other.focus) : this->key < other.key;
     }
     bool operator!=(const FocusItemProps &other) const { return this->focus != other.focus || this->key != other.key; }
   };
@@ -1527,7 +1527,7 @@ namespace
   class LazyPostScreen : public BoundaryNodeFor<LazyPostScreen>
   {
   public:
-    FocusFact<int> focus;
+    Focus<int> focus;
     NodeState<Frame> viewport;
     ObservableList<FocusItemProps> list;
     explicit LazyPostScreen(const BoundaryPropsFor<LazyPostScreen> &p) : BoundaryNodeFor<LazyPostScreen>(p)
@@ -1543,7 +1543,7 @@ namespace
       c.declare(LazyColumn(this->list).cells(200, 20).viewport(*this->viewport.state()));
     }
   };
-  bool hasFocusKey(Node *node, FocusFact<int> &focus, int key)
+  bool hasFocusKey(Node *node, Focus<int> &focus, int key)
   {
     EditTextNode *edit = node->asEditTextNode();
     if (edit && edit->props.focus_.same(EditTextProps().focusedAs(focus, key).focus_)) return true;
@@ -1578,7 +1578,7 @@ namespace
   class CapacityPostScreen : public BoundaryNodeFor<CapacityPostScreen>
   {
   public:
-    FocusFact<FocusTestField> focus;
+    Focus<FocusTestField> focus;
     explicit CapacityPostScreen(const BoundaryPropsFor<CapacityPostScreen> &p) : BoundaryNodeFor<CapacityPostScreen>(p)
     {
       this->declareStates(1).state(this->focus, FOCUS_HEIGHT);
@@ -1659,7 +1659,7 @@ void testFocusPostHostCost()
     FocusWindow window(&context, Fixture::props(), &platform);
     WindowAdmissionTestApp app(window);
     app.flush();
-    FocusFact<unsigned> focus;
+    Focus<unsigned> focus;
     StateBatchBase::CreateImmediateState(loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene()), focus);
     std::vector<EditTextNode *> fields;
     for (unsigned i = 0; i != sizes[size]; ++i)
@@ -1707,7 +1707,7 @@ void testFocusPostNativeRefusal()
   FocusWindow window(&context, Fixture::props(), &platform);
   WindowAdmissionTestApp app(window);
   app.flush();
-  FocusFact<FocusTestField> fact;
+  Focus<FocusTestField> fact;
   StateBatchBase::CreateImmediateState(loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene()), fact);
   EditTextNode target(EditTextProps().focusedAs(fact, FOCUS_HEIGHT));
   project(platform, *window.scene(), target);

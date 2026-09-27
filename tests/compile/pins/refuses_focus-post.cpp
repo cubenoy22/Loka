@@ -1,7 +1,7 @@
-#include "app/FocusFact.hpp"
+#include "app/Focus.hpp"
 enum Field { HEIGHT };
 void pin()
 {
-  loka::app::FocusFact<Field> focus;
+  loka::app::Focus<Field> focus;
   focus.post(HEIGHT);
 }

@@ -81,7 +81,7 @@ namespace
   };
   struct Fixture : HeadlessStateOwner
   {
-    loka::app::FocusFact<FieldKey> focus;
+    loka::app::Focus<FieldKey> focus;
     NodeState<String> text, replacement;
     ToolboxWindow nativeWindow;
     ToolboxScenePlatformController controller;

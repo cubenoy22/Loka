@@ -1,7 +1,7 @@
 #ifndef LOKA_APP_FOCUS_BINDING_HPP
 #define LOKA_APP_FOCUS_BINDING_HPP
 
-#include "app/FocusFact.hpp"
+#include "app/Focus.hpp"
 #include "app/scene/state/WriteSeat.hpp"
 #include <functional>
 #include <new>
