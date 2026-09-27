@@ -673,11 +673,12 @@ namespace
     [root release];
   }
 
-  class MacMeasurementOwner : public loka::app::BoundaryNodeFor<MacMeasurementOwner>
+  class MacMeasurementOwner : public loka::app::scene::BoundaryNodeFor<MacMeasurementOwner>
   {
   public:
-    MacMeasurementOwner() : loka::app::BoundaryNodeFor<MacMeasurementOwner>(
-        loka::app::BoundaryPropsFor<MacMeasurementOwner>()) {}
+    explicit MacMeasurementOwner(const loka::app::scene::BoundaryPropsFor<MacMeasurementOwner> &props =
+                                     loka::app::scene::BoundaryPropsFor<MacMeasurementOwner>())
+        : loka::app::scene::BoundaryNodeFor<MacMeasurementOwner>(props) {}
     virtual void composeNode(loka::app::scene::NodeComposition &) {}
   };
 
