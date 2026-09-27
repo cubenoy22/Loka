@@ -1,0 +1,14 @@
+#ifndef LOKA_TESTS_NODE_OBSERVED_USES_TESTS_HPP
+#define LOKA_TESTS_NODE_OBSERVED_USES_TESTS_HPP
+void testObservedUsesSharedStateMarksBothNodes();
+void testObservedUsesRetiredBorrowerWithdrawsBeforeCommit();
+void testObservedUsesSceneRetireHookWithdrawsBeforeWrite();
+void testObservedUsesParkedWriteAndReattach();
+void testObservedUsesPropsSuccessAndFailure();
+void testObservedUsesLayoutInputsAreNodeLocal();
+void testObservedUsesFinishPassPrunesOneSharedBorrower();
+void testObservedUsesAllocationRefusesWholeCandidate();
+void testObservedUsesRegistrationRefusalPublishesNoPartialUses();
+void testObservedUsesRepeatedSeatRefusal();
+void testObservedUsesRefusedUpdateKeepsStateRetry();
+#endif

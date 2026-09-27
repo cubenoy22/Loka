@@ -1,6 +1,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "LifecycleDetachTests.hpp"
 #include "support/TestVerify.hpp"
+#include "support/ObservedUseCounts.hpp"
 
 #include <cassert>
 
@@ -2543,6 +2544,7 @@ namespace
   void runRebuildCandidateRefusal(bool before)
   {
     RebuildCandidateCounts counts;
+    loka::core::MutableState<bool> borrowed(false);
     RebuildRefusalHarness owner((BoundaryPropsFor<RebuildRefusalHarness>()));
     ComponentContext context;
     context.setBoundary(&owner);
@@ -2552,6 +2554,9 @@ namespace
     Node *root = owner.materialize(context, previous);
     LOKA_VERIFY(root);
     Node *oldFirst = root->asNestable()->childrenHead();
+    LOKA_VERIFY(owner.registerObservedState(&borrowed, NODE_DIRTY_PROPS, oldFirst));
+    const unsigned originalUses = ObservedUseTestSupport::activeUses(root);
+    LOKA_VERIFY(originalUses == 1);
     RebuildRefusalObservation observation(*root->asNestable());
     RefusingRetainedFragment refusal(&observation);
     refusal.tag(7202);
@@ -2574,6 +2579,7 @@ namespace
     verifyRebuildOrder(*root, tags, 3);
     Node *restoredFirst = root->asNestable()->childrenHead();
     LOKA_VERIFY(restoredFirst == oldFirst);
+    LOKA_VERIFY(ObservedUseTestSupport::activeUses(root) == originalUses);
     LOKA_VERIFY(!findStrandTag(root, 7204));
     DestroyHeapNode(root);
   }

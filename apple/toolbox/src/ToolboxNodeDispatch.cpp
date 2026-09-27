@@ -124,9 +124,11 @@ namespace
     if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
     {
       ActiveLayoutBoundaryScope boundaryScope(controller, activeBoundary);
+      const loka::app::scene::Node::LayoutInputsCheckpoint inputs(*node);
       short width = projected->layoutProjected(controller, state);
       if (controller && !controller->restoreProjectedLayoutState(state))
       {
+        inputs.requeue();
         return 0;
       }
       if (boundary)
@@ -429,9 +431,11 @@ namespace
           return 0;
         }
       }
+      const loka::app::scene::Node::LayoutInputsCheckpoint inputs(*node);
       short width = node->layout(controller, projectedState);
       if (controller && !controller->restoreProjectedLayoutState(projectedState))
       {
+        inputs.requeue();
         return 0;
       }
       if (controller && surface->getContext())

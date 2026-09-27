@@ -392,7 +392,7 @@ void testObservedStateGuardSharesRegistrationTokenAndUnbindsLate()
   BoundaryObservedState observed;
   loka::core::MutableState<int> *state = new loka::core::MutableState<int>(0);
   observed.beginPass();
-  observed.registerState(&boundary, state, NODE_DIRTY_PROPS, &lifetimeGuardChanged);
+  LOKA_VERIFY(observed.registerState(&boundary, state, NODE_DIRTY_PROPS, &lifetimeGuardChanged, &boundary));
   const BoundaryObservedStateBinding *binding = BoundaryObservedStateTestAccess::firstBinding(observed);
   LOKA_VERIFY(binding != 0);
   LOKA_VERIFY(binding->stateLifetimeToken != 0);
@@ -458,7 +458,7 @@ void testUnobservedCommitDoesNotDirtyBoundary()
   UnobservedCommitBoundary *boundary =
       static_cast<UnobservedCommitBoundary *>(SceneTestAccess::rootBoundary(scene));
   LOKA_VERIFY(boundary != 0);
-  LOKA_VERIFY(boundary->dirty.get() == NODE_DIRTY_NONE);
+  LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::mark(*boundary) == NODE_DIRTY_NONE);
   LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_NONE);
   LOKA_VERIFY(!scene.hasPendingInvalidation());
 #if defined(__linux__) && !defined(NDEBUG)
@@ -493,7 +493,7 @@ void testUnobservedCommitDoesNotDirtyBoundary()
   std::fprintf(stderr, "unobserved commit: dirty=%u pending=%d\n",
                static_cast<unsigned int>(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary)),
                scene.hasPendingInvalidation() ? 1 : 0);
-  LOKA_VERIFY(boundary->dirty.get() == NODE_DIRTY_NONE);
+  LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::mark(*boundary) == NODE_DIRTY_NONE);
   LOKA_VERIFY(SceneTestAccess::director(scene).pendingDirtyFlagsForBoundary(boundary) == NODE_DIRTY_NONE);
   LOKA_VERIFY(!scene.hasPendingInvalidation());
   boundary->layout.set(loka::app::STACK_AXIS_ROW);

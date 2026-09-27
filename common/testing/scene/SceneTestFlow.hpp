@@ -1,3 +1,4 @@
+#include "testing/scene/NodeObservedUsesTestAccess.hpp"
 #ifndef LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 #define LOKA_DSL_TESTING_SCENE_TEST_FLOW_HPP
 
@@ -297,7 +298,6 @@ namespace loka
           ::loka::app::scene::BoundaryObservedStateEntry entry;
           entry.state = state;
           entry.flags = flags;
-          entry.observedGeneration = observedState.pass.generation;
           observedState.entries.push_back(entry);
         }
 
@@ -306,7 +306,6 @@ namespace loka
         {
           assert(!observedState.entries.empty());
           observedState.entries[0].flags = flags;
-          observedState.entries[0].observedGeneration = observedState.pass.generation;
         }
       };
 
@@ -1265,7 +1264,7 @@ namespace loka
             return false;
           }
           out.set("text.value", utf8.c_str());
-          const ::loka::app::scene::NodeDirtyFlags dirtyFlags = node->dirty.get();
+          const ::loka::app::scene::NodeDirtyFlags dirtyFlags = ::loka::app::testing::NodeObservedUsesTestAccess::mark(*node);
           out.setInt("dirty.mask", static_cast<long>(dirtyFlags));
           out.set("dirty.flags", scene_test_detail::nodeDirtyFlagsToString(dirtyFlags).c_str());
           return true;

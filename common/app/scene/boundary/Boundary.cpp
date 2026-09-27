@@ -151,6 +151,9 @@ namespace loka
 
       bool BoundaryNode::materializeInitialChildren(ComponentContext &context)
       {
+        // A retained declaration can refuse observation storage before replay.
+        // Do not start or publish a factory candidate in that refused window.
+        if (this->compositionState_.allocationFailedValue()) return false;
         // A refused mount owns its slots until the ordinary clock drains them.
         // UPDATE may revisit the white flag before that drain; do not readmit it.
         if (!this->seatReservations_.empty()
@@ -639,6 +642,13 @@ namespace loka
         if (!binding || !binding->boundary)
         {
           return;
+        }
+        for (ObservedUse *use = binding->uses; use; use = use->nextSubscription)
+        {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(use->node->lifecycleFact() != NODE_FACT_RETIRED);
+#endif
+          use->node->uses_.include(use->flags);
         }
         if (binding->state && binding->state->trackerOwner() == binding->boundary->tracker())
         {

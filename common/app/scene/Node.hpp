@@ -51,6 +51,7 @@ namespace loka
     template <class ItemT, class FactoryT, class KeyExprT>
     class ForBuilder;
 
+    namespace testing { class NodeObservedUsesTestAccess; }
     namespace scene
     {
       template <typename T> class Reported;
@@ -69,6 +70,54 @@ namespace loka
         NODE_DIRTY_LAYOUT = 0x04,
         NODE_DIRTY_MYSELF = 0xFF, // All node-local dirty flags.
         NODE_DIRTY_INITIAL = 0x100
+      };
+
+      class Node;
+      struct BoundaryObservedStateBinding;
+      struct BoundaryObservedState;
+
+      /** A node-owned observation edge. Withdrawal clears the subscription
+          edge synchronously; storage stays with the node until reclaim. */
+      struct ObservedUse
+      {
+        ObservedUse()
+            : state(0), flags(NODE_DIRTY_NONE), generation(0), next(0),
+              nextSubscription(0), node(0), subscription(0) {}
+        loka::core::StateBase *state;
+        NodeDirtyFlags flags;
+        unsigned long generation;
+        ObservedUse *next;
+        ObservedUse *nextSubscription;
+        Node *node;
+        BoundaryObservedStateBinding *subscription;
+      private:
+        ObservedUse(const ObservedUse &);
+        ObservedUse &operator=(const ObservedUse &);
+      };
+
+      /** Owns observation storage and the accumulated input fact. Inactive
+          rows are reused; destruction reclaims storage without notifying. */
+      class ObservedUses
+      {
+      public:
+        ObservedUses() : head(0), mark(NODE_DIRTY_NONE) {}
+        ~ObservedUses();
+        void include(NodeDirtyFlags flags)
+        { this->mark = static_cast<NodeDirtyFlags>(this->mark | flags); }
+        NodeDirtyFlags takeMark()
+        {
+          const NodeDirtyFlags result = this->mark;
+          this->mark = NODE_DIRTY_NONE;
+          return result;
+        }
+        void withdraw();
+        void discardPrepared();
+        ObservedUse *reserve(loka::core::StateBase *state);
+        ObservedUse *head;
+        NodeDirtyFlags mark;
+      private:
+        ObservedUses(const ObservedUses &);
+        ObservedUses &operator=(const ObservedUses &);
       };
 
       // ComposeEvent: describes why compose was invoked.
@@ -230,6 +279,7 @@ namespace loka
         short height;
         short lineHeight;
         short spacing;
+        NodeDirtyFlags inputs;
 
         LayoutState()
             : x(0),
@@ -237,7 +287,8 @@ namespace loka
               width(0),
               height(0),
               lineHeight(0),
-              spacing(0)
+              spacing(0),
+              inputs(NODE_DIRTY_NONE)
         {
         }
       };
@@ -367,7 +418,6 @@ namespace loka
       {
       public:
         NodeContext *context;
-        loka::core::MutableState<NodeDirtyFlags> dirty;
         Node *nextInComposition;
         union
         {
@@ -386,7 +436,6 @@ namespace loka
 
         Node()
             : context(0),
-              dirty(NODE_DIRTY_NONE),
               nextInComposition(0),
               arenaOwner_(0),
               composeAttachLifecycle_(),
@@ -626,12 +675,37 @@ namespace loka
             context->render(controller);
           }
         }
+        /** Reserve the declared observation rows before publishing a candidate. */
+        bool prepareObservedUses();
+        /** Restores a refused layout's inputs without losing newer marks. */
+        void requeueLayoutInputs(NodeDirtyFlags inputs)
+        { this->uses_.include(inputs); }
+
+        /** Stack-local checkpoint for a projection whose restore can refuse.
+            The node retains ownership; only refusal requeues the saved fact. */
+        class LayoutInputsCheckpoint
+        {
+        public:
+          explicit LayoutInputsCheckpoint(Node &node)
+              : node_(node), inputs_(node.uses_.mark) {}
+          void requeue() const { this->node_.requeueLayoutInputs(this->inputs_); }
+        private:
+          Node &node_;
+          const NodeDirtyFlags inputs_;
+          LayoutInputsCheckpoint(const LayoutInputsCheckpoint &);
+          LayoutInputsCheckpoint &operator=(const LayoutInputsCheckpoint &);
+        };
+
         virtual short layout(IPlatformController *controller, LayoutState &state)
         {
           PROFILE_SECTION("layoutNode");
           if (context)
           {
-            return context->layout(controller, state);
+            const NodeDirtyFlags callerInputs = state.inputs;
+            state.inputs = this->uses_.takeMark();
+            const short result = context->layout(controller, state);
+            state.inputs = callerInputs;
+            return result;
           }
           return 0;
         }
@@ -712,6 +786,8 @@ namespace loka
             silently unlinked, so that final RETIRED write cannot touch it. */
         void applyLifecycleFact(NodeLifecycleFact next)
         {
+          if (next == NODE_FACT_ATTACHED && lifecycleFact_ != NODE_FACT_RETIRED)
+            this->uses_.include(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
           if (lifecycleFact_ == next)
           {
             return;
@@ -751,6 +827,9 @@ namespace loka
         static void MarkSubtreeLifecycleFact(Node *node, NodeLifecycleFact fact);
         static void DeliverLifecycleFactsSubtree(Node *node);
 
+        ObservedUses uses_;
+        friend struct BoundaryObservedState;
+        friend class ::loka::app::testing::NodeObservedUsesTestAccess;
         NodeLifecycleFact lifecycleFact_;
         enum StorageOrigin { STORAGE_HEAP, STORAGE_GATE, STORAGE_PARTITION, STORAGE_ARENA };
         unsigned char storageOrigin_;
@@ -1354,6 +1433,7 @@ namespace loka
           {
             typed->setNodeTag(this->nodeTag());
             typed->setNativeLifetimeHint(this->nativeLifetimeHint());
+            node->uses_.include(static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT));
             node->bindingsFollowProps();
             if (node->context)
               node->context->onPropsApplied();

@@ -250,3 +250,18 @@ namespace loka { namespace app { namespace testing {
   }
 } } }
 #endif
+
+// Declared in tests/support/NullLayoutRefusal.hpp.
+#ifdef TEST_BUILD
+namespace loka { namespace testing {
+  namespace { unsigned nullProjectedLayoutRestoreFailures = 0; }
+  void failNullProjectedLayoutRestores(unsigned count)
+  { nullProjectedLayoutRestoreFailures = count; }
+  bool declineNullProjectedLayoutRestore()
+  {
+    if (!nullProjectedLayoutRestoreFailures) return false;
+    --nullProjectedLayoutRestoreFailures;
+    return true;
+  }
+} }
+#endif

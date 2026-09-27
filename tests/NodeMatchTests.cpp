@@ -1370,3 +1370,31 @@ void testPlainRootChildDirtWithoutSeatOnlyWalks()
   const bool fullProjection = platform.changeAt(platform.changeCount() - 1).fullRebuild;
   LOKA_VERIFY(recoveryPlan.structureChanged && fullProjection);
 }
+
+#include "support/ObservedUseCounts.hpp"
+void testKeyedObservedUsesWithdrawWithPendingCommit()
+{
+  KeyedProbeRecord r;
+  SceneTestSupport::RecordingPlatformController platform;
+  Scene scene((Boundary<KeyedProbeNode>(KeyedProbeProps(&r))));
+  scene.mount(&platform);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  Node *old = r.leaf;
+  const unsigned originalUses = ObservedUseTestSupport::activeUses(r.owner);
+  LOKA_VERIFY(originalUses > 0);
+  LOKA_VERIFY(r.owner->registerObservedState(&r.otherState, NODE_DIRTY_PROPS, old));
+  LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::useCount(*old) == 1);
+  loka::core::PushStateTracker external;
+  external.addState(&r.otherState);
+  {
+    loka::core::StateTrackerGuard guard(&external);
+    r.otherState.set(true);
+    r.owner->changeKey(1);
+    LOKA_VERIFY(old->lifecycleFact() == NODE_FACT_RETIRED);
+    LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::useCount(*old) == 0);
+    LOKA_VERIFY(scene.hasPendingInvalidation());
+  }
+  scene.flushInvalidation();
+  LOKA_VERIFY(r.declarations == 2 && r.destroyed == 1);
+  LOKA_VERIFY(ObservedUseTestSupport::activeUses(r.owner) == originalUses);
+}
