@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cwchar>
 
 namespace
 {
@@ -30,6 +31,7 @@ namespace
   struct Facts : HeadlessStateOwner
   {
     Focus<unsigned short> focus;
+    NodeState<String> text;
     Reported<LineCursor> cursor;
     ObservableList<String> lines;
     Facts()
@@ -41,18 +43,25 @@ namespace
     }
   };
   Facts *composingFacts = 0;
+  unsigned short composingInitialFocus = 0;
   class FocusRoot : public BoundaryNodeFor<FocusRoot>
   {
   public:
     explicit FocusRoot(const BoundaryPropsFor<FocusRoot> &p) : BoundaryNodeFor<FocusRoot>(p)
-    { this->state(composingFacts->focus); }
+    {
+      if (composingInitialFocus)
+        this->state(composingFacts->focus, composingInitialFocus);
+      else
+        this->state(composingFacts->focus);
+      this->state(composingFacts->text, String("old text"));
+    }
     virtual void composeNode(NodeComposition &c)
     {
       // A top-level declare() sets the composition root, so the four controls
       // are one Column; its children are the tab order field(0..3) walks.
       c.declare(Column()
                 << Button()
-                << EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(1)))
+                << EditText(EditTextProps(composingFacts->text).focusedAs(composingFacts->focus, static_cast<unsigned short>(1)))
                 << EditText(EditTextProps().focusedAs(composingFacts->focus, static_cast<unsigned short>(2)))
                 << TextEditor(TextEditorProps(composingFacts->lines, composingFacts->cursor)
                                   .focusedAs(composingFacts->focus, static_cast<unsigned short>(3))));
@@ -98,17 +107,18 @@ namespace
     NullPlatformContext context;
     Win32Window window;
     WindowAdmissionTestApp app;
-    static WindowProps props(Facts &facts, bool idle)
+    static WindowProps props(Facts &facts, bool idle, unsigned short initialFocus)
     {
       composingFacts = &facts;
+      composingInitialFocus = initialFocus;
       WindowProps p;
       p.frame(60, 60, 400, 300).visible(true).scene(new Scene(Boundary<FocusRoot>()));
       if (idle)
         p.idlePolicy(IdlePolicy::everyTick());
       return p;
     }
-    explicit Fixture(bool idle = false)
-        : window(&this->context, props(this->facts, idle)), app(this->window)
+    explicit Fixture(bool idle = false, unsigned short initialFocus = 0)
+        : window(&this->context, props(this->facts, idle, initialFocus)), app(this->window)
     {
       this->app.flush();
       LOKA_VERIFY(this->window.hwnd());
@@ -387,4 +397,188 @@ void testWin32FocusCompletion()
     LOKA_VERIFY(probe.step == 4);
     f.expect(3);
   }
+}
+
+
+void testWin32FocusPostedRequest()
+{
+  Fixture f;
+  if (!f.activate())
+  {
+    skipWithoutActivation("testWin32FocusPostedRequest", "posted focus and preservation checks",
+                          "the existing lifecycle mark checks remain independent of activation.");
+    return;
+  }
+  SetFocus(f.edit(1));
+  f.app.reconcileFocus();
+  f.expect(1);
+  LOKA_VERIFY(SetWindowTextW(f.edit(2), L"target text"));
+  for (unsigned short key = 2; key <= 3; ++key)
+  {
+    const HWND target = f.edit(key);
+    SendMessageW(target, EM_SETSEL, 1, 3);
+    wchar_t before[32] = {0};
+    LOKA_VERIFY(GetWindowTextW(target, before, 32) > 0);
+    const LRESULT selection = SendMessageW(target, EM_GETSEL, 0, 0);
+    const LRESULT line = SendMessageW(target, EM_GETFIRSTVISIBLELINE, 0, 0);
+    const int horizontal = GetScrollPos(target, SB_HORZ);
+    f.facts.focus.post(key);
+    f.app.reconcileFocus();
+    LOKA_VERIFY(GetFocus() == target);
+    f.expect(key);
+    LOKA_VERIFY(GetActiveWindow() == f.window.hwnd());
+    wchar_t after[32] = {0};
+    LOKA_VERIFY(GetWindowTextW(target, after, 32) > 0);
+    LOKA_VERIFY(std::wcscmp(before, after) == 0);
+    LOKA_VERIFY(SendMessageW(target, EM_GETSEL, 0, 0) == selection);
+    LOKA_VERIFY(SendMessageW(target, EM_GETFIRSTVISIBLELINE, 0, 0) == line);
+    LOKA_VERIFY(GetScrollPos(target, SB_HORZ) == horizontal);
+  }
+  // A successful SetFocus can return zero: there need not be a previous HWND.
+  SetFocus(0);
+  LOKA_VERIFY(!GetFocus());
+  LOKA_VERIFY(f.rail().applyNativeFocus(*f.field(2)->getContext()));
+  LOKA_VERIFY(GetFocus() == f.edit(2));
+}
+
+void testWin32FocusInactiveRequest()
+{
+  Fixture f;
+  if (!f.activate())
+  {
+    skipWithoutActivation("testWin32FocusInactiveRequest", "inactive write and request retention checks",
+                          "the existing inactive read pin still runs.");
+    return;
+  }
+  SetFocus(f.edit(1));
+  f.app.reconcileFocus();
+  f.facts.focus.post(2);
+  const FocusBinding request = EditTextProps().focusedAs(f.facts.focus, static_cast<unsigned short>(2)).focus_;
+  Win32Window other(&f.context, WindowProps().frame(500, 60, 160, 120).visible(true));
+  WindowAdmissionTestApp otherApp(other);
+  otherApp.flush();
+  SetActiveWindow(other.hwnd());
+  SetFocus(other.hwnd());
+  LOKA_VERIFY(GetActiveWindow() == other.hwnd());
+  const HWND previous = GetFocus();
+  // Exercise the door separately: common admission would otherwise mask its guard.
+  LOKA_VERIFY(!f.rail().applyNativeFocus(*f.field(2)->getContext()));
+  LOKA_VERIFY(GetFocus() == previous && GetActiveWindow() == other.hwnd());
+  f.app.reconcileFocus();
+  LOKA_VERIFY(request.requested());
+  f.expect(1);
+  SetActiveWindow(f.window.hwnd());
+  LOKA_VERIFY(GetFocus() == f.edit(1));
+  f.app.reconcileFocus();
+  LOKA_VERIFY(!request.requested());
+  LOKA_VERIFY(GetFocus() == f.edit(2));
+  f.expect(2);
+}
+
+void testWin32FocusWriteAdmission()
+{
+  Fixture f;
+  Fixture other;
+  if (!f.activate())
+  {
+    skipWithoutActivation("testWin32FocusWriteAdmission", "mark, disabled and foreign-controller refusal checks",
+                          "the existing lifecycle mark checks still run.");
+    return;
+  }
+  SetFocus(f.edit(1));
+  const HWND previous = GetFocus();
+  const HWND target = f.edit(2);
+  NodeContext *const targetContext = f.field(2)->getContext();
+  Win32FocusParticipant::detach(target);
+  LOKA_VERIFY(!f.rail().applyNativeFocus(*targetContext));
+  LOKA_VERIFY(GetFocus() == previous);
+  LOKA_VERIFY(Win32FocusParticipant::attach(target, targetContext));
+  EnableWindow(target, FALSE);
+  LOKA_VERIFY(!f.rail().applyNativeFocus(*targetContext));
+  LOKA_VERIFY(GetFocus() == previous);
+  EnableWindow(target, TRUE);
+  LOKA_VERIFY(!f.rail().applyNativeFocus(*other.field(2)->getContext()));
+  LOKA_VERIFY(GetFocus() == previous);
+}
+
+namespace
+{
+  WNDPROC killFocusPrevious = 0;
+  void retireFocusTarget(void *data)
+  {
+    Fixture &f = *static_cast<Fixture *>(data);
+    Node *target = f.field(2);
+    // Use the fixture's lifecycle seam to perform the same terminal delivery
+    // and context release that a synchronous Scene replacement performs.
+    LifecycleFactTestAccess::MarkSubtreeRetired(target);
+    LifecycleFactTestAccess::DeliverFacts(target);
+    f.rail().releaseNodeContexts(target);
+  }
+  LRESULT CALLBACK commitOnKillFocus(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  {
+    if (message == WM_KILLFOCUS)
+    {
+      // Deterministic IME stand-in: native text -> EN_CHANGE -> State observer.
+      LOKA_VERIFY(SetWindowTextW(hwnd, L"committed text"));
+    }
+    return CallWindowProcW(killFocusPrevious, hwnd, message, wParam, lParam);
+  }
+}
+
+void testWin32FocusWriteReentry()
+{
+  Fixture f;
+  if (!f.activate())
+  {
+    skipWithoutActivation("testWin32FocusWriteReentry", "kill-focus text commit and target retirement checks",
+                          "Linux ASan cannot execute this native pin.");
+    return;
+  }
+  const HWND oldEdit = f.edit(1);
+  const HWND target = f.edit(2);
+  SetFocus(oldEdit);
+  f.app.reconcileFocus();
+  f.expect(1);
+  const FocusBinding request = EditTextProps().focusedAs(f.facts.focus, static_cast<unsigned short>(2)).focus_;
+  f.facts.text.state()->bind(&retireFocusTarget, &f, false);
+  killFocusPrevious = reinterpret_cast<WNDPROC>(
+      SetWindowLongPtrW(oldEdit, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&commitOnKillFocus)));
+  LOKA_VERIFY(killFocusPrevious);
+  f.facts.focus.post(2);
+  f.app.reconcileFocus();
+  SetWindowLongPtrW(oldEdit, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(killFocusPrevious));
+  killFocusPrevious = 0;
+  f.facts.text.state()->unbind(&retireFocusTarget, &f);
+  LOKA_VERIFY(!f.field(2)->getContext()); // Positive control: the observer did retire it.
+  LOKA_VERIFY(!Win32FocusParticipant::read(target));
+  LOKA_VERIFY(!request.requested());
+  NodeContext *actual = 0;
+  LOKA_VERIFY(f.rail().readNativeFocus(actual));
+  if (actual == f.field(1)->getContext())
+    f.expect(1);
+  else if (actual == f.field(3)->getContext())
+    f.expect(3);
+  else
+  {
+    LOKA_VERIFY(!actual);
+    f.none(); // A retired HWND may retain native focus but cannot publish key 2.
+  }
+}
+
+void testWin32FocusInitialRequest()
+{
+  Fixture f(false, 2);
+  const FocusBinding request = EditTextProps().focusedAs(f.facts.focus, static_cast<unsigned short>(2)).focus_;
+  LOKA_VERIFY(request.requested());
+  f.none(); // First WM_ACTIVATE has no publication to restore.
+  if (!f.activate())
+  {
+    skipWithoutActivation("testWin32FocusInitialRequest", "initial native focus completion",
+                          "the declared initial request is verified pending.");
+    return;
+  }
+  f.app.reconcileFocus();
+  LOKA_VERIFY(!request.requested());
+  LOKA_VERIFY(GetFocus() == f.edit(2));
+  f.expect(2);
 }

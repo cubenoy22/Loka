@@ -122,6 +122,7 @@ public:
     return true;
   }
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
+  virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
   virtual void beginApplyCycle();
   virtual void synchronize();
   virtual bool hasPendingSync() const;
