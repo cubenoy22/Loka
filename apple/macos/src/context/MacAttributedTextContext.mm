@@ -26,9 +26,10 @@ namespace
   {
     const BOOL wraps = block.hasWrap_ && block.wrap_ != loka::app::TEXT_WRAP_NONE;
     if ([cell respondsToSelector:@selector(setUsesSingleLineMode:)])
-      [cell setUsesSingleLineMode:!wraps];
+      [cell setUsesSingleLineMode:NO];
     [cell setWraps:wraps];
-    [cell setScrollable:!wraps];
+    // NONE disables soft wrapping; explicit LF still separates paragraphs.
+    [cell setScrollable:NO];
     [cell setLineBreakMode:LineBreakMode(block)];
   }
 
@@ -121,6 +122,13 @@ bool MacAttributedTextContext::Projection::build(const loka::app::AttributedStri
   if (!paragraph)
     return false;
   [paragraph setLineBreakMode:LineBreakMode(block)];
+  // Twin: MacTextContext::applyStyle configures the plain label.
+  switch (block.hasAlign_ ? block.align_ : loka::app::TEXT_ALIGN_LEFT)
+  {
+  case loka::app::TEXT_ALIGN_LEFT: [paragraph setAlignment:LOKA_MAC_TEXT_ALIGNMENT_LEFT]; break;
+  case loka::app::TEXT_ALIGN_CENTER: [paragraph setAlignment:LOKA_MAC_TEXT_ALIGNMENT_CENTER]; break;
+  case loka::app::TEXT_ALIGN_RIGHT: [paragraph setAlignment:LOKA_MAC_TEXT_ALIGNMENT_RIGHT]; break;
+  }
   NSDictionary *defaults = [NSDictionary dictionaryWithObject:paragraph forKey:NSParagraphStyleAttributeName];
   if (!defaults)
     return false;

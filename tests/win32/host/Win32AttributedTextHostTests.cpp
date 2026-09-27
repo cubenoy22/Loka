@@ -132,6 +132,32 @@ int main()
     LOKA_VERIFY(win32_host::draws.back().units == L"...");
     LOKA_VERIFY(win32_host::draws.back().font == controller.textFont(Italic));
     LOKA_VERIFY(win32_host::draws[0].units == L"a");
+    // The native prefix is 4px plus 24px of terminal-run dots, not the
+    // breaker's overflowing width. Each physical alignment uses those 28px.
+    const TextAlign alignments[] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+    for (int a = 0; a < 3; ++a)
+    {
+      win32_host::reset();
+      LOKA_VERIFY(table.draw(&dc, rect, BlockStyle(dots).align(alignments[a])));
+      LOKA_VERIFY(win32_host::draws[0].x == 5 + a);
+      LOKA_VERIFY(win32_host::draws.back().x == 9 + a);
+      LOKA_VERIFY(win32_host::measures == 1); // Dots only; prefix table is reused.
+    }
+    for (int a = 0; a < 3; ++a)
+    {
+      const BlockStyle aligned = BlockStyle().align(alignments[a]);
+      LOKA_VERIFY(table.build(Styled("ab\nx", Bold), aligned, 30, &dc, controller));
+      win32_host::reset();
+      LOKA_VERIFY(table.draw(&dc, rect, aligned));
+      LOKA_VERIFY(win32_host::draws.size() == 2);
+      LOKA_VERIFY(win32_host::draws[0].x == 5 + (a == 0 ? 0 : a == 1 ? 11 : 22));
+      LOKA_VERIFY(win32_host::draws[1].x == 5 + (a == 0 ? 0 : a == 1 ? 13 : 26));
+      LOKA_VERIFY(win32_host::measures == 0);
+      LOKA_VERIFY(table.build(Styled("abcdefghij", Bold), aligned, 30, &dc, controller));
+      win32_host::reset();
+      LOKA_VERIFY(table.draw(&dc, rect, aligned));
+      LOKA_VERIFY(win32_host::draws[0].x == 5); // Unfitted overflow stays left.
+    }
     failLokaAllocRaw("Win32AttributedText", "Break", 1);
     LOKA_VERIFY(!table.build(value, word, 30, &dc, controller));
     LOKA_VERIFY(!table.valid() && dc.font == &original);

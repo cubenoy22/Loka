@@ -1,3 +1,4 @@
+#include "app/layout/AlignedLineOffset.hpp"
 #include "Win32AttributedTextTable.hpp"
 #include "../Win32ScenePlatformController.hpp"
 #include <climits>
@@ -221,6 +222,7 @@ bool Win32AttributedTextTable::draw(HDC dc, const RECT &clip, const BlockStyle &
     const std::size_t lastSpan =
         line.fragmentCount ? this->lines_->fragment(line.firstFragment + line.fragmentCount - 1).span : 0;
     int budget = available;
+    int dotsWidth = 0;
     if (ellipsis)
     {
       SIZE dots = {0, 0};
@@ -228,32 +230,57 @@ bool Win32AttributedTextTable::draw(HDC dc, const RECT &clip, const BlockStyle &
           selection.select(this->fonts_[lastSpan]) && GetTextExtentExPointW(dc, L"...", 3, INT_MAX, NULL, NULL, &dots);
       if (!painted)
         break;
-      budget = budget > dots.cx ? budget - dots.cx : 0;
+      dotsWidth = dots.cx;
+      budget = budget > dotsWidth ? budget - dotsWidth : 0;
     }
-    int x = clip.left;
+    std::size_t paintedEnd = line.fragmentCount
+        ? this->lines_->fragment(line.firstFragment + line.fragmentCount - 1).end : 0;
+    int paintedWidth = line.width;
+    if (ellipsis)
+    {
+      paintedWidth = dotsWidth;
+      for (std::size_t f = 0; f < line.fragmentCount; ++f)
+      {
+        const TextFragment &fragment = this->lines_->fragment(line.firstFragment + f);
+        std::size_t end = fragment.end;
+        if (fragment.width > budget)
+        {
+          end = fragment.start;
+          for (std::size_t c = 0; c < this->characters_.size(); ++c)
+          {
+            const TextBreakCharacter &character = this->characters_[c];
+            if (character.offset < fragment.start)
+              continue;
+            if (character.end > fragment.end)
+              break;
+            int width = 0;
+            if (!source.width(fragment.start, character.end, fragment.span, width) || width > budget)
+              break;
+            end = character.end;
+          }
+        }
+        int advance = 0;
+        if (!source.width(fragment.start, end, fragment.span, advance))
+        {
+          painted = false;
+          break;
+        }
+        paintedWidth += advance;
+        budget -= advance;
+        paintedEnd = end;
+        if (end != fragment.end)
+          break;
+      }
+    }
+    // Twin of ToolboxAttributedTextTable::draw: fit once from cached widths
+    // before placing the line; no extra GDI measurement for alignment.
+    int x = clip.left + AlignedLineOffset(available, paintedWidth,
+        block.hasAlign_ ? block.align_ : TEXT_ALIGN_LEFT);
     for (std::size_t f = 0; f < line.fragmentCount && painted; ++f)
     {
       const TextFragment &fragment = this->lines_->fragment(line.firstFragment + f);
-      std::size_t end = fragment.end;
-      if (ellipsis && fragment.width > budget)
-      {
-        end = fragment.start;
-        for (std::size_t c = 0; c < this->characters_.size(); ++c)
-        {
-          const TextBreakCharacter &character = this->characters_[c];
-          if (character.offset < fragment.start)
-            continue;
-          if (character.end > fragment.end)
-            break;
-          int width = 0;
-          if (!source.width(fragment.start, character.end, fragment.span, width) || width > budget)
-            break;
-          end = character.end;
-        }
-      }
-      int advance = 0;
-      painted =
-          source.width(fragment.start, end, fragment.span, advance) && selection.select(this->fonts_[fragment.span]);
+      const std::size_t end = fragment.end < paintedEnd ? fragment.end : paintedEnd;
+      painted = selection.select(this->fonts_[fragment.span]);
       std::size_t start = fragment.start;
       while (painted && start < end)
       {
@@ -274,8 +301,6 @@ bool Win32AttributedTextTable::draw(HDC dc, const RECT &clip, const BlockStyle &
         x += batch;
         start = next;
       }
-      if (ellipsis)
-        budget -= advance;
       if (end != fragment.end)
         break;
     }

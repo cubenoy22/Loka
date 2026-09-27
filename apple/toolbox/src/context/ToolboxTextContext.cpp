@@ -1,4 +1,6 @@
 #include "ToolboxPropsRefresh.hpp"
+#include "app/layout/AlignedLineOffset.hpp"
+#include <climits>
 #include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -32,14 +34,22 @@ namespace
 
   ToolboxTextNodeHandler gToolboxTextNodeHandler;
 
-  bool DrawStringAt(short x, short y, const loka::core::String &value)
+  bool DrawStringAt(short x, short y, const loka::core::String &value,
+                    short availableWidth, const loka::app::BlockStyle &block)
   {
     Str255 text;
     if (!ToolboxBuildPascalText(value, text))
     {
       return false;
     }
-    MoveTo(x, y);
+    // Twin: ToolboxAttributedTextTable::draw aligns each fitted line from its
+    // cached widths. This plain path uses the Pascal string it actually paints,
+    // including the fitted prefix and dots supplied by TruncateWithEllipsis.
+    // Wrapped-height/single-string painting is tracked separately in #954.
+    const loka::app::TextAlign align = block.hasAlign_ ? block.align_ : loka::app::TEXT_ALIGN_LEFT;
+    const int aligned = x + (align == loka::app::TEXT_ALIGN_LEFT ? 0
+        : loka::app::AlignedLineOffset(availableWidth, StringWidth(text), align));
+    MoveTo(static_cast<short>(aligned > SHRT_MAX ? SHRT_MAX : aligned), y);
     DrawString(text);
     return true;
   }
@@ -316,7 +326,8 @@ void ToolboxTextContext::paint(bool erase)
   {
     // Classic low-memory fallback: keep the caller's clip and still draw.
     // No complete clip coverage was established, so history stays unknown.
-    DrawStringAt(this->textX_, this->textY_, this->text_->get());
+    DrawStringAt(this->textX_, this->textY_, this->text_->get(),
+                 this->maxWidth_, this->node_->props.blockStyle_);
     return;
   }
   if (erase)
@@ -326,13 +337,15 @@ void ToolboxTextContext::paint(bool erase)
   {
     const std::string truncated = TruncateWithEllipsis(
         this->text_->get(), this->maxWidth_, measure);
-    DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated));
+    DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated),
+                 this->maxWidth_, this->node_->props.blockStyle_);
     // The legacy truncator cannot report conversion refusal, so it cannot
     // establish a completed value. Keep its answer conservative.
   }
   else
   {
-    painted = DrawStringAt(this->textX_, this->textY_, this->text_->get());
+    painted = DrawStringAt(this->textX_, this->textY_, this->text_->get(),
+                 this->maxWidth_, this->node_->props.blockStyle_);
   }
   if (painted && clip.covers(this->paintRect_))
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());

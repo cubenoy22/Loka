@@ -1,3 +1,4 @@
+#include "app/layout/AlignedLineOffset.hpp"
 #include "context/ToolboxAttributedTextTable.hpp"
 #include "platform/StringUTF8.hpp"
 #include <climits>
@@ -240,42 +241,67 @@ bool ToolboxAttributedTextTable::draw(short x,
     const std::size_t lastSpan =
         line.fragmentCount ? this->lines_->fragment(line.firstFragment + line.fragmentCount - 1).span : 0;
     int budget = availableWidth;
+    int dotsWidth = 0;
     if (ellipsis)
     {
       // Null defines overflow/extent, but no glyph descriptor. Follow Text's
       // measured three-dot prefix rule, with the terminal run's face for dots.
       measure.select(this->fonts_[lastSpan]);
-      budget -= TextWidth("...", 0, 3);
+      dotsWidth = TextWidth("...", 0, 3);
+      budget -= dotsWidth;
       if (budget < 0)
         budget = 0;
     }
-    int cursor = x;
+    std::size_t paintedEnd = line.fragmentCount
+        ? this->lines_->fragment(line.firstFragment + line.fragmentCount - 1).end : 0;
+    int paintedWidth = line.width;
+    if (ellipsis)
+    {
+      paintedWidth = dotsWidth;
+      for (std::size_t f = 0; f < line.fragmentCount; ++f)
+      {
+        const TextFragment &fragment = this->lines_->fragment(line.firstFragment + f);
+        std::size_t end = fragment.end;
+        if (fragment.width > budget)
+        {
+          end = fragment.start;
+          std::size_t low = 0, high = this->characters_.size();
+          while (low < high)
+          {
+            const std::size_t mid = low + (high - low) / 2;
+            if (this->characters_[mid].offset < fragment.start)
+              low = mid + 1;
+            else
+              high = mid;
+          }
+          for (; low < this->characters_.size() && this->characters_[low].end <= fragment.end; ++low)
+          {
+            int width = 0;
+            if (!source.width(fragment.start, this->characters_[low].end, fragment.span, width))
+              return false;
+            if (width > budget)
+              break;
+            end = this->characters_[low].end;
+          }
+        }
+        int advance = 0;
+        if (!source.width(fragment.start, end, fragment.span, advance))
+          return false;
+        paintedWidth += advance;
+        budget -= advance;
+        paintedEnd = end;
+        if (end != fragment.end)
+          break;
+      }
+    }
+    // Twin: ToolboxTextContext's plain Text painter aligns its own painted
+    // lines. Both use AlignedLineOffset; this path reuses table prefix widths.
+    int cursor = x + AlignedLineOffset(availableWidth, paintedWidth,
+        block.hasAlign_ ? block.align_ : TEXT_ALIGN_LEFT);
     for (std::size_t f = 0; f < line.fragmentCount; ++f)
     {
       const TextFragment &fragment = this->lines_->fragment(line.firstFragment + f);
-      std::size_t end = fragment.end;
-      if (ellipsis && fragment.width > budget)
-      {
-        end = fragment.start;
-        std::size_t low = 0, high = this->characters_.size();
-        while (low < high)
-        {
-          const std::size_t mid = low + (high - low) / 2;
-          if (this->characters_[mid].offset < fragment.start)
-            low = mid + 1;
-          else
-            high = mid;
-        }
-        for (; low < this->characters_.size() && this->characters_[low].end <= fragment.end; ++low)
-        {
-          int width = 0;
-          if (!source.width(fragment.start, this->characters_[low].end, fragment.span, width))
-            return false;
-          if (width > budget)
-            break;
-          end = this->characters_[low].end;
-        }
-      }
+      const std::size_t end = fragment.end < paintedEnd ? fragment.end : paintedEnd;
       measure.select(this->fonts_[fragment.span]);
       std::size_t start = fragment.start;
       while (start < end)
@@ -289,8 +315,6 @@ bool ToolboxAttributedTextTable::draw(short x,
         MoveTo(Coordinate(cursor), Coordinate(y + line.metrics.ascent));
         DrawText(&this->bytes_[start], 0, static_cast<short>(next - start));
         cursor = cursor > INT_MAX - width ? INT_MAX : cursor + width;
-        if (ellipsis)
-          budget -= width;
         start = next;
       }
       if (end != fragment.end)

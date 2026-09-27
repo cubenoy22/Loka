@@ -39,6 +39,28 @@ namespace
 
   Win32TextNodeHandler gWin32TextNodeHandler;
 
+  /** STATIC text types are alternatives, not combinable alignment flags. */
+  DWORD TextControlType(const loka::app::BlockStyle &block)
+  {
+    switch (block.hasAlign_ ? block.align_ : loka::app::TEXT_ALIGN_LEFT)
+    {
+    case loka::app::TEXT_ALIGN_LEFT:
+      return block.hasWrap_ && block.wrap_ != loka::app::TEXT_WRAP_NONE ? SS_LEFT : SS_LEFTNOWORDWRAP;
+    case loka::app::TEXT_ALIGN_CENTER:
+      return SS_CENTER;
+    case loka::app::TEXT_ALIGN_RIGHT:
+      return SS_RIGHT;
+    }
+    return SS_LEFT;
+  }
+
+  /** The STATIC type bits a props value asks for; undeclared style keeps the
+      creation default (SS_LEFT), so a retained style removal restores it. */
+  DWORD TextControlTypeFor(const loka::app::TextProps &props)
+  {
+    return props.hasDeclaredStyle() ? TextControlType(props.blockStyle_) : SS_LEFT;
+  }
+
   HFONT ResolveTextFont(const loka::app::TextNode *text,
                         const Win32ScenePlatformController *controller)
   {
@@ -156,11 +178,8 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
         attr.hasWrap_
         && (attr.wrap_ == loka::app::TEXT_WRAP_WORD || attr.wrap_ == loka::app::TEXT_WRAP_CHAR);
     const bool truncEllipsis = attr.hasTruncation_ && attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
-    if (!wrapEnabled)
-    {
-      style |= SS_LEFTNOWORDWRAP;
-    }
-    else
+    style |= TextControlType(attr);
+    if (wrapEnabled)
     {
       style |= SS_EDITCONTROL;
     }
@@ -251,6 +270,22 @@ bool Win32TextContext::applyStyle()
 {
   if (!this->hwnd_ || !this->node_ || !this->controller())
     return false;
+  bool changed = false;
+  {
+    // Reconciled on every apply, declared or not: a retained change back to an
+    // undeclared style restores the creation default instead of keeping the
+    // old SS_CENTER/SS_RIGHT type. Keep the HWND and all non-type flags.
+    // CENTER/RIGHT use native STATIC wrapping; the NONE + CLIP overflow limit
+    // is documented in the guide.
+    const LONG_PTR style = GetWindowLongPtrW(this->hwnd_, GWL_STYLE);
+    const LONG_PTR alignedStyle = (style & ~static_cast<LONG_PTR>(SS_TYPEMASK))
+                                  | TextControlTypeFor(this->node_->props);
+    if (style != alignedStyle)
+    {
+      SetWindowLongPtrW(this->hwnd_, GWL_STYLE, alignedStyle);
+      changed = true;
+    }
+  }
   HFONT font = ResolveTextFont(this->node_, this->controller());
   if (!font)
     font = this->controller()->displayFont();
@@ -258,10 +293,11 @@ bool Win32TextContext::applyStyle()
   if (font && reinterpret_cast<HFONT>(SendMessageW(this->hwnd_, WM_GETFONT, 0, 0)) != font)
   {
     SendMessageW(this->hwnd_, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
-    InvalidateRect(this->hwnd_, NULL, TRUE);
-    return true;
+    changed = true;
   }
-  return false;
+  if (changed)
+    InvalidateRect(this->hwnd_, NULL, TRUE);
+  return changed;
 }
 
 void Win32TextContext::onPropsApplied()
