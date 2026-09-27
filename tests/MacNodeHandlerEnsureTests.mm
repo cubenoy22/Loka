@@ -512,6 +512,7 @@ void testMacAttributedTextRefusalClearsProjection()
     MacScenePlatformController controller((void *)root, RailMetrics());
     AttributedTextProps props(Styled("visible", FontSize<12>()));
     AttributedTextNode node(props);
+    node.setPropsTypeId(AttributedTextProps::staticTypeId());
     VerifyAttributedHeight(node, controller, root, 100);
     NSTextField *field = AttributedField(root);
     const loka::core::String text("allocation refusal");
@@ -519,20 +520,382 @@ void testMacAttributedTextRefusalClearsProjection()
     const AttributedString refused = Styled(text, Italic);
     loka::core::testing::allowLokaAllocRaw();
     LOKA_VERIFY(!refused.valid());
-    node.props.text(refused);
+    LOKA_VERIFY(AttributedText(refused).applyPropsToNode(&node));
     loka::app::scene::LayoutState state;
     state.width = 100;
     node.layoutProjected(&controller, state);
     LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);
-    node.props.text(Styled("recovered", Italic));
+    LOKA_VERIFY(AttributedText(Styled("recovered", Italic)).applyPropsToNode(&node));
     VerifyAttributedHeight(node, controller, root, 100);
     const loka::core::String unreadable(loka::core::Managed<loka::platform::String>::Wrap(new MacRefusedAttributedString()));
-    node.props.text(Styled(unreadable, Italic));
+    LOKA_VERIFY(AttributedText(Styled(unreadable, Italic)).applyPropsToNode(&node));
     node.layoutProjected(&controller, state);
     LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);
-    node.props.text(Styled("recovered again", Italic));
+    LOKA_VERIFY(AttributedText(Styled("recovered again", Italic)).applyPropsToNode(&node));
     VerifyAttributedHeight(node, controller, root, 100);
   }
+  [root release];
+  [pool drain];
+}
+
+#include <objc/runtime.h>
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+
+// Both production measurement sites send this selector to NSTextFieldCell.
+// Install on that class only (even when the SDK inherits it from NSCell).
+static unsigned gMac970Measurements = 0;
+@interface NSTextFieldCell (Loka970MeasurementCounter)
+- (NSSize)loka970_cellSizeForBounds:(NSRect)bounds;
+@end
+@implementation NSTextFieldCell (Loka970MeasurementCounter)
+- (NSSize)loka970_cellSizeForBounds:(NSRect)bounds
+{
+  ++gMac970Measurements;
+  return [self loka970_cellSizeForBounds:bounds];
+}
+@end
+
+namespace
+{
+  class MacMeasurementCounter
+  {
+  public:
+    MacMeasurementCounter()
+    {
+      Class cell = [NSTextFieldCell class];
+      Method inherited = class_getInstanceMethod(cell, @selector(cellSizeForBounds:));
+      LOKA_VERIFY(inherited != 0);
+      class_addMethod(cell, @selector(cellSizeForBounds:), method_getImplementation(inherited),
+                      method_getTypeEncoding(inherited));
+      this->original_ = class_getInstanceMethod(cell, @selector(cellSizeForBounds:));
+      this->counting_ = class_getInstanceMethod(cell, @selector(loka970_cellSizeForBounds:));
+      LOKA_VERIFY(this->original_ && this->counting_);
+      method_exchangeImplementations(this->original_, this->counting_);
+      gMac970Measurements = 0;
+    }
+    ~MacMeasurementCounter()
+    {
+      method_exchangeImplementations(this->original_, this->counting_);
+    }
+    unsigned calls() const { return gMac970Measurements; }
+  private:
+    Method original_;
+    Method counting_;
+    MacMeasurementCounter(const MacMeasurementCounter &);
+    MacMeasurementCounter &operator=(const MacMeasurementCounter &);
+  };
+
+  template <class Leaf>
+  void VerifyMacMeasurementReuse(Leaf &node, bool attributed)
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)];
+    {
+      MacScenePlatformController controller((void *)root, loka::macos::DefaultRailMetrics());
+      MacMeasurementCounter counter;
+      LayoutState state;
+      state.width = 101;
+      NotifySubtreeNodeAttached(&node);
+      node.layoutProjected(&controller, state);
+      NSTextField *field = AttributedField(root);
+      LOKA_VERIFY(counter.calls() == 1); // Positive control: swizzle must observe the real call.
+      const short height = state.height;
+      LOKA_VERIFY(height > 0);
+      NSAttributedString *before = [[field attributedStringValue] retain];
+      state.x = 4; // Same endpoint phase at spaceScale 5/4.
+      state.y = 23;
+      state.height = 999;
+      // Bypass ensure's plain refresh: only layout's placement can satisfy this pin.
+      const short advance = node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == 1);
+      LOKA_VERIFY(state.height == height);
+      LOKA_VERIFY(advance == state.y + height + layout::FallbackControlMetrics::kVerticalSpacing);
+      LOKA_VERIFY(NSEqualRects([field frame], controller.projection().projectFrame(
+          loka::core::Frame(4, 23, 101, height)).r));
+      if (attributed)
+        LOKA_VERIFY([field attributedStringValue] == before);
+      [before release];
+      state.x = 1;
+      LOKA_VERIFY(controller.projection().projectLength(0, 101).pt == 126);
+      LOKA_VERIFY(controller.projection().projectLength(1, 102).pt == 127);
+      unsigned calls = counter.calls();
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls + (attributed ? 1 : 0));
+      state.width = 80;
+      calls = counter.calls();
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls + 1);
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls + 1);
+      NotifySubtreeNodeDetached(&node);
+      LifecycleFactTestAccess::DeliverFacts(&node);
+      LOKA_VERIFY([field isHidden]);
+      before = [[field attributedStringValue] retain];
+      NotifySubtreeNodeAttached(&node);
+      LifecycleFactTestAccess::DeliverFacts(&node);
+      LOKA_VERIFY(![field isHidden]);
+      LOKA_VERIFY([[field attributedStringValue] isEqualToAttributedString:before]);
+      [before release];
+      calls = counter.calls();
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls + 1);
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls + 1);
+      if (!attributed)
+      {
+        // Native presentation drift must be reconciled on a measurement hit.
+        [field setAlignment:LOKA_MAC_TEXT_ALIGNMENT_RIGHT];
+        [[field cell] setWraps:NO];
+        [[field cell] setScrollable:YES];
+        [[field cell] setLineBreakMode:NSLineBreakByClipping];
+        [[field cell] setFont:[NSFont systemFontOfSize:30]];
+        node.layout(&controller, state);
+        LOKA_VERIFY(counter.calls() == calls + 1);
+        LOKA_VERIFY([field alignment] == LOKA_MAC_TEXT_ALIGNMENT_LEFT);
+        LOKA_VERIFY([[field cell] wraps] && ![[field cell] isScrollable]);
+        LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByWordWrapping);
+        LOKA_VERIFY([[[field cell] font] isEqual:(NSFont *)controller.textFont(FontSize<12>())]);
+      }
+      state.width = 0;
+      node.layout(&controller, state);
+      calls = counter.calls();
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == calls);
+      // Node is caller-owned and must retire before this controller drains.
+      LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+      LifecycleFactTestAccess::DeliverFacts(&node);
+      LOKA_VERIFY([[root subviews] count] == 0);
+      LOKA_VERIFY([[field stringValue] length] == 0);
+      node.setContext(0);
+    }
+    [root release];
+  }
+
+  class MacMeasurementOwner : public loka::app::scene::BoundaryNodeFor<MacMeasurementOwner>
+  {
+  public:
+    explicit MacMeasurementOwner(const loka::app::scene::BoundaryPropsFor<MacMeasurementOwner> &props =
+                                     loka::app::scene::BoundaryPropsFor<MacMeasurementOwner>())
+        : loka::app::scene::BoundaryNodeFor<MacMeasurementOwner>(props) {}
+    virtual void composeNode(loka::app::scene::NodeComposition &) {}
+  };
+
+  // A real CollectUtf8 refusal, with no production hook. Changing availability
+  // models recovery of the same input; no props/State mark rescues the retry.
+  class MacRetryString : public loka::platform::String
+  {
+  public:
+    MacRetryString() : available_(true), attempts_(0) {}
+    void available(bool value) { this->available_ = value; }
+    unsigned attempts() const { return this->attempts_; }
+    virtual bool appendUtf8(std::string &out) const
+    {
+      ++this->attempts_;
+      if (!this->available_)
+        return false;
+      out.append("retry the same wrapped text");
+      return true;
+    }
+  private:
+    bool available_;
+    mutable unsigned attempts_;
+  };
+
+  template <class Leaf>
+  void VerifyMacMeasurementRefusal(Leaf &node, MacRetryString &source)
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+    {
+      MacScenePlatformController controller((void *)root, RailMetrics());
+      MacMeasurementCounter counter;
+      LayoutState state;
+      state.width = 100;
+      node.layoutProjected(&controller, state);
+      NSTextField *field = AttributedField(root);
+      LOKA_VERIFY(counter.calls() == 1 && state.height > 0);
+      source.available(false);
+      state.width = 90; // Force a miss without mutating the logical input.
+      node.layout(&controller, state);
+      LOKA_VERIFY(state.height == 0 && [[field stringValue] length] == 0);
+      LOKA_VERIFY(NSIsEmptyRect([field frame]));
+      const unsigned refusedAttempts = source.attempts();
+      node.layout(&controller, state);
+      LOKA_VERIFY(source.attempts() > refusedAttempts);
+      LOKA_VERIFY(counter.calls() == 1);
+      source.available(true);
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == 2 && state.height > 0);
+      LOKA_VERIFY([[field stringValue] isEqualToString:@"retry the same wrapped text"]);
+      LOKA_VERIFY(!NSIsEmptyRect([field frame]));
+      node.layout(&controller, state);
+      LOKA_VERIFY(counter.calls() == 2);
+      LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+      LifecycleFactTestAccess::DeliverFacts(&node);
+      node.setContext(0);
+    }
+    [root release];
+  }
+}
+
+void testMacPlainTextMeasurementReuse()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  TextNode node((Text("words that wrap over several lines") + FontSize<12>()
+                 + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+  VerifyMacMeasurementReuse(node, false);
+  [pool drain];
+}
+
+void testMacAttributedTextMeasurementReuse()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  AttributedTextNode node((AttributedText(Styled("words that wrap over several lines", FontSize<12>()))
+                           + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+  VerifyMacMeasurementReuse(node, true);
+  [pool drain];
+}
+
+void testMacTextMeasurementRefusalRecovery()
+{
+  using namespace loka::app;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  MacRetryString *source = new MacRetryString();
+  const loka::core::String value(loka::core::Managed<loka::platform::String>::Wrap(source));
+  TextNode plain((Text(value) + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+  VerifyMacMeasurementRefusal(plain, *source);
+  AttributedTextNode rich((AttributedText(Styled(value, FontSize<12>()))
+                           + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+  VerifyMacMeasurementRefusal(rich, *source);
+  [pool drain];
+}
+
+void testMacTextMeasurementInputPublications()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core;
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  {
+    MacScenePlatformController controller((void *)root, RailMetrics());
+    MutableState<String> content(String::Literal("before wrapped words"));
+    MutableState<TextStyle> style((FontSize<12>()));
+    MutableState<AttributedString> rich(Styled("before wrapped words", FontSize<12>()));
+    PushStateTracker tracker;
+    tracker.addState(&content);
+    tracker.addState(&style);
+    tracker.addState(&rich);
+    MacMeasurementOwner owner;
+    TextNode plain(((Text(&content) + &style) + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+    AttributedTextNode attributed((AttributedText(&rich) + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
+    plain.setPropsTypeId(TextProps::staticTypeId());
+    attributed.setPropsTypeId(AttributedTextProps::staticTypeId());
+    BoundaryNode::declareBoundaryDirtySources(&plain, &owner);
+    BoundaryNode::declareBoundaryDirtySources(&attributed, &owner);
+    MacMeasurementCounter counter;
+    LayoutState state;
+    state.width = 100;
+    plain.layoutProjected(&controller, state);
+    attributed.layoutProjected(&controller, state);
+    LOKA_VERIFY(counter.calls() == 2);
+    NSTextField *plainField = (NSTextField *)[[root subviews] objectAtIndex:0];
+    NSTextField *richField = (NSTextField *)[[root subviews] objectAtIndex:1];
+    {
+      StateTrackerGuard guard(&tracker);
+      content.set(String::Literal("after wrapped words"));
+      rich.set(Styled("after wrapped words", FontSize<12>()));
+    }
+    plain.layout(&controller, state);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 4);
+    LOKA_VERIFY([[plainField stringValue] isEqualToString:@"after wrapped words"]);
+    LOKA_VERIFY([[richField stringValue] isEqualToString:@"after wrapped words"]);
+    {
+      StateTrackerGuard guard(&tracker);
+      style.set(FontSize<24>());
+      rich.set(Styled("after wrapped words", FontSize<24>()));
+    }
+    plain.layout(&controller, state);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 6);
+    LOKA_VERIFY(((Text(&content) + &style) + BlockStyle().wrap(TEXT_WRAP_WORD).align(TEXT_ALIGN_RIGHT))
+                    .applyPropsToNode(&plain));
+    LOKA_VERIFY((AttributedText(&rich) + BlockStyle().wrap(TEXT_WRAP_WORD).align(TEXT_ALIGN_RIGHT))
+                    .applyPropsToNode(&attributed));
+    plain.layout(&controller, state);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 8);
+    LOKA_VERIFY([plainField alignment] == LOKA_MAC_TEXT_ALIGNMENT_RIGHT);
+    NSParagraphStyle *paragraph = [[richField attributedStringValue]
+        attribute:NSParagraphStyleAttributeName atIndex:0 effectiveRange:0];
+    LOKA_VERIFY([paragraph alignment] == LOKA_MAC_TEXT_ALIGNMENT_RIGHT);
+    plain.layout(&controller, state);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 8);
+    // Retained content/source/style replacement and style removal all mark.
+    LOKA_VERIFY((Text("replacement words") + FontSize<12>() + BlockStyle().wrap(TEXT_WRAP_WORD))
+                    .applyPropsToNode(&plain));
+    LOKA_VERIFY((AttributedText(Styled("replacement words", FontSize<12>()))
+                + BlockStyle().wrap(TEXT_WRAP_WORD)).applyPropsToNode(&attributed));
+    plain.layout(&controller, state);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 10);
+    LOKA_VERIFY([[plainField stringValue] isEqualToString:@"replacement words"]);
+    LOKA_VERIFY([[richField stringValue] isEqualToString:@"replacement words"]);
+    LOKA_VERIFY(Text("unstyled").applyPropsToNode(&plain));
+    plain.layout(&controller, state);
+    LOKA_VERIFY([plainField alignment] == LOKA_MAC_TEXT_ALIGNMENT_NATURAL);
+    LOKA_VERIFY(state.height == layout::FallbackControlMetrics::kTextHeight);
+    LOKA_VERIFY((Text("activated words") + FontSize<24>() + BlockStyle().wrap(TEXT_WRAP_WORD))
+                    .applyPropsToNode(&plain));
+    plain.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 11);
+    // Parked publication plus reattach: table remains, but return consumes the mark.
+    NotifySubtreeNodeDetached(&attributed);
+    LifecycleFactTestAccess::DeliverFacts(&attributed);
+    LOKA_VERIFY([richField isHidden]);
+    LOKA_VERIFY((AttributedText(&rich) + BlockStyle().wrap(TEXT_WRAP_WORD)).applyPropsToNode(&attributed));
+    {
+      StateTrackerGuard guard(&tracker);
+      rich.set(Styled("changed while parked", FontSize<12>()));
+    }
+    NotifySubtreeNodeAttached(&attributed);
+    LifecycleFactTestAccess::DeliverFacts(&attributed);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 12);
+    LOKA_VERIFY([[richField stringValue] isEqualToString:@"changed while parked"]);
+    attributed.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 12);
+    LOKA_VERIFY(((Text(&content) + &style) + BlockStyle().wrap(TEXT_WRAP_WORD)).applyPropsToNode(&plain));
+    plain.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 13);
+    NotifySubtreeNodeDetached(&plain);
+    LifecycleFactTestAccess::DeliverFacts(&plain);
+    LOKA_VERIFY([plainField isHidden]);
+    {
+      StateTrackerGuard guard(&tracker);
+      content.set(String::Literal("plain changed while parked"));
+    }
+    NotifySubtreeNodeAttached(&plain);
+    LifecycleFactTestAccess::DeliverFacts(&plain);
+    plain.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 14);
+    LOKA_VERIFY([[plainField stringValue] isEqualToString:@"plain changed while parked"]);
+    plain.layout(&controller, state);
+    LOKA_VERIFY(counter.calls() == 14);
+    owner.clearObservedStateEntries();
+  }
+  LOKA_VERIFY([[root subviews] count] == 0);
   [root release];
   [pool drain];
 }

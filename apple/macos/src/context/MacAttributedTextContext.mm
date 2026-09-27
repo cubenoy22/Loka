@@ -97,14 +97,17 @@ MacAttributedTextContext::Projection::~Projection()
 
 void MacAttributedTextContext::Projection::clear()
 {
+  this->measurement_.invalidate();
   [(NSAttributedString *)this->value_ release];
   this->value_ = 0;
 }
 
 bool MacAttributedTextContext::Projection::build(const loka::app::AttributedString &value,
                                                  const loka::app::BlockStyle &block,
-                                                 const MacScenePlatformController &controller)
+                                                 const MacScenePlatformController &controller,
+                                                 const loka::macos::MacLength &constraint)
 {
+  // Miss only: walk this value's runs, then measure one whole native string.
   this->clear();
   if (!value.valid())
     return false;
@@ -147,9 +150,18 @@ bool MacAttributedTextContext::Projection::build(const loka::app::AttributedStri
     [result addAttribute:NSFontAttributeName value:font range:NSMakeRange(offset, length)];
     offset += length;
   }
-  // The builder never escapes as mutable storage.
+  NSTextFieldCell *measure = [[[NSTextFieldCell alloc] initTextCell:@""] autorelease];
+  if (!measure)
+    return false;
+  [measure setAttributedStringValue:result];
+  ConfigureCell(measure, block);
+  const NSSize size = [measure cellSizeForBounds:loka::macos::MacMeasurementBounds(constraint)];
+  // The builder never escapes as mutable storage. Commit only a complete owner.
   this->value_ = (void *)[result copy];
-  return this->value_ != 0;
+  if (!this->value_)
+    return false;
+  this->measurement_.commit(constraint.pt, controller.projection().measurementToLu(size.height));
+  return true;
 }
 
 MacAttributedTextContext::MacAttributedTextContext(MacScenePlatformController *controller,
@@ -184,6 +196,7 @@ void MacAttributedTextContext::clearProjection()
 
 void MacAttributedTextContext::onPropsApplied()
 {
+  // The #965 props mark also forces a rebuild, including baked paragraph alignment.
   this->clearProjection();
   this->controller()->requestRelayout();
 }
@@ -208,28 +221,24 @@ void MacAttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact
 
 short MacAttributedTextContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
-  this->clearProjection();
+  const loka::macos::MacProjection &projection = this->controller()->projection();
+  const loka::macos::MacLength constraint = projection.projectLength(state.x, state.x + state.width);
   NSTextField *label = (NSTextField *)this->label_;
-  state.height = 0;
-  if (label && this->node_ && this->node_->props.text_
-      && this->projection_.build(this->node_->props.text_->get(), this->node_->props.blockStyle_, *this->controller()))
+  // Per visited leaf: O(1) hit, no run walk or native measurement; always place.
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->projection_.reusable(constraint))
   {
-    NSAttributedString *value = (NSAttributedString *)this->projection_.value();
-    NSTextFieldCell *measure = [[[NSTextFieldCell alloc] initTextCell:@""] autorelease];
-    if (measure)
+    this->clearProjection();
+    if (label && this->node_ && this->node_->props.text_
+        && this->projection_.build(this->node_->props.text_->get(), this->node_->props.blockStyle_,
+                                   *this->controller(), constraint))
     {
-      [measure setAttributedStringValue:value];
-      ConfigureCell(measure, this->node_->props.blockStyle_);
-      [label setAttributedStringValue:value];
+      [label setAttributedStringValue:(NSAttributedString *)this->projection_.value()];
       ConfigureCell([label cell], this->node_->props.blockStyle_);
-      const loka::macos::MacProjection &projection = this->controller()->projection();
-      const NSSize size = [measure cellSizeForBounds:loka::macos::MacMeasurementBounds(
-                                                         projection.projectLength(state.x, state.x + state.width))];
-      state.height = Coordinate(projection.measurementToLu(size.height));
     }
     else
       this->clearProjection();
   }
+  state.height = Coordinate(this->projection_.height());
   loka::macos::SetMacFrame(
       label,
       this->controller()->projection().projectFrame(loka::core::Frame(state.x, state.y, state.width, state.height)));

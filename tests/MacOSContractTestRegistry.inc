@@ -49,3 +49,8 @@ LOKA_TEST(testMacFocusInactiveRequest)
 LOKA_TEST(testMacFocusWriteAdmission)
 LOKA_TEST(testMacFocusWriteReentry)
 LOKA_TEST(testMacFocusInitialRequest)
+
+LOKA_TEST(testMacPlainTextMeasurementReuse)
+LOKA_TEST(testMacAttributedTextMeasurementReuse)
+LOKA_TEST(testMacTextMeasurementRefusalRecovery)
+LOKA_TEST(testMacTextMeasurementInputPublications)
