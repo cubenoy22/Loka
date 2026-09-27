@@ -85,6 +85,7 @@ namespace
       return false;
     HGDIOBJ previous = SelectObject(hdc, font);
     TEXTMETRICW metrics;
+    ZeroMemory(&metrics, sizeof(metrics)); // MSVC C4701: the success flag, not the struct, gates the read
     const bool measured = previous && previous != HGDI_ERROR && GetTextMetricsW(hdc, &metrics) != FALSE;
     if (previous && previous != HGDI_ERROR)
       SelectObject(hdc, previous);
