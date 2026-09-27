@@ -202,7 +202,10 @@ until exchange completes. Reclamation writes nothing. The two controls share
 
 ## Busy exclusion
 
-`Scene::isBusy` means a run is in progress or that Scene is publishing focus.
+`Scene::isBusy` means a run is in progress, that Scene is publishing focus,
+or its controller has an open [platform operation interval](RequestDeliveryDesign.md#platform-operation-interval-968).
+Window declines focus completion during that interval. An operation opened
+inside an existing focus publication restores its own outer phase independently.
 App admission, retired-Scene reclaim and close draining skip the busy window's
 row entirely. This prevents swap during publication followed by nested reclaim
 from freeing the Scene beneath the publication frame, and prevents close
@@ -262,7 +265,7 @@ Costs below exclude observer work; debug audit costs are listed separately.
 | Teardown disconnect | End of each composition teardown | O(M) over this Scene's surviving members, normally empty; no writes |
 | Reconcile | Each eligible live window, once per completion | One admission read; O(M) scan of this Scene's members, including parked/unbound rows, even with no request. A take adds one O(M) identity relookup, at most one native write and one native readback. Publication rewires in O(1) and makes zero to two direct fact writes. |
 | App enumeration | Each outer completion | Repeated scans of App-owned group entries; for W windows, O(W squared) group visits and O(W cubed) worst-case visited-identity comparisons, plus close-pending lookups. No allocation within the inline visited capacity of `App::reconcileFocus`; overflow uses O(W) storage and allocates. Non-window group entries also participate in scans. |
-| Busy check | App admission/reclaim and close draining, per window | One focus-phase read beside the existing run check |
+| Busy check | App admission/reclaim and close draining, per window | One focus-phase and one operation-phase read beside the existing run check |
 | Binding replacement | Participant applier | O(1) exchange and zero to two direct writes when published |
 | Source replacement | Rail, on native/test source change | O(1) endpoint rewire; no fact writes |
 | Debug audit | New publication or published-binding replacement | O(M) current Scene members plus the registry of live `SceneFocus` owners |

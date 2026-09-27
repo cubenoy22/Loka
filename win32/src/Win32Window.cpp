@@ -705,8 +705,7 @@ bool Win32Window::mountReplacementScene(loka::app::scene::Scene *next)
         this->hwnd_, WindowProjection(this->hwnd_));
   if (!this->scenePlatformController_)
     return false;
-  next->mount(this->scenePlatformController_);
-  return true;
+  return next->mount(this->scenePlatformController_);
 }
 
 void Win32Window::teardownScene()

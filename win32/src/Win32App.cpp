@@ -199,6 +199,7 @@ void Win32App::run()
       this->flushMenuInvalidation();
       this->flushWindowInvalidations();
       this->reconcileFocus();
+      this->flushWindowInvalidations();
       if (this->hasPendingWindowAdmission())
         continue;
       if (!handledMessage)
@@ -225,6 +226,7 @@ void Win32App::run()
     this->flushMenuInvalidation();
     this->flushWindowInvalidations();
     this->reconcileFocus();
+    this->flushWindowInvalidations();
     const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
     if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
     {

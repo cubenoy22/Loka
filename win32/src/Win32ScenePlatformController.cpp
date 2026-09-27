@@ -488,6 +488,9 @@ void Win32ScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                             loka::app::scene::NodeDirtyFlags flags,
                                             bool fullRebuild)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   (void)fullRebuild;
   ++this->redrawStats_.onChangeCalls;
   this->redrawStats_.lastOnChangeFlags = flags;
@@ -684,6 +687,9 @@ void Win32ScenePlatformController::queueNativeRetirement(HWND hwnd)
 
 void Win32ScenePlatformController::drainNativeRetirements()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   for (size_t i = 0; i < this->retiredWindows_.size(); ++i)
   {
     if (this->retiredWindows_[i])
@@ -696,6 +702,9 @@ void Win32ScenePlatformController::drainNativeRetirements()
 
 void Win32ScenePlatformController::destroy()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   pendingInvalidations_.clear();
   clearContexts();
   this->drainNativeRetirements();
@@ -706,6 +715,9 @@ void Win32ScenePlatformController::destroy()
 
 void Win32ScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->operationPhase().open());
+#endif
   clearNodeContexts(node);
 }
 

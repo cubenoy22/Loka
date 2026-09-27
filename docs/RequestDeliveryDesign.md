@@ -57,12 +57,55 @@ two-seat overload for caret then command (#902).
 Sources: [#898, ruling items 1–3](https://github.com/cubenoy22/Loka/issues/898),
 [#900](https://github.com/cubenoy22/Loka/pull/900), and
 [#904](https://github.com/cubenoy22/Loka/pull/904).
-The stack `RailOperation<T>` holds no context reference. The driver retains
-`Node*` and a comparison-only context identity, checking
-`node->getContext() == identity` at each seat entry, after each publication,
-and after `finishSettle` before continuing.
-This liveness wall is always on: retirement at seat k stops seat k+1, the
-epilogue, and the trace without reopening the context.
+The non-template `SettleOwnerBase` opens an `OperationScope` on the rail's
+controller before native calls or callback-capable work. It borrows the node
+and stores a comparison-only context identity. Both settle overloads require
+that owner; `hasSameContext()` checks identity at each seat entry, after
+publications, and after `finishSettle`. This is not an ATTACHED predicate: a
+parked context can still match. A mismatch stops later seats, the epilogue and
+trace. Lifecycle eligibility remains the seat's separate check.
+
+### Platform operation interval (#968)
+
+Window owns the controller; Scene and contexts borrow it. The controller owns
+one small noncopyable `OperationPhase`; only `OperationScope` opens it and
+restores the previous value. There is no counter, allocation, flush on scope
+exit, or coupling to the focus publication phase. A non-template completion
+owner carries this interval independently of the fact type. A controller-less
+fixture door is available only in `loka::app::testing` under `TEST_BUILD`.
+
+While an interval is open, its controller remains alive, a mounted Scene keeps
+that controller, and the borrowed node belongs to that projection. Public
+`Scene::mount` returns false without changing anything on a remount of the
+same mounted Scene or a mount on an open controller. A prepared old/new Scene
+pair sharing a controller is legal. Refusal also asserts in lifecycle-audit
+builds. Owner/test-only unmount, direct projection/teardown and native drain
+must occur outside the interval; audit assertions diagnose misuse. Controller
+destruction asserts that its phase is closed. These trusted doors do not gain
+an arbitrary-callback lifetime guarantee.
+
+State writes, observers, Flow work, request consumption and replies still run
+immediately. The controller's Scene cannot start a draining run, and Window
+cannot synchronize, drain native retirements or complete focus. App admission
+skips that window's whole busy row: native visibility, Scene replacement,
+dialog-result delivery and close reclamation wait too. Other controllers are
+unaffected. Pending work remains on its existing clock until a later flush.
+Focus publication alone still permits a Scene run. macOS's native-only pending
+relayout remains allowed; it does not run or reclaim the Scene.
+
+This changes **input completion** to the rule props-apply completion already
+follows: a reply observer that hides the editor does not retire it inside the
+operation. Later takes in that same operation continue; focus facts and #932
+participation remain until the post-scope run. A hide/show pair that cancels
+inside the interval need not retire anything. Outside an interval, ordinary
+immediate writes keep their existing behavior.
+
+Win32 performs one additional window flush after focus completion, without a
+new continue. The bound is two scheduled tail flushes, not a bound on reentrant
+calls or message draining. The second flush advances admission clocks and can
+retry a failure once more in the same loop. Existing admission continues and
+idle transitions remain; work produced by the second flush can still wait for
+the next message. macOS and Toolbox cadence is unchanged.
 
 The seven seat doors occur in this order; failed stages skip dependent work,
 not the completion path of a still-live take:

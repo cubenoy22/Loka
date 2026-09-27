@@ -646,8 +646,7 @@ bool MacWindow::mountReplacementScene(loka::app::scene::Scene *next)
     this->scenePlatformController_ = new MacScenePlatformController(this->contentView_, loka::macos::DefaultRailMetrics());
   if (!this->scenePlatformController_)
     return false;
-  next->mount(this->scenePlatformController_);
-  return true;
+  return next->mount(this->scenePlatformController_);
 }
 
 void MacWindow::teardownScene()

@@ -157,6 +157,9 @@ void NullScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                            loka::app::scene::NodeDirtyFlags flags,
                                            bool fullRebuild)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->operationPhase().open());
+#endif
   (void)fullRebuild;
   this->lastOnChangeFlags_ = flags;
   ++this->onChangeCallCount_;
@@ -387,6 +390,9 @@ void NullScenePlatformController::synchronize() {}
 
 void NullScenePlatformController::drainNativeRetirements()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->operationPhase().open());
+#endif
   if (this->retired_.empty())
   {
     return;
@@ -403,6 +409,9 @@ bool NullScenePlatformController::hasPendingSync() const
 
 void NullScenePlatformController::destroy()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->operationPhase().open());
+#endif
   if (this->destroyed_)
   {
     return;
@@ -457,6 +466,9 @@ int NullScenePlatformController::projectLayoutForTesting(
     loka::app::scene::Node *node,
     const loka::app::scene::LayoutState &state)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->operationPhase().open());
+#endif
   this->layoutState_ = state;
   return this->projectLayout(node, this->layoutState_);
 }

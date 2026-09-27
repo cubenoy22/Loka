@@ -23,6 +23,8 @@ void Window::reclaimScenes(loka::app::scene::Scene *retired)
 bool Window::flushSceneInvalidation()
 {
   loka::app::scene::Scene *current = this->scene();
+  if (current && current->isOperationOpen())
+    return false;
   const bool changed = current ? current->flushInvalidation() : false;
   if (changed || this->hasPendingScenePlatformSync())
     this->synchronizeScenePlatform();
@@ -33,7 +35,7 @@ bool Window::flushSceneInvalidation()
 void Window::reconcileFocus()
 {
   loka::app::scene::Scene *current = this->scene();
-  if (this->sceneManager_.applying_ || !current || current->isRunInProgress()
+  if (this->sceneManager_.applying_ || !current || current->isOperationOpen() || current->isRunInProgress()
       || current->focus().isPublishing() || !current->attached_.get()
       || !current->rootNode_ || !this->hasLiveScenePlatform() || !current->platformController_)
     return;
