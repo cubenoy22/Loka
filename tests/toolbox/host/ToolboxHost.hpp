@@ -13,7 +13,8 @@
 #define LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP
 #define LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
-#define LOKA_TOOLBOX_TEXT_CONTEXT_HPP
+class ToolboxTextContext;
+class ToolboxTextFontDescriptor;
 #include "Quickdraw.h"
 #include "TextEdit.h"
 #include "ToolboxEditControlLedger.hpp"
@@ -75,7 +76,7 @@ public:
     return CAP_TEXT_EDIT;
   }
 };
-namespace toolbox_host { extern GrafPtr frontWindow; }
+namespace toolbox_host { extern GrafPtr frontWindow; extern int textHits; }
 inline GrafPtr FrontWindow() { return toolbox_host::frontWindow; }
 class ToolboxWindow
 {
@@ -173,6 +174,10 @@ public:
   void retireEditTextControlAt(std::size_t, loka::app::scene::NativeLifetimeHint);
   void retireEditTextControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
   void syncEditTextFromState(EditTextControlBinding &);
+  void refreshContextProps(loka::app::scene::Node *, short = 0) {}
+  short measureTextWidth(const loka::core::String &, const ToolboxTextFontDescriptor &) const;
+  void recordTextHit(const Rect &, short, short, loka::core::State<loka::core::String> *,
+                     loka::app::scene::BoundaryNode *, bool, short, ToolboxTextContext *) { ++toolbox_host::textHits; }
   void bindTextState(loka::core::State<loka::core::String> *) {}
   void unbindTextState(loka::core::State<loka::core::String> *) {}
   bool hasLiveBinding(loka::core::State<loka::core::String> *s) const
@@ -250,7 +255,6 @@ LOKA_HOST_OTHER_HANDLER(ImageView)
 LOKA_HOST_OTHER_HANDLER(OpenFileDialog)
 LOKA_HOST_OTHER_HANDLER(PopupMenu)
 LOKA_HOST_OTHER_HANDLER(ScrollBar)
-LOKA_HOST_OTHER_HANDLER(Text)
 #undef LOKA_HOST_OTHER_HANDLER
 
 namespace toolbox_host

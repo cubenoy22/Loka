@@ -175,6 +175,18 @@ endfunction()
 loka_add_attributed_string_probe(LokaAttributedStringProbe LokaAppleToolboxCore)
 loka_add_attributed_string_probe(LokaAttrStringProbeDiag LokaAppleToolboxTestCore)
 
+# Rally 7 resident/lazy paragraph timing probe; test-only and opt-in.
+set(LOKA_PROBE_SERIES "20,50,-50,100,-200,200" CACHE STRING "Signed paragraph counts: positive S1, negative S2")
+function(loka_add_paragraph_probe)
+  set(target "LokaParagraphProbe${LOKA_CLASSIC_TARGET_SUFFIX}")
+  loka_add_toolbox_test_application(${target} LokaAppleToolboxCore
+    src/ParagraphProbeStandaloneMain.cpp ParagraphProbeSize.r)
+  target_compile_definitions(${target} PRIVATE "LOKA_PROBE_SERIES=${LOKA_PROBE_SERIES}")
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+endfunction()
+loka_add_paragraph_probe()
+
 # Deliberate timing-only twin of the attributed-string probe registration above.
 configure_file(
   ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r

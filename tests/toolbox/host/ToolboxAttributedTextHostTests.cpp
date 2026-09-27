@@ -61,8 +61,14 @@ namespace
   }
 } // namespace
 
-int main(int argc, char **)
+
+#include "ToolboxTextMeasurementPins.hpp"
+
+int main(int argc, char **argv)
 {
+  if (argc > 1 && std::string(argv[1]) == "measurement-plain") { MeasurementPins(true, false); return 0; }
+  if (argc > 1 && std::string(argv[1]) == "measurement-attributed") { MeasurementPins(false, true); return 0; }
+  MeasurementPins(true, true);
   const loka::core::Managed<loka::platform::String> utf8 = loka::platform::CreatePlatformStringFromUtf8("a\0\xff", 3);
   loka::platform::Utf8View view = {0, 0};
   LOKA_VERIFY(utf8->queryUtf8(view) && view.length == 3 && std::string(view.bytes, view.length) == std::string("a\0\xff", 3));

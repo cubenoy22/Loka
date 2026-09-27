@@ -9,10 +9,11 @@ namespace toolbox_host
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
   int failRegions = 0;
+  int textHits = 0;
   void reset()
   {
     draws.clear();
-    erases = widths = measures = fonts = metrics = 0;
+    erases = widths = measures = fonts = metrics = textHits = 0;
     failRegions = 0;
   }
 } // namespace toolbox_host
@@ -338,4 +339,13 @@ namespace toolbox_host { GrafPtr frontWindow = 0; }
 void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
 {
   binding.textSeat.set(loka::core::String((**binding.te).text));
+}
+
+// Compile the real plain leaf alongside the real attributed leaf in this fixture.
+#include "context/ToolboxTextContext.cpp"
+void DrawString(const unsigned char *text) { DrawText(text + 1, 0, text[0]); }
+short ToolboxScenePlatformController::measureTextWidth(
+    const loka::core::String &value, const ToolboxTextFontDescriptor &descriptor) const
+{
+  return ToolboxTextMeasureScope(*this, descriptor).measure(value);
 }
