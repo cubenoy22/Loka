@@ -2,6 +2,8 @@
 
 ## Status
 
+The Text scenario audit records logical values only, with the per-node input mark pinned by [focused tests](../../tests/ObservedLayoutInputsTests.cpp); the dirty-field examples below are historical and superseded by [#974](https://github.com/cubenoy22/Loka/issues/974).
+
 - Status: partially implemented
 - This file started as a sketch; several pieces are now real and should be read as current capability, not speculation.
 - Current source of truth:

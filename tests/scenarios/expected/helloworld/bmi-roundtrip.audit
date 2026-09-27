@@ -11,8 +11,6 @@ crop_bottom	330
 crop_left	0
 crop_right	420
 crop_top	0
-dirty.flags	NONE
-dirty.mask	0
 format_version	1
 height_cm	180
 invalid_input_result	BMI: --
