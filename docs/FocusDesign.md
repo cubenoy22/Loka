@@ -20,15 +20,16 @@
 
 ## From AGENTS.md
 
-Keyboard focus is reported into app-owned `loka::app::FocusFact<K>` facts, one
-per screen by convention; each Scene owns its single publication. Rails call
+Keyboard focus is reported into the fact box of an app-owned
+`loka::app::Focus<K>`, one per screen by convention; its request box carries
+the app's `post`; each Scene owns its single publication. Rails call
 `App::reconcileFocus` at their outer completion and read native focus at an
 admitted completion; native notifications never write the fact, and the
 Scene's publication is not duplicated in a rail-owned record.
 
 ## The fact
 
-The app declares one `loka::app::FocusFact<K>` for its screen. A screen that
+The app declares one `loka::app::Focus<K>` for its screen. A screen that
 mixes key types (an enum form beside an id-keyed list) needs one fact per key
 type; the Scene still publishes one input at a time, and a move between facts
 passes through none (see [Write rules](#write-rules)). The fact always starts
@@ -287,7 +288,7 @@ carry-over remain outside this contract.
 
 ## App-posted focus (#960)
 
-`FocusFact<K>` owns declaration handles for two owner-backed states:
+`Focus<K>` owns declaration handles for two owner-backed states:
 `Reported<Focused<K> >` is written by the reporting seam and
 `Request<detail::FocusTarget<K> >` is posted by the app and consumed by completion.
 The bundle is non-copyable. Both handles must be valid for `post` and

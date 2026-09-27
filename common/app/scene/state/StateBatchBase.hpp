@@ -6,7 +6,7 @@
 #include "app/scene/detail/ArenaMath.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "app/scene/state/Reported.hpp"
-#include "app/FocusFact.hpp"
+#include "app/Focus.hpp"
 #include "app/scene/state/Request.hpp"
 #include "app/scene/state/StateOwner.hpp"
 #include "core/LokaAlloc.hpp"
@@ -142,7 +142,7 @@ namespace loka
           }
         }
 
-        template <typename K> static void CreateImmediateState(IStateOwner *owner, FocusFact<K> &out)
+        template <typename K> static void CreateImmediateState(IStateOwner *owner, Focus<K> &out)
         {
           CreateImmediateState(owner, out.fact_, Focused<K>::none());
           CreateImmediateState(owner, out.request_, ::loka::app::detail::FocusTarget<K>::None());

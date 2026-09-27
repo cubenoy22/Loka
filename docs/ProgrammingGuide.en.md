@@ -414,7 +414,7 @@ posted by a cancellation subscriber. Cancelled work receives no reply.
 
 #### Which input has focus
 
-Declare one app-owned `loka::app::FocusFact<K>` per screen (one per key type if
+Declare one app-owned `loka::app::Focus<K>` per screen (one per key type if
 a screen mixes key types) and give each input a data key. For a BMI form like
 [HelloWorld](../example/HelloWorld/), height and weight share a fact keyed by
 an enum. Opt the enum into the key mapping in `loka::app`, before using it:
@@ -433,7 +433,7 @@ members (HelloWorld's `MainNode` names them `heightInput_` and
 
 ```cpp
 // Member declaration:
-loka::app::FocusFact<BmiField> focusedField;
+loka::app::Focus<BmiField> focusedField;
 // In the owner's state declarations:
 this->state(this->focusedField, HEIGHT); // Initial request; the fact starts at none.
 // In compose, with using namespace loka::app:
@@ -1082,7 +1082,7 @@ class EditableCardNode;
 struct EditableCardProps : scene::NodePropsBase<EditableCardProps> {
   typedef EditableCardProps TypeTag;
   typedef EditableCardNode NodeType;
-  loka::app::FocusFact<int> *focusedRow;
+  loka::app::Focus<int> *focusedRow;
   int id;
   // Other model fields, constructors and comparison omitted.
 };
@@ -1164,6 +1164,16 @@ Wrapping and truncation describe the whole text block and use `BlockStyle`:
 Text("A long paragraph")
     + Body
     + BlockStyle().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS)
+```
+
+Horizontal alignment is a block property too. Left is the default; the two
+other alignments have names in the `block` namespace, so the call site says
+what is aligned (Row and Column align child boxes, which is a different thing):
+
+```cpp
+Text("Card One") + Title + block::Centered
+Text("a caption") + Italic + block::RightAligned
+Text("x") + BlockStyle().align(TEXT_ALIGN_CENTER)   // the same, spelled out
 ```
 
 For live character styling, pass a borrowed `State<TextStyle>*`. The current

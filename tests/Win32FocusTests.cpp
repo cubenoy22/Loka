@@ -29,7 +29,7 @@ namespace
   typedef Focused<unsigned short> Fact;
   struct Facts : HeadlessStateOwner
   {
-    FocusFact<unsigned short> focus;
+    Focus<unsigned short> focus;
     Reported<LineCursor> cursor;
     ObservableList<String> lines;
     Facts()

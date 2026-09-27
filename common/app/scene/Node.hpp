@@ -1,7 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_NODE_HPP
 #define LOKA_CORE2_SCENE_NODE_HPP
 
-#include "app/FocusFact.hpp"
+#include "app/Focus.hpp"
 
 #include "core/diag/LifecycleAudit.hpp"
 #include "app/scene/SceneFocus.hpp"
@@ -849,11 +849,11 @@ namespace loka
       template <class PropsT> struct NodePropsBase : public PropsBase
       {
       protected:
-        template <typename K> static WriteSeat<Focused<K> > reportSeat(FocusFact<K> &fact)
+        template <typename K> static WriteSeat<Focused<K> > reportSeat(Focus<K> &fact)
         {
           return fact.isValid() ? reportSeat(fact.fact_) : WriteSeat<Focused<K> >();
         }
-        template <typename K> static WriteSeat< ::loka::app::detail::FocusTarget<K> > requestSeat(FocusFact<K> &fact)
+        template <typename K> static WriteSeat< ::loka::app::detail::FocusTarget<K> > requestSeat(Focus<K> &fact)
         {
           return fact.isValid() ? requestSeat(fact.request_) : WriteSeat< ::loka::app::detail::FocusTarget<K> >();
         }

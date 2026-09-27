@@ -30,7 +30,7 @@ namespace loka
       typedef TextEditorNode NodeType;
       FocusBinding focus_;
       /** Borrows an ancestor-owned fact; LazyFlex keeps fact/key structurally stable. */
-      template <typename K> TextEditorProps &focusedAs(FocusFact<K> &fact, K key)
+      template <typename K> TextEditorProps &focusedAs(Focus<K> &fact, K key)
       {
         this->focus_ = FocusBinding(this->reportSeat(fact), this->requestSeat(fact), key);
         return *this;
@@ -242,7 +242,7 @@ namespace loka
     struct TextEditorDefinition : scene::NodeDefinition<TextEditorProps, TextEditorNode>,
                                   scene::TestIdDslMixin<TextEditorDefinition>
     {
-      template <typename K> TextEditorDefinition &focusedAs(FocusFact<K> &fact, K key)
+      template <typename K> TextEditorDefinition &focusedAs(Focus<K> &fact, K key)
       {
         this->props.focusedAs(fact, key);
         return *this;

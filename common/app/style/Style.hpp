@@ -202,6 +202,18 @@ namespace loka
        order, and this header precedes any consumer declaration. An extern
        object defined in Style.cpp would give no such guarantee across
        translation units. */
+    /** Named block alignments. They live in their own namespace so the call
+        site says what is aligned (`Text("x") + Title + block::Centered`; Row
+        and Column own a different, child-box alignment) without a global
+        `Centered`. LEFT is the default and has no name. Defined per
+        translation unit like Bold/Italic, so a namespace-scope style in
+        application code may be initialized from them safely. */
+    namespace block
+    {
+      static const BlockStyle Centered = BlockStyle().align(TEXT_ALIGN_CENTER);
+      static const BlockStyle RightAligned = BlockStyle().align(TEXT_ALIGN_RIGHT);
+    } // namespace block
+
     static const TextStyle Bold = TextStyle().weight(TEXT_WEIGHT_BOLD);
     static const TextStyle Italic = TextStyle().italic();
     static const TextStyle Body = FontSize<12>();
