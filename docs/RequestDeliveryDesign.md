@@ -373,3 +373,18 @@ completion, selection completion, `VIEW_CHANGE` completion, the deferred
 storage-edit completion (`applyHighlights`), `UNAVAILABLE` refusal. These are
 the entry completions governed by the settle contract above; shared projection
 helpers are not additional delivery sites.
+
+
+## Focus requests (#960, common + Null)
+
+Focus has its own completion and bound, described in
+[Focus design](FocusDesign.md#app-posted-focus-960-common--null).
+`Focus<K>` bundles a reported fact and a coalescable request; it does not
+use TextEditor's settlement seats or reply channel. `state(focus, KEY)` supplies
+an initial request, while `post(KEY)` overwrites a materialized bundle's slot.
+The Window focus completion takes at most one request across its Scene,
+consumes through a stack copy of the binding, re-resolves that identity, then
+applies and reads back native focus. Missing/inactive targets defer without
+consumption. A native refusal consumes without retry. A field's detach does
+not cancel its ancestor's pending focus request. No slot observer supplies an
+autonomous wake-up, and a post during the take waits for a later completion.

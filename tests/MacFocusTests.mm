@@ -30,13 +30,12 @@ namespace
 
   struct Facts : HeadlessStateOwner
   {
-    Reported<Fact> focus;
+    Focus<unsigned int> focus;
     Reported<LineCursor> cursor;
     NodeState<String> firstText, secondText;
     ObservableList<String> lines;
     Facts()
     {
-      StateBatchBase::CreateImmediateState(this, this->focus, Fact::none());
       StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
       StateBatchBase::CreateImmediateState(this, this->firstText, String("first"));
       StateBatchBase::CreateImmediateState(this, this->secondText, String("second"));
@@ -73,6 +72,7 @@ namespace
     explicit FocusRoot(const FocusProps &props)
         : Base(props)
     {
+      this->state(this->props.facts->focus);
     }
     virtual void composeNode(NodeComposition &composition)
     {
@@ -371,7 +371,9 @@ void testMacFocusReadAndCompletion()
     LOKA_VERIFY(NativeAccess::nativeWindow(*window) == 0);
     LOKA_VERIFY(MacEditTextContext::fromNativeFocus(first) == 0);
     LOKA_VERIFY(MacTextEditorContext::fromNativeFocus(textEditor) == 0);
-    LOKA_VERIFY(!(facts.focus.state()->get() != Fact::none()));
+    // The Focus is declared by FocusRoot inside this Scene (#960), so closing
+    // the window reclaims it with the Scene: there is no fact left to read here.
+    // Clearing on leave is pinned headless in FocusPublisherTests.
     [first release];
     [textEditor release];
   }

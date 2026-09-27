@@ -2,9 +2,9 @@
 
 > **Status:** Normative
 >
-> **Owns:** Focus fact ownership, participant lifetimes, publication and completion
+> **Owns:** Focus fact ownership, participant lifetimes, requests, publication and completion
 >
-> **Does not own:** Exact API signatures, native focus order, or focus requests
+> **Does not own:** Exact API signatures or native focus order
 >
 > **Code truth:** [SceneFocus.hpp](../common/app/scene/SceneFocus.hpp),
 > [FocusPublisher.cpp](../common/app/FocusPublisher.cpp),
@@ -20,26 +20,25 @@
 
 ## From AGENTS.md
 
-Keyboard focus is reported into app-owned `Reported<Focused<K> >` facts, one
-per screen by convention; each Scene owns its single publication. Rails call
+Keyboard focus is reported into the fact box of an app-owned
+`loka::app::Focus<K>`, one per screen by convention; its request box carries
+the app's `post`; each Scene owns its single publication. Rails call
 `App::reconcileFocus` at their outer completion and read native focus at an
 admitted completion; native notifications never write the fact, and the
 Scene's publication is not duplicated in a rail-owned record.
 
 ## The fact
 
-The app declares one `Reported<Focused<K> >` for its screen. A screen that
+The app declares one `loka::app::Focus<K>` for its screen. A screen that
 mixes key types (an enum form beside an id-keyed list) needs one fact per key
 type; the Scene still publishes one input at a time, and a move between facts
-passes through none (see [Write rules](#write-rules)). Initialize the fact to
-`none()`: nothing writes it until an input of that fact is published, so an
-initial key would stay stale.
+passes through none (see [Write rules](#write-rules)). The fact always starts
+at `none()`; an initial declaration key initializes the request, not the fact.
 
 `Focused<K>` has an explicit `none()`; `is(key)` tests a held key, and `key()`
 requires a held value. Keys are app data: an enum, integer id, or `ItemId`,
 independent of a control's address. LazyFlex can recreate a control while its
-model identity survives; identifying an input for any later focus request
-would also need that stable identity.
+model identity survives; a pending request can target a recreated input with the same key.
 
 [Focused.hpp](../common/app/Focused.hpp) owns the key wall. `FocusKeyTraits<K>`
 has no permissive primary: a mapping must be lossless and fit one machine word.
@@ -50,10 +49,10 @@ Strings and unregistered keys are refused at compile time by the Props door.
 
 `.focusedAs(fact, key)` on [EditText](../common/app/nodes/controls/EditText.hpp)
 and [TextEditor](../common/app/nodes/controls/TextEditor.hpp) stores one
-non-template [FocusBinding](../common/app/FocusBinding.hpp): a borrowed write
-seat extracted through `reportSeat`, a per-key-type function table, and a key
-word. The seat preserves the declaring owner's tracker and transaction.
-Identity is the pair (fact state, key), participates in Props ordering, and is
+non-template [FocusBinding](../common/app/FocusBinding.hpp): two borrowed write
+seats extracted through the Props door, a per-key-type function table, and a key
+word. Both seats preserve the declaring owner's tracker and transaction.
+Identity includes the fact state, request state, and key, participates in Props ordering, and is
 not a dirty source. The app's declaring owner gives the fact its lifetime;
 the binding does not extend it.
 
@@ -183,9 +182,9 @@ nothing.
 
 Observers may briefly see no holder, never two. Reconcile does not loop to
 stability: an observer's native focus change is read at the next completion.
-Across a Scene swap, a shared fact passes through none when the old published
-row leaves ATTACHED during teardown; the new Scene publishes at its first
-eligible completion. The stranded-row exception is in [Known
+Across a Scene swap, the old Scene's fact passes through none when its published
+row leaves ATTACHED during teardown; the new Scene has its own bundle and
+publishes at its first eligible completion. The stranded-row exception is in [Known
 limits](#known-limits).
 
 ## Participant lifecycle
@@ -224,14 +223,16 @@ but lose publication and source.
 
 Two ATTACHED inputs with the same fact and key in one Scene, or one fact
 simultaneously published by two live Scenes, are app errors. Debug audits run
-only at publication of a new target and replacement of the published binding.
+for uniqueness at publication of a new target and replacement of the published binding.
+The separate placement audit checks inspected bound participants at completion.
 They do not enforce uniqueness in release builds.
 
 Registration can overlap legally: local-rebuild REPLACE attaches the new child
 before retiring the old, and a prepared Scene composes before installation.
 Therefore registration is not an audit point. A conflict introduced later
 remains unreported until the next publication or published-binding replacement;
-the cross-Scene audit compares simultaneous publications, not all borrows.
+the publication audit compares simultaneous publications. The placement audit
+additionally rejects a borrowing field whose bundle belongs to another Scene.
 
 ## Known limits
 
@@ -259,7 +260,7 @@ Costs below exclude observer work; debug audit costs are listed separately.
 | Join | Kernel, each eligible leaf ATTACH | One capability query; O(1) idempotent membership insert; no fact write |
 | Leave / retire | Every node lifecycle-fact change, all node kinds | One capability query per node (`Node::asFocusParticipant`); for participant rows, O(1) endpoint cuts, at most one none write if published; O(1) membership unlink on RETIRED |
 | Teardown disconnect | End of each composition teardown | O(M) over this Scene's surviving members, normally empty; no writes |
-| Reconcile | Each eligible live window, once per completion | Gates, one native read and pointer/type checks; on change O(1) rewire and zero to two direct fact writes; no membership walk outside debug audit |
+| Reconcile | Each eligible live window, once per completion | One admission read; O(M) scan of this Scene's members, including parked/unbound rows, even with no request. A take adds one O(M) identity relookup, at most one native write and one native readback. Publication rewires in O(1) and makes zero to two direct fact writes. |
 | App enumeration | Each outer completion | Repeated scans of App-owned group entries; for W windows, O(W squared) group visits and O(W cubed) worst-case visited-identity comparisons, plus close-pending lookups. No allocation within the inline visited capacity of `App::reconcileFocus`; overflow uses O(W) storage and allocates. Non-window group entries also participate in scans. |
 | Busy check | App admission/reclaim and close draining, per window | One focus-phase read beside the existing run check |
 | Binding replacement | Participant applier | O(1) exchange and zero to two direct writes when published |
@@ -281,5 +282,81 @@ Exact storage capacity and representations remain in the code.
 
 ## Not covered here
 
-Asking for focus and focus order are outside this contract. No focus request
-door exists today.
+Focus order, selection, automatic reveal/scrolling, replies, and cross-Scene
+carry-over remain outside this contract.
+
+
+## App-posted focus (#960, common + Null)
+
+`Focus<K>` owns declaration handles for two owner-backed states:
+`Reported<Focused<K> >` is written by the reporting seam and
+`Request<detail::FocusTarget<K> >` is posted by the app and consumed by completion.
+The bundle is non-copyable. Both handles must be valid for `post` and
+`.focusedAs`; a partial allocation cannot expose a partial binding. No field
+stores a separate validity or pending bit. `FocusTarget` adapts `Focused` to the
+request protocol and opts into latest-wins coalescing, not a command queue.
+
+Declare with `state(focus)` for no request, or `state(focus, KEY)` for initial
+focus. The corresponding `declareStates` entry consumes two physical rows.
+Both forms initialize the reported fact to none. Initial focus is a request
+initializer: it waits for the first eligible completion. Declaration does not
+materialize storage early; a constructor `post` is refused while its handles
+are invalid. Post from handlers after connection. This is the owner's
+implementation clarification to the frozen [#960 ruling](https://github.com/cubenoy22/Loka/issues/960).
+
+The declaring owner must be an ancestor in the same Scene as the borrowing
+fields. A component's ordinary states remain backed by its Boundary; retiring
+the component does not independently reclaim those states. Generation states
+follow their generation owner. No request crosses a Scene replacement.
+Debug completion audits both seat trackers against the current Scene's owners
+before reading a row's request. Root-owned facts cost O(1) per audited row;
+nested owners may require a tree walk, O(M*N) worst case for M members and N
+Scene nodes. This diagnostic has no release-build walk or registry. In release,
+forbidden ownership remains an application contract violation; the audit is
+not a general stale-pointer revocation mechanism.
+
+After Window's existing structural gates, the existing focus phase covers the
+entire operation (the historical `isPublishing` name is retained):
+
+1. Read native focus for admission; a declined/inactive read leaves requests alone.
+2. If native focus moved between two fields of the same fact, clear that fact's
+   request (D1). A move to another fact does not clear it.
+3. Walk this Scene's membership for the first attached, projected row whose
+   request matches its key. Copy the binding to the stack, then consume once.
+4. Re-look-up by the copied binding identity, independent of the now-empty or
+   newly posted slot. A retired/rebound target refuses the consumed attempt.
+5. Apply native focus, re-read, and publish the observed result through the
+   existing reconciliation. The native return value is not publication authority.
+
+D1 continues into step 3 without an extra read. Clearing can notify, so the
+walk also revalidates the saved admission identity before using that
+observation if no request is taken. There is no pointer dereference across the
+clear. A request taken in step 3 is bounded to one per completion; a repost
+during consumption/application/publication waits for a later completion.
+The phase blocks nested completion, admission/swap and close, but does not
+prevent a callback from running its own Scene synchronously.
+
+`applyNativeFocus` defaults to refusal. In this PR only Null implements it:
+check an attached participant belonging to the controller's Scene, connect its
+source link, and compare the subsequent read with the copied context identity.
+All rails must copy handles/identity before a callback-capable native call and
+never dereference the context afterward. The existing native production rails
+continue to decline writes until their own PRs; their focus reporting remains.
+Null's confirming read adds a read inside its write door to common admission
+and readback. No normal-path allocation or retained candidate is added.
+
+An absent LazyFlex row or parked Show field is deferred until it appears and a
+later completion runs. An inactive window does not take or activate itself.
+An attempted native refusal consumes the request with no retry (D2). The later
+rail contract permits a clipped Toolbox field to refuse for lack of a TE,
+while Win32/macOS may focus an invisible control; this is a documented intended
+rail difference, not runtime evidence from this common + Null change.
+There is no reply, autonomous wake-up, timeout or fairness guarantee between
+facts. Membership order is reverse attach order; one fact per screen is the
+convention. On Win32 a post made inside completion may wait for the next
+message. A never-appearing key can remain pending indefinitely; reusing a key
+can cause a newly created field to take that pending request.
+
+`post` costs O(1) plus owner tracker/observer work. Completion costs above are
+framework work excluding callbacks and native calls. Host measurements belong
+in the implementation evidence; no 68030 timing is inferred from host results.

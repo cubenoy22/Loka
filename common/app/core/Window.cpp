@@ -37,9 +37,7 @@ void Window::reconcileFocus()
       || current->focus().isPublishing() || !current->attached_.get()
       || !current->rootNode_ || !this->hasLiveScenePlatform() || !current->platformController_)
     return;
-  loka::app::scene::NodeContext *target = 0;
-  const bool answered = current->platformController_->readNativeFocus(target);
-  loka::app::detail::FocusPublisher::reconcile(current->focus(), answered, target);
+  loka::app::detail::FocusPublisher::complete(current->focus(), *current->platformController_, *current->rootNode_);
 }
 
 loka::app::scene::NodeContext *Window::publishedFocusContext()

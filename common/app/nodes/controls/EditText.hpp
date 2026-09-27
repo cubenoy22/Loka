@@ -26,9 +26,9 @@ namespace loka
       typedef EditTextNode NodeType;
       FocusBinding focus_;
       /** Borrows an ancestor-owned fact; LazyFlex keeps fact/key structurally stable. */
-      template <typename K> EditTextProps &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      template <typename K> EditTextProps &focusedAs(Focus<K> &fact, K key)
       {
-        this->focus_ = FocusBinding(this->reportSeat(fact), key);
+        this->focus_ = FocusBinding(this->reportSeat(fact), this->requestSeat(fact), key);
         return *this;
       }
       /** Two-way binding: user edits are written back to this state. */
@@ -148,7 +148,7 @@ namespace loka
     struct EditTextDefinition : public scene::NodeDefinition<EditTextProps, EditTextNode>,
                                 public scene::TestIdDslMixin<EditTextDefinition>
     {
-      template <typename K> EditTextDefinition &focusedAs(scene::Reported<Focused<K> > &fact, K key)
+      template <typename K> EditTextDefinition &focusedAs(Focus<K> &fact, K key)
       {
         this->props.focusedAs(fact, key);
         return *this;

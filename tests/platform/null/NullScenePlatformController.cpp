@@ -1,3 +1,4 @@
+#include "app/scene/Scene.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "platform/null/context/NullAttributedTextContext.hpp"
@@ -1033,4 +1034,20 @@ void NullScenePlatformController::DisposePooledHandle::operator()(FakeControlHan
   {
     this->controller_->disposeHandle(handle);
   }
+}
+
+bool NullScenePlatformController::applyNativeFocus(loka::app::scene::NodeContext &ctx)
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  NodeContext *const identity = &ctx;
+  Node *node = ctx.owner();
+  if (!node || node->getContext() != identity || node->lifecycleFact() != NODE_FACT_ATTACHED) return false;
+  FocusParticipant *row = FocusParticipant::from(node->asFocusParticipant());
+  // This rail's projected tree owns the participant; never accept a foreign Scene.
+  BoundaryNode *root = this->rootNode_ ? this->rootNode_->asBoundary() : 0;
+  if (!row || !root || !root->getScene() || !row->belongsTo(root->getScene()->focus())) return false;
+  row->connectSource(this->focusSource_);
+  NodeContext *actual = 0;
+  return this->readNativeFocus(actual) && actual == identity;
 }

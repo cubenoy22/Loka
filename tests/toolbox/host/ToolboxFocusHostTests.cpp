@@ -81,7 +81,7 @@ namespace
   };
   struct Fixture : HeadlessStateOwner
   {
-    Reported<Focused<FieldKey> > focus;
+    loka::app::Focus<FieldKey> focus;
     NodeState<String> text, replacement;
     ToolboxWindow nativeWindow;
     ToolboxScenePlatformController controller;
@@ -96,7 +96,8 @@ namespace
           first(EditTextProps()),
           second(EditTextProps())
     {
-      StateBatchBase::CreateImmediateState(this, focus, Focused<FieldKey>::none());
+      app.flush();
+      StateBatchBase::CreateImmediateState(loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene()), focus);
       StateBatchBase::CreateImmediateState(this, text, String::Literal("a"));
       StateBatchBase::CreateImmediateState(this, replacement, String::Literal("b"));
       first.props = EditTextProps(text).focusedAs(focus, FIRST);

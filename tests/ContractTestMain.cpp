@@ -1,6 +1,7 @@
 #include "StateStreamEvaluationTests.hpp"
 #include "StateStreamChainTests.hpp"
 #include "FocusPublisherTests.hpp"
+#include "FocusPostTests.hpp"
 #ifdef __APPLE__
 #include "MacTextEditorTests.hpp"
 #include "MacFocusTests.hpp"

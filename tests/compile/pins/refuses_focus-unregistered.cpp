@@ -19,7 +19,7 @@ namespace loka
 } // namespace loka
 void pin()
 {
-  loka::app::scene::Reported<loka::app::Focused<UnregisteredKey> > fact;
+  loka::app::Focus<UnregisteredKey> fact;
   loka::app::EditText().focusedAs(fact, UnregisteredKey());
   loka::app::TextEditor().focusedAs(fact, UnregisteredKey());
 }
