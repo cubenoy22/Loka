@@ -45,5 +45,6 @@ namespace toolbox_host
 {
   extern int copied, sets, disposals, failSets, failNew, updates, selections;
   extern unsigned invalidations;
+  extern GrafPtr activationPort, deactivationPort;
 }
 #endif

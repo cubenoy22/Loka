@@ -285,7 +285,7 @@ Focus order, selection, automatic reveal/scrolling, replies, and cross-Scene
 carry-over remain outside this contract.
 
 
-## App-posted focus (#960, common + Null)
+## App-posted focus (#960)
 
 `FocusFact<K>` owns declaration handles for two owner-backed states:
 `Reported<Focused<K> >` is written by the reporting seam and
@@ -335,21 +335,21 @@ during consumption/application/publication waits for a later completion.
 The phase blocks nested completion, admission/swap and close, but does not
 prevent a callback from running its own Scene synchronously.
 
-`applyNativeFocus` defaults to refusal. In this PR only Null implements it:
-check an attached participant belonging to the controller's Scene, connect its
-source link, and compare the subsequent read with the copied context identity.
+`applyNativeFocus` defaults to refusal. Null checks an attached participant
+belonging to the controller's Scene, connects its source link, and compares
+the subsequent read with the copied context identity.
 All rails must copy handles/identity before a callback-capable native call and
-never dereference the context afterward. The existing native production rails
-continue to decline writes until their own PRs; their focus reporting remains.
+never dereference the context afterward. Win32 and macOS continue to decline writes until their own PRs; their focus
+reporting remains.
 Null's confirming read adds a read inside its write door to common admission
 and readback. No normal-path allocation or retained candidate is added.
 
 An absent LazyFlex row or parked Show field is deferred until it appears and a
 later completion runs. An inactive window does not take or activate itself.
-An attempted native refusal consumes the request with no retry (D2). The later
-rail contract permits a clipped Toolbox field to refuse for lack of a TE,
-while Win32/macOS may focus an invisible control; this is a documented intended
-rail difference, not runtime evidence from this common + Null change.
+An attempted native refusal consumes the request with no retry (D2). A clipped Toolbox field has no TE or usable fallback hit, so its request is
+refused and consumed. Win32/macOS may focus an invisible control under their
+later write-door contract; this rail difference is not runtime evidence for
+those implementations.
 There is no reply, autonomous wake-up, timeout or fairness guarantee between
 facts. Membership order is reverse attach order; one fact per screen is the
 convention. On Win32 a post made inside completion may wait for the next
@@ -359,3 +359,29 @@ can cause a newly created field to take that pending request.
 `post` costs O(1) plus owner tracker/observer work. Completion costs above are
 framework work excluding callbacks and native calls. Host measurements belong
 in the implementation evidence; no 68030 timing is inferred from host results.
+
+### Toolbox write door (PR b)
+
+Toolbox resolves the context in its own native edit ledger before changing
+focus. The window must be frontmost, the context current and attached, and the
+projected row used, nonempty and backed by a TE. EditText and TextEditor share
+the click path's activation step: deactivate the old TE, change the ledger's
+focused position, cut the fallback source, and activate the target TE. The
+step sets the target window's port around TextEdit activation/deactivation and
+restores the caller's port. A post never calls click, caret, text or scroll
+operations; completion re-reads actual focus before publishing.
+
+An EditText without a TE can accept a post through a current, nonempty hit in
+that controller's fallback ledger (D3). It clears native TE focus and connects
+the existing fallback source; absent a usable hit it refuses without disturbing
+the old focus. Native activation cuts that source, so later TE retirement does
+not revive a former fallback destination. Existing fallback editing limits
+remain unchanged. Plain TextEdit activation has no Loka callbacks; the write
+door copies its native handles/source before the calls and never reads the
+context afterward.
+
+The write door runs at most once per taken request: O(E) over its controller's
+native edit rows, then O(H) over its fallback hits when no native row exists.
+The shared activation step is O(1), with no allocation or new retained state.
+Host pins cover activation, refusal, key delivery, selection/scroll preservation
+and port restoration; Classic runtime verification belongs to the MAME rig.

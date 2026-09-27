@@ -6,6 +6,8 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "testing/scene/SceneFocusTestAccess.hpp"
+#include "toolbox/ToolboxTextEditorAccess.hpp"
+#include "ToolboxBuiltInSupport.hpp"
 #include <cstdio>
 #include <cstring>
 using namespace loka::app;
@@ -111,7 +113,7 @@ namespace
       retire(first);
       retire(second);
     }
-    void project(EditTextNode &node)
+    void attach(Node &node)
     {
       ComponentContext context;
       BoundaryNode *root = loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene());
@@ -119,6 +121,10 @@ namespace
       context.setStateOwner(root);
       context.setScene(window.scene());
       BoundaryNode::composeSubtree(&node, context, COMPOSE_EVENT_ATTACH, root);
+    }
+    void project(EditTextNode &node)
+    {
+      attach(node);
       node.setContext(new ToolboxEditTextContext(&node));
     }
     ToolboxEditTextContext *context(EditTextNode &node)
@@ -161,6 +167,159 @@ namespace
       node.setContext(0);
     }
   };
+  void postedNative()
+  {
+    Fixture f;
+    f.native(f.first);
+    f.native(f.second, 80);
+    f.click();
+    f.expect(&f.first);
+    TEHandle oldTE = f.controller.editControls_[0].te;
+    TEHandle target = f.controller.editControls_[1].te;
+    TESetSelect(0, 1, target);
+    TEScroll(0, -7, target);
+    const Rect dest = (**target).destRect;
+    const int selections = toolbox_host::selections;
+    GrafPtr before = 0;
+    GetPort(&before);
+    GrafPort ambient = {7, 12, 0};
+    SetPort(&ambient);
+    f.focus.post(SECOND);
+    f.app.present(ACTIVATION_FOREGROUND);
+    LOKA_VERIFY(!(**oldTE).active && (**target).active);
+    LOKA_VERIFY(f.controller.editControls_.focused() == &f.controller.editControls_[1]);
+    LOKA_VERIFY((**target).selStart == 0 && (**target).selEnd == 1);
+    LOKA_VERIFY(EqualRect(&dest, &(**target).destRect));
+    LOKA_VERIFY(toolbox_host::selections == selections);
+    LOKA_VERIFY(f.text.get().equals(String::Literal("a")));
+    GrafPtr after = 0;
+    GetPort(&after);
+    LOKA_VERIFY(after == &ambient);
+    SetPort(before);
+    LOKA_VERIFY(toolbox_host::activationPort == f.nativeWindow.window());
+    LOKA_VERIFY(toolbox_host::deactivationPort == f.nativeWindow.window());
+    f.expect(&f.second);
+    f.click();
+    f.expect(&f.first);
+    LOKA_VERIFY((**oldTE).active && !(**target).active);
+  }
+  void postedEditor()
+  {
+    Fixture f;
+    ObservableList<String> lines;
+    Reported<LineCursor> cursor;
+    StateBatchBase::CreateImmediateState(&f, cursor, LineCursor::None());
+    LOKA_VERIFY(lines.attach(f.tracker()->asPushTracker(), 16) == ATTACH_OK);
+    for (int i = 0; i < 10; ++i)
+      LOKA_VERIFY(lines.insert(i, String::Literal("abcdef")) == EDIT_OK);
+    TextEditorNode editor(TextEditorProps(lines, cursor).focusedAs(f.focus, SECOND));
+    // Use the editor as the second key, with no duplicate attached binding.
+    f.retire(f.second);
+    f.attach(editor);
+    LayoutState layout;
+    layout.x = 80; layout.y = 0; layout.width = 80; layout.height = 40;
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(f.controller));
+    IPlatformNodeHandler *handler = f.controller.nodeHandlerRegistry_.find(&editor);
+    LOKA_VERIFY(handler);
+    ToolboxTextEditorContext *context = static_cast<ToolboxTextEditorContext *>(
+        handler->ensureContext(&editor, &f.controller, layout));
+    LOKA_VERIFY(context);
+    context->layout(&f.controller, layout);
+    context->render(&f.controller);
+    TEHandle te = loka::testing::ToolboxTextEditorAccess::te(*context);
+    LOKA_VERIFY(te);
+    TESetSelect(8, 10, te);
+    TEScroll(0, -16, te);
+    const Rect dest = (**te).destRect;
+    const LineCursor before = cursor.state()->get();
+    const ListRevision revision = lines.revision().get();
+    f.focus.post(SECOND);
+    f.app.present(ACTIVATION_FOREGROUND);
+    LOKA_VERIFY(f.focus.state()->get().is(SECOND));
+    LOKA_VERIFY((**te).active);
+    LOKA_VERIFY((**te).selStart == 8 && (**te).selEnd == 10);
+    LOKA_VERIFY(EqualRect(&dest, &(**te).destRect));
+    LOKA_VERIFY(cursor.state()->get() == before);
+    LOKA_VERIFY(lines.revision().get().content == revision.content);
+    Point click = {5, 85};
+    LOKA_VERIFY(f.controller.handleMouseDown(click));
+    LOKA_VERIFY((**te).selStart == (**te).selEnd);
+    LifecycleFactTestAccess::MarkSubtreeRetired(&editor);
+    context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    editor.setContext(0);
+  }
+  void admissionGuards()
+  {
+    Fixture f;
+    f.native(f.first);
+    f.native(f.second, 80);
+    f.click();
+    f.expect(&f.first);
+    toolbox_host::frontWindow = 0;
+    LOKA_VERIFY(!f.controller.applyNativeFocus(*f.context(f.second)));
+    toolbox_host::frontWindow = f.nativeWindow.window();
+    f.controller.editControls_[1].usedThisFrame = false;
+    LOKA_VERIFY(!f.controller.applyNativeFocus(*f.context(f.second)));
+    f.controller.editControls_[1].usedThisFrame = true;
+    const Rect rect = f.controller.editControls_[1].rect;
+    SetRect(&f.controller.editControls_[1].rect, 0, 0, 0, 0);
+    LOKA_VERIFY(!f.controller.applyNativeFocus(*f.context(f.second)));
+    f.controller.editControls_[1].rect = rect;
+    const TEHandle te = f.controller.editControls_[1].te;
+    f.controller.editControls_[1].te = 0;
+    LOKA_VERIFY(!f.controller.applyNativeFocus(*f.context(f.second)));
+    f.controller.editControls_[1].te = te;
+    ToolboxEditTextContext stale(&f.second);
+    LOKA_VERIFY(!f.controller.applyNativeFocus(stale));
+    ToolboxScenePlatformController foreign(&f.nativeWindow);
+    LOKA_VERIFY(!foreign.applyNativeFocus(*f.context(f.second)));
+    f.expect(&f.first);
+    LifecycleFactTestAccess::MarkSubtreeRetired(&f.second);
+    LOKA_VERIFY(!f.controller.applyNativeFocus(*f.context(f.second)));
+  }
+  void postedFallback()
+  {
+    Fixture f;
+    f.second.props.text(f.replacement);
+    f.native(f.first);
+    f.hit(f.second, 80);
+    f.click();
+    f.expect(&f.first);
+    TEHandle native = f.controller.editControls_[0].te;
+    f.focus.post(SECOND);
+    f.app.present(ACTIVATION_FOREGROUND);
+    LOKA_VERIFY(!(**native).active);
+    LOKA_VERIFY(!f.controller.editControls_.focused());
+    f.expect(&f.second);
+    LOKA_VERIFY(f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(f.replacement.get().equals(String::Literal("bx")));
+    f.focus.post(FIRST);
+    f.app.present(ACTIVATION_FOREGROUND);
+    f.expect(&f.first);
+    f.controller.retireEditTextControlAt(0, NATIVE_HINT_EAGER_RELEASE);
+    // Retiring the native destination must not resurrect the old fallback.
+    LOKA_VERIFY(!f.controller.handleKeyDown('y'));
+    LOKA_VERIFY(f.replacement.get().equals(String::Literal("bx")));
+  }
+  void postedRefusal()
+  {
+    Fixture f;
+    f.native(f.first);
+    f.click();
+    f.expect(&f.first);
+    SetRect(&f.controller.projectionClip, 0, 0, 40, 20);
+    LOKA_VERIFY(!f.controller.ensureEditTextControl(f.context(f.second), f.rect(80),
+                                                  f.text.state(), NATIVE_HINT_DEFAULT));
+    f.hit(f.second, 80);
+    f.focus.post(SECOND);
+    f.app.present(ACTIVATION_FOREGROUND);
+    f.expect(&f.first);
+    // Materializing later cannot replay the refused, consumed request.
+    SetRect(&f.controller.projectionClip, 0, 0, 200, 200);
+    f.native(f.second, 80);
+    f.app.present(ACTIVATION_FOREGROUND);
+    f.expect(&f.first);
+  }
   void renderClick(void *data)
   {
     Fixture *f = static_cast<Fixture *>(data);
@@ -317,6 +476,11 @@ int main(int argc, char **argv)
     sharedTextKey();
     return 0;
   }
+  postedNative();
+  admissionGuards();
+  postedEditor();
+  postedFallback();
+  postedRefusal();
   sharedTextKey();
   nativeFocus();
   fallback();
