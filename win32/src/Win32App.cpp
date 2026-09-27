@@ -196,10 +196,7 @@ void Win32App::run()
     if (policy.mode == loka::app::IDLE_MODE_NONE)
     {
       idlePacer.reset();
-      this->flushMenuInvalidation();
-      this->flushWindowInvalidations();
-      this->reconcileFocus();
-      this->flushWindowInvalidations();
+      this->flushIterationTail();
       if (this->hasPendingWindowAdmission())
         continue;
       if (!handledMessage)
@@ -223,10 +220,7 @@ void Win32App::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    this->flushMenuInvalidation();
-    this->flushWindowInvalidations();
-    this->reconcileFocus();
-    this->flushWindowInvalidations();
+    this->flushIterationTail();
     const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
     if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
     {
@@ -237,6 +231,14 @@ void Win32App::run()
       continue;
     idlePacer.wait(waitPolicy, idleDispatched, now.QuadPart, frequency.QuadPart);
   }
+}
+
+void Win32App::flushIterationTail()
+{
+  this->flushMenuInvalidation();
+  this->flushWindowInvalidations();
+  this->reconcileFocus();
+  this->flushWindowInvalidations();
 }
 
 bool Win32App::handleMenuCommand(int commandId, Window *window)

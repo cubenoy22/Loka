@@ -1,5 +1,6 @@
 LOKA_TEST(testWin32FocusReadAndRestore)
 LOKA_TEST(testWin32FocusCompletion)
+LOKA_TEST(testWin32FocusCompletionTailFlush)
 LOKA_TEST(testWin32FocusPostedRequest)
 LOKA_TEST(testWin32FocusInactiveRequest)
 LOKA_TEST(testWin32FocusWriteAdmission)

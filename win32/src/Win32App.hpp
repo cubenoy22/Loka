@@ -74,6 +74,10 @@ private:
     loka::core::State<bool> *checkedState;
   };
 
+  /** Flushes Scene work produced inside the focus completion's operation in
+      the same iteration with the second window flush. The Null model is
+      WindowAdmissionTestApp::operationLoop(). */
+  void flushIterationTail();
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
   static void MenuCheckedChangedThunk(void *userData);
