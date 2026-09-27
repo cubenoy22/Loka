@@ -1024,6 +1024,11 @@ bool MacScenePlatformController::applyNativeFocus(loka::app::scene::NodeContext 
   }
   if (!view || [view window] != window || marked != &ctx)
     return false;
+  // Becoming first responder again reselects a field's whole text, so a target
+  // that already has focus is left alone.
+  loka::app::scene::NodeContext *current = 0;
+  if (this->readNativeFocus(current) && current == &ctx)
+    return true;
   // Resigning/becoming first responder can commit text or notify selection and
   // run the Scene. Use only the copied native window/view; never touch ctx after.
   return [window makeFirstResponder:view] ? true : false;

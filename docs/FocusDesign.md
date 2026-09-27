@@ -443,7 +443,9 @@ introduced. Cost: at most one call per taken request per completion, constant
 resolution work, no framework rows walked; native and observer work is excluded.
 
 A post requests only first responder, without text, selection, scroll or key
-status operations. A clipped control can become first responder while invisible
+status operations. A target that already has focus is left alone: making an
+`NSTextField` first responder again selects its whole text (observed on Tahoe).
+A clipped control can become first responder while invisible
 (D2), unlike Toolbox's missing-TE refusal; there is no automatic reveal. Native
 refusal after take consumes the request without retry.
 
