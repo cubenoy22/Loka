@@ -2,6 +2,7 @@
 #define LOKA_WIN32_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <windows.h>
+#include "Win32TextEnvironment.hpp"
 #include "app/layout/TextShaping.hpp"
 #include <vector>
 #include "app/RectSurface.hpp"
@@ -17,6 +18,8 @@ class Win32EditTextContext;
 class Win32NativeLayoutPass;
 class Win32PopupMenuContext;
 class Win32RetirableContext;
+class Win32TextContext;
+class Win32AttributedTextContext;
 class Win32ScrollViewContext;
 
 namespace loka
@@ -171,6 +174,8 @@ private:
   friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
   friend class ::Win32NativeLayoutPass;
   friend class ::Win32RetirableContext;
+  friend class ::Win32TextContext;
+  friend class ::Win32AttributedTextContext;
   friend void RegisterWin32BuiltInSupport(Win32ScenePlatformController &controller);
 
   struct RedrawStats
@@ -389,6 +394,7 @@ private:
                                HINSTANCE instance,
                                void *createParameter);
   void applyDisplayFontToNativeSubtree(const loka::win32::Win32DisplayFont &replacement);
+  Win32TextEnvironment textEnvironment_;
   void ensureDisplayFont();
   void clearContexts();
   void clearNodeContexts(loka::app::scene::Node *node);

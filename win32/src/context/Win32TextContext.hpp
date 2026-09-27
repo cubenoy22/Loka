@@ -3,7 +3,9 @@
 
 #include <windows.h>
 #include "Win32RetirableContext.hpp"
+#include "../Win32TextEnvironment.hpp"
 #include "core/String.hpp"
+#include "app/layout/MeasurementResult.hpp"
 
 namespace loka
 {
@@ -27,7 +29,9 @@ namespace loka
 
 class Win32ScenePlatformController;
 
-class Win32TextContext : public Win32RetirableContext, public loka::app::scene::ICapturableBitmap
+class Win32TextContext : public Win32RetirableContext,
+                         public Win32TextEnvironment::Listener,
+                         public loka::app::scene::ICapturableBitmap
 {
 public:
   Win32TextContext(Win32ScenePlatformController *controller,
@@ -55,9 +59,24 @@ public:
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
   virtual void onPropsApplied();
+  virtual void onTextEnvironmentChanged();
   void relayout(int x, int y, int width, int height);
 
 private:
+  Win32TextEnvironment::Subscription textEnvironmentSubscription_;
+  /** Plain measurement projects width from zero, independent of placement. */
+  struct Constraint
+  {
+    Constraint(int w = 0, HFONT f = 0) : width(w), font(f) {}
+    bool operator==(const Constraint &other) const
+    {
+      return this->width == other.width && this->font == other.font;
+    }
+    int width;
+    HFONT font;
+  };
+  loka::app::MeasurementResult<Constraint, int> measurement_;
+  void clearMeasurement();
   bool applyStyle();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
