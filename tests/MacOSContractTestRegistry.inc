@@ -44,3 +44,8 @@ LOKA_TEST(testMacTextEditorPageEmptyLine)
 LOKA_TEST(testMacTextEditorPageBindingReplacement)
 
 LOKA_TEST(testMacFocusReadAndCompletion)
+LOKA_TEST(testMacFocusPostedRequest)
+LOKA_TEST(testMacFocusInactiveRequest)
+LOKA_TEST(testMacFocusWriteAdmission)
+LOKA_TEST(testMacFocusWriteReentry)
+LOKA_TEST(testMacFocusInitialRequest)

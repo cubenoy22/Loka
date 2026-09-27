@@ -792,6 +792,11 @@ void MacTextEditorContext::settle(loka::app::scene::Settlement stimulus, RailOpe
   );
 }
 
+void *MacTextEditorContext::nativeFocusView() const
+{
+  return [(NSScrollView *)this->scroll_ documentView];
+}
+
 MacTextEditorContext *MacTextEditorContext::fromNativeFocus(void *responder)
 {
   id view = (id)responder;
