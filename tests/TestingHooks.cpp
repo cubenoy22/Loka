@@ -265,3 +265,26 @@ namespace loka { namespace testing {
   }
 } }
 #endif
+
+#ifdef TEST_BUILD
+#include "app/scene/Node.hpp"
+namespace loka { namespace testing {
+  namespace {
+    unsigned nullTextMeasurementFailures = 0;
+    app::scene::Node *nullTextMarkDuringRefusal = 0;
+  }
+  void failNullTextMeasurements(unsigned count, app::scene::Node *markDuringRefusal)
+  {
+    nullTextMeasurementFailures = count;
+    nullTextMarkDuringRefusal = markDuringRefusal;
+  }
+  bool declineNullTextMeasurement()
+  {
+    if (!nullTextMeasurementFailures) return false;
+    --nullTextMeasurementFailures;
+    if (nullTextMarkDuringRefusal)
+      nullTextMarkDuringRefusal->requeueLayoutInputs(app::scene::NODE_DIRTY_INITIAL);
+    return true;
+  }
+} }
+#endif

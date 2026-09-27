@@ -1,6 +1,7 @@
 #include "platform/null/context/NullTextContext.hpp"
 
 #include <climits>
+#include "support/NullLayoutRefusal.hpp"
 
 #include "app/nodes/Text.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -97,8 +98,16 @@ short NullTextContext::layout(loka::app::scene::IPlatformController *controller,
   if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(state.width))
   {
     ++this->measurementBuilds_;
-    materialized = MeasureText(this->node_, state, this->measurement_);
+    if (loka::testing::declineNullTextMeasurement())
+    {
+      materialized = false;
+      this->measurement_.invalidate();
+    }
+    else
+      materialized = MeasureText(this->node_, state, this->measurement_);
   }
+  if (!materialized && this->node_ && controller)
+    controller->refuseTextMeasurement(this->node_, state);
   state.height = this->measurement_.height();
   this->placement_.invalidate();
   this->presented_.invalidate();

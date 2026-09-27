@@ -1076,3 +1076,8 @@ bool NullScenePlatformController::applyNativeFocus(loka::app::scene::NodeContext
   NodeContext *actual = 0;
   return this->readNativeFocus(actual) && actual == identity;
 }
+
+void NullScenePlatformController::requestRelayout()
+{
+  this->requestSceneRelayout(this->rootNode_);
+}

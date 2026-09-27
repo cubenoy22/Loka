@@ -454,7 +454,8 @@ void testWin32TextFontTable()
     controller.updateDisplayScale(loka::win32::Win32DisplayScale(144));
     LOKA_VERIFY(readFont(largeWindow, descriptor) == font144);
 
-    // Retained apply changes the existing STATIC and requests the WM_SIZE door.
+    // Retained apply changes the existing STATIC. An unmounted fixture has
+    // no Scene retry owner and must not synthesize a WM_SIZE message.
     MSG message;
     while (PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE)) {}
     largeMetrics.props.textStyle_ = FontSize<12>() + Bold + Italic;
@@ -462,7 +463,7 @@ void testWin32TextFontTable()
     LOKA_VERIFY(readFont(largeWindow, descriptor) != font144);
     LOKA_VERIFY(descriptor.lfHeight == -MulDiv(12, 144, 96));
     LOKA_VERIFY(descriptor.lfWeight == FW_BOLD && descriptor.lfItalic != 0);
-    LOKA_VERIFY(PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE));
+    LOKA_VERIFY(!PeekMessageW(&message, root, WM_SIZE, WM_SIZE, PM_REMOVE));
     largeMetrics.props.textStyle_ = TextStyle();
     largeMetrics.getContext()->onPropsApplied();
     LOKA_VERIFY(readFont(largeWindow, descriptor) == controller.displayFont());
@@ -846,6 +847,7 @@ void testWin32AttributedTextPaintRouting()
   using namespace PropsReconciliationSupport;
   typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
   HWND rootWindow = attributedHost();
+  loka::core::testing::failLokaAllocRaw("Win32AttributedText", "Break", 0);
   {
     Win32ScenePlatformController controller(rootWindow, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     AttributedText declaration(Styled("var x = ", Bold) + Styled("1;", Italic));
@@ -884,11 +886,31 @@ void testWin32AttributedTextPaintRouting()
     }
     node->props = AttributedTextProps(Styled("changed", FontSize<24>()));
     context->onPropsApplied();
-    LOKA_VERIFY(PeekMessageW(&message, rootWindow, WM_SIZE, WM_SIZE, PM_REMOVE));
-    controller.relayout(320, 240);
+    LOKA_VERIFY(!PeekMessageW(&message, rootWindow, WM_SIZE, WM_SIZE, PM_REMOVE));
+    LOKA_VERIFY(scene.hasPendingInvalidation());
+    scene.flushInvalidation();
     LOKA_VERIFY(AttributedAccess::table(*context).valid());
     LOKA_VERIFY(AttributedAccess::table(*context).value() == node->props.text_->get());
+    // Repeated refusal stays on the Scene queue, never the native message drain.
+    node->requeueLayoutInputs(NODE_DIRTY_PROPS);
+    for (int attempt = 0; attempt != 3; ++attempt)
+    {
+      while (PeekMessageW(&message, rootWindow, WM_NULL, WM_NULL, PM_REMOVE)) {}
+      loka::core::testing::failLokaAllocRaw("Win32AttributedText", "Break", 1);
+      if (attempt == 0) controller.relayout(320, 240);
+      else scene.flushInvalidation();
+      LOKA_VERIFY(!AttributedAccess::table(*context).valid());
+      LOKA_VERIFY(scene.hasPendingInvalidation());
+      LOKA_VERIFY(!PeekMessageW(&message, rootWindow, WM_SIZE, WM_SIZE, PM_REMOVE));
+      LOKA_VERIFY(PeekMessageW(&message, rootWindow, WM_NULL, WM_NULL, PM_REMOVE));
+    }
+    loka::core::testing::failLokaAllocRaw("Win32AttributedText", "Break", 0);
+    scene.flushInvalidation();
+    LOKA_VERIFY(AttributedAccess::table(*context).valid());
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
     loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
+  LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+  loka::core::testing::allowLokaAllocRaw();
   LOKA_VERIFY(DestroyWindow(rootWindow));
 }

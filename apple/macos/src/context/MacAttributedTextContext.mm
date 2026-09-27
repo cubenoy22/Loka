@@ -236,7 +236,10 @@ short MacAttributedTextContext::layout(loka::app::scene::IPlatformController *, 
       ConfigureCell([label cell], this->node_->props.blockStyle_);
     }
     else
+    {
+      this->controller()->refuseTextMeasurement(this->node_, state);
       this->clearProjection();
+    }
   }
   state.height = Coordinate(this->projection_.height());
   loka::macos::SetMacFrame(

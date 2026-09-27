@@ -89,6 +89,7 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
   if ((state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->table_.reusable(state.width))
       && !this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
   {
+    controller->refuseTextMeasurement(this->node_, state);
     this->presented_.invalidate();
     return 0;
   }

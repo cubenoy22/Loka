@@ -79,6 +79,21 @@ namespace loka
         virtual ~IPlatformController() { assert(!this->operationPhase_.open()); }
         const OperationPhase &operationPhase() const { return this->operationPhase_; }
 
+        /** Refusal-only: O(1) input restoration and dispatch, no rows walked
+            here. Include this attempt's inputs and request an after-flush layout;
+            requestRelayout retains the rail's scheduling/bookkeeping costs. */
+        void refuseTextMeasurement(Node *node, const LayoutState &state)
+        {
+          if (!node)
+            return;
+          node->requeueLayoutInputs(state.inputs);
+          this->requestRelayout();
+        }
+
+        /** Schedule layout after the current flush; never perform it inline.
+            Controllers without layout have no work to schedule. */
+        virtual void requestRelayout() {}
+
         /** False cannot answer; true with null means native focus is absent. */
         virtual bool readNativeFocus(NodeContext *&out)
         {
@@ -174,6 +189,11 @@ namespace loka
         {
           return false;
         }
+
+      protected:
+        /** Route through the controller's mounted Scene root without a tree walk.
+            Null, Toolbox and Win32 share this after-run scheduling mechanism. */
+        static void requestSceneRelayout(Node *rootNode);
       };
 
       inline OperationScope::OperationScope(IPlatformController &controller)

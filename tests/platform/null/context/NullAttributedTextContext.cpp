@@ -1,6 +1,7 @@
 #include "platform/null/context/NullAttributedTextContext.hpp"
 
 #include <climits>
+#include "support/NullLayoutRefusal.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 
@@ -94,12 +95,20 @@ short NullAttributedTextContext::layout(loka::app::scene::IPlatformController *c
   {
     ++this->measurementBuilds_;
     const loka::app::AttributedString empty;
-    this->measurement_ = measure(this->node_->props.text_ ? this->node_->props.text_->get() : empty,
+    if (loka::testing::declineNullTextMeasurement())
+    {
+      materialized = false;
+      this->measurement_.invalidate();
+    }
+    else
+      this->measurement_ = measure(this->node_->props.text_ ? this->node_->props.text_->get() : empty,
                                  this->node_->props.blockStyle_,
                                  state,
                                  materialized,
                                  this->controller_);
   }
+  if (!materialized && this->node_ && controller)
+    controller->refuseTextMeasurement(this->node_, state);
   state.height = this->measurement_.height();
   this->invalidatePresentation();
   loka::app::scene::PaintScope scope;

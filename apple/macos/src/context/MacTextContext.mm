@@ -339,6 +339,7 @@ short MacTextContext::layout(loka::app::scene::IPlatformController *, loka::app:
     if (!this->label_ || !MeasureTextHeightForWidth(
         this->node_, constraint, geometry.minimumHeight, geometry.font, projection, height, string))
     {
+      this->controller()->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
       state.height = 0;
       return static_cast<short>(state.y + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);

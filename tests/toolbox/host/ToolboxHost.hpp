@@ -23,6 +23,7 @@ class ToolboxTextFontDescriptor;
 class ToolboxTextEditorContext;
 #include "ToolboxCompositionReplay.hpp"
 #include "app/scene/projection/PlatformController.hpp"
+#include "support/MeasurementRetryQueue.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -120,6 +121,9 @@ class ToolboxPopupMenuContext { public: bool handleMouseDown(const Point &, Tool
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  MeasurementRetryQueue relayoutRetries;
+  virtual void requestRelayout() { this->relayoutRetries.request(); }
+
   typedef ToolboxHitLedger::EditHit EditHit;
   typedef ToolboxHitLedger::ButtonHit ButtonHit;
   typedef ToolboxHitLedger::CellHit CellHit;

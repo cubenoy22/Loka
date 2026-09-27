@@ -2559,3 +2559,8 @@ void ToolboxScenePlatformController::TextStateChangedThunk(void *userData)
   }
   binding->controller->handleTextChanged(binding->state);
 }
+
+void ToolboxScenePlatformController::requestRelayout()
+{
+  this->requestSceneRelayout(this->rootNode_);
+}

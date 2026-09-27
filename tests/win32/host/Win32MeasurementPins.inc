@@ -167,8 +167,13 @@ namespace
     LOKA_VERIFY(static_cast<Win32RetirableContext *>(node.getContext())->queryPaintDamage(query).kind
                 == PAINT_ANSWER_REFUSED);
     calls = measurementCalls();
+    LOKA_VERIFY(controller.relayoutRetries.pending());
+    controller.relayoutRetries.flush(controller, node, state);
+    LOKA_VERIFY(controller.relayoutRetries.pending());
+    LOKA_VERIFY(state.height == 0);
     win32_host::failMeasure = false;
-    node.layout(&controller, state);
+    controller.relayoutRetries.flush(controller, node, state);
+    LOKA_VERIFY(!controller.relayoutRetries.pending());
     LOKA_VERIFY(measurementCalls() > calls && state.height > 0);
     calls = measurementCalls();
     node.layout(&controller, state);
@@ -194,7 +199,9 @@ namespace
         LOKA_VERIFY(state.height == 0 && IsRectEmpty(&window->rect));
         win32_host::failDC = win32_host::failMetrics = win32_host::failConversion = false;
         calls = measurementCalls();
-        node.layout(&controller, state);
+        LOKA_VERIFY(controller.relayoutRetries.pending());
+        controller.relayoutRetries.flush(controller, node, state);
+        LOKA_VERIFY(!controller.relayoutRetries.pending());
         LOKA_VERIFY(measurementCalls() > calls && state.height > 0);
       }
     }

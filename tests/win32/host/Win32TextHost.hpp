@@ -6,12 +6,16 @@
 #include "app/style/Style.hpp"
 #include "app/layout/TextShaping.hpp"
 #include "app/scene/projection/PlatformController.hpp"
+#include "support/MeasurementRetryQueue.hpp"
 #include "platform/Win32DisplayScale.hpp"
 #include "platform/Win32DisplayFont.hpp"
 #include "Win32TextEnvironment.hpp"
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  MeasurementRetryQueue relayoutRetries;
+  virtual void requestRelayout() { this->relayoutRetries.request(); }
+
   Win32ScenePlatformController()
       : rootHwnd_(0),
         small_(),
@@ -48,7 +52,7 @@ public:
   {
     return this->rootHwnd_;
   }
-  void requestRelayout() {}
+
   void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
   void synchronize() {}
   bool hasPendingSync() const

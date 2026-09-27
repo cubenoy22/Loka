@@ -945,6 +945,7 @@ LOKA_TEST(testObservedLayoutInputsRequeuedAfterProjectionRefusal)
 LOKA_TEST(testObservedLayoutInputsRequeuedAfterSurfaceRefusal)
 LOKA_TEST(testObservedLayoutInputsHandlerStackKeepsMark)
 
+LOKA_TEST(testNullMeasurementRefusalRetry)
 LOKA_TEST(testNullPlainMeasurementReuse)
 LOKA_TEST(testNullAttributedMeasurementReuse)
 LOKA_TEST(testNullMeasurementInputPublications)
