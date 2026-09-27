@@ -142,7 +142,7 @@ focus still moves.
 |---|---|---|---|
 | Toolbox | Existing edit-control rows, or a row-linked fallback source; native focus takes precedence | Tail of foreground `ToolboxApp::present`, after admission and render; background returns early | Fallback identity is the row, not text state plus rect; key delivery uses the current source context. This prevents stale retired targets and migration between fields sharing text. Native focus, successful native promotion, clipped-away fallback hits and blank clicks clear the fallback. |
 | Win32 | `Win32FocusParticipant` uses a `SetPropW` property on EditText/TextEditor HWNDs, removed on detach; read requires a descendant of the active root | After final admission in each message-loop iteration, including `IsDialogMessageW`, before waiting or continuing | Active/click-active `WM_ACTIVATE` with the minimized bit clear restores the current Scene's published control through `SetFocus`, before default processing, only while its typed mark still matches. Deactivation does not restore. |
-| macOS | Class-checked first-responder hops through Loka's field/view and delegate owner | End of `MacApp::flushInvalidationsTick`, after admission and pending relayouts | No native behavior change; existing capture/restore still moves focus, then the read follows it. Non-key windows decline. |
+| macOS | Class-checked first-responder hops through Loka's field/view and delegate owner | End of `MacApp::flushInvalidationsTick`, after admission and pending relayouts | Posted focus calls `makeFirstResponder:` after admission; existing capture/restore remains before ordinary completion. Non-key windows decline. |
 | Null | Test-selected `FocusParticipant` connected to the controller's source slot | Startup and scenario-pump completion call App; direct Window completion is available through test access | Simulated focus follows the same publication and source-lifetime rules; no native behavior. |
 
 No rail interprets untyped per-window user data as a participant. Table
@@ -340,7 +340,7 @@ prevent a callback from running its own Scene synchronously.
 belonging to the controller's Scene, connects its source link, and compares
 the subsequent read with the copied context identity.
 All rails must copy handles/identity before a callback-capable native call and
-never dereference the context afterward. Win32 and macOS continue to decline writes until their own PRs; their focus
+never dereference the context afterward. Win32 continues to decline writes until its own PR; its focus
 reporting remains.
 Null's confirming read adds a read inside its write door to common admission
 and readback. No normal-path allocation or retained candidate is added.
@@ -386,3 +386,36 @@ native edit rows, then O(H) over its fallback hits when no native row exists.
 The shared activation step is O(1), with no allocation or new retained state.
 Host pins cover activation, refusal, key delivery, selection/scroll preservation
 and port restoration; Classic runtime verification belongs to the MAME rig.
+
+
+### macOS write door (PR d)
+
+The root view must belong to a key window; the door never makes it key. The
+context must be its attached owner's current context. EditText resolves through
+`nativeField()`; TextEditor resolves through the narrow const `nativeFocusView()`
+accessor to its document text view, never its scroll container. The native view
+must belong to this window and its class-checked `fromNativeFocus` round trip
+must return the supplied context. All admission checks remain active in release.
+
+The door copies the window and view before `makeFirstResponder:`. Resigning can
+commit marked text through `controlTextDidChange`; TextEditor selection delegates
+can enter `handleSelectionDidChange` and `moveCaret`. These callbacks can run the
+Scene and retire the context, so the door never touches the context after the
+call. It returns AppKit's BOOL success; common completion re-reads the actual
+responder and alone decides publication. No new retain or restoration state is
+introduced. Cost: at most one call per taken request per completion, constant
+resolution work, no framework rows walked; native and observer work is excluded.
+
+A post requests only first responder, without text, selection, scroll or key
+status operations. A clipped control can become first responder while invisible
+(D2), unlike Toolbox's missing-TE refusal; there is no automatic reveal. Native
+refusal after take consumes the request without retry.
+
+Initial focus uses `state(focus, KEY)`: the first eligible completion after the
+window becomes key takes it, after AppKit's `setInitialFirstResponder` choice.
+Legacy `captureFocusedEditField` / `restoreFocusedEditField` and key-loop setup
+remain unchanged. Ordinary pending relayout capture/restore precedes focus
+completion; the one-shot post is not a lock against later restoration. The
+macOS pins cover initial ordering, native snapshots, admission, and an
+end-editing text-bridge observer that retires the target. These pins require
+Tahoe runtime verification; Linux suites do not compile this rail.

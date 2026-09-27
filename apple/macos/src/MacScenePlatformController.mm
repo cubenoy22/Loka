@@ -1001,6 +1001,34 @@ bool MacScenePlatformController::readNativeFocus(loka::app::scene::NodeContext *
   return true;
 }
 
+bool MacScenePlatformController::applyNativeFocus(loka::app::scene::NodeContext &ctx)
+{
+  NSWindow *const window = [(NSView *)this->rootView_ window];
+  if (!window || ![window isKeyWindow])
+    return false;
+  loka::app::scene::Node *owner = ctx.owner();
+  if (!owner || owner->getContext() != &ctx || owner->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return false;
+  NSView *view = nil;
+  loka::app::scene::NodeContext *marked = 0;
+  // Deliberate rail parallel: the same node-kind resolution as Win32 focus.
+  if (owner->asEditTextNode())
+  {
+    view = (NSView *)static_cast<MacEditTextContext &>(ctx).nativeField();
+    marked = MacEditTextContext::fromNativeFocus(view);
+  }
+  else if (owner->nodeTypeKey() == loka::app::scene::NodeTypeToken<loka::app::TextEditorNode>())
+  {
+    view = (NSView *)static_cast<MacTextEditorContext &>(ctx).nativeFocusView();
+    marked = MacTextEditorContext::fromNativeFocus(view);
+  }
+  if (!view || [view window] != window || marked != &ctx)
+    return false;
+  // Resigning/becoming first responder can commit text or notify selection and
+  // run the Scene. Use only the copied native window/view; never touch ctx after.
+  return [window makeFirstResponder:view] ? true : false;
+}
+
 void MacScenePlatformController::captureFocusedEditField()
 {
   focusedEditTextState_ = 0;

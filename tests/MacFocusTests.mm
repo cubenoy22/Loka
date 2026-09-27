@@ -12,6 +12,7 @@
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "support/Headless.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/MacWindowTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -43,6 +44,9 @@ namespace
       LOKA_VERIFY(this->lines.insert(0, String("editor")) == EDIT_OK);
     }
   };
+  // Scoped by fixture construction, matching the Win32 initial-focus pin.
+  unsigned int composingInitialFocus = 0;
+
   class FocusRoot;
   struct FocusTag
   {
@@ -72,7 +76,10 @@ namespace
     explicit FocusRoot(const FocusProps &props)
         : Base(props)
     {
-      this->state(this->props.facts->focus);
+      if (composingInitialFocus)
+        this->state(this->props.facts->focus, composingInitialFocus);
+      else
+        this->state(this->props.facts->focus);
     }
     virtual void composeNode(NodeComposition &composition)
     {
@@ -376,6 +383,359 @@ void testMacFocusReadAndCompletion()
     // Clearing on leave is pinned headless in FocusPublisherTests.
     [first release];
     [textEditor release];
+  }
+  [pool drain];
+}
+
+namespace
+{
+  /** Owns the same three-participant screen as the read/completion pin. */
+  struct WriteFixture
+  {
+    Facts facts;
+    NullPlatformContext context;
+    FocusApp app;
+    MacWindow *window;
+    NSWindow *native;
+    MacScenePlatformController *rail;
+    Node *firstNode;
+    Node *secondNode;
+    Node *editorNode;
+
+    explicit WriteFixture(unsigned int initial = 0)
+    {
+      WindowProps props;
+      props.scene(new Scene(FocusDefinition(FocusProps(&this->facts))));
+      composingInitialFocus = initial;
+      this->window = new MacWindow(&this->context, props);
+      composingInitialFocus = 0;
+      this->app.install(this->window);
+      this->native = (NSWindow *)NativeAccess::nativeWindow(*this->window);
+      LOKA_VERIFY(this->native != nil);
+      Scene &scene = *this->window->scene();
+      this->rail = static_cast<MacScenePlatformController *>(SceneAccess::platformController(scene));
+      Node *root = SceneAccess::rootNode(scene);
+      LOKA_VERIFY(root && root->asNestable());
+      Node *column = root->asNestable()->childrenHead();
+      LOKA_VERIFY(column && column->asNestable() && column->asNestable()->childrenCount() == 3);
+      loka::dsl::CompositionCursor<Node> children(column->asNestable()->childrenHead(),
+                                                  column->asNestable()->childrenCount());
+      this->firstNode = children.next();
+      this->secondNode = children.next();
+      this->editorNode = children.next();
+    }
+
+    bool key(const char *pin)
+    {
+      if (requestKeyWindow(this->native))
+        return true;
+      std::printf("[skip] %s: window not key after %.1f s because %s.\n",
+                  pin, kKeyStatusWaitSeconds, keyRefusalReason());
+      std::fflush(stdout);
+      return false;
+    }
+
+    FocusBinding binding(unsigned int key)
+    {
+      return EditTextProps().focusedAs(this->facts.focus, key).focus_;
+    }
+
+    NSTextView *document() const
+    {
+      return editor((NSView *)NativeAccess::contentView(*this->window), this->editorNode->getContext());
+    }
+
+  private:
+    WriteFixture(const WriteFixture &);
+    WriteFixture &operator=(const WriteFixture &);
+  };
+
+  void verifyFieldFocus(WriteFixture &f, NSTextField *target, unsigned int key)
+  {
+    NSText *fieldEditor = [target currentEditor];
+    LOKA_VERIFY(fieldEditor != nil);
+    LOKA_VERIFY([f.native firstResponder] == fieldEditor);
+    LOKA_VERIFY([(NSTextView *)fieldEditor delegate] == target);
+    LOKA_VERIFY(f.facts.focus.state()->get().is(key));
+    LOKA_VERIFY(!f.binding(key).requested());
+    LOKA_VERIFY([f.native isKeyWindow]);
+  }
+
+  /** Immutable native snapshot: AppKit owns the shared field editor; take the
+      EditText selection while it is editing, before leaving and returning. */
+  class TextSnapshot
+  {
+    NSString *const text_;
+    const NSRange selection_;
+    const NSPoint scroll_;
+
+  public:
+    explicit TextSnapshot(NSTextView *view)
+        : text_([[view string] copy]), selection_([view selectedRange]),
+          scroll_([[view enclosingScrollView] contentView] ? [[[view enclosingScrollView] contentView] bounds].origin
+                                                         : NSZeroPoint)
+    {
+    }
+    ~TextSnapshot()
+    {
+      [this->text_ release];
+    }
+    void verify(NSTextView *view) const
+    {
+      LOKA_VERIFY([[view string] isEqualToString:this->text_]);
+      LOKA_VERIFY(NSEqualRanges([view selectedRange], this->selection_));
+      NSClipView *clip = [[view enclosingScrollView] contentView];
+      const NSPoint scroll = clip ? [clip bounds].origin : NSZeroPoint;
+      LOKA_VERIFY(NSEqualPoints(scroll, this->scroll_));
+    }
+
+  private:
+    TextSnapshot(const TextSnapshot &);
+    TextSnapshot &operator=(const TextSnapshot &);
+  };
+}
+
+void testMacFocusPostedRequest()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  {
+    WriteFixture f;
+    if (f.key("testMacFocusPostedRequest"))
+    {
+      NSTextField *first = field(f.firstNode);
+      NSTextField *second = field(f.secondNode);
+      // Prime the target's field-editor selection with its native select-all
+      // range. The shared field editor has no inactive per-field selection API.
+      LOKA_VERIFY([f.native makeFirstResponder:second]);
+      NSTextView *editing = (NSTextView *)[second currentEditor];
+      LOKA_VERIFY(editing != nil);
+      [editing setSelectedRange:NSMakeRange(0, [[editing string] length])];
+      const TextSnapshot beforeField(editing);
+      const String beforeText = f.facts.secondText.get();
+      LOKA_VERIFY([f.native makeFirstResponder:first]);
+      f.app.flushInvalidationsTick();
+      LOKA_VERIFY(f.facts.focus.state()->get().is(1u));
+      f.facts.focus.post(2u);
+      f.app.flushInvalidationsTick();
+      verifyFieldFocus(f, second, 2u);
+      beforeField.verify((NSTextView *)[second currentEditor]);
+      LOKA_VERIFY(!(f.facts.secondText.get() != beforeText));
+
+      // A repeated post also leaves a nontrivial selection untouched.
+      editing = (NSTextView *)[second currentEditor];
+      [editing setSelectedRange:NSMakeRange(1, 2)];
+      const TextSnapshot selectedField(editing);
+      f.facts.focus.post(2u);
+      f.app.flushInvalidationsTick();
+      verifyFieldFocus(f, second, 2u);
+      selectedField.verify((NSTextView *)[second currentEditor]);
+
+      NSTextView *document = f.document();
+      LOKA_VERIFY(document != nil);
+      LOKA_VERIFY(static_cast<MacTextEditorContext *>(f.editorNode->getContext())->nativeFocusView() == document);
+      [document setSelectedRange:NSMakeRange(1, 2)];
+      const TextSnapshot beforeEditor(document);
+      const LineCursor beforeCursor = f.facts.cursor.state()->get();
+      f.facts.focus.post(3u);
+      f.app.flushInvalidationsTick();
+      LOKA_VERIFY([f.native firstResponder] == document);
+      LOKA_VERIFY(f.facts.focus.state()->get().is(3u));
+      LOKA_VERIFY(!f.binding(3u).requested());
+      LOKA_VERIFY([f.native isKeyWindow]);
+      beforeEditor.verify(document);
+      LOKA_VERIFY(!(f.facts.cursor.state()->get() != beforeCursor));
+    }
+  }
+  [pool drain];
+}
+
+void testMacFocusInactiveRequest()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  {
+    WriteFixture f;
+    if (f.key("testMacFocusInactiveRequest"))
+    {
+      LOKA_VERIFY([f.native makeFirstResponder:field(f.firstNode)]);
+      f.app.flushInvalidationsTick();
+      NSWindow *other = [[NSWindow alloc] initWithContentRect:NSMakeRect(40, 40, 160, 80)
+                                                    styleMask:LOKA_MAC_WINDOW_STYLE_TITLED
+                                                      backing:NSBackingStoreBuffered defer:NO];
+      [other makeKeyAndOrderFront:nil];
+      LOKA_VERIFY(waitForKeyStatus(f.native, false));
+      NSResponder *const before = [f.native firstResponder];
+      // Direct admission must decline too, independently of the common read gate.
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*f.secondNode->getContext()));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      f.facts.focus.post(2u);
+      f.app.flushInvalidationsTick();
+      LOKA_VERIFY(f.binding(2u).requested());
+      LOKA_VERIFY(f.facts.focus.state()->get().is(1u));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      LOKA_VERIFY(![f.native isKeyWindow]);
+      [other orderOut:nil];
+      [other release];
+      [f.native makeKeyWindow];
+      LOKA_VERIFY(waitForKeyStatus(f.native, true));
+      f.app.flushInvalidationsTick();
+      verifyFieldFocus(f, field(f.secondNode), 2u);
+    }
+  }
+  [pool drain];
+}
+
+void testMacFocusWriteAdmission()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  {
+    WriteFixture f;
+    WriteFixture foreign;
+    if (f.key("testMacFocusWriteAdmission"))
+    {
+      LOKA_VERIFY([f.native makeFirstResponder:field(f.firstNode)]);
+      NSResponder *const before = [f.native firstResponder];
+      NodeContext *const target = f.secondNode->getContext();
+      NSTextField *second = field(f.secondNode);
+      id delegate = [second delegate];
+      [second setDelegate:nil];
+      LOKA_VERIFY(MacEditTextContext::fromNativeFocus(second) == 0);
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*target));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      [second setDelegate:delegate];
+      // Owner mismatch is tested without freeing the installed context.
+      target->setOwner(f.firstNode);
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*target));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      target->setOwner(f.secondNode);
+      NotifySubtreeNodeDetached(f.secondNode);
+      LifecycleFactTestAccess::DeliverFacts(f.secondNode);
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*target));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      NotifySubtreeNodeAttached(f.secondNode);
+      LifecycleFactTestAccess::DeliverFacts(f.secondNode);
+      // A genuine mark/current owner from another window must still decline.
+      LOKA_VERIFY(MacEditTextContext::fromNativeFocus(field(foreign.secondNode)) == foreign.secondNode->getContext());
+      NSResponder *const foreignBefore = [foreign.native firstResponder];
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*foreign.secondNode->getContext()));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      LOKA_VERIFY([foreign.native firstResponder] == foreignBefore);
+      LOKA_VERIFY([f.native isKeyWindow]);
+
+      // The document view has its own typed delegate mark.
+      NSTextView *document = f.document();
+      LOKA_VERIFY(document != nil);
+      id editorDelegate = [document delegate];
+      [document setDelegate:nil];
+      LOKA_VERIFY(!f.rail->applyNativeFocus(*f.editorNode->getContext()));
+      LOKA_VERIFY([f.native firstResponder] == before);
+      [document setDelegate:editorDelegate];
+    }
+  }
+  [pool drain];
+}
+
+void testMacFocusInitialRequest()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  {
+    WriteFixture f(2u);
+    LOKA_VERIFY(f.binding(2u).requested());
+    LOKA_VERIFY([f.native initialFirstResponder] == field(f.firstNode));
+    if (f.key("testMacFocusInitialRequest"))
+    {
+      f.app.flushInvalidationsTick();
+      verifyFieldFocus(f, field(f.secondNode), 2u);
+    }
+  }
+  [pool drain];
+}
+
+/** Deterministic IME-commit stand-in: actual AppKit end-editing notification,
+    followed by the existing controlTextDidChange bridge, without an input method. */
+@interface MacFocusEndEditingCommit : NSObject
+- (void)ended:(NSNotification *)notification;
+@end
+@implementation MacFocusEndEditingCommit
+- (void)ended:(NSNotification *)notification
+{
+  NSTextField *field = (NSTextField *)[notification object];
+  [field setStringValue:@"committed on resign"];
+  [[field delegate] controlTextDidChange:
+      [NSNotification notificationWithName:NSControlTextDidChangeNotification object:field]];
+}
+@end
+
+namespace
+{
+  class RetireOnText
+  {
+    State<String> *const text_;
+    Node *const target_;
+    unsigned int calls_;
+
+  public:
+    RetireOnText(State<String> *text, Node *target)
+        : text_(text), target_(target), calls_(0)
+    {
+      this->text_->bind(&changed, this, false, true);
+    }
+    ~RetireOnText()
+    {
+      this->text_->unbind(&changed, this);
+    }
+    unsigned int calls() const { return this->calls_; }
+    static void changed(void *data)
+    {
+      RetireOnText &self = *static_cast<RetireOnText *>(data);
+      ++self.calls_;
+      LifecycleFactTestAccess::MarkSubtreeRetired(self.target_);
+      LifecycleFactTestAccess::DeliverFacts(self.target_);
+      // Reclaim the context while makeFirstResponder is on the stack. Terminal
+      // delivery queued the native view; this does not drain the native clock.
+      self.target_->setContext(0);
+    }
+
+  private:
+    RetireOnText(const RetireOnText &);
+    RetireOnText &operator=(const RetireOnText &);
+  };
+}
+
+void testMacFocusWriteReentry()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  {
+    WriteFixture f;
+    if (f.key("testMacFocusWriteReentry"))
+    {
+      NSTextField *first = field(f.firstNode);
+      LOKA_VERIFY([f.native makeFirstResponder:first]);
+      LOKA_VERIFY([first currentEditor] != nil);
+      f.app.flushInvalidationsTick();
+      LOKA_VERIFY(f.facts.focus.state()->get().is(1u));
+      const FocusBinding pending = f.binding(2u);
+      RetireOnText retirement(f.facts.firstText.state(), f.secondNode);
+      MacFocusEndEditingCommit *commit = [[MacFocusEndEditingCommit alloc] init];
+      [[NSNotificationCenter defaultCenter] addObserver:commit selector:@selector(ended:)
+                                                   name:NSControlTextDidEndEditingNotification object:first];
+      f.facts.focus.post(2u);
+      f.app.flushInvalidationsTick();
+      [[NSNotificationCenter defaultCenter] removeObserver:commit];
+      [commit release];
+      // Positive control: no notification/observer is a failure, not a quiet pass.
+      LOKA_VERIFY(retirement.calls() == 1);
+      LOKA_VERIFY(!(f.facts.firstText.get() != String("committed on resign")));
+      LOKA_VERIFY(f.secondNode->lifecycleFact() == NODE_FACT_RETIRED);
+      LOKA_VERIFY(f.secondNode->getContext() == 0);
+      LOKA_VERIFY(!f.facts.focus.state()->get().is(2u));
+      LOKA_VERIFY(!pending.requested());
+      LOKA_VERIFY([f.native isKeyWindow]);
+    }
   }
   [pool drain];
 }
