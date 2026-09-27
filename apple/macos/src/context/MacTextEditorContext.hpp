@@ -34,6 +34,8 @@ public:
                        const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   virtual ~MacTextEditorContext();
   bool hasNativeView() const;
+  /** Borrow the document text view used as the native focus destination, or 0. */
+  void *nativeFocusView() const;
   void readLifecycleFactOnAttach();
   virtual void onPropsApplied();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact);
