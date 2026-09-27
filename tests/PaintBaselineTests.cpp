@@ -208,6 +208,7 @@ namespace
   {
     BaselinePlatform platform;
     platform.observation = BaselinePlatform::OBSERVE_EXAMPLE_HINTS;
+    const unsigned long previousUses = loka::app::scene::testing::paintBaselineStats().observedUses;
     Scene scene(definition);
     scene.mount(&platform);
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
@@ -222,12 +223,13 @@ namespace
     LOKA_VERIFY(after.boundaryUpdateVisits > before.boundaryUpdateVisits);
     LOKA_VERIFY(after.boundaryApplyCallbacks > before.boundaryApplyCallbacks);
     LOKA_VERIFY(after.dirtySourceDeclarations > before.dirtySourceDeclarations);
-    std::printf("paint baseline example %s: observations=%u visits=%lu declarations=%lu callbacks=%lu\n",
+    std::printf("paint baseline example %s: observations=%u visits=%lu declarations=%lu callbacks=%lu uses=%lu\n",
                 name,
                 platform.hintChecks,
                 after.boundaryUpdateVisits - before.boundaryUpdateVisits,
                 after.dirtySourceDeclarations - before.dirtySourceDeclarations,
-                after.boundaryApplyCallbacks - before.boundaryApplyCallbacks);
+                after.boundaryApplyCallbacks - before.boundaryApplyCallbacks,
+                after.observedUses - previousUses);
     loka::dsl::testing::SceneTestAccess::unmount(scene);
   }
 } // namespace

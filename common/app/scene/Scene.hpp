@@ -899,7 +899,6 @@ namespace loka
           {
             boundary->setParentBoundary(0);
           }
-          boundary->clearObservedDirtyFlags();
           if (event != COMPOSE_EVENT_UPDATE)
           {
             boundary->clearPhaseResults();
@@ -908,6 +907,10 @@ namespace loka
           {
             boundary->clearTransitionFactsForCycle();
           }
+          boundary->beginComposeResult(event, rootContext.dirtyFlags());
+          // Keep the direct-root union reset after retained-seat registration,
+          // as before; only refusal recording moves inside the open result.
+          boundary->clearObservedDirtyFlags();
           if (event != COMPOSE_EVENT_DETACH)
           {
             // #127: the generic composeTree walk registers a boundary's own
@@ -916,7 +919,6 @@ namespace loka
             // never (re-)bound and a later write is silently dropped.
             BoundaryNode::declareBoundaryDirtySources(boundary, boundary);
           }
-          boundary->beginComposeResult(event, rootContext.dirtyFlags());
         }
 
         static void completeRootBoundaryCompose(BoundaryNode *boundary)

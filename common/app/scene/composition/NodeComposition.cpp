@@ -213,6 +213,11 @@ namespace loka
           }
           childContext.setStateOwner(owner);
         }
+        if (!node->prepareObservedUses())
+        {
+          result.allocationFailed = true;
+          return result;
+        }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();
 
@@ -283,6 +288,11 @@ namespace loka
             return result;
           }
           childContext.setStateOwner(owner);
+        }
+        if (!node->prepareObservedUses())
+        {
+          result.allocationFailed = true;
+          return result;
         }
         INestableDefinition *nestableDef = def->asNestableDefinition();
         INestable *nestableNode = node->asNestable();

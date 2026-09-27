@@ -353,6 +353,9 @@ namespace loka
         void beginComposeResult(ComposeEvent event, NodeDirtyFlags dirtyFlags)
         {
           compositionState_.beginCompose(event, dirtyFlags);
+          // The result must be open before a retained seat source can refuse.
+          if (event != COMPOSE_EVENT_DETACH && this->prepareBranchSeatDirtySources(this->branchSeats_))
+            this->registerBranchSeatDirtySources();
         }
         /** Completes the open compose window. With an allocation failure or
             boundary-plan refusal recorded, it converts the compose into a
@@ -426,13 +429,15 @@ namespace loka
         }
         void beginObservedStatePass()
         {
+          this->uses_.discardPrepared();
           observedState_.beginPass();
-          this->registerBranchSeatDirtySources();
         }
         /** Close the registration pass after every composition exit. */
         void completeObservedStatePass()
         {
-          this->observedState_.finishPass(&BoundaryNode::ObservedStateChangedThunk);
+          this->observedState_.finishPass(&BoundaryNode::ObservedStateChangedThunk,
+              this->compositionState_.allocationFailedValue() ||
+              this->compositionState_.boundaryPlanRequiredValue());
         }
         /** Keeps observation registration bounded by the composition walk,
             including early returns; detach never opens a registration pass. */
@@ -464,9 +469,12 @@ namespace loka
         {
           observedState_.addDirtyFlags(flags);
         }
-        void registerObservedState(loka::core::StateBase *state, NodeDirtyFlags flags)
+        bool registerObservedState(loka::core::StateBase *state, NodeDirtyFlags flags, Node *node = 0)
         {
-          observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk);
+          if (observedState_.registerState(this, state, flags, &BoundaryNode::ObservedStateChangedThunk,
+                                           node ? node : this)) return true;
+          this->noteComposeAllocationFailure();
+          return false;
         }
         /** Removes both ancestor edges held for one state owned by an inner
             scope. Safe during Boundary teardown after the observed ledger has
@@ -491,6 +499,23 @@ namespace loka
           {
             this->markViewDirty(flags);
           }
+        }
+        /** Reserve the Boundary-owned seat uses before a declaration commits. */
+        bool prepareBranchSeatDirtySources(BoundaryBranchSeatState &scope)
+        {
+          const std::vector<BoundaryBranchSeatPlanEntry> &plans = scope.plans();
+          for (size_t i = 0; i < plans.size(); ++i)
+          {
+            if (plans[i].dirtySource && !this->uses_.reserve(plans[i].dirtySource))
+            {
+              this->uses_.discardPrepared();
+              this->noteComposeAllocationFailure();
+              return false;
+            }
+            BoundaryBranchSeatState *nested = plans[i].seat()->declaredBranchSeats();
+            if (nested && !this->prepareBranchSeatDirtySources(*nested)) return false;
+          }
+          return true;
         }
         void registerBranchSeatDirtySources()
         {
@@ -552,11 +577,16 @@ namespace loka
           {
             return;
           }
+          if (!node->prepareObservedUses())
+          {
+            owner->noteComposeAllocationFailure();
+            return;
+          }
           class LocalDirtySourceRegistrar : public DirtySourceRegistrar
           {
           public:
-            explicit LocalDirtySourceRegistrar(BoundaryNode *boundary)
-                : boundary_(boundary)
+            explicit LocalDirtySourceRegistrar(BoundaryNode *boundary, Node *node)
+                : boundary_(boundary), node_(node)
             {
             }
 
@@ -566,13 +596,14 @@ namespace loka
               {
                 return;
               }
-              boundary_->registerObservedState(state, flags);
+              boundary_->registerObservedState(state, flags, node_);
             }
 
           private:
             BoundaryNode *boundary_;
+            Node *node_;
           };
-          LocalDirtySourceRegistrar registrar(owner);
+          LocalDirtySourceRegistrar registrar(owner, node);
 #ifdef TEST_BUILD
           ++testing::paintBaselineStats().dirtySourceDeclarations;
 #endif
@@ -1536,6 +1567,11 @@ namespace loka
                                                          BoundaryBranchSeatRuntimeRegistrationPlan &registrations)
         {
           candidate.seats.captureOwned(candidate.composition.root(), plan.key, 0);
+          if (!this->prepareBranchSeatDirtySources(candidate.seats))
+          {
+            NodeMaterializationResult refused = {0, true, false};
+            return refused;
+          }
           candidate.composition.setContext(&context);
           candidate.composition.collectBranchSeatRegistrationsIn(&registrations);
           NodeMaterializationResult result = candidate.materialize(context, parent);
@@ -2350,7 +2386,7 @@ namespace loka
             return false;
           }
           this->captureBranchSeatPlan();
-          return true;
+          return !this->compositionState_.allocationFailedValue();
         }
 
         /** Accept only a complete initial materialization, retaining the
@@ -2384,7 +2420,8 @@ namespace loka
 #endif
           this->composition().assignCompositionSeatSlots();
           this->branchSeats_.capture(this->composition().root());
-          this->registerBranchSeatDirtySources();
+          if (this->prepareBranchSeatDirtySources(this->branchSeats_))
+            this->registerBranchSeatDirtySources();
         }
 
       private:

@@ -1,3 +1,4 @@
+#include "support/NullLayoutRefusal.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -734,11 +735,17 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
     {
       return state.y;
     }
+    const loka::app::scene::Node::LayoutInputsCheckpoint inputs(*surface);
     const int projectedResult = surface->layout(this, projectedState);
     int contentResult = state.y;
-    if (!this->projectionParentScopes_.current().restoreContentY(
+    if (
+#ifdef TEST_BUILD
+        loka::testing::declineNullProjectedLayoutRestore() ||
+#endif
+        !this->projectionParentScopes_.current().restoreContentY(
             projectedResult, contentResult))
     {
+      inputs.requeue();
       this->refuseScrollViewShortRange();
       return state.y;
     }
@@ -764,11 +771,17 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
       this->refuseScrollViewShortRange();
       return state.y;
     }
+    const loka::app::scene::Node::LayoutInputsCheckpoint inputs(*node);
     const int projectedResult = projected->layoutProjected(this, projectedState);
     int contentResult = state.y;
-    if (!this->projectionParentScopes_.current().restoreContentY(
+    if (
+#ifdef TEST_BUILD
+        loka::testing::declineNullProjectedLayoutRestore() ||
+#endif
+        !this->projectionParentScopes_.current().restoreContentY(
             projectedResult, contentResult))
     {
+      inputs.requeue();
       this->refuseScrollViewShortRange();
       return state.y;
     }

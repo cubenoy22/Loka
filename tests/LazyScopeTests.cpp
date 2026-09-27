@@ -1,6 +1,7 @@
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "LazyScopeTests.hpp"
+#include "support/ObservedUseCounts.hpp"
 #include "support/TestVerify.hpp"
 #include "app/scene/boundary/LazyScopeDefinition.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -344,6 +345,8 @@ void testLazyScopeKeyReplacementRetiresOwner()
   Scene scene((Boundary<Root>()));
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  const unsigned originalUses = ObservedUseTestSupport::activeUses(root(scene));
+  LOKA_VERIFY(originalUses > 0);
   ProbeScopeNode *old = r.current;
   root(scene)->key.set(2);
   {
@@ -354,6 +357,7 @@ void testLazyScopeKeyReplacementRetiresOwner()
     const bool verified = (old->lifecycleFact() == NODE_FACT_RETIRED);
     LOKA_VERIFY(verified);
   }
+  LOKA_VERIFY(ObservedUseTestSupport::activeUses(old) == 0);
   scene.flushInvalidation();
   platform.drainNativeRetirements();
   {
@@ -381,6 +385,7 @@ void testLazyScopeKeyReplacementRetiresOwner()
     root(scene)->key.set(key);
     scene.flushInvalidation();
     platform.drainNativeRetirements();
+    LOKA_VERIFY(ObservedUseTestSupport::activeUses(root(scene)) == originalUses);
   }
   const std::string after = loka::dsl::testing::OwnershipDump::dump(scene);
   {

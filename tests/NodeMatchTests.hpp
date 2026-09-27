@@ -33,4 +33,5 @@ void testDirectRootKeyedReplacementAttachesBeforeUpdatingLeaf();
 void testDirectRootKeyedNestedBoundaryAttachesLeafOnce();
 void testPlainRootChildDirtWithoutSeatOnlyWalks();
 
+void testKeyedObservedUsesWithdrawWithPendingCommit();
 #endif // LOKA_NODE_MATCH_TESTS_HPP
