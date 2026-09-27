@@ -2,6 +2,8 @@
 #define LOKA_MAC_TEXT_CONTEXT_HPP
 
 #include "MacRetirableContext.hpp"
+#include "../MacObjCCompat.hpp"
+#include "app/layout/MeasurementResult.hpp"
 #include "core/State.hpp"
 #include "core/String.hpp"
 
@@ -54,10 +56,14 @@ private:
   void bindText();
   void unbindText();
   void applyText();
+  void clearMeasurement();
   bool applyStyle(bool initial = false);
   void requestRelayoutIfNeeded();
   static void TextChangedThunk(void *userData);
 
+  // Controller fonts/metrics are fixed; style activation/removal/value changes carry #965 marks.
+  // No backing-scale invalidation until a measurement effect is demonstrated (#970).
+  loka::app::MeasurementResult<CGFloat, int> measurement_;
   loka::app::TextNode *node_;
   void *parentView_;
   void *label_;

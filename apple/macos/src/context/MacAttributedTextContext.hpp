@@ -2,6 +2,8 @@
 #define LOKA_MAC_ATTRIBUTED_TEXT_CONTEXT_HPP
 
 #include "MacRetirableContext.hpp"
+#include "../platform/MacProjection.hpp"
+#include "app/layout/MeasurementResult.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 
@@ -36,13 +38,24 @@ private:
     void clear();
     bool build(const loka::app::AttributedString &value,
                const loka::app::BlockStyle &block,
-               const MacScenePlatformController &controller);
+               const MacScenePlatformController &controller,
+               const loka::macos::MacLength &constraint);
+    bool reusable(const loka::macos::MacLength &constraint) const
+    {
+      return this->measurement_.reusable(constraint.pt);
+    }
+    int height() const
+    {
+      return this->value_ ? this->measurement_.extent() : 0;
+    }
     void *value() const
     {
       return this->value_;
     }
 
   private:
+    // No backing-scale invalidation until a measurement effect is demonstrated (#970).
+    loka::app::MeasurementResult<CGFloat, int> measurement_;
     void *value_;
     Projection(const Projection &);
     Projection &operator=(const Projection &);
