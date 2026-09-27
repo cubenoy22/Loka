@@ -175,6 +175,14 @@ namespace loka
         return this->hasAlign_ < other.hasAlign_;
       }
 
+      /** Named alignments, scoped so the block being aligned is visible at the
+          call site: `Text("x") + Title + BlockStyle::Centered`. LEFT is the
+          default and has no name. Defined in Style.cpp (C++98 class-type
+          static members); the DSL runs after main, so no static-init order
+          is involved. */
+      static const BlockStyle Centered;
+      static const BlockStyle RightAligned;
+
       TextWrap wrap_;
       TextTruncation truncation_;
       TextAlign align_;

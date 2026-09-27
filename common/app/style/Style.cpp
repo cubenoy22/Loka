@@ -8,6 +8,9 @@ namespace loka
 {
   namespace app
   {
+    const BlockStyle BlockStyle::Centered = BlockStyle().align(TEXT_ALIGN_CENTER);
+    const BlockStyle BlockStyle::RightAligned = BlockStyle().align(TEXT_ALIGN_RIGHT);
+
     TextStyle SizeOf(int logicalUnits)
     {
       int selected = detail::StyleVocabularySizes[0];
