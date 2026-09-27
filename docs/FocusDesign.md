@@ -394,14 +394,16 @@ have an owner, be that owner's current context, and be ATTACHED. The shared
 `Win32FocusParticipant::target` resolver maps EditText and TextEditor contexts
 to HWNDs for both this door and `WM_ACTIVATE` reactivation restore. Restore
 keeps its existing mark check. The write door additionally requires a child
-of its own root, a matching context mark, and an enabled HWND; any admission
-failure returns false without changing focus or activating a window.
+of its own root and a matching context mark; any admission failure returns
+false without changing focus or activating a window. A disabled HWND needs no
+check of its own: Windows does not move focus to it, so the readback refuses.
 
-The door copies the HWND and context identity before `SetFocus`. IME commit
+The door copies the HWND before `SetFocus`. IME commit
 can re-enter through `WM_KILLFOCUS`, `EN_CHANGE`, a text State write and a
 synchronous Scene run, retiring the target context. After the native call,
 it never dereferences that context: it compares `GetFocus()` with the saved
-HWND and the current HWND mark with the saved identity. `SetFocus`'s return
+HWND. Which context, if any, that HWND still represents is the common
+readback's question, not the door's. `SetFocus`'s return
 is the previous handle, not a success result. Common completion re-reads
 native focus before publishing; a retired, unmarked HWND can publish none.
 
@@ -419,6 +421,6 @@ published focus, so no restore competes with that request.
 The door runs at most once per taken request and the resolver once per write
 or activation restore. They walk no framework rows and allocate nothing;
 `IsChild` checks native ancestry under this controller's root. Win32 pins cover
-posts to both field types, initial focus, inactive retention, mark/enabled/
+posts to both field types, initial focus, inactive retention, mark/disabled/
 foreign-controller refusal, preservation and kill-focus retirement. Their
 runtime verdict belongs to the Windows VM; Linux suites do not compile them.
