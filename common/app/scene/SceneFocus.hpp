@@ -83,6 +83,8 @@ namespace loka
         {
         }
         virtual ~FocusRow();
+        /** Membership identity, independent of source and publication edges. */
+        bool belongsTo(const SceneFocus &scene) const { return this->owner_ == &scene; }
         /** Optional extension identity; bare kernel rows have no app type. */
         virtual const void *focusRowTypeKey() const { return 0; }
 
@@ -155,6 +157,7 @@ namespace loka
           }
           this->published_.cut();
         }
+        /** Covers take, native write, readback and publication as one completion. */
         bool isPublishing() const
         {
           return this->phase_ == PUBLICATION;

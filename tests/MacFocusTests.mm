@@ -30,13 +30,12 @@ namespace
 
   struct Facts : HeadlessStateOwner
   {
-    Reported<Fact> focus;
+    FocusFact<unsigned int> focus;
     Reported<LineCursor> cursor;
     NodeState<String> firstText, secondText;
     ObservableList<String> lines;
     Facts()
     {
-      StateBatchBase::CreateImmediateState(this, this->focus, Fact::none());
       StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
       StateBatchBase::CreateImmediateState(this, this->firstText, String("first"));
       StateBatchBase::CreateImmediateState(this, this->secondText, String("second"));
@@ -73,6 +72,7 @@ namespace
     explicit FocusRoot(const FocusProps &props)
         : Base(props)
     {
+      this->state(this->props.facts->focus);
     }
     virtual void composeNode(NodeComposition &composition)
     {

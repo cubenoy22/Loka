@@ -29,12 +29,11 @@ namespace
   typedef Focused<unsigned short> Fact;
   struct Facts : HeadlessStateOwner
   {
-    Reported<Fact> focus;
+    FocusFact<unsigned short> focus;
     Reported<LineCursor> cursor;
     ObservableList<String> lines;
     Facts()
     {
-      StateBatchBase::CreateImmediateState(this, this->focus, Fact::none());
       StateBatchBase::CreateImmediateState(this, this->cursor, LineCursor::None());
       // TextEditor borrows a non-null app-owned list (TextEditor.hpp).
       LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 4) == ATTACH_OK);
@@ -45,7 +44,8 @@ namespace
   class FocusRoot : public BoundaryNodeFor<FocusRoot>
   {
   public:
-    explicit FocusRoot(const BoundaryPropsFor<FocusRoot> &p) : BoundaryNodeFor<FocusRoot>(p) {}
+    explicit FocusRoot(const BoundaryPropsFor<FocusRoot> &p) : BoundaryNodeFor<FocusRoot>(p)
+    { this->state(composingFacts->focus); }
     virtual void composeNode(NodeComposition &c)
     {
       // A top-level declare() sets the composition root, so the four controls

@@ -2620,13 +2620,15 @@ void testLocalRebuildNestedRefusalRestoresBothOrders()
   DestroyHeapNode(root);
 }
 
+namespace
+{
+  void recordFocusTeardownClear(void *data) { *static_cast<bool *>(data) = true; }
+}
 void testLocalRebuildLiveRefusalKeepsFocusReachable()
 {
   using namespace loka::core;
   using loka::dsl::testing::SceneTestAccess;
-  HeadlessStateOwner facts;
-  Reported<Focused<unsigned> > focus;
-  StateBatchBase::CreateImmediateState(&facts, focus, Focused<unsigned>::none());
+  loka::app::FocusFact<unsigned> focus;
   NullScenePlatformController platform;
   NullPlatformContext platformContext;
   WindowProps props;
@@ -2637,6 +2639,7 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable()
   Scene &scene = *window.scene();
   RebuildRefusalHarness &owner =
       *static_cast<RebuildRefusalHarness *>(SceneTestAccess::rootBoundary(scene));
+  StateBatchBase::CreateImmediateState(&owner, focus);
   ComponentContext context;
   context.setBoundary(&owner);
   context.setStateOwner(&owner);
@@ -2685,8 +2688,10 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable()
   LOKA_VERIFY(focus.state()->get().is(7u));
   const NodeTag tags[] = {7401, 7402, 7403};
   verifyRebuildOrder(*root, tags, 3);
+  bool cleared = false;
+  focus.state()->bind(&recordFocusTeardownClear, &cleared, false, true);
   SceneTestAccess::unmount(scene);
-  LOKA_VERIFY(!(focus.state()->get() != Focused<unsigned>::none()));
+  LOKA_VERIFY(cleared);
 }
 
 void testLocalRebuildSuccessCommitsCandidates()

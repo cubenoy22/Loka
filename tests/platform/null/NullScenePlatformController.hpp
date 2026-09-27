@@ -154,6 +154,7 @@ public:
     out = row ? row->context() : 0;
     return true;
   }
+  virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
 #ifdef TEST_BUILD
   void simulateNativeFocus(loka::app::scene::NodeContext *context)
   {

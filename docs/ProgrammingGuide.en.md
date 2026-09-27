@@ -414,7 +414,7 @@ posted by a cancellation subscriber. Cancelled work receives no reply.
 
 #### Which input has focus
 
-Declare one app-owned `Reported<Focused<K> >` per screen (one per key type if
+Declare one app-owned `loka::app::FocusFact<K>` per screen (one per key type if
 a screen mixes key types) and give each input a data key. For a BMI form like
 [HelloWorld](../example/HelloWorld/), height and weight share a fact keyed by
 an enum. Opt the enum into the key mapping in `loka::app`, before using it:
@@ -427,19 +427,21 @@ template <> struct FocusKeyTraits<BmiField> : UnsignedFocusKeyTraits<BmiField> {
 ```
 
 Keep the fact in the form's owning Node or Boundary, alive for both inputs,
-and initialize it to `none()`. Using the owner's editable `NodeState<String>`
+in that same Scene. Using the owner's editable `NodeState<String>`
 members (HelloWorld's `MainNode` names them `heightInput_` and
 `weightInput_`):
 
 ```cpp
 // Member declaration:
-loka::app::scene::Reported<loka::app::Focused<BmiField> > focusedField;
+loka::app::FocusFact<BmiField> focusedField;
 // In the owner's state declarations:
-this->state(this->focusedField, loka::app::Focused<BmiField>::none());
+this->state(this->focusedField, HEIGHT); // Initial request; the fact starts at none.
 // In compose, with using namespace loka::app:
 c.declare(Column()
           << EditText(this->heightInput_).focusedAs(this->focusedField, HEIGHT)
           << EditText(this->weightInput_).focusedAs(this->focusedField, WEIGHT));
+// In the application's Enter handler for height, move to weight:
+this->focusedField.post(WEIGHT);
 // Read the fact, or observe focusedField.state():
 const Focused<BmiField> focused = this->focusedField.state()->get();
 if (focused.is(HEIGHT)) { /* The height input was reported focused. */ }
@@ -466,9 +468,22 @@ to the previously reported field if it remains attached; macOS likewise
 remembers the window's focused field.
 
 Avoid declaring the same fact and key on two inputs, or sharing one fact
-between two windows. Debug builds assert when such a conflict is published.
-The fact only reports: there is no request to move focus. See [Focus
-design](FocusDesign.md) for the contract and its failure limits.
+between Scenes. Debug builds audit placement at completion and duplicate keys
+on publication.
+Give initial focus in the declaration; post from handlers. `state(focusedField)`
+starts without a request, and `declareStates(...).state(focusedField, HEIGHT)`
+uses two rows. A constructor `post()` is refused before both handles materialize.
+Repeated posts overwrite the pending key. Delivery happens at completion and
+only Null implements the write door in this common + Null stage; production
+Toolbox/Win32/macOS writes follow in separate PRs.
+
+An off-screen LazyFlex row or hidden Show field waits until it appears;
+requests do not scroll or activate windows. An observed move to another field
+of the same fact cancels that fact's pending request. Native refusal after a
+take consumes it. There is no reply, fairness across facts, or automatic wake-up;
+on Win32, a post from inside completion can wait for the next message. See
+[Focus design](FocusDesign.md#app-posted-focus-960-common--null) for the contract,
+including the intended clipped-field rail difference.
 
 ### `ObservableList` And `MirroredList`
 
@@ -1067,7 +1082,7 @@ class EditableCardNode;
 struct EditableCardProps : scene::NodePropsBase<EditableCardProps> {
   typedef EditableCardProps TypeTag;
   typedef EditableCardNode NodeType;
-  scene::Reported<Focused<int> > *focusedRow;
+  loka::app::FocusFact<int> *focusedRow;
   int id;
   // Other model fields, constructors and comparison omitted.
 };

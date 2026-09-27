@@ -1,0 +1,20 @@
+#ifndef LOKA_FOCUS_POST_TESTS_HPP
+#define LOKA_FOCUS_POST_TESTS_HPP
+void testFocusPostCompletion();
+void testFocusPostDeferred();
+void testFocusPostInactive();
+void testFocusPostUserMove();
+void testFocusPostConsumeCallbacks();
+void testFocusPostNativeCallback();
+void testFocusPostInitialAndShow();
+void testFocusPostInvalidBundle();
+void testFocusPostAllocationFailure();
+void testFocusPostDeclaration();
+void testFocusPostD1Continues();
+void testFocusPostLazyRow();
+void testFocusPostBatchCapacity();
+void testFocusPostConsumeRunsScene();
+void testFocusPostHostCost();
+void testFocusPostNativeRefusal();
+void testFocusPostD1RetiresObservation();
+#endif
