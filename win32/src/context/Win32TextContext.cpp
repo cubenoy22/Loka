@@ -142,6 +142,7 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
                                    int height,
                                    loka::app::TextNode *node)
     : Win32RetirableContext(controller),
+      textEnvironmentSubscription_(controller->textEnvironment_, *this),
       node_(node),
       hwnd_(NULL),
       textState_(0),
@@ -240,6 +241,7 @@ void Win32TextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previou
     {
       this->clearMeasurement();
       this->unbindText();
+      this->textEnvironmentSubscription_.disconnectTextEnvironment();
       this->retireWindow(this->hwnd_);
       this->node_ = 0;
     }

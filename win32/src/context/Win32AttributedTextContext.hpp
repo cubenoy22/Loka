@@ -1,6 +1,7 @@
 #ifndef LOKA_WIN32_ATTRIBUTED_TEXT_CONTEXT_HPP
 #define LOKA_WIN32_ATTRIBUTED_TEXT_CONTEXT_HPP
 #include "Win32RetirableContext.hpp"
+#include "../Win32TextEnvironment.hpp"
 #include "Win32AttributedTextTable.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "app/scene/projection/PaintFact.hpp"
@@ -8,7 +9,7 @@
 
 /** RectSurface-shaped PER_RUN projection. Retained detach hides its HWND;
     terminal delivery drops derived rows before queuing native destruction. */
-class Win32AttributedTextContext : public Win32RetirableContext
+class Win32AttributedTextContext : public Win32RetirableContext, public Win32TextEnvironment::Listener
 {
 public:
   Win32AttributedTextContext(Win32ScenePlatformController *, HWND, int, int, int, int, loka::app::AttributedTextNode *);
@@ -27,6 +28,7 @@ public:
   }
 
 private:
+  Win32TextEnvironment::Subscription textEnvironmentSubscription_;
   friend class loka::testing::Win32AttributedTextAccess;
   static void EnsureClassRegistered();
   static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);

@@ -45,6 +45,7 @@ Win32AttributedTextContext::Win32AttributedTextContext(Win32ScenePlatformControl
                                                        int height,
                                                        loka::app::AttributedTextNode *node)
     : Win32RetirableContext(controller),
+      textEnvironmentSubscription_(controller->textEnvironment_, *this),
       node_(node),
       hwnd_(0)
 {
@@ -93,6 +94,7 @@ void Win32AttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFa
   if (next == NODE_FACT_RETIRED)
   {
     this->clearMeasurement();
+    this->textEnvironmentSubscription_.disconnectTextEnvironment();
     this->retireWindow(this->hwnd_);
     this->node_ = 0;
   }

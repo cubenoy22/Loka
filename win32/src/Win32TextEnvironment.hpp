@@ -3,27 +3,37 @@
 
 #include <cassert>
 
-/** Controller-owned delivery to its context subscriptions, including parked
+/** Controller-owned delivery to its text-context subscriptions, including parked
     contexts. Notifications revoke borrowed fonts before their owner swaps. */
 class Win32TextEnvironment
 {
 public:
+  /** Borrowed invalidation target; the subscribing text context owns it. */
+  class Listener
+  {
+  public:
+    virtual void onTextEnvironmentChanged() = 0;
+
+  protected:
+    ~Listener() {}
+  };
+
+  /** Allocation-free registry membership owned by one text context. */
   class Subscription
   {
   public:
-    explicit Subscription(Win32TextEnvironment &owner)
+    Subscription(Win32TextEnvironment &owner, Listener &listener)
         : owner_(&owner),
-          next_(owner.head_)
+          next_(owner.head_),
+          listener_(listener)
     {
       owner.head_ = this;
     }
-    virtual ~Subscription()
+    ~Subscription()
     {
       this->disconnectTextEnvironment();
     }
-    virtual void onTextEnvironmentChanged() {}
-
-  protected:
+    /** Unlinks over preceding text rows in this controller's registry. */
     void disconnectTextEnvironment()
     {
       if (!this->owner_)
@@ -40,6 +50,7 @@ public:
     friend class Win32TextEnvironment;
     Win32TextEnvironment *owner_;
     Subscription *next_;
+    Listener &listener_;
     Subscription(const Subscription &);
     Subscription &operator=(const Subscription &);
   };
@@ -52,11 +63,12 @@ public:
   {
     assert(!this->head_);
   }
-  /** Synchronous invalidation only: subscribers must not mutate this list. */
+  /** Walks this controller's text-context rows, including parked text.
+      Synchronous invalidation only: subscribers must not mutate this list. */
   void changed()
   {
     for (Subscription *entry = this->head_; entry; entry = entry->next_)
-      entry->onTextEnvironmentChanged();
+      entry->listener_.onTextEnvironmentChanged();
   }
 
 private:

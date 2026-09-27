@@ -3,6 +3,7 @@
 
 #include <windows.h>
 #include "Win32RetirableContext.hpp"
+#include "../Win32TextEnvironment.hpp"
 #include "core/String.hpp"
 #include "app/layout/MeasurementResult.hpp"
 
@@ -28,7 +29,9 @@ namespace loka
 
 class Win32ScenePlatformController;
 
-class Win32TextContext : public Win32RetirableContext, public loka::app::scene::ICapturableBitmap
+class Win32TextContext : public Win32RetirableContext,
+                         public Win32TextEnvironment::Listener,
+                         public loka::app::scene::ICapturableBitmap
 {
 public:
   Win32TextContext(Win32ScenePlatformController *controller,
@@ -60,6 +63,7 @@ public:
   void relayout(int x, int y, int width, int height);
 
 private:
+  Win32TextEnvironment::Subscription textEnvironmentSubscription_;
   /** Plain measurement projects width from zero, independent of placement. */
   struct Constraint
   {
