@@ -135,13 +135,14 @@ Win32TextEditorContext *Win32TextEditorContext::fromWindow(HWND window)
 class Win32TextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(Win32TextEditorContext &context)
-      : loka::app::scene::RailOperation<LineCursor>(*context.controller(), context.node_, &context),
+  explicit RailOperation(Win32TextEditorContext &ownerContext)
+      : loka::app::scene::RailOperation<LineCursor>(*ownerContext.controller(), ownerContext.node_, &ownerContext),
         binding_(),
         follow_()
 #ifdef TEST_BUILD
         ,
-        before_(context.node_ && context.node_->props.cursorState() ? context.node_->props.cursorState()->get() : LineCursor::None())
+        before_(ownerContext.node_ && ownerContext.node_->props.cursorState()
+                    ? ownerContext.node_->props.cursorState()->get() : LineCursor::None())
 #endif
   {
   }

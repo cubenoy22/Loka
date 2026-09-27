@@ -375,14 +375,15 @@ struct MacTextEditorContext::Projection
 class MacTextEditorContext::RailOperation : public loka::app::scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(MacTextEditorContext &context)
-      : loka::app::scene::RailOperation<LineCursor>(*context.controller(), context.node_, &context),
+  explicit RailOperation(MacTextEditorContext &ownerContext)
+      : loka::app::scene::RailOperation<LineCursor>(*ownerContext.controller(), ownerContext.node_, &ownerContext),
         binding_(),
         completion_(Projection::UNAVAILABLE),
         follow_()
 #ifdef TEST_BUILD
         ,
-        before_(context.node_ && context.node_->props.cursorState() ? context.node_->props.cursorState()->get() : LineCursor::None())
+        before_(ownerContext.node_ && ownerContext.node_->props.cursorState()
+                    ? ownerContext.node_->props.cursorState()->get() : LineCursor::None())
 #endif
   {
   }

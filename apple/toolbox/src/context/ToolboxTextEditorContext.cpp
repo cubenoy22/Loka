@@ -168,14 +168,15 @@ scene::FollowUp ToolboxTextEditorContext::restoreCommittedProjection()
 class ToolboxTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(ToolboxTextEditorContext &context)
-      : loka::app::scene::RailOperation<LineCursor>(*context.controller(), context.node_, &context),
+  explicit RailOperation(ToolboxTextEditorContext &ownerContext)
+      : loka::app::scene::RailOperation<LineCursor>(*ownerContext.controller(), ownerContext.node_, &ownerContext),
         binding_(),
         follow_(),
         scroll_()
 #ifdef TEST_BUILD
         ,
-        before_(context.node_ && context.node_->props.cursorState() ? context.node_->props.cursorState()->get() : LineCursor::None())
+        before_(ownerContext.node_ && ownerContext.node_->props.cursorState()
+                    ? ownerContext.node_->props.cursorState()->get() : LineCursor::None())
 #endif
   {
   }
@@ -602,7 +603,6 @@ EditorResult ToolboxTextEditorContext::key(char key)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
   const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
   const Rect scroll = (**this->te_).destRect;
@@ -641,7 +641,6 @@ EditorResult ToolboxTextEditorContext::click(const Point &point)
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
   TEClick(point, false, this->te_);
   result = this->node_->seam(this->key_).moveCaret(this->cursorAt((**this->te_).selStart));
@@ -655,7 +654,6 @@ EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t leng
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
   // Refuse before TE's signed-short storage can overflow.
   if (length > TextEditorProps::kMaxBytes)

@@ -119,8 +119,8 @@ void NullTextEditorContext::syncFromNode()
 class NullTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(NullTextEditorContext &context)
-      : scene::RailOperation<LineCursor>(context.controller_, context.node_, &context) {}
+  explicit RailOperation(NullTextEditorContext &ownerContext)
+      : scene::RailOperation<LineCursor>(ownerContext.controller_, ownerContext.node_, &ownerContext) {}
   virtual scene::Admission admit(scene::Node &base, scene::RequestBinding<LineCursor> &request)
   {
     request = static_cast<TextEditorNode &>(base).props.moveCaretTo_;

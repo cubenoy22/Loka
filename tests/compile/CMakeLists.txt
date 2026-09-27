@@ -471,3 +471,13 @@ loka_compile_pin(operation-owner-construction
   REFUSES pins/refuses_operation-owner-construction.cpp
   ACCEPTS pins/accepts_operation-owner-construction.cpp
 )
+
+loka_compile_pin(operation-owner-default
+  REFUSES pins/refuses_operation-owner-default.cpp
+  ACCEPTS pins/accepts_operation-owner-default.cpp
+)
+
+loka_compile_pin(operation-owner-copy
+  REFUSES pins/refuses_operation-owner-copy.cpp
+  ACCEPTS pins/accepts_operation-owner-copy.cpp
+)
