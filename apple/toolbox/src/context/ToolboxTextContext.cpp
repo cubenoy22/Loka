@@ -100,17 +100,23 @@ namespace
     return std::string("...");
   }
 
-  short MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight,
-                                 bool charWrap, const ToolboxTextMeasureScope &measure)
+  bool MeasureWrappedTextHeight(const loka::core::String &value, short maxWidth, short lineHeight,
+                                 bool charWrap, const ToolboxTextMeasureScope &measure, short &height)
   {
+    if (!measure.valid())
+      return false;
     if (maxWidth <= 0 || lineHeight <= 0)
     {
-      return lineHeight;
+      height = lineHeight;
+      return true;
     }
     std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8) || utf8.empty())
+    if (!loka::platform::CollectUtf8(value, utf8))
+      return false;
+    if (utf8.empty())
     {
-      return lineHeight;
+      height = lineHeight;
+      return true;
     }
 
     int lines = 1;
@@ -139,7 +145,10 @@ namespace
       if (charWrap || isSpace)
       {
         std::string next = current + cp;
-        if (measure.measure(loka::core::String(next)) > maxWidth && !current.empty())
+        short width = 0;
+        if (!measure.measure(loka::core::String(next), width))
+          return false;
+        if (width > maxWidth && !current.empty())
         {
           ++lines;
           current = cp;
@@ -162,7 +171,10 @@ namespace
       // word wrap path: keep token together, but force-break long tokens
       std::string nextWord = currentWord + cp;
       std::string candidate = current + cp;
-      if (measure.measure(loka::core::String(candidate)) > maxWidth && !current.empty())
+      short width = 0;
+      if (!measure.measure(loka::core::String(candidate), width))
+        return false;
+      if (width > maxWidth && !current.empty())
       {
         ++lines;
         current = cp;
@@ -180,28 +192,31 @@ namespace
     {
       total = lineHeight;
     }
-    return static_cast<short>(total);
+    height = static_cast<short>(total);
+    return true;
   }
 
   /** Completed text geometry; paint consumes the baseline captured by layout. */
   struct TextGeometry
   {
-    TextGeometry(short boxHeight, short baseline, short pitch)
+    TextGeometry(short boxHeight = 0, short baseline = 0, short pitch = 0)
         : height(boxHeight), baselineOffset(baseline), linePitch(pitch) {}
 
-    const short height;
-    const short baselineOffset;
-    const short linePitch;
+    short height;
+    short baselineOffset;
+    short linePitch;
   };
 
   /** Unset size preserves pre-style geometry, including the terminal wrapped
       baseline. Explicit size uses the selected font's first-line baseline. */
-  TextGeometry ResolveTextGeometry(const loka::app::TextStyle &style,
+  bool ResolveTextGeometry(const loka::app::TextStyle &style,
                                    const loka::app::scene::LayoutState &state,
                                    const loka::core::String &value,
                                    loka::app::TextWrap wrap,
-                                   const ToolboxTextMeasureScope &measure)
+                                   const ToolboxTextMeasureScope &measure, TextGeometry &geometry)
   {
+    if (!measure.valid())
+      return false;
     const bool wraps = state.width > 0 && wrap != loka::app::TEXT_WRAP_NONE;
     const bool charWrap = wrap == loka::app::TEXT_WRAP_CHAR;
     if (!style.hasFontSize_)
@@ -211,21 +226,24 @@ namespace
                              + ToolboxLayoutMetrics::kControlDescent),
           static_cast<short>(state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset),
           state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight);
-      if (!wraps)
-        return line;
-      const short extra = static_cast<short>(
-          MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure) - state.lineHeight);
-      return TextGeometry(static_cast<short>(line.height + extra),
-                          static_cast<short>(line.baselineOffset + extra), line.linePitch);
+      geometry = line;
+      if (wraps)
+      {
+        short height = 0;
+        if (!MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure, height))
+          return false;
+        const short extra = static_cast<short>(height - state.lineHeight);
+        geometry = TextGeometry(static_cast<short>(line.height + extra),
+                                static_cast<short>(line.baselineOffset + extra), line.linePitch);
+      }
+      return true;
     }
     FontInfo fontInfo;
     GetFontInfo(&fontInfo);
     const short pitch = static_cast<short>(fontInfo.ascent + fontInfo.descent + fontInfo.leading);
     const TextGeometry line(pitch, fontInfo.ascent, pitch);
-    if (!wraps)
-      return line;
-    return TextGeometry(MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure),
-                        line.baselineOffset, line.linePitch);
+    geometry = line;
+    return !wraps || MeasureWrappedTextHeight(value, state.width, line.linePitch, charWrap, measure, geometry.height);
   }
 } // namespace
 
@@ -271,7 +289,17 @@ void ToolboxTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previ
     this->presented_.invalidate();
     SetRect(&this->paintRect_, 0, 0, 0, 0);
   }
+  if (next == loka::app::scene::NODE_FACT_RETIRED)
+    this->clearMeasurement();
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
+}
+
+void ToolboxTextContext::clearMeasurement()
+{
+  this->measurement_.invalidate();
+  this->presented_.invalidate();
+  SetRect(&this->rect_, 0, 0, 0, 0);
+  this->paintRect_ = this->rect_;
 }
 
 void ToolboxTextContext::updateData(loka::core::State<loka::core::String> *text)
@@ -312,7 +340,7 @@ short ToolboxTextContext::visibleWidth() const
 
 void ToolboxTextContext::paint(bool erase)
 {
-  if (!this->node_ || !this->controller())
+  if (!this->node_ || !this->controller() || EmptyRect(&this->rect_))
     return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
@@ -358,7 +386,7 @@ void ToolboxTextContext::repaint()
 
 void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
-  if (!this->node_ || !this->controller())
+  if (!this->node_ || !this->controller() || EmptyRect(&this->rect_))
     return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   // Paint and the hit-width measurement are one non-yielding transaction.
@@ -375,20 +403,31 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   ToolboxScenePlatformController *toolbox =
       static_cast<ToolboxScenePlatformController *>(controller);
   this->captureProps();
-  if (!node_ || !node_->props.text_)
+  if (!toolbox || !node_ || !node_->props.text_)
   {
+    this->clearMeasurement();
     return 0;
   }
   const loka::core::String &value = node_->props.text_->get();
-  if (!toolbox)
-    return 0;
-  const loka::app::TextStyle style = this->node_->props.resolvedTextStyle();
-  const ToolboxTextFontDescriptor descriptor(style);
-  ToolboxTextMeasureScope measure(*toolbox, descriptor);
-  const TextGeometry geometry = ResolveTextGeometry(style, state, value, this->wrapMode_, measure);
-  const short measuredWidth = measure.measure(value);
+  const Constraint constraint(state.width, state.lineHeight);
+  if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
+  {
+    const loka::app::TextStyle style = this->node_->props.resolvedTextStyle();
+    const ToolboxTextFontDescriptor descriptor(style);
+    ToolboxTextMeasureScope measure(*toolbox, descriptor);
+    TextGeometry geometry;
+    short measuredWidth = 0;
+    if (!ResolveTextGeometry(style, state, value, this->wrapMode_, measure, geometry)
+        || !measure.measure(value, measuredWidth))
+    {
+      this->clearMeasurement();
+      return 0;
+    }
+    this->measurement_.commit(constraint, Extent(geometry.height, geometry.baselineOffset, measuredWidth));
+  }
+  const Extent &geometry = this->measurement_.extent();
   this->maxWidth_ = state.width > 0 ? state.width : 0;
-  const short width = this->maxWidth_ > 0 ? this->maxWidth_ : measuredWidth;
+  const short width = this->maxWidth_ > 0 ? this->maxWidth_ : geometry.measuredWidth;
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;

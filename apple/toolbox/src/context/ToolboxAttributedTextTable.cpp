@@ -81,6 +81,7 @@ ToolboxAttributedTextTable::~ToolboxAttributedTextTable()
 }
 void ToolboxAttributedTextTable::clear()
 {
+  this->measurement_.invalidate();
   loka::core::LokaDelete(this->lines_, BreakSite());
   this->lines_ = 0;
   this->snapshot_ = AttributedString();
@@ -156,6 +157,11 @@ bool ToolboxAttributedTextTable::build(const AttributedString &value,
     this->fonts_[i] = ToolboxTextFontDescriptor(decoded.spanStyle(i));
   }
   ToolboxTextMeasureScope measure(controller, decoded.spanCount() ? &this->fonts_[0] : 0, decoded.spanCount());
+  if (!measure.valid())
+  {
+    this->clear();
+    return false;
+  }
   this->advances_[0] = 0;
   for (std::size_t i = 0; i < decoded.spanCount(); ++i)
   {
@@ -207,6 +213,13 @@ bool ToolboxAttributedTextTable::build(const AttributedString &value,
     return false;
   }
   this->snapshot_ = value;
+  int height = 0;
+  for (std::size_t i = 0; i < this->lines_->lineCount(); ++i)
+  {
+    const TextLineMetrics &metrics = this->lines_->line(i).metrics;
+    height = Coordinate(height + metrics.ascent + metrics.descent + metrics.leading);
+  }
+  this->measurement_.commit(width, Extent(static_cast<short>(this->lines_->width()), static_cast<short>(height)));
   return true;
 }
 
@@ -329,16 +342,4 @@ bool ToolboxAttributedTextTable::draw(short x,
     y = Coordinate(y + line.metrics.ascent + line.metrics.descent + line.metrics.leading);
   }
   return true;
-}
-
-short ToolboxAttributedTextTable::height() const
-{
-  int height = 0;
-  if (this->lines_)
-    for (std::size_t i = 0; i < this->lines_->lineCount(); ++i)
-    {
-      const TextLineMetrics &metrics = this->lines_->line(i).metrics;
-      height = Coordinate(height + metrics.ascent + metrics.descent + metrics.leading);
-    }
-  return static_cast<short>(height);
 }

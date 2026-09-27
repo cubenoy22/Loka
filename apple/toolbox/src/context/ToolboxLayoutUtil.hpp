@@ -47,6 +47,9 @@ bool ToolboxBuildPascalText(const loka::core::String &value, Str255 text);
 
     The controller supplies the window owner. The scope restores both the
     window port's font state and whichever GrafPort the caller had selected.
+    Measurement reuse assumes this window's port font/size/face and system
+    default font/size remain frozen between input marks. Scoped selection is
+    restored; ambient font changes require a new input mark before layout.
     Non-default sizes borrow the app cursor through selection, measurement,
     drawing and restoration, on every transaction regardless of font family. */
 class ToolboxTextMeasureScope
@@ -59,6 +62,9 @@ public:
   ToolboxTextMeasureScope(const ToolboxScenePlatformController &controller,
                           const ToolboxTextFontDescriptor *descriptors, std::size_t count);
   short measure(const loka::core::String &value) const;
+  /** Refuses absent ports and failed conversion; zero width can be success. */
+  bool measure(const loka::core::String &value, short &width) const;
+  bool valid() const { return this->measurePort_ != 0; }
   /** Select against the original port, never the preceding run. */
   void select(const ToolboxTextFontDescriptor &descriptor) const;
   /** Compare the actual font settings inherited from this transaction's port. */

@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_ATTRIBUTED_TEXT_TABLE_HPP
 
 #include "app/layout/TextLineBreaker.hpp"
+#include "app/layout/MeasurementResult.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 
 /** Context-owned completed PER_RUN projection. A null break is unknown; clear
@@ -30,7 +31,18 @@ public:
     assert(this->valid());
     return this->snapshot_;
   }
-  short height() const;
+  bool reusable(short width) const
+  {
+    return this->measurement_.reusable(width);
+  }
+  short height() const
+  {
+    return this->valid() ? this->measurement_.extent().height : 0;
+  }
+  short width() const
+  {
+    return this->valid() ? this->measurement_.extent().width : 0;
+  }
   bool draw(short x,
             short top,
             const ToolboxScenePlatformController &controller,
@@ -38,6 +50,17 @@ public:
             short availableWidth) const;
 
 private:
+  /** Completed scalar geometry; line/fragment geometry remains in lines_. */
+  struct Extent
+  {
+    short width, height;
+    Extent(short w = 0, short h = 0)
+        : width(w),
+          height(h)
+    {
+    }
+  };
+  loka::app::MeasurementResult<short, Extent> measurement_;
   class WidthSource;
   struct FontMeasurement
   {

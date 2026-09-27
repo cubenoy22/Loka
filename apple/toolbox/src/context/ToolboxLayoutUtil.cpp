@@ -72,16 +72,20 @@ ToolboxTextMeasureScope::~ToolboxTextMeasureScope()
 
 short ToolboxTextMeasureScope::measure(const loka::core::String &value) const
 {
-  if (!this->measurePort_)
-  {
-    return 0;
-  }
+  short width = 0;
+  this->measure(value, width);
+  return width;
+}
+
+bool ToolboxTextMeasureScope::measure(const loka::core::String &value, short &width) const
+{
+  if (!this->valid())
+    return false;
   Str255 text;
   if (!ToolboxBuildPascalText(value, text))
-  {
-    return 0;
-  }
-  return StringWidth(text);
+    return false;
+  width = StringWidth(text);
+  return true;
 }
 
 void ToolboxTextMeasureScope::select(const ToolboxTextFontDescriptor &descriptor) const

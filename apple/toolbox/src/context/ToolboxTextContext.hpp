@@ -4,6 +4,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/String.hpp"
+#include "app/layout/MeasurementResult.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
 #include <Quickdraw.h>
@@ -15,7 +16,7 @@ namespace loka
   {
     class ToolboxTextContextAccess;
   }
-}
+} // namespace loka
 namespace loka
 {
   namespace app
@@ -53,8 +54,7 @@ public:
   ToolboxTextContext(loka::app::TextNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxTextContext();
   virtual void onPropsApplied();
-  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
-                             loka::app::scene::NodeLifecycleFact next);
+  virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous, loka::app::scene::NodeLifecycleFact next);
   virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   /** Repaint the captured visible placement without registering another hit. */
   void repaint();
@@ -76,9 +76,37 @@ public:
 
 private:
   friend class loka::testing::ToolboxTextContextAccess;
+  /** Rail inputs, including the legacy unset-font-size line pitch. */
+  struct Constraint
+  {
+    short width, lineHeight;
+    Constraint(short w = 0, short h = 0)
+        : width(w),
+          lineHeight(h)
+    {
+    }
+    bool operator==(const Constraint &other) const
+    {
+      return this->width == other.width && this->lineHeight == other.lineHeight;
+    }
+  };
+  /** Intrinsic geometry only; placement always uses the current LayoutState. */
+  struct Extent
+  {
+    short height, baselineOffset, measuredWidth;
+    Extent(short h = 0, short b = 0, short w = 0)
+        : height(h),
+          baselineOffset(b),
+          measuredWidth(w)
+    {
+    }
+  };
+  loka::app::MeasurementResult<Constraint, Extent> measurement_;
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
   void paint(bool erase);
+  /** Revoke both measurement and its placement before refusal can be painted. */
+  void clearMeasurement();
   loka::app::TextNode *node_;
   Rect rect_;
   Rect paintRect_;
