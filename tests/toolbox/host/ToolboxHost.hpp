@@ -127,6 +127,7 @@ public:
   loka::app::scene::FocusLink fallbackFocus_;
   ToolboxEditTextContext *fallbackFocusContext() const;
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
+  virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
   bool handleMouseDown(const Point &);
   bool handleControlClick(const Point &) { return false; }
   bool handleKeyDown(char);
@@ -180,6 +181,7 @@ public:
       if (editControls_[i].text == s) return true;
     return false;
   }
+  void activateEditControl(std::size_t index);
   bool handleEditClick(const Point &point);
   TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
   void retireTextEditorControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);

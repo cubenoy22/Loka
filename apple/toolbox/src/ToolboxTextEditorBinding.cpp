@@ -38,28 +38,42 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
   return te;
 }
 
-/** Shared EditText/TextEditor focus path; native activation follows the focused row. */
+/** Activation only. An absent ledger position clears native focus. */
+void ToolboxScenePlatformController::activateEditControl(std::size_t index)
+{
+  const EditTextControlBinding *old = this->editControls_.focused();
+  const TEHandle previousTE = old ? old->te : 0;
+  const TEHandle nextTE = index < this->editControls_.size() ? this->editControls_[index].te : 0;
+  GrafPtr previousPort = 0;
+  GetPort(&previousPort);
+  SetPort(this->window_->window());
+  if (previousTE)
+    TEDeactivate(previousTE);
+  this->editControls_.clearFocus();
+  if (nextTE)
+  {
+    this->editControls_.focus(index);
+    this->fallbackFocus_.cut();
+    TEActivate(nextTE);
+  }
+  SetPort(previousPort);
+}
+
+/** Click owns hit testing and caret work; requests share only activation. */
 bool ToolboxScenePlatformController::handleEditClick(const Point &point)
 {
-  EditTextControlBinding *focusedEdit = editControls_.focused();
-  if (focusedEdit && focusedEdit->te)
+  for (size_t i = 0; i < this->editControls_.size(); ++i)
   {
-    TEDeactivate(focusedEdit->te);
-    editControls_.clearFocus();
-  }
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    EditTextControlBinding &binding = editControls_[i];
+    EditTextControlBinding &binding = this->editControls_[i];
     if (binding.te && PtInRect(point, &binding.rect))
     {
-      editControls_.focus(i);
-      this->fallbackFocus_.cut();
-      TEActivate(binding.te);
+      this->activateEditControl(i);
       if (binding.editor) binding.editor->click(point);
       else TEClick(point, false, binding.te);
       return true;
     }
   }
+  this->activateEditControl(this->editControls_.size());
   return false;
 }
 

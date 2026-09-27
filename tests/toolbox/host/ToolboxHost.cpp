@@ -7,6 +7,7 @@ namespace toolbox_host
   std::vector<Draw> draws;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
+  GrafPtr activationPort = 0, deactivationPort = 0;
   int failRegions = 0;
   void reset()
   {
@@ -324,8 +325,8 @@ void ToolboxScenePlatformController::flushTE()
   this->flushRetiredEntriesInto(this->retiredTextEdits_, this->textEditBucket_);
 }
 
-void TEActivate(TEHandle te) { (**te).active = true; }
-void TEDeactivate(TEHandle te) { (**te).active = false; }
+void TEActivate(TEHandle te) { GetPort(&toolbox_host::activationPort); (**te).active = true; }
+void TEDeactivate(TEHandle te) { GetPort(&toolbox_host::deactivationPort); (**te).active = false; }
 void TEIdle(TEHandle te) { ++(**te).idleCalls; }
 bool PtInRect(Point p, const Rect *r)
 {

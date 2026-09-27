@@ -65,6 +65,7 @@ public:
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node, loka::app::scene::LayoutState &state);
   virtual bool registerNodeHandler(loka::app::scene::IPlatformNodeHandler *handler);
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
+  virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
   virtual void synchronize();
   virtual bool hasPendingSync() const;
   virtual void drainNativeRetirements();
@@ -230,6 +231,7 @@ public:
   void refuseScrollViewShortRange();
 
 private:
+  void activateEditControl(std::size_t index);
   bool handleEditClick(const Point &point);
   friend class ToolboxTextMeasureScope;
   template <typename Controller>

@@ -16,6 +16,39 @@ bool ToolboxScenePlatformController::readNativeFocus(loka::app::scene::NodeConte
   return true;
 }
 
+bool ToolboxScenePlatformController::applyNativeFocus(loka::app::scene::NodeContext &ctx)
+{
+  if (!this->window_ || !this->window_->window() || FrontWindow() != this->window_->window())
+    return false;
+  loka::app::scene::Node *owner = ctx.owner();
+  if (!owner || owner->getContext() != &ctx || owner->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return false;
+  std::size_t index = 0;
+  if (this->editControls_.find(&ctx, index))
+  {
+    const EditTextControlBinding &binding = this->editControls_[index];
+    if (!binding.usedThisFrame || !binding.te || EmptyRect(&binding.rect))
+      return false;
+    // Activation copies native handles before calling TextEdit; no ctx access follows.
+    this->activateEditControl(index);
+    return true;
+  }
+  for (std::size_t i = 0; i < this->hitLedger_.editHits_.size(); ++i)
+  {
+    const EditHit &hit = this->hitLedger_.editHits_[i];
+    if (hit.context != &ctx || !hit.text || EmptyRect(&hit.rect))
+      continue;
+    loka::app::FocusParticipant *row = loka::app::FocusParticipant::from(owner->asFocusParticipant());
+    if (!row)
+      return false;
+    // Plain TE activation has no Loka callbacks. Copy the source before the call.
+    this->activateEditControl(this->editControls_.size());
+    row->connectSource(this->fallbackFocus_);
+    return true;
+  }
+  return false;
+}
+
 bool ToolboxScenePlatformController::handleKeyDown(char key)
 {
   EditTextControlBinding *focusedEdit = this->editControls_.focused();
