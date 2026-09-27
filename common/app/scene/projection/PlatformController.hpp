@@ -17,13 +17,67 @@ namespace loka
       enum NodeDirtyFlags;
       struct PlatformApplyPlan;
 
+      class IPlatformController;
+      class OperationScope;
+      class OperationPhase;
+    }
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      scene::OperationPhase &controllerlessOperationPhase();
+    }
+#endif
+    namespace scene
+    {
+      /** Controller-owned operation state, independent of Scene run/focus phases. */
+      class OperationPhase
+      {
+        friend class IPlatformController;
+        friend class OperationScope;
+#ifdef TEST_BUILD
+        friend OperationPhase &loka::app::testing::controllerlessOperationPhase();
+#endif
+      public:
+        bool open() const { return this->open_; }
+      private:
+        OperationPhase() : open_(false) {}
+        OperationPhase(const OperationPhase &);
+        OperationPhase &operator=(const OperationPhase &);
+        bool open_;
+      };
+      /** Stack borrow interval. Only this writer opens/restores the phase. */
+      class OperationScope
+      {
+      public:
+        explicit OperationScope(IPlatformController &controller);
+#ifdef TEST_BUILD
+        explicit OperationScope(OperationPhase &phase)
+            : phase_(phase), previous_(phase.open_)
+        {
+          this->phase_.open_ = true;
+        }
+#endif
+        ~OperationScope() { this->phase_.open_ = this->previous_; }
+      private:
+        OperationScope(const OperationScope &);
+        OperationScope &operator=(const OperationScope &);
+        OperationPhase &phase_;
+        const bool previous_;
+      };
+
       /**
        * Abstract platform controller for projecting scene changes into native UI.
        */
       class IPlatformController
       {
+        friend class OperationScope;
+        OperationPhase operationPhase_;
+        IPlatformController(const IPlatformController &);
+        IPlatformController &operator=(const IPlatformController &);
       public:
-        virtual ~IPlatformController() {}
+        IPlatformController() {}
+        virtual ~IPlatformController() { assert(!this->operationPhase_.open()); }
+        const OperationPhase &operationPhase() const { return this->operationPhase_; }
 
         /** Refusal-only: O(1) input restoration and dispatch, no rows walked
             here. Include this attempt's inputs and request an after-flush layout;
@@ -82,7 +136,12 @@ namespace loka
         /** Destroys native handles queued by terminal context delivery. This
             runs only at the platform safe point, after native callbacks have
             unwound and immediately before the App reclaim boundary. */
-        virtual void drainNativeRetirements() {}
+        virtual void drainNativeRetirements()
+        {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->operationPhase().open());
+#endif
+        }
 
         // Destroy platform-owned UI resources.
         virtual void destroy() = 0;
@@ -94,6 +153,9 @@ namespace loka
             actual native destruction is forbidden on this path. */
         virtual void releaseNodeContexts(Node *node)
         {
+#ifdef LOKA_LIFECYCLE_AUDIT
+          assert(!this->operationPhase().open());
+#endif
           if (!node)
           {
             return;
@@ -134,7 +196,23 @@ namespace loka
         static void requestSceneRelayout(Node *rootNode);
       };
 
+      inline OperationScope::OperationScope(IPlatformController &controller)
+          : phase_(controller.operationPhase_), previous_(this->phase_.open_)
+      {
+        this->phase_.open_ = true;
+      }
     } // namespace scene
+#ifdef TEST_BUILD
+    namespace testing
+    {
+      /** Scene-less fixtures only; no controller or Scene consumes this phase. */
+      inline scene::OperationPhase &controllerlessOperationPhase()
+      {
+        static scene::OperationPhase phase;
+        return phase;
+      }
+    }
+#endif
   } // namespace app
 } // namespace loka
 

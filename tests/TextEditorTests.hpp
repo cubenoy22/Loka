@@ -49,4 +49,10 @@ void testTextEditorNullAdmissionOrder();
 void testTextEditorCommandSceneContinuation();
 void testTextEditorCommandBindingChecks();
 void testTextEditorCommandLinesReplacement();
+void probeRequestSettlementLifecycle();
+void testPlatformOperationPumps();
+void testPlatformOperationFocusTail();
+void testPlatformOperationMount();
+void testPlatformOperationMountAudit();
+void testPlatformOperationNativeDrain();
 #endif

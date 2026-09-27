@@ -35,6 +35,9 @@ public:
   /** Native teardown body used by App admission and terminal destruction. */
   void destroyScenePlatform()
   {
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!this->controller_ || !this->controller_->operationPhase().open());
+#endif
     this->dialogResults().close();
     this->teardownScene();
     if (this->controller_)
@@ -114,7 +117,8 @@ protected:
   {
     if (this->controller_)
     {
-      next->mount(this->controller_);
+      if (!next->mount(this->controller_))
+        return false;
       this->mountedScene_ = true;
     }
     return true;

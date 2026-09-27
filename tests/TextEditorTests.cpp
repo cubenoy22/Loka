@@ -1265,8 +1265,9 @@ namespace
     } mode;
     unsigned admitted, applied, finished, epilogues, repaints, scheduled;
     RequestApplication<LineCursor> completedApplication;
-    explicit SettlementProbe(Mode m)
-        : mode(m),
+    template <class FixtureT> SettlementProbe(FixtureT &f, Mode m)
+        : RailOperation<LineCursor>(f.platform, &f.node, f.context),
+          mode(m),
           admitted(0),
           applied(0),
           finished(0),
@@ -1337,7 +1338,7 @@ namespace
     }
     FollowUpResult run(Fixture &f)
     {
-      return RequestSettlement<LineCursor>::settle(&f.node, f.context, *this, SETTLE_DEFERRED, this->fact(f.node));
+      return RequestSettlement<LineCursor>::settle(*this, SETTLE_DEFERRED, this->fact(f.node));
     }
   };
 } // namespace
@@ -1412,13 +1413,13 @@ void testTextEditorSettlementAdmission()
 {
   Fixture f;
   SettlementSubscriber s(f, SettlementSubscriber::REPOST_ONLY);
-  SettlementProbe probe(SettlementProbe::CLOSE_AFTER_FIRST);
+  SettlementProbe probe(f, SettlementProbe::CLOSE_AFTER_FIRST);
   f.request.set(s.repost);
   probe.run(f);
   LOKA_VERIFY(probe.admitted == 2 && probe.finished == 1);
   LOKA_VERIFY(s.replies == 1 && f.request.get() == s.repost);
   s.action = SettlementSubscriber::COUNT;
-  SettlementProbe deferred(SettlementProbe::DEFER);
+  SettlementProbe deferred(f, SettlementProbe::DEFER);
   Trace::instance().clear();
   deferred.run(f);
   LOKA_VERIFY(deferred.applied == 0 && deferred.epilogues == 1 && deferred.scheduled == 1);
@@ -1448,7 +1449,7 @@ void testTextEditorSettlementSeam()
     const LineCursor wanted(failed.lines.at(1).id, 1);
     failed.request.set(wanted);
     Trace::instance().clear();
-    SettlementProbe arm(SettlementProbe::FAIL_ARM);
+    SettlementProbe arm(failed, SettlementProbe::FAIL_ARM);
     const FollowUpResult result = arm.run(failed);
     LOKA_VERIFY(result == FOLLOW_UP_FAILED);
     LOKA_VERIFY(failed.request.get().isNone());
@@ -1466,7 +1467,7 @@ void testTextEditorSettlementSeam()
     SettlementSubscriber subscriber(failed, SettlementSubscriber::REPOST_ONLY);
     failed.request.set(subscriber.repost);
     Trace::instance().clear();
-    SettlementProbe arm(SettlementProbe::FAIL_AFTER_TAKES);
+    SettlementProbe arm(failed, SettlementProbe::FAIL_AFTER_TAKES);
     arm.run(failed);
     LOKA_VERIFY(arm.admitted == 2 && arm.applied == 2 && arm.finished == 2 && arm.epilogues == 1);
     LOKA_VERIFY(subscriber.replies == 3 && failed.request.get() == subscriber.repost);
@@ -1485,7 +1486,7 @@ void testTextEditorSettlementSeam()
                                                 : SettlementSubscriber::REBIND_CLEAR);
     failed.request.set(subscriber.repost);
     Trace::instance().clear();
-    SettlementProbe arm(SettlementProbe::FAIL_ARM);
+    SettlementProbe arm(failed, SettlementProbe::FAIL_ARM);
     const FollowUpResult result = arm.run(failed);
     LOKA_VERIFY(result == (when == 2 ? FOLLOW_UP_FAILED : FOLLOW_UP_NONE));
     LOKA_VERIFY(subscriber.replies == (when == 1 ? 1u : 0u));
@@ -1499,7 +1500,7 @@ void testTextEditorSettlementSeam()
     Fixture f;
     const LineCursor before = f.cursor.state()->get();
     f.request.set(LineCursor(f.lines.at(1).id, 1));
-    SettlementProbe probe(SettlementProbe::REFUSE_VALIDATE);
+    SettlementProbe probe(f, SettlementProbe::REFUSE_VALIDATE);
     probe.run(f);
     LOKA_VERIFY(probe.applied == 0 && probe.finished == 1);
     LOKA_VERIFY(probe.completedApplication.result() == EDITOR_STALE_ID);
@@ -1509,7 +1510,7 @@ void testTextEditorSettlementSeam()
   Fixture f;
   const LineCursor before = f.cursor.state()->get();
   f.request.set(LineCursor(f.lines.at(1).id, 1));
-  SettlementProbe probe(SettlementProbe::REFUSE_REPORT);
+  SettlementProbe probe(f, SettlementProbe::REFUSE_REPORT);
   probe.run(f);
   const CaretReply reply = f.request.reply().state()->get();
   LOKA_VERIFY(probe.applied == 1 && probe.finished == 1);
@@ -1525,7 +1526,7 @@ void testTextEditorSettlementTrace()
   trace.clear();
   f.context->onPropsApplied();
   LOKA_VERIFY(trace.size() == 0);
-  SettlementProbe empty(SettlementProbe::OPEN);
+  SettlementProbe empty(f, SettlementProbe::OPEN);
   empty.run(f);
   LOKA_VERIFY(empty.repaints == 0 && empty.finished == 0 && empty.epilogues == 1 && trace.size() == 0);
   f.request.set(LineCursor(f.lines.at(1).id, 1));
@@ -1538,11 +1539,11 @@ void testTextEditorSettlementTrace()
   LOKA_VERIFY(trace.size() == 1 && trace.at(0).count == 0 && trace.at(0).stimulus == SETTLE_INPUT);
   LOKA_VERIFY(trace.at(0).before != trace.at(0).after);
   f.request.set(LineCursor(f.lines.at(0).id, 1));
-  SettlementProbe write(SettlementProbe::WRITE);
+  SettlementProbe write(f, SettlementProbe::WRITE);
   write.run(f);
   LOKA_VERIFY(write.repaints == 1);
   f.request.set(LineCursor(f.lines.at(1).id, 1));
-  SettlementProbe both(SettlementProbe::WRITE_AND_RESTORE);
+  SettlementProbe both(f, SettlementProbe::WRITE_AND_RESTORE);
   both.run(f);
   LOKA_VERIFY(both.repaints == 1 && both.scheduled == 1 && both.epilogues == 1);
 }
@@ -1552,8 +1553,8 @@ namespace
   class EpilogueSettlementProbe : public SettlementProbe
   {
   public:
-    explicit EpilogueSettlementProbe(const LineCursor &value)
-        : SettlementProbe(OPEN),
+    explicit EpilogueSettlementProbe(Fixture &f, const LineCursor &value)
+        : SettlementProbe(f, OPEN),
           value_(value)
     {
     }
@@ -1620,14 +1621,14 @@ void testSettleTwoSeatProbeOrder()
 {
   Fixture f;
   const LineCursor after(f.lines.at(0).id, 3);
-  EpilogueSettlementProbe first(after);
+  EpilogueSettlementProbe first(f, after);
   OtherSettlementSeat second(f, ADMISSION_TAKE);
   const LineCursor before = f.cursor.state()->get();
   const LineCursor a(f.lines.at(1).id, 1), b(f.lines.at(2).id, 2);
   f.request.set(a);
   f.otherRequest.set(b);
   Trace::instance().clear();
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
               == FOLLOW_UP_ARMED);
   LOKA_VERIFY(f.request.get().isNone() && f.otherRequest.get().isNone());
   LOKA_VERIFY(first.epilogues == 1 && first.repaints == 1 && first.scheduled == 1);
@@ -1649,11 +1650,11 @@ void testSettleTwoSeatEmptyEpilogue()
   Fixture f;
   const LineCursor before = f.cursor.state()->get();
   const LineCursor applied(f.lines.at(1).id, 1), after(f.lines.at(2).id, 2);
-  EpilogueSettlementProbe first(after);
+  EpilogueSettlementProbe first(f, after);
   OtherSettlementSeat second(f, ADMISSION_TAKE);
   f.request.set(applied);
   Trace::instance().clear();
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
               == FOLLOW_UP_NONE);
   // p1: the empty trailing seat must not absorb the owner's epilogue delta.
   LOKA_VERIFY(Trace::instance().size() == 1);
@@ -1664,14 +1665,14 @@ void testSettleTwoSeatEmptyEpilogue()
 void testSettleTwoSeatProbeFailedArm()
 {
   Fixture f;
-  SettlementProbe first(SettlementProbe::FAIL_ARM);
+  SettlementProbe first(f, SettlementProbe::FAIL_ARM);
   OtherSettlementSeat second(f, ADMISSION_DEFERRED);
   const LineCursor before = f.cursor.state()->get();
   const LineCursor a(f.lines.at(1).id, 1), b(f.lines.at(2).id, 2);
   f.request.set(a);
   f.otherRequest.set(b);
   Trace::instance().clear();
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
               == FOLLOW_UP_FAILED);
   LOKA_VERIFY(f.request.get().isNone() && f.otherRequest.get().isNone());
   LOKA_VERIFY(first.epilogues == 1 && first.finished == 0 && first.applied == 0);
@@ -1692,7 +1693,7 @@ void testSettleTwoSeatProbeRetirement()
   for (unsigned when = 0; when != 3; ++when)
   {
     Fixture f;
-    SettlementProbe first(SettlementProbe::OPEN);
+    SettlementProbe first(f, SettlementProbe::OPEN);
     OtherSettlementSeat second(f, ADMISSION_TAKE);
     SettlementSubscriber subscriber(f,
                                     when == 0   ? SettlementSubscriber::RETIRE_CLEAR
@@ -1703,7 +1704,7 @@ void testSettleTwoSeatProbeRetirement()
     f.request.set(subscriber.repost);
     f.otherRequest.set(pending);
     Trace::instance().clear();
-    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
                 == FOLLOW_UP_NONE);
     LOKA_VERIFY(f.node.getContext() == 0 && first.epilogues == 0);
     LOKA_VERIFY(f.otherRequest.get() == pending);
@@ -1835,8 +1836,8 @@ void testRequestQueueFailedArmDoesNotStrandRemainder()
   for (unsigned i = 1; i <= 4; ++i)
     LOKA_VERIFY(f.queue.post(f.at(i)) == POST_ACCEPTED);
   Trace::instance().clear();
-  SettlementProbe arm(SettlementProbe::FAIL_ARM);
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, arm, SETTLE_DEFERRED,
+  SettlementProbe arm(f, SettlementProbe::FAIL_ARM);
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(arm, SETTLE_DEFERRED,
                                                    f.cursor.state()->get()) == FOLLOW_UP_FAILED);
   LOKA_VERIFY(f.queue.pending() == 2 && f.queue.state()->get() == f.at(2));
   LOKA_VERIFY(replies.values.size() == 1 && replies.values[0].requested() == f.at(1));
@@ -2041,7 +2042,7 @@ void testSettleHeterogeneousTraceCapture()
   HeadlessStateOwner commandOwner;
   RequestQueue<TestCommand, 2> queue;
   StateBatchBase::CreateImmediateState(&commandOwner, queue, TestCommand::None());
-  SettlementProbe first(SettlementProbe::OPEN);
+  SettlementProbe first(f, SettlementProbe::OPEN);
   NoOpCommandSeat second(queue);
   CursorCapture::clear();
   for (unsigned i = 0; i != 2; ++i)
@@ -2052,7 +2053,7 @@ void testSettleHeterogeneousTraceCapture()
     command.value = i + 1;
     f.request.set(wanted);
     LOKA_VERIFY(queue.post(command) == POST_ACCEPTED);
-    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+    LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
                 == FOLLOW_UP_NONE);
     LOKA_VERIFY(Trace::instance().size() == i + 1 && CommandTrace::instance().size() == i + 1);
     const loka::app::testing::SettleTraceRow<LineCursor> &caret = Trace::instance().at(i);
@@ -2099,16 +2100,16 @@ void testSettleEmptySeatZeroCandidate()
 {
   Fixture f;
   const LineCursor before = f.cursor.state()->get(), after(f.lines.at(2).id, 2);
-  EpilogueSettlementProbe first(after);
+  EpilogueSettlementProbe first(f, after);
   OtherSettlementSeat second(f, ADMISSION_TAKE);
   CursorCapture::clear();
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, before)
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, before)
               == FOLLOW_UP_NONE);
   LOKA_VERIFY(Trace::instance().size() == 1);
   LOKA_VERIFY(Trace::instance().at(0).count == 0 && Trace::instance().at(0).seq == 0);
   LOKA_VERIFY(Trace::instance().at(0).before == before && Trace::instance().at(0).after == after);
   Trace::instance().clear();
-  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(&f.node, f.context, first, first, second, SETTLE_DEFERRED, after)
+  LOKA_VERIFY(RequestSettlement<LineCursor>::settle(first, first, second, SETTLE_DEFERRED, after)
               == FOLLOW_UP_NONE);
   LOKA_VERIFY(Trace::instance().size() == 0);
   // Suppressed rows must not use sequence numbers.
@@ -2683,4 +2684,392 @@ void testTextEditorCommandLinesReplacement()
   LOKA_VERIFY(commands.values.empty() && carets.values.empty() && f.cursor.state()->get() == after);
   LOKA_VERIFY(Input::caret(*f.context) == after && Input::buffer(*f.context) == "new");
   f.apply(original);
+}
+
+#include "app/nodes/nestable/Show.hpp"
+#include "platform/null/NullWindow.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "testing/app/WindowTestAccess.hpp"
+#include "testing/scene/NodeObservedUsesTestAccess.hpp"
+namespace
+{
+  unsigned settlementProbeDestructors = 0;
+  // The fixture keeps the real TextEditor native identity and behavior; only
+  // its own destructor is observed, without a production-header hook.
+  class SettlementProbeEditor : public TextEditorNode
+  {
+  public:
+    explicit SettlementProbeEditor(const TextEditorProps &p) : TextEditorNode(p) {}
+    virtual ~SettlementProbeEditor() { ++settlementProbeDestructors; }
+  };
+  class SettlementProbeSeat;
+  SettlementProbeSeat *settlementProbeSeat = 0;
+  class SettlementProbeRoot;
+  SettlementProbeRoot *settlementProbeRoot = 0;
+  class SettlementProbeRoot : public BoundaryNodeFor<SettlementProbeRoot>
+  {
+  public:
+    ObservableList<String> lines;
+    Reported<LineCursor> cursor;
+    RequestWithReply<LineCursor> request;
+    explicit SettlementProbeRoot(const BoundaryPropsFor<SettlementProbeRoot> &p)
+        : BoundaryNodeFor<SettlementProbeRoot>(p)
+    {
+      settlementProbeRoot = this;
+      this->state(this->cursor, LineCursor::None());
+      this->state(this->request, LineCursor::None());
+    }
+    virtual void attachNode(NodeComposition &)
+    {
+      StateTracker *owner = 0;
+      if (this->lines.queryMutationTracker(owner) == EDIT_OK)
+        return;
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 8) == ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, String("hello")) == EDIT_OK);
+    }
+    virtual void composeNode(NodeComposition &c);
+  };
+  // Parent owns the request/facts; the mounted child owns its visibility seat.
+  // Fixture globals supply constructor inputs only, matching the P3 fixture.
+  class SettlementProbeSeat : public BoundaryNodeFor<SettlementProbeSeat>
+  {
+  public:
+    NodeState<bool> shown;
+    SettlementProbeRoot &model;
+    explicit SettlementProbeSeat(const BoundaryPropsFor<SettlementProbeSeat> &p)
+        : BoundaryNodeFor<SettlementProbeSeat>(p), model(*settlementProbeRoot)
+    {
+      settlementProbeSeat = this;
+      this->state(this->shown, true);
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      c.declare(Show(*this->shown.state()).destroyOnDetach()
+                << NodeDefinition<TextEditorProps, SettlementProbeEditor>(
+                    TextEditorProps(this->model.lines, this->model.cursor).moveCaretTo(this->model.request)));
+    }
+  };
+  void SettlementProbeRoot::composeNode(NodeComposition &c)
+  {
+    c.declare(Boundary<SettlementProbeSeat>());
+  }
+  TextEditorNode *settlementProbeFind(Node *node)
+  {
+    if (node->nodeTypeKey() == NodeTypeToken<TextEditorNode>())
+      return static_cast<TextEditorNode *>(node);
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0; child; child = child->nextInComposition)
+    {
+      TextEditorNode *found = settlementProbeFind(child);
+      if (found) return found;
+    }
+    return 0;
+  }
+  class SettlementProbePresenter : public EditorPresenter
+  {
+  public:
+    unsigned applies, drains, focusReads;
+    Scene *focusScene;
+    NullTextEditorContext *focusInput;
+    LineCursor focusCursor;
+    SettlementProbePresenter() : applies(0), drains(0), focusReads(0), focusScene(0), focusInput(0) {}
+    virtual void drainNativeRetirements()
+    {
+      ++this->drains;
+      EditorPresenter::drainNativeRetirements();
+    }
+    virtual bool readNativeFocus(NodeContext *&out)
+    {
+      ++this->focusReads;
+      if (this->focusInput)
+      {
+        NullTextEditorContext *input = this->focusInput;
+        this->focusInput = 0;
+        LOKA_VERIFY(this->focusScene && this->focusScene->focus().isPublishing());
+        Input::move(*input, this->focusCursor);
+        LOKA_VERIFY(this->focusScene->focus().isPublishing());
+        LOKA_VERIFY(!this->operationPhase().open());
+      }
+      out = 0;
+      return true;
+    }
+    virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return false; }
+    virtual void onChange(Node *root, NodeDirtyFlags flags, bool full)
+    {
+      ++this->applies;
+      EditorPresenter::onChange(root, flags, full);
+    }
+  };
+  struct SettlementProbeObserver
+  {
+    SettlementProbeRoot &root;
+    SettlementProbePresenter &platform;
+    bool replied, posted;
+    unsigned replies;
+    bool postOnCursor;
+    SettlementProbeObserver(SettlementProbeRoot &r, SettlementProbePresenter &p, bool input)
+        : root(r), platform(p), replied(false), posted(false), replies(0), postOnCursor(input)
+    {
+      settlementProbeDestructors = 0;
+      this->root.request.reply().state()->bind(&reply, this, false);
+      this->root.cursor.state()->bind(&cursor, this, false);
+    }
+    ~SettlementProbeObserver()
+    {
+      this->root.cursor.state()->unbind(&cursor, this);
+      this->root.request.reply().state()->unbind(&reply, this);
+    }
+    static void cursor(void *data)
+    {
+      SettlementProbeObserver &self = *static_cast<SettlementProbeObserver *>(data);
+      if (!self.postOnCursor || self.posted) return;
+      self.posted = true;
+      self.root.request.set(LineCursor(self.root.lines.at(0).id, 3));
+    }
+    static void reply(void *data)
+    {
+      SettlementProbeObserver &self = *static_cast<SettlementProbeObserver *>(data);
+      ++self.replies;
+      if (self.replied) return;
+      self.replied = true;
+      const unsigned before = self.platform.applies;
+      const unsigned drains = self.platform.drains;
+      const bool values[] = {false, true, false};
+      for (unsigned i = 0; i < 3; ++i)
+      {
+        settlementProbeSeat->shown.set(values[i]);
+        LOKA_VERIFY(settlementProbeDestructors == 0);
+      }
+      LOKA_VERIFY(self.platform.applies == before);
+      LOKA_VERIFY(self.platform.drains == drains);
+      TextEditorNode *editor = settlementProbeFind(&self.root);
+      LOKA_VERIFY(editor && editor->lifecycleFact() == NODE_FACT_ATTACHED);
+      LOKA_VERIFY(loka::app::testing::NodeObservedUsesTestAccess::useCount(*editor) != 0);
+      // The hide is pending: the same operation still takes the observer's next request.
+      self.root.request.set(LineCursor(self.root.lines.at(0).id, 4));
+    }
+  };
+}
+void probeRequestSettlementLifecycle()
+{
+  using namespace loka::app::testing;
+  // First verify the test-local destructor counter on ordinary app flushes.
+  for (unsigned mode = 0; mode < 3; ++mode)
+  {
+    NullPlatformContext context;
+    SettlementProbePresenter platform;
+    WindowProps props;
+    props.scene(new Scene(Boundary<SettlementProbeRoot>()));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp app(window);
+    app.flush();
+    Scene &scene = *window.scene();
+    SettlementProbeRoot *root = static_cast<SettlementProbeRoot *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    TextEditorNode *node = settlementProbeFind(root);
+    LOKA_VERIFY(node && node->getContext());
+    settlementProbeDestructors = 0;
+    if (mode == 0)
+    {
+      settlementProbeSeat->shown.set(false);
+      app.flush();
+      LOKA_VERIFY(settlementProbeDestructors == 1);
+    }
+    else
+    {
+      SettlementProbeObserver observer(*root, platform, mode == 2);
+      if (mode == 1)
+        root->request.set(LineCursor(root->lines.at(0).id, 2));
+      else
+        Input::move(*static_cast<NullTextEditorContext *>(node->getContext()), LineCursor(root->lines.at(0).id, 1));
+      app.flush();
+      if (mode == 2)
+      {
+        // The first later run retires the node. Its owning queue must still
+        // hold it across a new operation, even when completion is pumped.
+        OperationScope scope(platform);
+        const unsigned drains = platform.drains;
+        LOKA_VERIFY(!scene.flushInvalidation());
+        LOKA_VERIFY(!window.flushSceneInvalidation());
+        app.flush();
+        LOKA_VERIFY(platform.drains == drains);
+        LOKA_VERIFY(settlementProbeDestructors == 0);
+        LOKA_VERIFY(node->lifecycleFact() == NODE_FACT_RETIRED);
+        LOKA_VERIFY(NodeObservedUsesTestAccess::useCount(*node) == 0);
+      }
+      app.flush();
+      LOKA_VERIFY(observer.replied && observer.replies == 2);
+      LOKA_VERIFY(root->request.get().isNone());
+      // Later takes complete before the hide retires and reclaims the editor.
+      LOKA_VERIFY(settlementProbeDestructors == 1);
+    }
+  }
+}
+
+void testPlatformOperationPumps()
+{
+  using namespace loka::app::testing;
+  NullPlatformContext context;
+  SettlementProbePresenter platform;
+  WindowProps props;
+  props.scene(new Scene(Boundary<SettlementProbeRoot>()));
+  NullWindow window(&context, props, &platform);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  Scene &scene = *window.scene();
+  const unsigned applies = platform.applies;
+  const unsigned drains = platform.drains;
+  const unsigned reads = platform.focusReads;
+  {
+    OperationScope outer(platform);
+    LOKA_VERIFY(scene.isBusy());
+    {
+      OperationScope inner(platform);
+      LOKA_VERIFY(platform.operationPhase().open());
+    }
+    LOKA_VERIFY(platform.operationPhase().open());
+    scene.requestInvalidate();
+    LOKA_VERIFY(!scene.flushInvalidation());
+    LOKA_VERIFY(!window.flushSceneInvalidation());
+    app.flush();
+    WindowTestAccess::reconcileFocus(window);
+    LOKA_VERIFY(platform.applies == applies && platform.drains == drains);
+    LOKA_VERIFY(platform.focusReads == reads);
+    LOKA_VERIFY(scene.hasPendingInvalidation());
+  }
+  LOKA_VERIFY(!scene.isBusy());
+  app.flush();
+  LOKA_VERIFY(platform.applies > applies && platform.drains > drains);
+  // Positive controls for the pump and completion instruments.
+  const unsigned ran = platform.applies;
+  scene.requestInvalidate();
+  scene.flushInvalidation();
+  LOKA_VERIFY(platform.applies > ran);
+  WindowTestAccess::reconcileFocus(window);
+  LOKA_VERIFY(platform.focusReads > reads);
+}
+
+void testPlatformOperationFocusTail()
+{
+  using namespace loka::app::testing;
+  NullPlatformContext context;
+  SettlementProbePresenter platform;
+  WindowProps props;
+  props.scene(new Scene(Boundary<SettlementProbeRoot>()));
+  NullWindow window(&context, props, &platform);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  Scene &scene = *window.scene();
+  SettlementProbeRoot &root = *static_cast<SettlementProbeRoot *>(
+      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  TextEditorNode *node = settlementProbeFind(&root);
+  LOKA_VERIFY(node && node->getContext());
+  SettlementProbeObserver observer(root, platform, true);
+  platform.focusScene = &scene;
+  platform.focusInput = static_cast<NullTextEditorContext *>(node->getContext());
+  platform.focusCursor = LineCursor(root.lines.at(0).id, 1);
+  const unsigned applies = platform.applies;
+  app.operationLoop();
+  LOKA_VERIFY(observer.replies == 2);
+  LOKA_VERIFY(platform.applies > applies);
+  LOKA_VERIFY(!scene.focus().isPublishing() && !platform.operationPhase().open());
+  LOKA_VERIFY(!settlementProbeFind(&root));
+}
+
+void testPlatformOperationMount()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  NullScenePlatformController platform;
+  Scene first((Boundary<SettlementProbeRoot>()));
+  Scene replacement((Boundary<SettlementProbeRoot>()));
+  LOKA_VERIFY(first.mount(&platform));
+  // The legal prepared replacement pair shares a controller.
+  LOKA_VERIFY(replacement.mount(&platform));
+  SceneTestAccess::unmount(replacement);
+#ifndef LOKA_LIFECYCLE_AUDIT
+  NullScenePlatformController other;
+  Node *const root = SceneTestAccess::rootNode(first);
+  LOKA_VERIFY(!first.mount(&other));
+  LOKA_VERIFY(SceneTestAccess::rootNode(first) == root);
+  LOKA_VERIFY(SceneTestAccess::platformController(first) == &platform);
+  {
+    OperationScope scope(platform);
+    LOKA_VERIFY(!replacement.mount(&platform));
+    LOKA_VERIFY(SceneTestAccess::platformController(replacement) == 0);
+    LOKA_VERIFY(!SceneTestAccess::rootNode(replacement));
+  }
+  LOKA_VERIFY(replacement.mount(&platform));
+  SceneTestAccess::unmount(replacement);
+#else
+  std::printf("[skip] mount refusal return-value checks require lifecycle audit off; audit refusal aborts\n");
+#endif
+  SceneTestAccess::unmount(first);
+}
+
+// Same fork boundary as SceneOwnershipTests; ASan uses the release return-value pin.
+#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+void testPlatformOperationMountAudit()
+{
+#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  for (unsigned mode = 0; mode < 2; ++mode)
+  {
+    const pid_t child = fork();
+    LOKA_VERIFY(child >= 0);
+    if (child == 0)
+    {
+      NullScenePlatformController platform;
+      Scene scene((Boundary<SettlementProbeRoot>()));
+      if (mode == 0)
+      {
+        LOKA_VERIFY(scene.mount(&platform));
+        (void)scene.mount(&platform);
+      }
+      else
+      {
+        OperationScope scope(platform);
+        (void)scene.mount(&platform);
+      }
+      _exit(0);
+    }
+    int status = 0;
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
+    LOKA_VERIFY(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+  }
+#else
+  std::printf("[skip] mount audit death pin requires Linux lifecycle audit without ASan\n");
+#endif
+}
+
+void testPlatformOperationNativeDrain()
+{
+  NullPlatformContext context;
+  SettlementProbePresenter platform;
+  WindowProps props;
+  props.scene(new Scene(Boundary<SettlementProbeRoot>()));
+  NullWindow window(&context, props, &platform);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  // A fixture-owned projected control queues a real Null native retirement.
+  ButtonNode button((ButtonProps()));
+  LayoutState bounds;
+  bounds.width = 100;
+  bounds.height = 20;
+  LOKA_VERIFY(platform.prepareProjectedLayout(&button, bounds));
+  LifecycleFactTestAccess::MarkSubtreeRetired(&button);
+  platform.releaseNodeContexts(&button);
+  LOKA_VERIFY(platform.retiredCount() == 1);
+  const unsigned drains = platform.drains;
+  {
+    OperationScope scope(platform);
+    LOKA_VERIFY(!window.flushSceneInvalidation());
+    LOKA_VERIFY(platform.retiredCount() == 1 && platform.drains == drains);
+  }
+  window.flushSceneInvalidation();
+  LOKA_VERIFY(platform.retiredCount() == 0 && platform.drains > drains);
 }

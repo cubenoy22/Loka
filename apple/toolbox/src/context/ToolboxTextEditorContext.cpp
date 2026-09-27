@@ -168,16 +168,17 @@ scene::FollowUp ToolboxTextEditorContext::restoreCommittedProjection()
 class ToolboxTextEditorContext::RailOperation : public scene::RailOperation<LineCursor>
 {
 public:
-  explicit RailOperation(TextEditorNode *node)
-      : binding_(),
+  explicit RailOperation(ToolboxTextEditorContext &ownerContext)
+      : loka::app::scene::RailOperation<LineCursor>(*ownerContext.controller(), ownerContext.node_, &ownerContext),
+        binding_(),
         follow_(),
         scroll_()
 #ifdef TEST_BUILD
         ,
-        before_(node && node->props.cursorState() ? node->props.cursorState()->get() : LineCursor::None())
+        before_(ownerContext.node_ && ownerContext.node_->props.cursorState()
+                    ? ownerContext.node_->props.cursorState()->get() : LineCursor::None())
 #endif
   {
-    (void)node;
   }
   void project(scene::Node &base)
   {
@@ -487,7 +488,7 @@ scene::Admission loka::testing::ToolboxTextEditorAdmission::probe(
 {
   const ToolboxTextEditorContext::Phase before = c.phase_;
   c.phase_ = busy ? ToolboxTextEditorContext::RECONCILE : ToolboxTextEditorContext::IDLE;
-  ToolboxTextEditorContext::RailOperation rail(c.node_);
+  ToolboxTextEditorContext::RailOperation rail(c);
   scene::Admission admission;
   if (command)
   {
@@ -509,15 +510,13 @@ scene::Admission loka::testing::ToolboxTextEditorAdmission::probe(
 #endif
 void ToolboxTextEditorContext::settle(scene::Settlement stimulus)
 {
-  RailOperation op(this->node_);
+  RailOperation op(*this);
   this->settle(stimulus, op);
 }
 void ToolboxTextEditorContext::settle(scene::Settlement stimulus, RailOperation &op)
 {
   CommandOperation command(op);
-  scene::RequestSettlement<LineCursor>::settle(this->node_,
-                                               this,
-                                               op,
+  scene::RequestSettlement<LineCursor>::settle(op,
                                                op,
                                                command,
                                                stimulus
@@ -532,7 +531,7 @@ void ToolboxTextEditorContext::retryProjection()
   // Called once by the foreground idle pass, outside scheduler drain callbacks.
   if (this->status_ != EDITOR_OK && this->te_)
   {
-    RailOperation op(this->node_);
+    RailOperation op(*this);
     op.project(*this->node_);
     this->settle(scene::SETTLE_DEFERRED, op);
   }
@@ -541,7 +540,7 @@ void ToolboxTextEditorContext::onPropsApplied()
 {
   if (this->phase_ != IDLE)
     return;
-  RailOperation op(this->node_);
+  RailOperation op(*this);
   if (this->node_ && this->te_ && (this->source_ != this->node_->props.lines_ || this->hasStaleCaret()))
     op.project(*this->node_);
   this->settle(scene::SETTLE_PROPS, op);
@@ -600,12 +599,11 @@ EditorResult ToolboxTextEditorContext::finishInput(EditorResult result, Change c
 }
 EditorResult ToolboxTextEditorContext::key(char key)
 {
+  RailOperation op(*this);
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
-  RailOperation op(this->node_);
   const short start = (**this->te_).selStart, end = (**this->te_).selEnd;
   const Rect scroll = (**this->te_).destRect;
   // One controller call per key: scan this TE's CR prefix for each endpoint,
@@ -639,12 +637,11 @@ EditorResult ToolboxTextEditorContext::key(char key)
 }
 EditorResult ToolboxTextEditorContext::click(const Point &point)
 {
+  RailOperation op(*this);
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
-  RailOperation op(this->node_);
   TEClick(point, false, this->te_);
   result = this->node_->seam(this->key_).moveCaret(this->cursorAt((**this->te_).selStart));
   if (liveNode->getContext() != this)
@@ -653,12 +650,11 @@ EditorResult ToolboxTextEditorContext::click(const Point &point)
 }
 EditorResult ToolboxTextEditorContext::paste(const char *bytes, std::size_t length)
 {
+  RailOperation op(*this);
   EditorResult result = this->beginInput();
   if (result != EDITOR_OK)
     return result;
-  // As in the Null rail, a fact subscriber can retire this context synchronously.
   scene::Node *const liveNode = this->node_;
-  RailOperation op(this->node_);
   // Refuse before TE's signed-short storage can overflow.
   if (length > TextEditorProps::kMaxBytes)
     result = EDITOR_CAPACITY;
@@ -734,7 +730,7 @@ void ToolboxTextEditorContext::render(scene::IPlatformController *)
   if (!this->controller() || !this->node_)
     return;
   scene::Node *const liveNode = this->node_;
-  RailOperation op(this->node_);
+  RailOperation op(*this);
   TEHandle te = this->controller()->ensureTextEditorControl(this, this->rect_, this->lifetimeHint());
   if (te != this->te_)
   {

@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_SCENE_STATE_REQUEST_SETTLEMENT_HPP
 #define LOKA_APP_SCENE_STATE_REQUEST_SETTLEMENT_HPP
 #include "app/scene/Node.hpp"
+#include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/state/Request.hpp"
 #ifdef TEST_BUILD
 #include <climits>
@@ -116,10 +117,40 @@ namespace loka
         /** Preserve native application and seam outcomes separately for repair. */
         virtual FollowUp finishTake(Node &, const Reply<Request> &, const RequestApplication<Fact> &) = 0;
       };
-      /** One completion owner for all seats in an entry operation. */
-      template <class Fact> class SettleOwner
+      /** Borrows the projection for the whole native entry, independently of Fact. */
+      class SettleOwnerBase
       {
       public:
+        Node *node() const { return this->node_; }
+        /** Identity only; a parked context may still match. */
+        bool hasSameContext() const
+        {
+          return this->node_ && this->node_->getContext() == this->identity_;
+        }
+      protected:
+        SettleOwnerBase(IPlatformController &controller, Node *node, const NodeContext *identity)
+            : scope_(controller), node_(node), identity_(identity) {}
+#ifdef TEST_BUILD
+        SettleOwnerBase(OperationPhase &phase, Node *node, const NodeContext *identity)
+            : scope_(phase), node_(node), identity_(identity) {}
+#endif
+      private:
+        SettleOwnerBase(const SettleOwnerBase &);
+        SettleOwnerBase &operator=(const SettleOwnerBase &);
+        OperationScope scope_;
+        Node *const node_;
+        const NodeContext *const identity_;
+      };
+      /** One completion owner for all seats in an entry operation. */
+      template <class Fact> class SettleOwner : public SettleOwnerBase
+      {
+      public:
+        SettleOwner(IPlatformController &controller, Node *node, const NodeContext *identity)
+            : SettleOwnerBase(controller, node, identity) {}
+#ifdef TEST_BUILD
+        SettleOwner(OperationPhase &phase, Node *node, const NodeContext *identity)
+            : SettleOwnerBase(phase, node, identity) {}
+#endif
         virtual ~SettleOwner() {}
         virtual FollowUpResult finishSettle(Node &, const FollowUps &) = 0;
 #ifdef TEST_BUILD
@@ -130,6 +161,12 @@ namespace loka
       template <typename T> class RailOperation : public SeatOperation<T, T>, public SettleOwner<T>
       {
       public:
+        RailOperation(IPlatformController &controller, Node *node, const NodeContext *identity)
+            : SettleOwner<T>(controller, node, identity) {}
+#ifdef TEST_BUILD
+        RailOperation(OperationPhase &phase, Node *node, const NodeContext *identity)
+            : SettleOwner<T>(phase, node, identity) {}
+#endif
         virtual ~RailOperation() {}
       };
 
@@ -304,11 +341,6 @@ namespace loka
 #endif
     namespace scene
     {
-      /** Context identity is only compared; reclamation stays on the owner clock. */
-      inline bool settlementAlive(Node *node, const NodeContext *identity)
-      {
-        return node && node->getContext() == identity;
-      }
       /** Synchronous driver-stack seat. No runner escapes the settle call. */
       template <class Fact> class SeatRunnerBase
       {
@@ -326,8 +358,7 @@ namespace loka
       template <class Request, class Fact> class SeatRunner : public SeatRunnerBase<Fact>
       {
       public:
-        SeatRunner(Node *node,
-                   const NodeContext *identity,
+        SeatRunner(SettleOwner<Fact> &owner,
                    SeatOperation<Request, Fact> &op,
                    FollowUps &follow,
                    Settlement stimulus
@@ -337,8 +368,7 @@ namespace loka
                    SettleOwner<Fact> *entryFact = 0
 #endif
                    )
-            : node_(node),
-              identity_(identity),
+            : owner_(owner),
               op_(op),
               follow_(follow),
               binding_()
@@ -358,46 +388,46 @@ namespace loka
           // Seat zero keeps the caller's pre-entry snapshot. Later seats sample
           // only when entered, after the preceding seat's publications.
           if (ordinal == 0 && this->entryFact_)
-            this->row_.before = this->entryFact_->fact(*this->node_);
+            this->row_.before = this->entryFact_->fact(*this->owner_.node());
 #else
           (void)ordinal;
 #endif
           this->binding_ = RequestBinding<Request>();
-          const Admission admission = this->op_.admit(*this->node_, this->binding_);
+          const Admission admission = this->op_.admit(*this->owner_.node(), this->binding_);
 #ifdef TEST_BUILD
           this->row_.admission[ordinal] = admission;
 #endif
           if (admission != ADMISSION_TAKE)
             return true;
           const Request pending = this->binding_.consume();
-          if (!settlementAlive(this->node_, this->identity_))
+          if (!this->owner_.hasSameContext())
             return false;
-          EditorResult result = this->op_.resolve(*this->node_, this->binding_);
+          EditorResult result = this->op_.resolve(*this->owner_.node(), this->binding_);
           if (result == EDITOR_OK)
-            result = this->op_.validate(*this->node_, pending);
+            result = this->op_.validate(*this->owner_.node(), pending);
           RequestApplication<Fact> applied(Fact(), result);
           if (result == EDITOR_OK)
-            applied = this->op_.apply(*this->node_, pending);
-          if (!settlementAlive(this->node_, this->identity_))
+            applied = this->op_.apply(*this->owner_.node(), pending);
+          if (!this->owner_.hasSameContext())
             return false;
           this->follow_ = this->follow_.including(applied.followUp());
           result = applied.result();
           if (result == EDITOR_OK)
-            result = this->op_.report(*this->node_, applied.value());
-          if (!settlementAlive(this->node_, this->identity_))
+            result = this->op_.report(*this->owner_.node(), applied.value());
+          if (!this->owner_.hasSameContext())
             return false;
           const Reply<Request> reply = formReply(pending, applied.value(), result);
           // A binding discard is not a reply to a different recipient.
-          if (this->op_.current(*this->node_, this->binding_))
+          if (this->op_.current(*this->owner_.node(), this->binding_))
             this->binding_.reply_.set(reply, true);
-          if (!settlementAlive(this->node_, this->identity_))
+          if (!this->owner_.hasSameContext())
             return false;
 #ifdef TEST_BUILD
           this->row_.takes[this->row_.count] = reply;
           this->row_.seam[this->row_.count++] = result;
 #endif
-          const FollowUp completed = this->op_.finishTake(*this->node_, reply, applied);
-          if (!settlementAlive(this->node_, this->identity_))
+          const FollowUp completed = this->op_.finishTake(*this->owner_.node(), reply, applied);
+          if (!this->owner_.hasSameContext())
             return false;
           this->follow_ = this->follow_.including(completed);
           return true;
@@ -405,17 +435,17 @@ namespace loka
         /** Refuse the last admitted binding without reopening native admission. */
         virtual bool refuseFailed()
         {
-          if (!this->binding_.isValid() || !this->op_.current(*this->node_, this->binding_)
+          if (!this->binding_.isValid() || !this->op_.current(*this->owner_.node(), this->binding_)
               || this->binding_.state()->get().isNone())
             return true;
           const Request pending = this->binding_.consume();
-          if (!settlementAlive(this->node_, this->identity_))
+          if (!this->owner_.hasSameContext())
             return false;
           const Reply<Request> reply = Reply<Request>::Refused(pending, EDITOR_UNAVAILABLE);
           // A clear subscriber can discard the binding without retiring the context.
-          if (this->op_.current(*this->node_, this->binding_))
+          if (this->op_.current(*this->owner_.node(), this->binding_))
             this->binding_.reply_.set(reply, true);
-          if (!settlementAlive(this->node_, this->identity_))
+          if (!this->owner_.hasSameContext())
             return false;
 #ifdef TEST_BUILD
           this->row_.takes[this->row_.count] = reply;
@@ -440,8 +470,7 @@ namespace loka
         }
 #endif
       private:
-        Node *const node_;
-        const NodeContext *const identity_;
+        SettleOwner<Fact> &owner_;
         SeatOperation<Request, Fact> &op_;
         FollowUps &follow_;
         RequestBinding<Request> binding_;
@@ -460,9 +489,7 @@ namespace loka
       template <class Fact> class RequestSettlement
       {
       public:
-        static FollowUpResult settle(Node *node,
-                                     const NodeContext *identity,
-                                     RailOperation<Fact> &op,
+        static FollowUpResult settle(RailOperation<Fact> &op,
                                      Settlement stimulus
 #ifdef TEST_BUILD
                                      ,
@@ -471,8 +498,7 @@ namespace loka
         )
         {
           FollowUps follow;
-          SeatRunner<Fact, Fact> runner(node,
-                                        identity,
+          SeatRunner<Fact, Fact> runner(op,
                                         op,
                                         follow,
                                         stimulus
@@ -482,12 +508,10 @@ namespace loka
 #endif
           );
           SeatRunnerBase<Fact> *seats[1] = {&runner};
-          return walk(node, identity, op, follow, seats, 1);
+          return walk(op, follow, seats, 1);
         }
         template <class R0, class R1>
-        static FollowUpResult settle(Node *node,
-                                     const NodeContext *identity,
-                                     SettleOwner<Fact> &owner,
+        static FollowUpResult settle(SettleOwner<Fact> &owner,
                                      SeatOperation<R0, Fact> &seat0,
                                      SeatOperation<R1, Fact> &seat1,
                                      Settlement stimulus
@@ -498,8 +522,7 @@ namespace loka
         )
         {
           FollowUps follow;
-          SeatRunner<R0, Fact> runner0(node,
-                                       identity,
+          SeatRunner<R0, Fact> runner0(owner,
                                        seat0,
                                        follow,
                                        stimulus
@@ -508,8 +531,7 @@ namespace loka
                                        before
 #endif
           );
-          SeatRunner<R1, Fact> runner1(node,
-                                       identity,
+          SeatRunner<R1, Fact> runner1(owner,
                                        seat1,
                                        follow,
                                        stimulus
@@ -520,26 +542,24 @@ namespace loka
 #endif
           );
           SeatRunnerBase<Fact> *seats[2] = {&runner0, &runner1};
-          return walk(node, identity, owner, follow, seats, 2);
+          return walk(owner, follow, seats, 2);
         }
 
       private:
-        static FollowUpResult walk(Node *node,
-                                   const NodeContext *identity,
-                                   SettleOwner<Fact> &owner,
+        static FollowUpResult walk(SettleOwner<Fact> &owner,
                                    FollowUps &follow,
                                    SeatRunnerBase<Fact> **seats,
                                    unsigned count)
         {
           for (unsigned i = 0; i < count; ++i)
           {
-            if (!settlementAlive(node, identity))
+            if (!owner.hasSameContext())
               return FOLLOW_UP_NONE;
             if (!seats[i]->take(0) || !seats[i]->take(1))
               return FOLLOW_UP_NONE;
           }
-          const FollowUpResult armed = owner.finishSettle(*node, follow);
-          if (!settlementAlive(node, identity))
+          const FollowUpResult armed = owner.finishSettle(*owner.node(), follow);
+          if (!owner.hasSameContext())
             return FOLLOW_UP_NONE;
           switch (armed)
           {
@@ -553,7 +573,7 @@ namespace loka
             break;
           }
 #ifdef TEST_BUILD
-          Fact after = owner.fact(*node);
+          Fact after = owner.fact(*owner.node());
           // Close each preceding row at the next seat's captured entry fact.
           // Finalization and publication both wait for the epilogue and tail.
           for (unsigned i = count; i != 0; --i)
