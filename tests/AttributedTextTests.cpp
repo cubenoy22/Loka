@@ -758,6 +758,7 @@ namespace
 
 void testTextBreakerAllocationCensus()
 {
+  std::printf("sizeof(BlockStyle)=%lu\n", static_cast<unsigned long>(sizeof(BlockStyle)));
   const BlockStyle word = BlockStyle().wrap(TEXT_WRAP_WORD);
   census("WORD", Styled("ab cd", TextStyle()), 12, word);
   census("CHAR", Styled("ab cd", TextStyle()), 12, BlockStyle().wrap(TEXT_WRAP_CHAR));

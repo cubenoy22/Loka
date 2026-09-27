@@ -218,6 +218,9 @@ namespace loka
       TextLineBreaker(const TextLineBreaker &);
       TextLineBreaker &operator=(const TextLineBreaker &);
     };
+    /** Fitted synthetic width of one completed line, after clip/ellipsis. */
+    int SyntheticTextLineWidth(const TextLineRecord &line, const BlockStyle &block, short availableWidth);
+
     /** Synthetic projection of a valid completed break, including Null's
         truncation rule. Extent origin is (0,0); this is not native rail geometry. */
     core::Frame SyntheticTextExtent(const TextLineBreaker &result, const BlockStyle &block, short availableWidth);

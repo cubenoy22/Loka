@@ -99,8 +99,10 @@ namespace loka
       BlockStyle()
           : wrap_(TEXT_WRAP_NONE),
             truncation_(TEXT_TRUNCATION_NONE),
+            align_(TEXT_ALIGN_LEFT),
             hasWrap_(false),
-            hasTruncation_(false)
+            hasTruncation_(false),
+            hasAlign_(false)
       {
       }
 
@@ -118,6 +120,13 @@ namespace loka
         return *this;
       }
 
+      BlockStyle &align(TextAlign value)
+      {
+        this->align_ = value;
+        this->hasAlign_ = true;
+        return *this;
+      }
+
       BlockStyle operator+(const BlockStyle &right) const
       {
         BlockStyle result(*this);
@@ -131,6 +140,8 @@ namespace loka
           result.truncation_ = right.truncation_;
           result.hasTruncation_ = true;
         }
+        if (right.hasAlign_)
+          result.align(right.align_);
         return result;
       }
 
@@ -138,8 +149,10 @@ namespace loka
       {
         return this->wrap_ == other.wrap_
                && this->truncation_ == other.truncation_
+               && this->align_ == other.align_
                && this->hasWrap_ == other.hasWrap_
-               && this->hasTruncation_ == other.hasTruncation_;
+               && this->hasTruncation_ == other.hasTruncation_
+               && this->hasAlign_ == other.hasAlign_;
       }
 
       bool operator!=(const BlockStyle &other) const
@@ -153,15 +166,21 @@ namespace loka
           return this->wrap_ < other.wrap_;
         if (this->truncation_ != other.truncation_)
           return this->truncation_ < other.truncation_;
+        if (this->align_ != other.align_)
+          return this->align_ < other.align_;
         if (this->hasWrap_ != other.hasWrap_)
           return this->hasWrap_ < other.hasWrap_;
-        return this->hasTruncation_ < other.hasTruncation_;
+        if (this->hasTruncation_ != other.hasTruncation_)
+          return this->hasTruncation_ < other.hasTruncation_;
+        return this->hasAlign_ < other.hasAlign_;
       }
 
       TextWrap wrap_;
       TextTruncation truncation_;
+      TextAlign align_;
       bool hasWrap_;
       bool hasTruncation_;
+      bool hasAlign_;
     };
   } // namespace app
 } // namespace loka

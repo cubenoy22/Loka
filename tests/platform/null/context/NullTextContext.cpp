@@ -124,7 +124,8 @@ NullTextPaintStyle::NullTextPaintStyle(const loka::app::TextProps &props)
       weight(loka::app::TEXT_WEIGHT_NORMAL),
       italic(false),
       wrap(loka::app::TEXT_WRAP_NONE),
-      truncation(loka::app::TEXT_TRUNCATION_NONE)
+      truncation(loka::app::TEXT_TRUNCATION_NONE),
+      align(loka::app::TEXT_ALIGN_LEFT)
 {
   const loka::app::TextStyle textStyle = props.resolvedTextStyle();
   if (textStyle.hasFontSize_)
@@ -137,6 +138,8 @@ NullTextPaintStyle::NullTextPaintStyle(const loka::app::TextProps &props)
     wrap = props.blockStyle_.wrap_;
   if (props.blockStyle_.hasTruncation_)
     truncation = props.blockStyle_.truncation_;
+  if (props.blockStyle_.hasAlign_)
+    align = props.blockStyle_.align_;
 }
 void NullTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact, loka::app::scene::NodeLifecycleFact next)
 {
