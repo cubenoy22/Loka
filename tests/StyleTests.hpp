@@ -3,6 +3,7 @@
 
 void testTextStyleMergeAndSizeVocabulary();
 void testTextPropsDeclaredStyleGuardsNativeLabelConfiguration();
+void testBlockStyleNamedAlignmentsEqualTheirDeclarations();
 void testSizeOfSnapsToNearestVocabularySizeWithTiesDown();
 void testTextPropsItalicParticipatesInDefinitionEquivalence();
 void testNullTextLayoutUsesResolvedFontSize();

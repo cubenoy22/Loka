@@ -1151,6 +1151,16 @@ Text("A long paragraph")
     + BlockStyle().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS)
 ```
 
+Horizontal alignment is a block property too. Left is the default; the two
+other alignments have names in the `block` namespace, so the call site says
+what is aligned (Row and Column align child boxes, which is a different thing):
+
+```cpp
+Text("Card One") + Title + block::Centered
+Text("a caption") + Italic + block::RightAligned
+Text("x") + BlockStyle().align(TEXT_ALIGN_CENTER)   // the same, spelled out
+```
+
 For live character styling, pass a borrowed `State<TextStyle>*`. The current
 state value is merged over the constant character style, and a change requests
 layout without rebuilding the node:

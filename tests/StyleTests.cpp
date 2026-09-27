@@ -43,6 +43,18 @@ void testTextStyleMergeAndSizeVocabulary()
   LOKA_VERIFY(clipped + BlockStyle() == clipped);
 }
 
+void testBlockStyleNamedAlignmentsEqualTheirDeclarations()
+{
+  using namespace loka::app;
+  LOKA_VERIFY(block::Centered == BlockStyle().align(TEXT_ALIGN_CENTER));
+  LOKA_VERIFY(block::RightAligned == BlockStyle().align(TEXT_ALIGN_RIGHT));
+  // The names carry only the alignment field, so they merge over wrap/truncation.
+  const BlockStyle merged = BlockStyle().wrap(TEXT_WRAP_WORD) + block::Centered;
+  LOKA_VERIFY(merged.hasWrap_ && merged.wrap_ == TEXT_WRAP_WORD);
+  LOKA_VERIFY(merged.hasAlign_ && merged.align_ == TEXT_ALIGN_CENTER);
+  LOKA_VERIFY(!merged.hasTruncation_);
+}
+
 void testSizeOfSnapsToNearestVocabularySizeWithTiesDown()
 {
   using namespace loka::app;
