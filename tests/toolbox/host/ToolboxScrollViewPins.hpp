@@ -228,13 +228,15 @@ namespace
     {
       // A leaf whose context allocation is refused during the full capture must
       // not leave a zero-height span in a valid table (bot P2 on #1016): the
-      // refused leaf marks the scope refused, the table is dropped, and the
-      // next pass captures it in full.
+      // refused leaf leaves the pass refused, no table is retained, and the
+      // next pass captures it in full. Characterization of the existing
+      // refusal route; no production change was needed.
       loka::core::testing::failLokaAllocRaw("ToolboxAttributedText", "Context", 0);
       ScrollFixture f(100);
       loka::core::testing::failLokaAllocRaw("ToolboxAttributedText", "Context", 1);
       f.step(0);
       loka::core::testing::failLokaAllocRaw("ToolboxAttributedText", "Context", 0);
+      LOKA_VERIFY(!f.leaf(0)->getContext());
       LOKA_VERIFY(!f.controller.scrollSpans() || !f.controller.scrollSpans()->valid());
       LOKA_VERIFY(f.step(17) == 100);
       LOKA_VERIFY(f.controller.scrollSpans()->valid());

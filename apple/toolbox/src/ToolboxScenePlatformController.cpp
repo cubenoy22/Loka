@@ -471,10 +471,6 @@ bool ToolboxScenePlatformController::prepareProjectedLayout(loka::app::scene::No
   loka::app::scene::NodeContext *context = handler->ensureContext(node, this, state);
   if (!context)
   {
-    // A refused context is a refused leaf, the same as a refused measurement:
-    // mark the active scroll scope refused so no span table is captured from
-    // this pass, and retry after the run (#1013).
-    this->requestRelayout();
     return false;
   }
   if (context != previousContext)
