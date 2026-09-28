@@ -2723,3 +2723,222 @@ void testLocalRebuildSuccessCommitsCandidates()
   DestroyHeapNode(root);
   LOKA_VERIFY(counts.alive == 0 && counts.destroyed == 1);
 }
+
+namespace
+{
+  class SeatPlanReattachRoot : public BoundaryNodeFor<SeatPlanReattachRoot>
+  {
+  public:
+    explicit SeatPlanReattachRoot(const BoundaryPropsFor<SeatPlanReattachRoot> &props)
+        : BoundaryNodeFor<SeatPlanReattachRoot>(props), declarations(0)
+    {
+      this->state(this->selected, true);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++this->declarations;
+      FragmentDefinition arm;
+      arm.tag(static_cast<NodeTag>(7600 + this->declarations));
+      composition.declare(ConditionalDefinition(ConditionalProps(this->selected.state(), &arm, 0)));
+    }
+    int declarations;
+    NodeState<bool> selected;
+  };
+}
+
+void testStdBoundaryDetachReattachDeclaresFreshSeatPlans()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  NullScenePlatformController platform;
+  Scene scene((Boundary<SeatPlanReattachRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  SeatPlanReattachRoot *root = static_cast<SeatPlanReattachRoot *>(SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(root->declarations == 1);
+  LOKA_VERIFY(findStrandTag(root, 7601));
+
+  // Send the real direct-root DETACH without Scene's terminal root reclamation.
+  SceneTestAccess::notifyComposeEvent(scene, COMPOSE_EVENT_DETACH);
+  SceneTestAccess::notifyComposeEvent(scene, COMPOSE_EVENT_ATTACH);
+  LOKA_VERIFY(SceneTestAccess::rootBoundary(scene) == root);
+  LOKA_VERIFY(root->declarations == 2);
+  LOKA_VERIFY(!findStrandTag(root, 7601));
+  LOKA_VERIFY(findStrandTag(root, 7602));
+  LOKA_VERIFY(!loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*root).empty());
+}
+
+namespace DetachRunWindow
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using loka::dsl::testing::SceneTestAccess;
+
+  enum Path { UNMOUNT_PLAIN, UNMOUNT_SEAT, DETACH, SWITCH_SEAT, REPLACE_PARKED };
+
+  struct Observation
+  {
+    loka::core::MutableState<bool> visible;
+    loka::core::MutableState<int> pulse;
+    Scene *scene;
+    Path path;
+    bool inside;
+    bool armed;
+    bool running;
+    int detaches;
+    int seen;
+    int nestedComposes;
+    int updatePass;
+    int detachPass;
+    int seenPass;
+
+    explicit Observation(Path p)
+        : visible(true), pulse(0), scene(0), path(p), inside(false),
+          armed(true), running(false), detaches(0), seen(0), nestedComposes(0),
+          updatePass(0), detachPass(0), seenPass(0) {}
+  };
+
+  // The stack fixture outlives the Scene and all its callbacks.
+  Observation *observation = 0;
+
+  class Writer;
+  struct WriterProps : NodePropsBase<WriterProps>
+  {
+    struct TypeTag {};
+    typedef Writer NodeType;
+    bool operator<(const PropsBase &rhs) const { return propsTypeId() < rhs.propsTypeId(); }
+  };
+
+  class Writer : public ComponentNodeWithProps<WriterProps>
+  {
+  public:
+    explicit Writer(const WriterProps &props) : ComponentNodeWithProps<WriterProps>(props) {}
+    virtual void composeChildren(NodeComposition &) {}
+    virtual void detachNode(NodeComposition &)
+    {
+      if (!observation->armed)
+        return;
+      ++observation->detaches;
+      observation->detachPass = observation->updatePass;
+      observation->inside = true;
+      observation->running = observation->scene->isRunInProgress();
+      {
+        loka::core::StateTrackerGuard transaction(observation->pulse.trackerOwner());
+        observation->pulse.set(observation->pulse.get() + 1);
+      }
+      observation->inside = false;
+      LOKA_VERIFY(observation->nestedComposes == 0);
+      LOKA_VERIFY(observation->running);
+    }
+  };
+
+  // Force the public compatibility door's REPLACE path on parked re-entry.
+  struct ReplacingWriter : NodeDefinition<WriterProps, Writer>
+  {
+    virtual NodeDefinitionBase *clone() const { return new ReplacingWriter(*this); }
+    virtual bool isCompatibleWithNode(const Node *) const { return false; }
+  };
+
+  class Sink : public BoundaryNodeFor<Sink>
+  {
+  public:
+    explicit Sink(const BoundaryPropsFor<Sink> &props) : BoundaryNodeFor<Sink>(props) {}
+    virtual void declareDirtySources(DirtySourceRegistrar &registrar)
+    {
+      registrar.markDirtyOnChange(&observation->pulse, NODE_DIRTY_PROPS);
+    }
+    virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+    {
+      // A nested refresh can replay ATTACH after the outer DETACH reset.
+      // Count both composing events so that replay cannot evade this pin.
+      if (observation->inside && event != COMPOSE_EVENT_DETACH)
+        ++observation->nestedComposes;
+      if (event == COMPOSE_EVENT_UPDATE)
+      {
+        observation->seen = observation->pulse.get();
+        observation->seenPass = observation->updatePass;
+      }
+      BoundaryNodeFor<Sink>::composeWithContext(context, event);
+    }
+  };
+
+  class Root : public BoundaryNodeFor<Root>
+  {
+  public:
+    explicit Root(const BoundaryPropsFor<Root> &props) : BoundaryNodeFor<Root>(props) {}
+    virtual void composeWithContext(ComponentContext &context, ComposeEvent event)
+    {
+      if (event == COMPOSE_EVENT_UPDATE)
+        ++observation->updatePass;
+      BoundaryNodeFor<Root>::composeWithContext(context, event);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      if (observation->path == UNMOUNT_PLAIN)
+        composition.declare(Fragment() << NodeDefinition<WriterProps, Writer>() << Boundary<Sink>());
+      else if (observation->path == REPLACE_PARKED)
+        composition.declare(Fragment() << (Show(observation->visible) << ReplacingWriter()) << Boundary<Sink>());
+      else
+        composition.declare(Fragment() << (Show(observation->visible).destroyOnDetach() << NodeDefinition<WriterProps, Writer>()) << Boundary<Sink>());
+    }
+  };
+
+  void changeVisibility(bool visible)
+  {
+    loka::core::StateTrackerGuard transaction(observation->visible.trackerOwner());
+    observation->visible.set(visible);
+  }
+
+  void verify(Path path)
+  {
+    Observation facts(path);
+    observation = &facts;
+    {
+      NullScenePlatformController platform;
+      Scene scene((Boundary<Root>()));
+      facts.scene = &scene;
+      const bool mounted = scene.mount(&platform);
+      LOKA_VERIFY(mounted);
+      SceneTestAccess::updateAttached(scene, true);
+      if (path == UNMOUNT_PLAIN || path == UNMOUNT_SEAT)
+        SceneTestAccess::unmount(scene);
+      else if (path == DETACH)
+        SceneTestAccess::updateAttached(scene, false);
+      else
+      {
+        changeVisibility(false);
+        LOKA_VERIFY(facts.detaches == (path == REPLACE_PARKED ? 0 : 1));
+        scene.flushInvalidation();
+        LOKA_VERIFY(facts.seen == (path == REPLACE_PARKED ? 0 : 1));
+        if (path == REPLACE_PARKED)
+        {
+          changeVisibility(true);
+          LOKA_VERIFY(facts.detaches == 1);
+          scene.flushInvalidation();
+          LOKA_VERIFY(facts.seen == 1);
+        }
+      }
+      if (path == SWITCH_SEAT || path == REPLACE_PARKED)
+      {
+        // State completion can flush again before set() returns. Compare
+        // actual root UPDATE passes instead of assuming a setter boundary.
+        LOKA_VERIFY(facts.detachPass > 0);
+        LOKA_VERIFY(facts.seenPass > facts.detachPass);
+      }
+      LOKA_VERIFY(facts.detaches == 1);
+      LOKA_VERIFY(facts.nestedComposes == 0);
+      LOKA_VERIFY(facts.running);
+      facts.armed = false;
+      if (path != UNMOUNT_PLAIN && path != UNMOUNT_SEAT)
+        SceneTestAccess::unmount(scene);
+      scene.flushInvalidation();
+      LOKA_VERIFY(facts.nestedComposes == 0);
+    }
+    observation = 0;
+  }
+}
+
+void testUnmountDetachWriteRunsWithoutNestedUpdate() { DetachRunWindow::verify(DetachRunWindow::UNMOUNT_PLAIN); }
+void testUnmountDestroyingSeatWriteRunsWithoutNestedUpdate() { DetachRunWindow::verify(DetachRunWindow::UNMOUNT_SEAT); }
+void testAttachedDetachWriteOwnsRunWindow() { DetachRunWindow::verify(DetachRunWindow::DETACH); }
+void testDestroyingSeatDetachWriteAppliesLater() { DetachRunWindow::verify(DetachRunWindow::SWITCH_SEAT); }
+void testParkedReplacementDetachWriteAppliesLater() { DetachRunWindow::verify(DetachRunWindow::REPLACE_PARKED); }

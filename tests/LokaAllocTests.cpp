@@ -7,6 +7,7 @@
 #include <new>
 
 #include "core/LokaAlloc.hpp"
+#include "core/resource/Blob.hpp"
 #include "support/TestVerify.hpp"
 
 namespace
@@ -186,8 +187,6 @@ void testLokaAllocBackendResetRestoresDefault()
 void testLokaAllocAuditBalancedUseCountsToZero()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  // The checkpoint aborts on failure, so this test only drives the balanced
-  // path; the outstanding-probe queries below are how a leak would surface.
   const int liveBefore = loka::core::LokaAllocAuditLiveCount(gateProbeSite());
   const int totalBefore = loka::core::LokaAllocAuditTotalLiveCount();
 
@@ -200,12 +199,6 @@ void testLokaAllocAuditBalancedUseCountsToZero()
   assert(loka::core::LokaAllocAuditLiveCount(gateProbeSite()) == liveBefore);
   assert(loka::core::LokaAllocAuditTotalLiveCount() == totalBefore);
 
-  // The one absolute checkpoint left in the suite: under ctest it runs in a
-  // fresh process, so it also catches a gate allocation made during static
-  // initialization. In the no-argument runner it holds only while it stays
-  // registered before the first test that makes a process-lifetime allocation
-  // (the Scrapbook tests make Blob's shared empty handle) (#922).
-  loka::core::LokaAllocAuditCheckpoint("testLokaAllocAuditBalancedUseCountsToZero");
 #endif
 }
 
@@ -248,4 +241,33 @@ void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow()
   LOKA_VERIFY(after.overflowBytes - before.overflowBytes == expectedOverflowBytes);
 #endif
   std::printf("==== [testLokaAllocCensusAccumulatesSitesAndLabelsOverflow] PASSED ====\n");
+}
+
+void testBlobOwnedWriteLeavesNoLiveGateAllocation()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const int totalBefore = loka::core::LokaAllocAuditTotalLiveCount();
+  const int managedBefore = loka::core::LokaAllocAuditLiveCount(
+      loka::core::ManagedControlBlockSite());
+  {
+    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    blob.mutableBytes().push_back(42);
+    assert(blob.bytes().size() == 1);
+    assert(blob.bytes()[0] == 42);
+  }
+  assert(loka::core::LokaAllocAuditLiveCount(
+      loka::core::ManagedControlBlockSite()) == managedBefore);
+  assert(loka::core::LokaAllocAuditTotalLiveCount() == totalBefore);
+#endif
+}
+
+void testBlobEmptyWritePreservesSharedRecord()
+{
+  loka::core::resource::Blob empty = loka::core::resource::Blob::Empty();
+  loka::core::resource::Blob writable = empty;
+  writable.mutableBytes().push_back(42);
+  assert(writable != empty);
+  assert(empty.bytes().empty());
+  assert(empty == loka::core::resource::Blob::Empty());
+  assert(writable.bytes()[0] == 42);
 }

@@ -1564,7 +1564,7 @@ namespace
       incoming << LazyScopeDefinition<int, InnerObservedScope>(fixture->input, InnerObservedProps());
       this->composition().declare(FragmentDefinition()
           << ConditionalDefinition(ConditionalProps(&fixture->condition, &incoming, 0)));
-      this->captureBranchSeatPlan();
+      SceneTestAccess::captureBranchSeatPlan(*this);
       this->clearPhaseResults();
       ComponentContext context;
       context.setBoundary(this);
@@ -1610,7 +1610,6 @@ namespace
   public:
     explicit LiveLedgerCaptureRoot(const BoundaryPropsFor<LiveLedgerCaptureRoot> &props)
         : BoundaryNodeFor<LiveLedgerCaptureRoot>(props) {}
-    using BoundaryNode::captureBranchSeatPlan;
     virtual void composeNode(NodeComposition &composition)
     {
       FragmentDefinition arm;
@@ -1635,7 +1634,7 @@ void testBranchSeatCaptureOverLiveLedgerAborts()
   LOKA_VERIFY(child >= 0);
   if (child == 0)
   {
-    root->captureBranchSeatPlan();
+    SceneTestAccess::captureBranchSeatPlan(*root);
     _exit(0);
   }
   int status = 0;

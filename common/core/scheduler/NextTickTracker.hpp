@@ -11,6 +11,38 @@ namespace loka
       typedef bool (*RefreshFn)(void *);
       typedef void (*ApplyFn)(void *);
 
+      /** Owns a run window only when the tracker is not already running.
+          Nested scopes are inert; only the owner publishes after-run
+          requests and closes the window. The tracker must outlive the
+          scope. */
+      class RunScope
+      {
+      public:
+        explicit RunScope(NextTickTracker &tracker)
+            : owner_(tracker.inProgress_ ? 0 : &tracker)
+        {
+          if (this->owner_)
+            this->owner_->inProgress_ = true;
+        }
+
+        ~RunScope()
+        {
+          if (!this->owner_)
+            return;
+          if (this->owner_->requestAfterRun_)
+          {
+            this->owner_->requestAfterRun_ = false;
+            this->owner_->request();
+          }
+          this->owner_->inProgress_ = false;
+        }
+
+      private:
+        RunScope(const RunScope &);
+        RunScope &operator=(const RunScope &);
+        NextTickTracker *owner_;
+      };
+
       NextTickTracker()
           : requested_(false),
             inProgress_(false),
@@ -83,7 +115,7 @@ namespace loka
         {
           return false;
         }
-        inProgress_ = true;
+        RunScope run(*this);
         bool changed = false;
         int iterations = 0;
         while (requested_ && iterations < maxIterations_)
@@ -103,12 +135,6 @@ namespace loka
           // refresh for the current one.
           apply(userData);
         }
-        if (requestAfterRun_)
-        {
-          requestAfterRun_ = false;
-          this->request();
-        }
-        inProgress_ = false;
         return changed;
       }
 

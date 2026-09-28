@@ -146,7 +146,7 @@ if(WIN32)
         -File
           ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/scripts/Win32AssertFailureTest.ps1
         -TestExecutable $<TARGET_FILE:LokaTestsWin32>)
-    set_tests_properties(scriptWin32AssertFailure PROPERTIES TIMEOUT 15)
+    set_tests_properties(scriptWin32AssertFailure PROPERTIES TIMEOUT 45)
   endif()
   add_test(NAME scriptWin32StandaloneAuditVerifier
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass

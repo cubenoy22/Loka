@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #endif
 #include "core/diag/LifecycleAudit.hpp"
+#include "core/LokaAlloc.hpp"
 
 namespace
 {
@@ -172,6 +173,11 @@ int main(int argc, char **argv)
     assert(false && "intentional Win32 assert probe");
     return 0;
   }
+#endif
+
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // Absolute zero is a startup invariant; tests use their own allocation deltas.
+  loka::core::LokaAllocAuditCheckpoint("test runner startup");
 #endif
 
   if (argc == 1)
