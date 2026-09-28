@@ -7,7 +7,9 @@
 #define LOKA_TOOLBOX_WINDOW_CONTEXT_HPP
 #define LOKA_TOOLBOX_APP_HPP
 #define LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
+#ifndef LOKA_HOST_CELL_PAINT
 #define LOKA_TOOLBOX_CELL_CONTEXT_HPP
+#endif
 #define LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP
 #define LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP
 #define LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP
@@ -135,6 +137,7 @@ public:
   ToolboxButtonContext() : emitter_(0), enabled_(0) {}
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
+#ifndef LOKA_HOST_CELL_PAINT
 class ToolboxCellContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -143,6 +146,9 @@ public:
   ToolboxCellContext() : node_(0) {}
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
+#else
+#include "context/ToolboxCellContext.hpp"
+#endif
 class ToolboxPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -243,6 +249,11 @@ public:
   void syncEditTextFromState(EditTextControlBinding &);
   void refreshContextProps(loka::app::scene::Node *, short = 0) {}
   short measureTextWidth(const loka::core::String &, const ToolboxTextFontDescriptor &) const;
+#ifdef LOKA_HOST_CELL_PAINT
+  short measureTextWidth(const loka::core::String &) const;
+  void recordCellHit(const Rect &, loka::core::EmitterState *, loka::app::scene::BoundaryNode *,
+                     ToolboxCellContext *, loka::core::State<loka::core::String> *) {}
+#endif
   void recordTextHit(const Rect &, short, short, loka::core::State<loka::core::String> *,
                      loka::app::scene::BoundaryNode *, bool, short, ToolboxTextContext *) { ++toolbox_host::textHits; }
   void bindTextState(loka::core::State<loka::core::String> *) {}
@@ -326,7 +337,9 @@ public:
     return true;                                                                                                       \
   }
 LOKA_HOST_OTHER_HANDLER(Button)
+#ifndef LOKA_HOST_CELL_PAINT
 LOKA_HOST_OTHER_HANDLER(Cell)
+#endif
 LOKA_HOST_OTHER_HANDLER(EditText)
 LOKA_HOST_OTHER_HANDLER(ImageView)
 LOKA_HOST_OTHER_HANDLER(OpenFileDialog)

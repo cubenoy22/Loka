@@ -4,6 +4,7 @@
 #include "context/ToolboxProjectedNodeContext.hpp"
 #include "app/nodes/controls/Cell.hpp"
 #include "ToolboxPropsRefresh.hpp"
+#include "app/scene/projection/PaintFact.hpp"
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
@@ -36,6 +37,7 @@ public:
   ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePlatformController *controller);
   virtual ~ToolboxCellContext();
   virtual void onPropsApplied();
+  virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                             loka::app::scene::NodeLifecycleFact next);
 
@@ -56,6 +58,9 @@ private:
   loka::app::CellNode *node_;
   Rect rect_;
   Rect paintRect_;
+  /** The layout input, not the resulting rectangle, determines text sizing. */
+  bool widthFromText_;
+  loka::app::scene::PaintFact<loka::core::String> presented_;
   loka::core::State<loka::core::String> *text_;
 };
 

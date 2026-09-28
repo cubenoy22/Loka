@@ -372,7 +372,9 @@ namespace
 #include "ToolboxControlInput.cpp"
 #include "ToolboxInputPublication.cpp"
 #include "context/ToolboxButtonInput.cpp"
+#ifndef LOKA_HOST_CELL_PAINT
 #include "context/ToolboxCellInput.cpp"
+#endif
 #include "context/ToolboxPopupMenuInput.cpp"
 
 // The host substitutes geometry traversal; the complete production render
@@ -400,3 +402,10 @@ namespace
 #include "core/Profiler.hpp"
 #include "ToolboxRender.cpp"
 void ToolboxScenePlatformController::renderDirty(const Rect &) { this->render(); }
+
+#ifdef LOKA_HOST_CELL_PAINT
+short ToolboxScenePlatformController::measureTextWidth(const loka::core::String &value) const
+{
+  return this->measureTextWidth(value, ToolboxTextFontDescriptor());
+}
+#endif

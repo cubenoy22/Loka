@@ -32,10 +32,6 @@ namespace
 
   ToolboxCellNodeHandler gToolboxCellNodeHandler;
 
-  void BuildPascalString(const loka::core::String &value, Str255 text)
-  {
-    ToolboxBuildPascalText(value, text);
-  }
 } // namespace
 
 ToolboxCellContext::ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePlatformController *controller)
@@ -43,6 +39,7 @@ ToolboxCellContext::ToolboxCellContext(loka::app::CellNode *node, ToolboxScenePl
       node_(node),
       rect_(),
       paintRect_(),
+      widthFromText_(false),
       text_(0)
 {
 }
@@ -53,7 +50,10 @@ void ToolboxCellContext::onFactChanged(loka::app::scene::NodeLifecycleFact previ
                                        loka::app::scene::NodeLifecycleFact next)
 {
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
+  {
+    this->presented_.invalidate();
     SetRect(&this->paintRect_, 0, 0, 0, 0);
+  }
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
 
@@ -62,41 +62,67 @@ void ToolboxCellContext::updateData(loka::core::State<loka::core::String> *text)
   text_ = text;
 }
 
+loka::app::scene::PaintAnswer ToolboxCellContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
+{
+  using namespace loka::app::scene;
+  if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (!this->node_ || this->node_->props.text_ != this->text_)
+    return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
+  const loka::core::String current = this->text_ ? this->text_->get() : loka::core::String();
+  // Like Button, a text-sized Cell can move Row siblings. Grid/fixed-width
+  // Cells keep their placement even when the new text measures differently.
+  if (this->widthFromText_ && (!this->controller()
+      || this->controller()->measureTextWidth(current) != this->rect_.right - this->rect_.left))
+    return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
+  if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
+    return ToolboxExactPaint(this->paintRect_, false);
+  if (!this->presented_.isKnown())
+    return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+  return ToolboxExactPaint(this->paintRect_, !current.equals(this->presented_.value()));
+}
+
 void ToolboxCellContext::updateRect(const Rect &rect)
 {
+  Rect paintRect = rect;
+  if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, paintRect))
+    SetRect(&paintRect, 0, 0, 0, 0);
+  if (!EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
+    this->presented_.invalidate();
   this->rect_ = rect;
-  this->paintRect_ = rect;
-  if (this->controller() && !this->controller()->intersectWithProjectionClip(rect, this->paintRect_))
-    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  this->paintRect_ = paintRect;
 }
 
 void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 {
   (void)controller;
   ToolboxPaintClip clip(this->paintRect_);
+  // Full/clipped render and dirty replay share the #763 history rule.
+  if (clip.isActive() && !clip.touches(this->paintRect_))
+    return;
+  this->presented_.invalidate();
+  const loka::core::String current = this->text_ ? this->text_->get() : loka::core::String();
   Rect drawRect = this->rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
-  if (!text_)
-  {
-    return;
-  }
   Str255 text;
-  BuildPascalString(text_->get(), text);
-  if (text[0] == 0)
-  {
+  if (!ToolboxBuildPascalText(current, text))
     return;
+  if (text[0] != 0)
+  {
+    short textWidth = StringWidth(text);
+    FontInfo info;
+    GetFontInfo(&info);
+    short textHeight = static_cast<short>(info.ascent + info.descent);
+    short rectWidth = static_cast<short>(drawRect.right - drawRect.left);
+    short rectHeight = static_cast<short>(drawRect.bottom - drawRect.top);
+    short textX = static_cast<short>(drawRect.left + (rectWidth - textWidth) / 2);
+    short textY = static_cast<short>(drawRect.top + (rectHeight - textHeight) / 2 + info.ascent);
+    MoveTo(textX, textY);
+    DrawString(text);
   }
-  short textWidth = StringWidth(text);
-  FontInfo info;
-  GetFontInfo(&info);
-  short textHeight = static_cast<short>(info.ascent + info.descent);
-  short rectWidth = static_cast<short>(drawRect.right - drawRect.left);
-  short rectHeight = static_cast<short>(drawRect.bottom - drawRect.top);
-  short textX = static_cast<short>(drawRect.left + (rectWidth - textWidth) / 2);
-  short textY = static_cast<short>(drawRect.top + (rectHeight - textHeight) / 2 + info.ascent);
-  MoveTo(textX, textY);
-  DrawString(text);
+  if (!EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
+    this->presented_.commit(current, ToolboxPaintScope());
 }
 
 short ToolboxCellContext::layout(loka::app::scene::IPlatformController *controller,
@@ -106,6 +132,7 @@ short ToolboxCellContext::layout(loka::app::scene::IPlatformController *controll
   {
     return 0;
   }
+  this->widthFromText_ = state.width <= 0;
   short width = state.width;
   if (width <= 0 && node_->props.text_)
   {
