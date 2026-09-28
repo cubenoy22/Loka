@@ -59,6 +59,47 @@ the way #496 was characterized, rather than assuming the determinism carries.
 - The checkpoint freezes the goldens with the machine: reverting to it also
   reverts any goldens baked after it.
 
+### Several sessions share one guest
+
+Agent sessions run in parallel and reach the same guest. On 2026-09-28 one
+session ran `git checkout` in the guest's clone while another session was
+building its candidate there. The second session's single-test runs then
+executed the other branch's binary and reported every new test as
+`Unknown test`. These rules keep one guest usable by several sessions:
+
+- **Unit tests and non-golden verification builds run in a per-session
+  worktree of the guest's clone:**
+  `git -C <guest-clone> worktree add --detach <guest-clone>-<slug> <sha>`.
+  - The worktree has its own `build\` tree.
+  - It lives on the guest's disk, so the host-side-worktree warning above
+    does not apply.
+- **Golden bake/verify runs entirely in the guest's main clone, under the
+  golden lock.** This includes checking out and building the candidate it
+  verifies.
+  - The rail reads the goldens *and* the scenario executables from the clone
+    it runs in: `tests/win32/run-scenario.ps1` derives both from
+    `$ProjectDirectory`.
+  - A candidate built in a worktree and verified from the main clone would
+    therefore run the main clone's stale binaries against the goldens.
+  - The rig descriptor and the goldens stay in the main clone because the
+    checkpoint freezes them together.
+  - Outside the lock, never check out or build anything in the main clone.
+- **Take the golden lock atomically and release only your own.** A
+  check-then-write lock lets two sessions both see no lock.
+  - Take it by creating a directory without `-Force`: `New-Item -ItemType
+    Directory <setup-folder>\golden.lock -ErrorAction Stop` fails when the
+    directory already exists.
+  - Then write `owner.txt` inside it with the session and the purpose.
+  - When the work ends, remove the directory only if `owner.txt` still names
+    your session.
+  - If you cannot take the lock, wait or ask. Do not delete another session's
+    lock.
+- **Give scheduled tasks names that carry the session's slug**, so that
+  `schtasks /Create /F` cannot silently replace another session's task.
+
+When the work ends, delete your scheduled tasks. Delete your worktree too,
+unless a follow-up on the same issue still needs it.
+
 ## Checkout layout
 
 - **The WSL ext4 clone is the source of truth.** Clone it with WSL `git`, not
