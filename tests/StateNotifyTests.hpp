@@ -10,4 +10,8 @@ void testStateExternalGuardSurvivesDestructionAndAddressReuse();
 void testDialogExternalGuardProtectsUnobservedEmitter();
 
 
+void testNextTickRunScopeRefusesRun();
+void testNextTickNestedRunScopeIsInert();
+void testNextTickRunScopePublishesRequestOnClose();
+
 #endif // LOKA_STATE_NOTIFY_TESTS_HPP

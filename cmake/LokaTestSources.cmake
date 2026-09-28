@@ -15,7 +15,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/KeyedGenerationStorageTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyScopeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyLayoutTests.cpp
-  ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyFlexTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/LazyViewTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/TestingHooks.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ExampleAppConfigCompileTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ApplicationFileTests.cpp

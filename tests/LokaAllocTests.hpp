@@ -5,6 +5,8 @@ void testLokaAllocDefaultBackendRoundTrip();
 void testLokaNewReturnsNullWhenBackendRefusesNthAllocation();
 void testLokaAllocBackendResetRestoresDefault();
 void testLokaAllocAuditBalancedUseCountsToZero();
+void testBlobOwnedWriteLeavesNoLiveGateAllocation();
+void testBlobEmptyWritePreservesSharedRecord();
 void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow();
 
 #endif // LOKA_TESTS_LOKA_ALLOC_TESTS_HPP

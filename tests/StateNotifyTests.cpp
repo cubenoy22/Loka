@@ -496,10 +496,10 @@ void testStateNotify()
   // --- NextTickTracker: delay accumulation keeps earliest request (min wins) ---
   {
     loka::core::NextTickTracker tracker;
-    assert(!tracker.hasPendingRequest());
+    LOKA_VERIFY(!tracker.hasPendingRequest());
 
     tracker.request(1000);
-    assert(tracker.hasPendingRequest());
+    LOKA_VERIFY(tracker.hasPendingRequest());
     assert(tracker.pendingDelayMs() == 1000UL);
 
     tracker.request(0);
@@ -635,4 +635,65 @@ void testDialogExternalGuardProtectsUnobservedEmitter()
   }
   LOKA_VERIFY(ctx.emitter == 0);
   LOKA_VERIFY(ctx.primaryCalls == 1);
+}
+
+namespace
+{
+  bool countRunRefresh(void *data)
+  {
+    ++*static_cast<int *>(data);
+    return false;
+  }
+
+  void unexpectedRunApply(void *)
+  {
+    LOKA_VERIFY(false);
+  }
+}
+
+void testNextTickRunScopeRefusesRun()
+{
+  loka::core::NextTickTracker tracker;
+  int refreshes = 0;
+  tracker.request();
+  {
+    loka::core::NextTickTracker::RunScope run(tracker);
+    LOKA_VERIFY(tracker.inProgress());
+    const bool changed = tracker.run(&countRunRefresh, &unexpectedRunApply, &refreshes);
+    LOKA_VERIFY(!changed);
+    LOKA_VERIFY(refreshes == 0);
+    LOKA_VERIFY(tracker.hasPendingRequest());
+  }
+  LOKA_VERIFY(!tracker.inProgress());
+  tracker.run(&countRunRefresh, &unexpectedRunApply, &refreshes);
+  LOKA_VERIFY(refreshes == 1);
+}
+
+void testNextTickNestedRunScopeIsInert()
+{
+  loka::core::NextTickTracker tracker;
+  {
+    loka::core::NextTickTracker::RunScope outer(tracker);
+    tracker.requestAfterRun();
+    {
+      loka::core::NextTickTracker::RunScope inner(tracker);
+      LOKA_VERIFY(tracker.inProgress());
+    }
+    LOKA_VERIFY(tracker.inProgress());
+    LOKA_VERIFY(!tracker.hasPendingRequest());
+  }
+  LOKA_VERIFY(!tracker.inProgress());
+  LOKA_VERIFY(tracker.hasPendingRequest());
+}
+
+void testNextTickRunScopePublishesRequestOnClose()
+{
+  loka::core::NextTickTracker tracker;
+  {
+    loka::core::NextTickTracker::RunScope run(tracker);
+    tracker.requestAfterRun();
+    LOKA_VERIFY(!tracker.hasPendingRequest());
+  }
+  LOKA_VERIFY(!tracker.inProgress());
+  LOKA_VERIFY(tracker.hasPendingRequest());
 }

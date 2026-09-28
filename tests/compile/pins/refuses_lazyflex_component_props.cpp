@@ -1,4 +1,4 @@
-#include "app/nodes/nestable/LazyFlex.hpp"
+#include "app/nodes/nestable/LazyView.hpp"
 using namespace loka::app::scene;
 class Probe;
 struct Props : NodePropsBase<Props>

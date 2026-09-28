@@ -4,7 +4,8 @@
 #include "LazyListModel.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Box.hpp"
-#include "app/nodes/nestable/LazyFlex.hpp"
+#include "app/nodes/nestable/LazyView.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 
 namespace lazylist
 {
@@ -25,21 +26,21 @@ namespace lazylist
     LazyListModel *model;
   };
 
-  /** Fixed-size pages keep list geometry explicit; each action reports its refusal. */
+  /** Fixed cells and a native scroll fact keep viewport ownership explicit. */
   class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
   public:
     explicit MainNode(const MainProps &p)
         : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
           result_(),
-          prev_(),
-          next_(),
+          scrollOffset_(),
           rename_(),
           remove_(),
           insert_(),
           move_()
     {
       assert(p.model);
+      this->state(this->scrollOffset_, p.model->viewport().get().y);
       this->state(this->result_,
                   loka::core::String::Literal(p.model->attachment() != loka::core::ATTACH_OK ? "List allocation refused"
                                               : p.model->cards.capacity() > LOKA_LAZYFLEX_MAX_ITEMS
@@ -49,40 +50,32 @@ namespace lazylist
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
-      c.declare(
-          Box().padding(kMargin) << (Column()
-                                     << (Box().size(kCellWidth, 40)
-                                         << (Row() << Button("Prev", &this->prev_).TEST_ID("LazyList.Prev")
-                                                   << Button("Next", &this->next_).TEST_ID("LazyList.Next")
-                                                   << Button("Rename #3", &this->rename_).TEST_ID("LazyList.Rename")
-                                                   << Button("Remove first", &this->remove_).TEST_ID("LazyList.Remove")
-                                                   << Button("Insert top", &this->insert_).TEST_ID("LazyList.Insert")
-                                                   << Button("Move first to end", &this->move_).TEST_ID("LazyList.Move")))
-                                     << (Box().size(kCellWidth, kViewportHeight)
-                                         << LazyColumn(this->props.model->cards)
-                                                .cells(kCellWidth, kCellHeight)
-                                                .wrap(1)
-                                                .viewport(this->props.model->viewport()))
-                                     << Text(this->result_.state()).TEST_ID("LazyList.Result")));
+      c.declare(Box().padding(kMargin)
+                << (Column() << (Box().size(kCellWidth, 40)
+                                 << (Row() << Button("Rename #3", &this->rename_).TEST_ID("LazyList.Rename")
+                                           << Button("Remove first", &this->remove_).TEST_ID("LazyList.Remove")
+                                           << Button("Insert top", &this->insert_).TEST_ID("LazyList.Insert")
+                                           << Button("Move first to end", &this->move_).TEST_ID("LazyList.Move")))
+                             << (Box().size(kCellWidth, kViewportHeight)
+                                 << (ScrollView(this->scrollOffset_) << LazyColumn(this->props.model->cards)
+                                                                            .cells(kCellWidth, kCellHeight)
+                                                                            .wrap(1)
+                                                                            .viewport(this->props.model->viewport())))
+                             << Text(this->result_.state()).TEST_ID("LazyList.Result")));
     }
 
   private:
     virtual void declareBindings(loka::app::scene::BindingToken &token)
     {
-      token.action(this->prev_, this, &MainNode::prev);
-      token.action(this->next_, this, &MainNode::next);
+      token.watch(*this->scrollOffset_.state(), this, &MainNode::reportScrollOffset, true);
       token.action(this->rename_, this, &MainNode::rename);
       token.action(this->remove_, this, &MainNode::remove);
       token.action(this->insert_, this, &MainNode::insert);
       token.action(this->move_, this, &MainNode::move);
     }
-    void prev()
+    void reportScrollOffset()
     {
-      this->showResult(this->props.model->prevPage());
-    }
-    void next()
-    {
-      this->showResult(this->props.model->nextPage());
+      this->props.model->reportScrollOffset(this->scrollOffset_.get());
     }
     void rename()
     {
@@ -137,7 +130,8 @@ namespace lazylist
     }
 
     loka::app::scene::NodeState<loka::core::String> result_;
-    loka::core::EmitterState prev_, next_, rename_, remove_, insert_, move_;
+    loka::app::scene::NodeState<int> scrollOffset_;
+    loka::core::EmitterState rename_, remove_, insert_, move_;
   };
 } // namespace lazylist
 #endif

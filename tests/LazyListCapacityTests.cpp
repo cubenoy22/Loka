@@ -31,15 +31,14 @@ void testLazyListCapacityRefusal300()
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   scene.flushInvalidation();
   loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(scene);
-  // Main -> Box -> Column -> (bar, list seat, status).
+  // Main -> Box -> Column -> (bar, Box -> ScrollView -> list, status).
   loka::app::scene::Node *column = root->asNestable()->childrenHead()->asNestable()->childrenHead();
   loka::app::scene::Node *seat = column->asNestable()->childrenHead()->nextInComposition;
-  loka::app::LazyFlexNode<lazylist_capacity_test::CardProps> *flex =
-      static_cast<loka::app::LazyFlexNode<lazylist_capacity_test::CardProps> *>(seat->asNestable()->childrenHead());
-  LOKA_VERIFY(flex->status() == loka::app::LAZY_FLEX_CAPACITY_REFUSED);
+  loka::app::LazyViewNode<lazylist_capacity_test::CardProps> *flex =
+      static_cast<loka::app::LazyViewNode<lazylist_capacity_test::CardProps> *>(seat->asNestable()->childrenHead()->asNestable()->childrenHead());
   LOKA_VERIFY(flex->childrenHead() == 0);
   {
-    const bool fact = platform.ledger().size() == 6;
+    const bool fact = platform.ledger().size() == 4;
     LOKA_VERIFY(fact);
   }
   loka::dsl::testing::SceneTestAccess::unmount(scene);

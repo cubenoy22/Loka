@@ -4,7 +4,7 @@
 >
 > **Owns:** Scope, review decisions, and provisional rail limits for #631-b
 >
-> **Does not own:** LazyFlex/list behavior, scrolling, focus, measurement, native visibility
+> **Does not own:** LazyView/list behavior, scrolling, focus, measurement, native visibility
 >
 > **Code truth:** `common/app/layout/CanvasLayout.hpp`, `common/app/nodes/nestable/Canvas.hpp`, `common/app/nodes/nestable/Show.hpp`
 >
@@ -73,3 +73,12 @@ Remaining target work: Toolbox build and MAME runtime placement, baseline
 conventions for controls, and legacy parent extent limits. Native clipping,
 removing stale native placements, and virtualized materialization remain
 outside this container's placement-only contract.
+
+## Bounded resident projection (#990)
+
+`CanvasNode::placement()` supplies a completed policy, viewport and resident
+origin to the common handler. Ordinary Canvas clips with its existing
+conservative far-edge rule. LazyView's internal Canvas places every admitted
+resident at `policy.place(first + local)` and reports `policy.extent(list.size())`.
+It does not subtract viewport origin: ScrollView is the translation owner.
+No extra rail handler or runtime visibility ledger is introduced.

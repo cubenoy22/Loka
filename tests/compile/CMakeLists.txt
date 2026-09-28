@@ -498,3 +498,8 @@ foreach(kind IN ITEMS refuses accepts)
   target_compile_options(compilePin_toolbox-input-body_${kind} PRIVATE
     -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
 endforeach()
+
+loka_compile_pin(boundary-declaration-is-kernel-owned
+  REFUSES pins/refuses_boundary_declaration.cpp
+  ACCEPTS pins/accepts_boundary_declaration.cpp
+)

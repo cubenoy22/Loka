@@ -477,7 +477,7 @@ Repeated posts overwrite the pending key. Delivery happens at completion and
 only Null implements the write door in this common + Null stage; production
 Toolbox/Win32/macOS writes follow in separate PRs.
 
-An off-screen LazyFlex row or hidden Show field waits until it appears;
+An off-screen LazyView row or hidden Show field waits until it appears;
 requests do not scroll or activate windows. An observed move to another field
 of the same fact cancels that fact's pending request. Native refusal after a
 take consumes it. There is no reply, fairness across facts, or automatic wake-up;
@@ -1033,7 +1033,7 @@ debug assert enforces that at least one completion binding exists.
 
 The design goal is that memory and lifecycle are visible from the DSL structure.
 
-### `LazyColumn()` / `LazyRow()`
+### `LazyView()` / `LazyColumn()` / `LazyRow()`
 
 See [LazyList](../example/LazyList/README.md) for a paged card view with content edits, structural edits, and compile-time capacity builds.
 
@@ -1045,26 +1045,39 @@ The list and the viewport State belong to the app and must outlive the view.
 c.declare(LazyColumn(cards).cells(200, 20).viewport(*this->viewport_.state()));
 ```
 
-`LazyRow(cards)` selects horizontal progression. `.wrap(count)` groups cells
-across the other axis; `LazyFlex<CardProps>(cards).axis(STACK_AXIS_COLUMN)`
-is the explicit form. The app writes the viewport rectangle in content coordinates.
+`LazyRow(cards)` selects horizontal progression.
+Horizontal viewport movement selects the window but leaves residents in absolute
+content coordinates; horizontal scrolling is pending a ScrollView X offset.
+`.wrap(count)` groups cells
+across the other axis. The explicit form is
+`LazyView<CardProps>(cards, layout::FixedGrid(200, 20))`. The helpers also
+accept `.margin(rows)`, defaulting to one extra main-axis row on each side. The app writes the viewport rectangle in content coordinates.
 An empty initial viewport creates no item controls until the first sized value.
 
-Each item has a logical visibility seat using `Show(...).destroyOnDetach()`.
-Visible items materialize their components and native controls; leaving the
-viewport destroys those components, leaving no item native control or native
-ledger row. The visibility seat survives, and a hidden item is built from its
-current model value when it next appears.
+Only the selected window has components and native controls. The window includes
+margin rows, so mounted controls need not be exactly the visible intersection.
+There are no hidden-item Show seats. An empty viewport selects no items.
+Selection is in content coordinates; put the view under ScrollView for scrolling.
+ScrollView owns translation, while the view reports the full list extent even
+though only a bounded window is resident.
 
-A visible content edit uses `NodeDefinition::applyPropsToNode` and refreshes
-`declareBindings` without re-declaration, preserving other item-local node state.
-Inserting, removing, moving, or resetting items successfully replaces the entire
-LazyScope generation: none of that generation's item-local state survives.
-Put facts that must survive paging or structure changes in the model.
+A content edit in the window reapplies item Props and refreshes bindings without
+re-declaration. Off-window edits are read when a future generation materializes.
+A change to `(first, count, structureRevision)` replaces the whole LazyScope
+generation, including overlapping items. Item-local state and focus are lost on
+window crossings, resizing that changes the window, and structural edits.
+An unchanged key retains the generation. Put facts that must survive replacement
+in the model. Layout-only props changes also recompute selection and placement.
+
+A refused candidate keeps the old generation at the current scroll offset; a
+stale or vacant window is allowed until retry. The next flush retries without a
+new scroll. See [declaration seats](KeyedSeatDesign.md#from-agentsmd) for ownership,
+retry and cost details.
 
 Give each item's EditText the screen's one focus fact and a key from the
 item's model value: an app id, or `ItemId` (which has a built-in key mapping).
-Scrolling the focused item out reports none; returning does not restore focus.
+Replacing the window retires every item, including the focused item; returning
+does not restore focus.
 Keep the item's fact and key fixed for its lifetime: content edits do not
 change its nested `.focusedAs`; change them through a structural edit. Native
 focus behavior on scroll-out and return still awaits runtime verification.
@@ -1093,25 +1106,26 @@ void composeChildren(scene::NodeComposition &c) {
 }
 ```
 
-See [Focus design](FocusDesign.md#lazyflex-and-other-seats) for the contract.
+See [Focus design](FocusDesign.md#lazyview-and-other-seats) for the contract.
 
-`LazyFlexNode::status()` reports `LAZY_FLEX_CAPACITY_REFUSED` when the attached
-list's reserved capacity exceeds `LOKA_LAZYFLEX_MAX_ITEMS`, even if its current
-size fits; a refused view declares no items. The default cap is 256; it is a
-capacity contract over reserved entries, not a performance bound.
-Viewport and list changes settle through the scene's normal queued update flush.
+A view whose list's reserved capacity exceeds `LOKA_LAZYFLEX_MAX_ITEMS` declares
+no items, even if its current size fits. This is a capacity admission contract,
+not a performance bound. The old LazyFlex Props/Node/status family is removed.
+Viewport and list changes settle through the scene's queued update flush.
 
-The cost of a viewport update (a page flip or scroll) grows superlinearly
-with the number of declared items, not with the number visible: state
-propagation, observed-state matching, and the visibility-seat walk each scale
-with the item count. Content edits are different: `refreshContent` visits only
-the changed range, and only a structure replacement is O(n). Measured on the LazyList
-example (headless MAME, Macintosh IIx, 8 MB, one populated `Show` per item), a
-steady page flip took about 0.43 s at 25 items, 0.97 s at 100, and 2.5 s at
-200. In that configuration roughly 100 items keeps a page flip near one
-second; larger lists on 68K hardware should expect that curve. A short, fixed
-visible set whose values merely change is better served by plain State-driven
-children than by a lazy list.
+Selection is O(1); an unchanged key causes no generation replacement. A changed
+key declares and retires O(window count) items; content refresh applies only the
+intersection of the changed range with that window. Generic observation and
+seat-ledger costs still apply. Canceling pending demand by returning to the
+installed key refreshes that retained window in O(window count), recovering
+content edits skipped while replacement was pending. Null pins compare N=50 and N=200 with a fixed
+viewport; native timing acceptance is separate.
+
+Historical #639 evidence: the old all-N LazyFlex/Show path took about 0.43 s at
+25 items, 0.97 s at 100, and 2.5 s at 200 for a steady page flip on the LazyList
+example (headless MAME, Macintosh IIx, 8 MB). Those measurements describe that
+former implementation and do not establish LazyView timing. #990 PR 3 renews
+Toolbox measurements and reviews goldens under the new residency policy.
 
 ## 14. DSL And Composition
 
