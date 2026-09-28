@@ -10,6 +10,7 @@
 #include <Quickdraw.h>
 
 class ToolboxScenePlatformController;
+class ToolboxPlainTextLines;
 namespace loka
 {
   namespace testing
@@ -94,6 +95,7 @@ private:
   struct Extent
   {
     short height, baselineOffset, measuredWidth;
+    loka::core::Managed<ToolboxPlainTextLines> lines;
     Extent(short h = 0, short b = 0, short w = 0)
         : height(h),
           baselineOffset(b),
