@@ -9,11 +9,12 @@ namespace toolbox_host
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
   int failRegions = 0;
+  int regions = 0;
   int textHits = 0;
   void reset()
   {
     draws.clear();
-    erases = widths = measures = fonts = metrics = textHits = 0;
+    erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
   }
 } // namespace toolbox_host
@@ -112,6 +113,7 @@ bool EmptyRect(const Rect *r)
 }
 RgnHandle NewRgn()
 {
+  ++toolbox_host::regions;
   if (toolbox_host::failRegions > 0)
   {
     --toolbox_host::failRegions;

@@ -369,7 +369,15 @@ short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::ap
 {
   this->applyStyle();
   const HFONT font = ResolveTextFont(this->node_, this->controller());
-  const Constraint constraint(this->controller()->displayScale().nativeLength(0, state.width).px,
+  // Generated lines are broken for the native width the STATIC receives:
+  // edges projected at the placement, like the attributed rail (#1008: an
+  // origin-zero width can be one pixel wider). Text that generates no lines
+  // measures only its font height, so its key carries no width at all and a
+  // moving label at a fractional scale keeps hitting.
+  const int keyWidth = this->node_ && GeneratesLines(this->node_->props)
+                           ? this->controller()->displayScale().nativeLength(state.x, state.x + state.width).px
+                           : 0;
+  const Constraint constraint(keyWidth,
                               font ? font : this->controller()->displayFont());
   if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
   {
