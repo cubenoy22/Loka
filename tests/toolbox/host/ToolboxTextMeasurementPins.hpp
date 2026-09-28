@@ -240,6 +240,48 @@ namespace
     }
   }
 
+  void PlainWordBoundaryPins()
+  {
+    Pin("PlainWordBoundariesAndCharacterFallback");
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+    const char *texts[] = {"ab cdef", "ab cdef", "abcdefgh", "ab\tcdef", "ab  cdef", "abcd ef"};
+    const char *firstLines[] = {"ab ", "ab c", "abcd", "ab\t", "ab  ", "abcd"};
+    const char *secondLines[] = {"cdef", "def", "efgh", "cdef", "cdef", " ef"};
+    for (std::size_t i = 0; i < sizeof(texts) / sizeof(texts[0]); ++i)
+    {
+      TextDefinitionWithAttr definition = Text(texts[i]) + FontSize<12>()
+          + BlockStyle().wrap(i == 1 ? TEXT_WRAP_CHAR : TEXT_WRAP_WORD);
+      TextNode *node = static_cast<TextNode *>(definition.create());
+      LOKA_VERIFY(node);
+      LayoutState seat = Seat(16);
+      NodeContext *installed = controller.nodeHandlerRegistry_.find(node)->ensureContext(node, &controller, seat);
+      LOKA_VERIFY(installed);
+      ToolboxTextContext &context = *static_cast<ToolboxTextContext *>(installed);
+      toolbox_host::reset();
+      node->layout(&controller, seat);
+      const Rect rect = MeasurementRect(context);
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == firstLines[i]);
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == secondLines[i]);
+      const int pitch = toolbox_host::draws[1].y - toolbox_host::draws[0].y;
+      LOKA_VERIFY(pitch > 0);
+      LOKA_VERIFY(rect.bottom - rect.top == 2 * pitch);
+      const int calls = MeasurementCalls();
+      seat = Seat(16);
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(MeasurementCalls() == calls);
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == firstLines[i]);
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == secondLines[i]);
+      DestroyHeapNode(node);
+    }
+  }
+
   void PlainWrappedEdgePins()
   {
     loka::core::testing::failLokaAllocRaw("ToolboxPlainText", "Lines", 0);
@@ -335,7 +377,7 @@ namespace
       context.repaint();
       LOKA_VERIFY(toolbox_host::draws.size() == 2);
       LOKA_VERIFY(toolbox_host::draws[0].y == 32 && toolbox_host::draws[1].y == 49);
-      LOKA_VERIFY(toolbox_host::draws[0].x == 10 && toolbox_host::draws[1].x == 18);
+      LOKA_VERIFY(toolbox_host::draws[0].x == 14 && toolbox_host::draws[1].x == 14);
       LOKA_VERIFY(MeasurementRect(context).bottom - MeasurementRect(context).top == 34);
       toolbox_host::draws.clear();
       toolbox_host::failRegions = 2;
@@ -365,6 +407,7 @@ namespace
   {
     if (plainPins)
     {
+      PlainWordBoundaryPins();
       PlainWrappedPaintPins();
       PlainWrappedEdgePins();
     }

@@ -31,7 +31,7 @@ class ToolboxPlainTextLines
 {
 public:
   static loka::core::Managed<ToolboxPlainTextLines> Build(
-      const loka::core::String &value, short width, short pitch,
+      const loka::core::String &value, short width, short pitch, loka::app::TextWrap wrap,
       const ToolboxTextMeasureScope &measure)
   {
     ToolboxPlainTextLines *lines = loka::core::LokaNew<ToolboxPlainTextLines>(Site());
@@ -39,10 +39,10 @@ public:
       return loka::core::Managed<ToolboxPlainTextLines>();
     std::size_t count = 0;
     if (pitch <= 0 || !measure.valid() || !loka::platform::CollectUtf8(value, lines->bytes_)
-        || !lines->walk(width, false, count)
+        || !lines->walk(width, wrap, false, count)
         || count > static_cast<std::size_t>(SHRT_MAX / pitch)
         || !lines->ranges_.allocate(count)
-        || !lines->walk(width, true, count))
+        || !lines->walk(width, wrap, true, count))
     {
       Release(lines, 0);
       return loka::core::Managed<ToolboxPlainTextLines>();
@@ -100,10 +100,10 @@ private:
     ++count;
     return true;
   }
-  bool walk(short maxWidth, bool fill, std::size_t &count)
+  bool walk(short maxWidth, loka::app::TextWrap wrap, bool fill, std::size_t &count)
   {
     count = 0;
-    std::size_t start = 0;
+    std::size_t start = 0, wordStart = 0;
     for (std::size_t i = 0; i < this->bytes_.size();)
     {
       const std::size_t cpStart = i++;
@@ -113,23 +113,32 @@ private:
       {
         if (!this->append(start, cpStart, fill, count))
           return false;
-        start = i;
+        start = wordStart = i;
         continue;
       }
       Str255 candidate;
       candidate[0] = static_cast<unsigned char>(i - start > 255 ? 255 : i - start);
       std::memcpy(candidate + 1, this->bytes_.data() + start, candidate[0]);
       const short width = StringWidth(candidate);
-      // Preserve the legacy WORD/CHAR width decision and spaces. Each native
-      // line must also fit Str255 without splitting a UTF-8 code point.
+      const bool space = this->bytes_[cpStart] == ' ' || this->bytes_[cpStart] == '\t';
+      // Twin: TextLineBreaker::build keeps fitting spaces/tabs, moves the
+      // following word intact, and force-breaks a word at an empty line.
+      // This native walk additionally bounds every range to Str255 and keeps
+      // the plain path's independent CR/LF breaks.
       if ((width > maxWidth || i - start > 255) && cpStart != start)
       {
-        if (!this->append(start, cpStart, fill, count))
+        const std::size_t end = wrap == loka::app::TEXT_WRAP_WORD && !space && wordStart > start
+            ? wordStart : cpStart;
+        if (!this->append(start, end, fill, count))
           return false;
-        start = cpStart;
+        start = wordStart = end;
+        i = end;
+        continue;
       }
       if (i - start > 255)
         return false;
+      if (space)
+        wordStart = i;
     }
     return this->append(start, this->bytes_.size(), fill, count);
   }
@@ -258,7 +267,7 @@ namespace
     }
     if (wraps)
     {
-      geometry.lines = ToolboxPlainTextLines::Build(value, state.width, geometry.linePitch, measure);
+      geometry.lines = ToolboxPlainTextLines::Build(value, state.width, geometry.linePitch, wrap, measure);
       if (!geometry.lines.isValid())
         return false;
       const int extra = geometry.lines->height() - (style.hasFontSize_ ? geometry.linePitch : state.lineHeight);
