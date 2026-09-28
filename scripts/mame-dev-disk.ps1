@@ -97,7 +97,8 @@ if ($MacBinaryPath -eq "--all") {
     )
     $PlainDataPaths = @(
         (Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP"),
-        (Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS")
+        (Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS"),
+        (Join-Path $ProjectDirectory "example/SmirkyCard/MINES.JS")
     )
 }
 $resolvedMacBinaries = @(

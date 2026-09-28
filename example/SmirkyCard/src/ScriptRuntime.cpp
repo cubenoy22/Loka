@@ -49,8 +49,9 @@ namespace smirkycard
       return copy;
     }
   } // namespace
-  JsEngine::JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry)
+  JsEngine::JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry, const std::string &sourceName)
       : runtime_(&runtime),
+        sourceName_(sourceName),
         script_(SmirkyScriptCreate()),
         first_(JS_UNDEFINED),
         second_(JS_UNDEFINED),
@@ -171,9 +172,9 @@ namespace smirkycard
     delete this->currentEngine_;
   }
 
-  JsEngine *ScriptRuntime::createEngine()
+  JsEngine *ScriptRuntime::createEngine(const std::string &sourceName)
   {
-    JsEngine *engine = new (std::nothrow) JsEngine(*this, this->registry_);
+    JsEngine *engine = new (std::nothrow) JsEngine(*this, this->registry_, sourceName);
     if (engine && !engine->context())
     {
       delete engine;
@@ -426,6 +427,21 @@ namespace smirkycard
     return JS_UNDEFINED;
   }
 
+  JSValue ScriptRuntime::open(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
+  {
+    ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
+    JsCardNode *active = self ? self->active(ctx) : 0;
+    if (!active || argc != 1 || !JS_IsString(argv[0]))
+      return JS_ThrowTypeError(ctx, "open(name) requires an active card and string name");
+    size_t length = 0;
+    const char *name = JS_ToCStringLen(ctx, &length, argv[0]);
+    if (!name)
+      return JS_EXCEPTION;
+    active->requestOpen(name, length);
+    JS_FreeCString(ctx, name);
+    return JS_UNDEFINED;
+  }
+
   JSValue ScriptRuntime::reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *)
   {
     ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
@@ -464,22 +480,22 @@ namespace smirkycard
       return; // unavailable runtime: every later call reports it (loadBuiltin's path)
     std::string text;
     loka::core::String error;
-    if (this->readMain(text, error))
+    if (this->readFile("MAIN.JS", text, error))
     {
-      if (this->evalMain(*this->currentEngine_, text.data(), text.size(), "MAIN.JS", error))
+      JsEngine *candidate = this->createEngine("MAIN.JS");
+      if (!candidate)
+        error = loka::core::String::Literal("JavaScript runtime is unavailable.");
+      else if (this->evalMain(*candidate, text.data(), text.size(), "MAIN.JS", error))
       {
+        this->replaceCurrentEngine(candidate);
         this->mainSource_ = MAIN_SOURCE_FILE;
         return;
       }
       this->mainError_ =
           loka::core::String::Literal("MAIN.JS: ") + error + loka::core::String::Literal("; using built-in cards");
       this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
-      // The failed candidate may have redefined globals or registered cards;
-      // built-ins run in a fresh engine, never the poisoned one.
-      delete this->currentEngine_;
-      this->currentEngine_ = this->createEngine();
-      if (!this->currentEngine_)
-        return;
+      // Only the scratch engine saw the failed file; the built-in engine is clean.
+      delete candidate;
     }
     else
     {
@@ -490,13 +506,14 @@ namespace smirkycard
     this->loadBuiltin(BuiltinMainJs(), ignored);
   }
 
-  bool ScriptRuntime::readMain(std::string &text, loka::core::String &error) const
+  bool ScriptRuntime::readFile(const std::string &name, std::string &text, loka::core::String &error) const
   {
-    const loka::file::File item = loka::file::File::Application() << loka::file::File("MAIN.JS");
+    const loka::core::String fileName = loka::core::String::Utf8(name.data(), name.size());
+    const loka::file::File item = loka::file::File::Application() << loka::file::File(fileName);
     loka::platform::file::FileHandle handle;
     if (!this->mainContext_ || !this->mainContext_->openFile(item, handle))
     {
-      error = loka::core::String::Literal("MAIN.JS: file is missing");
+      error = fileName + loka::core::String::Literal(": file is missing");
       return false;
     }
 #if defined(LOKA_RETRO68)
@@ -507,18 +524,18 @@ namespace smirkycard
     if (handle.displayPath.empty() || !source.open(handle.displayPath))
 #endif
     {
-      error = loka::core::String::Literal("MAIN.JS: file is missing or could not read");
+      error = fileName + loka::core::String::Literal(": file is missing or could not read");
       return false;
     }
     std::size_t length = 0;
     if (!source.size(length))
     {
-      error = loka::core::String::Literal("MAIN.JS: could not read");
+      error = fileName + loka::core::String::Literal(": could not read");
       return false;
     }
     else if (length > 64u * 1024u)
     {
-      error = loka::core::String::Literal("MAIN.JS: exceeds 64 KiB");
+      error = fileName + loka::core::String::Literal(": exceeds 64 KiB");
       return false;
     }
     else
@@ -526,7 +543,7 @@ namespace smirkycard
       text.assign(length, '\0');
       if (!source.readAt(0, length ? reinterpret_cast<unsigned char *>(&text[0]) : 0, length))
       {
-        error = loka::core::String::Literal("MAIN.JS: could not read");
+        error = fileName + loka::core::String::Literal(": could not read");
         return false;
       }
       error = loka::core::String();
@@ -536,26 +553,40 @@ namespace smirkycard
 
   JsEngine *ScriptRuntime::prepareReload(SmirkyCardId card, loka::core::String &error)
   {
+    const std::string &source = this->currentEngine_->sourceName_;
+    return this->prepareFile(source.empty() ? std::string("MAIN.JS") : source, card, error);
+  }
+
+  JsEngine *ScriptRuntime::prepareOpen(const std::string &name, loka::core::String &error)
+  {
+    const std::string flatName = name.compare(0, 2, "./") == 0 ? name.substr(2) : name;
+    return this->prepareFile(flatName, SMIRKY_CARD_FIRST, error);
+  }
+
+  JsEngine *ScriptRuntime::prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error)
+  {
     std::string text;
-    if (!this->readMain(text, error))
+    if (!this->readFile(name, text, error))
       return 0;
-    JsEngine *candidate = this->createEngine();
+    const loka::core::String prefix =
+        loka::core::String::Utf8(name.data(), name.size()) + loka::core::String::Literal(": ");
+    JsEngine *candidate = this->createEngine(name);
     if (!candidate)
     {
-      error = loka::core::String::Literal("MAIN.JS: JavaScript runtime is unavailable.");
+      error = prefix + loka::core::String::Literal("JavaScript runtime is unavailable.");
       return 0;
     }
-    if (!this->evalMain(*candidate, text.data(), text.size(), "MAIN.JS", error))
+    if (!this->evalMain(*candidate, text.data(), text.size(), name.c_str(), error))
     {
       delete candidate;
-      error = loka::core::String::Literal("MAIN.JS: ") + error;
+      error = prefix + error;
       return 0;
     }
     if (!candidate->hasConstructor(card))
     {
-      const char *name = card == SMIRKY_CARD_FIRST ? "first" : card == SMIRKY_CARD_SECOND ? "second" : "unknown";
+      const char *cardName = card == SMIRKY_CARD_FIRST ? "first" : card == SMIRKY_CARD_SECOND ? "second" : "unknown";
       delete candidate;
-      error = loka::core::String::Literal("MAIN.JS: card '") + loka::core::String::Literal(name)
+      error = prefix + loka::core::String::Literal("card '") + loka::core::String::Literal(cardName)
               + loka::core::String::Literal("' is not defined");
       return 0;
     }

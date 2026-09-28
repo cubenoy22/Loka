@@ -107,9 +107,11 @@ if ($All) {
     if (Test-Path -LiteralPath $assets) {
         $plainData += (Resolve-Path -LiteralPath $assets).Path
     }
-    $smirkyCardMain = Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS"
-    if (Test-Path -LiteralPath $smirkyCardMain) {
-        $plainData += (Resolve-Path -LiteralPath $smirkyCardMain).Path
+    foreach ($script in @("MAIN.JS", "MINES.JS")) {
+        $smirkyCardScript = Join-Path $ProjectDirectory "example/SmirkyCard/$script"
+        if (Test-Path -LiteralPath $smirkyCardScript) {
+            $plainData += (Resolve-Path -LiteralPath $smirkyCardScript).Path
+        }
     }
 } elseif ($MacBinaryPath) {
     $macBinaries += (Resolve-Path -LiteralPath $MacBinaryPath).Path

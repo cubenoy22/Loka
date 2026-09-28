@@ -49,6 +49,7 @@ namespace smirkycard
     void requestGo(const char *name, size_t length);
     void requestGo(SmirkyCardId card);
     void requestReload();
+    void requestOpen(const char *name, size_t length);
     bool setComposeTree(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);

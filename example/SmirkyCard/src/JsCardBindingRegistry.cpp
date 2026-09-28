@@ -394,6 +394,7 @@ namespace smirkycard
     IJsGlobal card = {"card", &ScriptRuntime::card, 2};
     IJsGlobal state = {"state", &ScriptRuntime::state, 1};
     IJsGlobal go = {"go", &ScriptRuntime::go, 1};
+    IJsGlobal open = {"open", &ScriptRuntime::open, 1};
     IJsGlobal reload = {"reload", &ScriptRuntime::reload, 0};
     return registry.registerLowering(new (std::nothrow) StackLowering("VStack", false))
            && registry.registerLowering(new (std::nothrow) TextLowering())
@@ -402,6 +403,7 @@ namespace smirkycard
            && registry.registerLowering(new (std::nothrow) StackLowering("Row", true))
            && registry.registerLowering(new (std::nothrow) MarkupLowering())
            && registry.registerLowering(new (std::nothrow) ClickableLowering(true)) && registry.registerGlobal(card)
-           && registry.registerGlobal(state) && registry.registerGlobal(go) && registry.registerGlobal(reload);
+           && registry.registerGlobal(state) && registry.registerGlobal(go) && registry.registerGlobal(reload)
+           && registry.registerGlobal(open);
   }
 } // namespace smirkycard
