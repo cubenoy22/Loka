@@ -130,6 +130,24 @@ namespace
     // rounds the 144 dpi width from 152 to 151 px and rebuilds the lines.
     LOKA_VERIFY(measurementCalls() > calls);
     std::printf("  x-phase 144dpi: rebuild 152 -> 151px\n");
+    if (!attributed)
+    {
+      // Text that generates no lines keys on no width: moving it across the
+      // rounding phase neither measures nor selects a font again.
+      LOKA_VERIFY((Text("label") + FontSize<24>()).applyPropsToNode(&node));
+      state.x = 0;
+      node.layout(&controller, state);
+      calls = measurementCalls();
+      selections = win32_host::selections;
+      state.x = 1;
+      node.layout(&controller, state);
+      LOKA_VERIFY(measurementCalls() == calls && win32_host::selections == selections);
+      std::printf("  x-phase 144dpi, no generated lines: hit\n");
+      LOKA_VERIFY((Text("applied") + FontSize<24>() + BlockStyle().wrap(TEXT_WRAP_WORD).align(TEXT_ALIGN_CENTER))
+                      .applyPropsToNode(&node));
+      node.layout(&controller, state);
+      calls = measurementCalls();
+    }
 
     // Keep the effective width equal across scales: no key miss can mask a
     // missing assignment delivery. Real CreateFontIndirectW refuses here.
