@@ -107,7 +107,9 @@ namespace
   short LayoutNode(loka::app::scene::Node *node,
                    loka::app::scene::LayoutState &state,
                    ToolboxScenePlatformController *controller,
-                   loka::app::scene::BoundaryNode *currentBoundary)
+                   loka::app::scene::BoundaryNode *currentBoundary,
+                   const loka::app::layout::LazyWindow *range,
+                   loka::app::layout::StackSpans *spans)
   {
     if (!node)
     {
@@ -167,8 +169,9 @@ namespace
       {
         ToolboxLayoutTraversal traversal(controller, activeBoundary);
         usedHandler = ApplyToolboxPlatformLayoutHandler(
-            *controller->layoutHandlerRegistry(), *stack, state, traversal, width);
+            *controller->layoutHandlerRegistry(), *stack, state, traversal, width, range, spans);
       }
+      if (!usedHandler && spans) spans->invalidate();
       if (!usedHandler && stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
       {
         loka::app::StackNode *column = stack;

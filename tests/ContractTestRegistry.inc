@@ -982,3 +982,9 @@ LOKA_TEST(testLazyViewCanceledRefusedWindowRefreshesContent)
 LOKA_TEST(testLazyListNativeOffsetSelectsWindow)
 
 LOKA_TEST(testStdBoundaryDetachReattachDeclaresFreshSeatPlans)
+
+LOKA_TEST(testStackSpansSelection)
+LOKA_TEST(testStackSpansAllocationRefusal)
+LOKA_TEST(testStackSpansColumnCollection)
+LOKA_TEST(testStackSpansEligibility)
+LOKA_TEST(testScrollViewOwnLayoutInputs)

@@ -465,13 +465,15 @@ bool NullScenePlatformController::registerNodeHandler(loka::app::scene::IPlatfor
 
 int NullScenePlatformController::projectLayoutForTesting(
     loka::app::scene::Node *node,
-    const loka::app::scene::LayoutState &state)
+    const loka::app::scene::LayoutState &state,
+    const loka::app::layout::LazyWindow *range,
+    loka::app::layout::StackSpans *spans)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
   assert(!this->operationPhase().open());
 #endif
   this->layoutState_ = state;
-  return this->projectLayout(node, this->layoutState_);
+  return this->projectLayout(node, this->layoutState_, range, spans);
 }
 
 const std::vector<NullScenePlatformController::LedgerRow> &NullScenePlatformController::ledger() const
@@ -713,7 +715,9 @@ NullScenePlatformController::findLedgerRow(FakeControlHandle *handle)
 }
 
 int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
-                                            const loka::app::scene::LayoutState &state)
+                                            const loka::app::scene::LayoutState &state,
+    const loka::app::layout::LazyWindow *range,
+    loka::app::layout::StackSpans *spans)
 {
   if (!node)
   {
@@ -734,7 +738,7 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
 
   if (node->asScrollViewNode())
   {
-    return this->layoutScrollView(node, state);
+    return this->layoutScrollView(node, state, range, spans);
   }
 
   if (loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode())
@@ -776,7 +780,7 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   if (layoutHandler)
   {
     LayoutTraversal traversal(this);
-    return layoutHandler->layoutNode(node, state, &traversal);
+    return layoutHandler->layoutNode(node, state, &traversal, range, spans);
   }
 
   if (loka::app::scene::IProjectedLayoutNode *projected = node->asProjectedLayoutNode())
@@ -822,18 +826,23 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   return childState.y;
 }
 
-int NullScenePlatformController::layoutScrollView(
-    loka::app::scene::Node *node,
-    const loka::app::scene::LayoutState &state)
+int NullScenePlatformController::layoutScrollView(loka::app::scene::Node *node,
+                                                  const loka::app::scene::LayoutState &state,
+                                                  const loka::app::layout::LazyWindow *range,
+                                                  loka::app::layout::StackSpans *spans)
 {
   loka::app::ScrollViewNode *scrollView = node ? node->asScrollViewNode() : 0;
   if (!scrollView)
   {
+    if (spans)
+      spans->invalidate();
     return state.y;
   }
   if (this->projectionParentScopes_.activeDepth() != 0)
   {
     this->refuseNestedScrollView();
+    if (spans)
+      spans->invalidate();
     return state.y;
   }
   if (state.height > 0 && state.y + state.height > SHRT_MAX)
@@ -842,26 +851,29 @@ int NullScenePlatformController::layoutScrollView(
     // casts the result back to LayoutState::Coordinate, so refuse before
     // materializing a subtree whose seat cannot be represented.
     this->refuseScrollViewShortRange();
+    if (spans)
+      spans->invalidate();
     return state.y;
   }
 
   const int offset = scrollView->props.offset_.isValid() ? scrollView->props.offset_.state()->get() : 0;
   const loka::core::Frame clip(state.x, state.y, state.width, state.height);
   loka::app::scene::ProjectionParentScope childScope;
-  const loka::app::scene::ProjectionParentScope &parentScope =
-      this->projectionParentScopes_.current();
-  if (!parentScope.deriveScrolled(
-          parentScope.nativeParent, 0, offset, clip, childScope))
+  const loka::app::scene::ProjectionParentScope &parentScope = this->projectionParentScopes_.current();
+  if (!parentScope.deriveScrolled(parentScope.nativeParent, 0, offset, clip, childScope))
   {
     this->refuseScrollViewShortRange();
+    if (spans)
+      spans->invalidate();
     return state.y;
   }
 
-  loka::app::scene::ProjectionParentScopeGuard scopeGuard(
-      this->projectionParentScopes_, childScope);
+  loka::app::scene::ProjectionParentScopeGuard scopeGuard(this->projectionParentScopes_, childScope);
   if (!scopeGuard.isActive())
   {
     this->refuseNestedScrollView();
+    if (spans)
+      spans->invalidate();
     return state.y;
   }
 
@@ -869,9 +881,12 @@ int NullScenePlatformController::layoutScrollView(
   const std::size_t ledgerMark = this->rectSurfaceExtentLedger_.mark();
   bool refused = false;
   loka::app::scene::INestable *nestable = scrollView->asNestable();
-  for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
-       child;
-       child = child->nextInComposition)
+  loka::app::StackNode *column = nestable && nestable->childrenHead() ? nestable->childrenHead()->asStackNode() : 0;
+  const bool directColumn = spans && nestable->childrenCount() == 1 && column
+                            && column->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN;
+  if (spans && !directColumn)
+    spans->invalidate();
+  for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0; child; child = child->nextInComposition)
   {
     if (currentY < SHRT_MIN || currentY > SHRT_MAX)
     {
@@ -881,7 +896,7 @@ int NullScenePlatformController::layoutScrollView(
     }
     loka::app::scene::LayoutState childState = state;
     childState.y = static_cast<short>(currentY);
-    const int nextY = this->layoutNode(child, childState);
+    const int nextY = this->layoutNode(child, childState, directColumn ? range : 0, directColumn ? spans : 0);
     if (this->projectionParentScopes_.current().hasShortRangeRefusal())
     {
       // A nested traversal edge already refused and counted; do not count
@@ -889,8 +904,7 @@ int NullScenePlatformController::layoutScrollView(
       refused = true;
       break;
     }
-    if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(
-            currentY, nextY))
+    if (!this->projectionParentScopes_.current().tryAccumulateContentHeight(currentY, nextY))
     {
       this->refuseScrollViewShortRange();
       refused = true;
@@ -907,8 +921,12 @@ int NullScenePlatformController::layoutScrollView(
   {
     // Seats recorded under a refused scope are not facts.
     this->rectSurfaceExtentLedger_.discardSince(ledgerMark);
+    if (spans)
+      spans->invalidate();
   }
 
+  if (!refused && spans && spans->valid())
+    spans->placed(loka::core::Frame(0, offset, state.width, state.height));
   if (state.height > 0)
   {
     return state.y + state.height;
@@ -920,9 +938,10 @@ int NullScenePlatformController::layoutScrollView(
   return currentY;
 }
 
-int NullScenePlatformController::projectLayout(
-    loka::app::scene::Node *node,
-    const loka::app::scene::LayoutState &state)
+int NullScenePlatformController::projectLayout(loka::app::scene::Node *node,
+                                               const loka::app::scene::LayoutState &state,
+                                               const loka::app::layout::LazyWindow *range,
+                                               loka::app::layout::StackSpans *spans)
 {
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must begin at the root scope");
@@ -941,7 +960,7 @@ int NullScenePlatformController::projectLayout(
   }
   const loka::app::scene::PaintScope scope = {1, 0, 0, state.x, state.y, state.width, state.height};
   this->paintScope_ = scope;
-  const int result = this->layoutNode(node, state);
+  const int result = this->layoutNode(node, state, range, spans);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a projection pass must restore the root scope");
   if (node && node->asBoundary())
