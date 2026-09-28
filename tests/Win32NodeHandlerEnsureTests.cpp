@@ -922,8 +922,11 @@ void testWin32PlainTextWrappedLines()
     // A refused write of a long string with the same length as the current
     // text is still detected: verification compares content at every length.
     {
-      const loka::core::String longA(std::string(300, 'a').c_str());
-      const loka::core::String longB(std::string(300, 'b').c_str());
+      // Digits are tabular in the UI font, so both texts break into the same
+      // lines and the generated strings have the same length; the pin checks
+      // that precondition after the successful write below.
+      const loka::core::String longA(std::string(300, '0').c_str());
+      const loka::core::String longB(std::string(300, '1').c_str());
       node.props = TextProps(longA);
       node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
       context->onPropsApplied();
@@ -939,11 +942,12 @@ void testWin32PlainTextWrappedLines()
       LOKA_VERIFY(state.height == 0);
       LOKA_VERIFY(GetWindowTextLengthW(child) == longLength);
       wchar_t first[2] = {0, 0};
-      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'a');
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'0');
       SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
       context->layout(&controller, state);
       LOKA_VERIFY(state.height > 0);
-      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'b');
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'1');
+      LOKA_VERIFY(GetWindowTextLengthW(child) == longLength);
       node.props = TextProps("ab cdef");
       node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
       context->onPropsApplied();
