@@ -93,6 +93,20 @@ namespace
     LOKA_VERIFY(seat.y == moved.bottom + 7);
     const Rect clipped = MeasurementClip(context);
     LOKA_VERIFY(clipped.left == 19 && clipped.top == 72 && clipped.right == 35 && clipped.bottom == 78);
+    Pin("PlainClippedOutRenderSkipsScopeClipAndHit");
+    {
+      // S1 lane: a placement entirely outside the projection clip renders
+      // nothing: no font selection (measure scope), no NewRgn, no hit row.
+      SetRect(&controller.projectionClip, 200, 200, 220, 220);
+      node.layout(&controller, seat);
+      const Rect hidden = MeasurementClip(context);
+      LOKA_VERIFY(EmptyRect(&hidden));
+      const int fonts = toolbox_host::fonts;
+      const int regions = toolbox_host::regions;
+      const int hits = toolbox_host::textHits;
+      context.render(&controller);
+      LOKA_VERIFY(toolbox_host::fonts == fonts && toolbox_host::regions == regions && toolbox_host::textHits == hits);
+    }
     SetRect(&controller.projectionClip, -30000, -30000, 30000, 30000);
     seat = Seat(25);
     seat.lineHeight = 14;
