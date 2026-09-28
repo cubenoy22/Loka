@@ -5,6 +5,7 @@
 #include "support/RailTextLayoutFixture.hpp"
 #include <cassert>
 #include <cstdio>
+#include <string>
 #include <windows.h>
 #include "Win32BuiltInSupport.hpp"
 #include "Win32ScenePlatformController.hpp"
@@ -917,6 +918,39 @@ void testWin32PlainTextWrappedLines()
     LOKA_VERIFY(state.height > 0);
     LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
     LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+
+    // A refused write of a long string with the same length as the current
+    // text is still detected: verification compares content at every length.
+    {
+      const loka::core::String longA(std::string(300, 'a').c_str());
+      const loka::core::String longB(std::string(300, 'b').c_str());
+      node.props = TextProps(longA);
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height > 0);
+      const int longLength = GetWindowTextLengthW(child);
+      LOKA_VERIFY(longLength > 300);
+      node.props = TextProps(longB);
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&RefusePlainTextWrite));
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height == 0);
+      LOKA_VERIFY(GetWindowTextLengthW(child) == longLength);
+      wchar_t first[2] = {0, 0};
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'a');
+      SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height > 0);
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'b');
+      node.props = TextProps("ab cdef");
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      context->layout(&controller, state);
+      LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+      LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+    }
 
     node.props.blockStyle_.wrap(TEXT_WRAP_WORD);
     context->onPropsApplied();
