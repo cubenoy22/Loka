@@ -3,10 +3,13 @@
 #include "SmirkyMarkup.hpp"
 #include "JsClickNode.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "platform/file/FileIO.hpp"
 #include "support/TestVerify.hpp"
 #include "ScriptAlignedAlloc.h"
 #include "ScriptEngine.h"
@@ -456,6 +459,226 @@ namespace
     button->asButtonNode()->props.getOnClick()->emit();
   }
 
+  std::string readCardSource(const char *name)
+  {
+    const std::string path = std::string(SMIRKYCARD_SOURCE_DIR) + "/" + name;
+    std::FILE *file = loka::platform::file::OpenRead(loka::core::String::Utf8(path.data(), path.size()));
+    LOKA_VERIFY(file != 0);
+    std::string source;
+    char buffer[4096];
+    size_t count;
+    while ((count = std::fread(buffer, 1, sizeof(buffer), file)) != 0)
+      source.append(buffer, count);
+    LOKA_VERIFY(!std::ferror(file));
+    LOKA_VERIFY(std::fclose(file) == 0);
+    return source;
+  }
+
+  loka::app::CellNode *mineCell(NullWindow &window, int index)
+  {
+    char id[32];
+    std::sprintf(id, "Mines.Cell.%d", index);
+    loka::app::scene::Node *node = windowNode(window, id);
+    LOKA_VERIFY(node && node->asCellNode());
+    return node->asCellNode();
+  }
+
+  std::string mineLabel(NullWindow &window, int index)
+  {
+    const loka::core::StringBuffer buffer =
+        mineCell(window, index)->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf8);
+    return std::string(static_cast<const char *>(buffer.data()), buffer.length());
+  }
+
+  void clickMine(NullWindow &window, WindowAdmissionTestApp &admission, int index)
+  {
+    mineCell(window, index)->props.onClick_->emit();
+    admission.flush();
+  }
+
+  std::string minesStatus(NullWindow &window)
+  {
+    loka::app::scene::Node *node = windowNode(window, "Mines.Status");
+    LOKA_VERIFY(node && node->asTextNode());
+    return textValue(node->asTextNode());
+  }
+
+  std::string mineSnapshot(NullWindow &window)
+  {
+    std::string result = minesStatus(window);
+    for (int i = 0; i < 64; ++i)
+      result += "|" + mineLabel(window, i);
+    return result;
+  }
+
+  void checkMines()
+  {
+    const char *directory = "_smirkycard_mines_fixture";
+    const char *mainPath = "_smirkycard_mines_fixture/MAIN.JS";
+    const char *minesPath = "_smirkycard_mines_fixture/MINES.JS";
+    std::remove(mainPath);
+    std::remove(minesPath);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    writeMain(mainPath, readCardSource("MAIN.JS"));
+    writeMain(minesPath, "globalThis.SMIRKY_SEED = 0x13579BDF;\n" + readCardSource("MINES.JS"));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      clickCardButton(window, "SmirkyCard.OpenMines");
+      admission.flush();
+      const int mines[3][10] = {{3, 4, 20, 22, 37, 45, 50, 55, 56, 59},
+                                {1, 6, 16, 23, 27, 30, 34, 44, 45, 53},
+                                {3, 26, 42, 49, 50, 56, 59, 60, 62, 63}};
+      for (int board = 0; board < 3; ++board)
+      {
+        loka::app::scene::Node *content = windowNode(window, "Mines.Content");
+        loka::app::scene::Node *grid = windowNode(window, "Mines.Board");
+        LOKA_VERIFY(content && content->asStackNode());
+        LOKA_VERIFY(content->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN);
+        LOKA_VERIFY(content->asNestable()->childrenCount() == 4);
+        loka::app::scene::Node *status = content->asNestable()->childrenHead();
+        LOKA_VERIFY(status == windowNode(window, "Mines.Status"));
+        loka::app::scene::Node *error = status->nextInComposition;
+        LOKA_VERIFY(error && error == windowNode(window, "SmirkyCard.Status") && error->asTextNode());
+        LOKA_VERIFY(textValue(error->asTextNode()).empty());
+        loka::app::scene::Node *controls = error->nextInComposition;
+        LOKA_VERIFY(controls && controls->asStackNode());
+        LOKA_VERIFY(controls->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
+        LOKA_VERIFY(controls->asNestable()->childrenCount() == 3);
+        LOKA_VERIFY(find(controls, "Mines.Flag") && find(controls, "Mines.NewGame")
+                    && find(controls, "SmirkyCard.OpenMain"));
+        LOKA_VERIFY(grid && grid->asGridNode() && controls->nextInComposition == grid);
+        LOKA_VERIFY(!grid->nextInComposition);
+        LOKA_VERIFY(grid->asGridNode()->props.rows == 8 && grid->asGridNode()->props.cols == 8);
+        LOKA_VERIFY(grid->asNestable()->childrenCount() == 64);
+        LOKA_VERIFY(minesStatus(window) == "Mines left: 10");
+        for (int i = 0; i < 64; ++i)
+          LOKA_VERIFY(mineLabel(window, i) == ".");
+        clickMine(window, admission, mines[board][0]);
+        LOKA_VERIFY(minesStatus(window) == "Boom");
+        for (int i = 0; i < 64; ++i)
+        {
+          bool expectedMine = false;
+          for (int j = 0; j < 10; ++j)
+            expectedMine = expectedMine || mines[board][j] == i;
+          LOKA_VERIFY(mineLabel(window, i) == (expectedMine ? "X" : "."));
+        }
+        const std::string lost = mineSnapshot(window);
+        for (int i = 0; i < 64; ++i)
+          clickMine(window, admission, i);
+        LOKA_VERIFY(mineSnapshot(window) == lost);
+        if (board < 2)
+        {
+          clickCardButton(window, "Mines.NewGame");
+          admission.flush();
+        }
+      }
+      // Reopening the script restarts its seeded stream, unlike New Game.
+      clickCardButton(window, "SmirkyCard.OpenMain");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "SmirkyCard.Title")->asAttributedTextNode()->props.text_->get()
+                  == loka::app::Styled("Card One", loka::app::FontSize<18>() + loka::app::Bold));
+      clickCardButton(window, "SmirkyCard.OpenMines");
+      admission.flush();
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Flag")
+                      ->asButtonNode()
+                      ->props.getText()
+                      ->get()
+                      .compare(loka::core::String::Literal("Flag mode: on"))
+                  == 0);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0) == "F" && minesStatus(window) == "Mines left: 9");
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      const std::string flagged = mineSnapshot(window);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineSnapshot(window) == flagged);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0) == "." && minesStatus(window) == "Mines left: 10");
+      // A flag inside the zero region must survive flood reveal.
+      clickMine(window, admission, 8);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 2);
+      LOKA_VERIFY(mineLabel(window, 2) == "1");
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0).empty());
+      LOKA_VERIFY(mineLabel(window, 1).empty());
+      LOKA_VERIFY(mineLabel(window, 16).empty());
+      LOKA_VERIFY(mineLabel(window, 19) == "1");
+      LOKA_VERIFY(mineLabel(window, 8) == "F");
+      LOKA_VERIFY(mineLabel(window, 7) == "." && mineLabel(window, 63) == ".");
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      const std::string revealed = mineSnapshot(window);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineSnapshot(window) == revealed);
+      clickMine(window, admission, 8);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Flag")
+                      ->asButtonNode()
+                      ->props.getText()
+                      ->get()
+                      .compare(loka::core::String::Literal("Flag mode: off"))
+                  == 0);
+      for (int i = 0; i < 64; ++i)
+      {
+        bool isMine = false;
+        for (int j = 0; j < 10; ++j)
+          isMine = isMine || mines[0][j] == i;
+        if (!isMine)
+          clickMine(window, admission, i);
+      }
+      LOKA_VERIFY(minesStatus(window) == "You win");
+      for (int i = 0; i < 64; ++i)
+      {
+        bool isMine = false;
+        int adjacent = 0;
+        for (int j = 0; j < 10; ++j)
+        {
+          isMine = isMine || mines[0][j] == i;
+          const int dy = std::abs(mines[0][j] / 8 - i / 8);
+          const int dx = std::abs(mines[0][j] % 8 - i % 8);
+          if (dy <= 1 && dx <= 1 && (dx || dy))
+            ++adjacent;
+        }
+        const std::string expected = isMine ? "." : adjacent ? std::string(1, '0' + adjacent) : "";
+        LOKA_VERIFY(mineLabel(window, i) == expected);
+      }
+      const std::string won = mineSnapshot(window);
+      for (int i = 0; i < 64; ++i)
+        clickMine(window, admission, i);
+      LOKA_VERIFY(mineSnapshot(window) == won);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 3);
+      LOKA_VERIFY(mineSnapshot(window) == won);
+      // A failed open stays on the Mines card and names the file in its status.
+      LOKA_VERIFY(std::remove(mainPath) == 0);
+      clickCardButton(window, "SmirkyCard.OpenMain");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Board") != 0);
+      const std::string failure = textValue(windowNode(window, "SmirkyCard.Status")->asTextNode());
+      LOKA_VERIFY(failure.find("MAIN.JS") != std::string::npos);
+    }
+    LOKA_VERIFY(std::remove(minesPath) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
+  }
+
   void checkOpenSibling()
   {
     const char *directory = "_smirkycard_sibling_fixture";
@@ -898,6 +1121,100 @@ namespace
     loka::app::scene::Node *reload =
         find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "SmirkyCard.Reload");
     LOKA_VERIFY(reload && reload->asButtonNode() && reload->asButtonNode()->props.getOnClick());
+  }
+
+  void checkGridShape(int rows, int cols, bool clickable)
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    char prefix[128];
+    std::sprintf(prefix,
+                 "card('first',class{compose(){return Grid(%d,%d,Array.from({length:%d},(_,i)=>",
+                 rows,
+                 cols,
+                 rows * cols);
+    const std::string source = std::string(prefix) + (clickable ? "Cell(String(i),()=>{})" : "Text(String(i))")
+                               + ".TEST_ID(String(i)))).TEST_ID('Board')}});";
+    LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *board = windowNode(window, "Board");
+    LOKA_VERIFY(board && board->asGridNode());
+    loka::app::GridNode *grid = board->asGridNode();
+    LOKA_VERIFY(grid->props.rows == rows && grid->props.cols == cols);
+    LOKA_VERIFY(grid->childrenCount() == static_cast<size_t>(rows * cols));
+    int count = 0;
+    for (loka::app::scene::Node *child = grid->childrenHead(); child; child = child->nextInComposition)
+    {
+      char expected[16];
+      std::sprintf(expected, "%d", count++);
+      loka::app::scene::Node *cell = find(child, expected);
+      LOKA_VERIFY(cell);
+      if (clickable)
+      {
+        LOKA_VERIFY(cell->asCellNode());
+        LOKA_VERIFY(cell->asCellNode()->props.text_->get().compare(loka::core::String::Literal(expected)) == 0);
+      }
+      else
+      {
+        LOKA_VERIFY(cell->asTextNode());
+        LOKA_VERIFY(textValue(cell->asTextNode()) == expected);
+      }
+    }
+    LOKA_VERIFY(count == rows * cols);
+  }
+
+  void checkGrid()
+  {
+    checkGridShape(8, 8, true);
+    // Text nodes cover the capacity without consuming the separate clickable budget.
+    checkGridShape(16, 16, false);
+    checkGridShape(1, 1, true);
+    checkGridShape(2, 3, true);
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String result, error;
+    // Validation belongs to the helper call even if its result is never lowered.
+    LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("Grid(0,8,[]);'unused'"), result, error));
+    const char *stacks[] = {"Row", "VStack"};
+    for (size_t i = 0; i < sizeof(stacks) / sizeof(stacks[0]); ++i)
+    {
+      const std::string source = std::string("card('first',class{compose(){return ") + stacks[i]
+                                 + "(Array.from({length:17},()=>Text('x')))}});";
+      checkComposeRefusal(source.c_str(), "accepts at most 16 children");
+    }
+    const char *badCounts[] = {"63", "65"};
+    for (size_t i = 0; i < sizeof(badCounts) / sizeof(badCounts[0]); ++i)
+    {
+      const std::string source = std::string("card('first',class{compose(){return Grid(8,8,Array.from({length:")
+                                 + badCounts[i] + "},()=>Text('x')))}});";
+      checkComposeRefusal(source.c_str(), "Grid requires exactly rows * cols children (64)");
+    }
+    const char *badDimensions[] = {"0", "17", "-1", "1.5", "NaN", "Infinity", "'8'", "null"};
+    for (size_t i = 0; i < sizeof(badDimensions) / sizeof(badDimensions[0]); ++i)
+      for (int axis = 0; axis < 2; ++axis)
+      {
+        const std::string source = std::string("card('first',class{compose(){return Grid(")
+                                   + (axis == 0 ? badDimensions[i] : "8") + "," + (axis == 1 ? badDimensions[i] : "8")
+                                   + ",[])}});";
+        checkComposeRefusal(source.c_str(), "Grid rows and cols must be integers in 1..16");
+      }
+    checkComposeRefusal("card('first',class{compose(){return Grid(1,1,[[Text('x')]])}});", "nested arrays");
+    checkComposeRefusal("card('first',class{compose(){return Grid(1,1)}});", "Grid(rows, cols, children)");
+    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+                        "g.children.pop();return g}});",
+                        "Grid requires exactly rows * cols children");
+    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+                        "g.children.push(Text('y'));return g}});",
+                        "Grid requires exactly rows * cols children");
+    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{rows:0})}});",
+                        "Grid rows and cols must be integers in 1..16");
+    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{cols:17})}});",
+                        "Grid rows and cols must be integers in 1..16");
   }
 
   void checkTextStyleRefusals()
@@ -1430,6 +1747,18 @@ int main(int argc, char **argv)
     checkManyClickables("Cell");
     return 0;
   }
+  if (argc == 2 && !std::strcmp(argv[1], "--grid"))
+  {
+    checkGrid();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--mines"))
+  {
+    checkMines();
+    return 0;
+  }
+  checkGrid();
+  checkMines();
   testScriptAllocatorAlignsTwoByteAlignedBase();
   testScriptContextIsPointerTagAligned();
   checkRegistry();
