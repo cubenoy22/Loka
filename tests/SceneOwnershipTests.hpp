@@ -26,6 +26,7 @@ void testInitialScenePrepareRefusalPreservesDetachRequest();
 void testEmptyWindowConsumesSceneRequestsWithoutReadmission();
 void testInitialScenePrepareRefusalPreservesNewerRearmRequest();
 void testSceneReplacementRefusesControllerLostDuringPrepare();
+void testSceneReplacementDetectsControllerLostDuringInstall();
 void testSceneReplacementHideDuringAttachWaitsForNextAdmission();
 void testSceneReplacementAdoptedDuringAttachWaitsForNextAdmission();
 

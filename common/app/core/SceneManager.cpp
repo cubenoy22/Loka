@@ -159,6 +159,12 @@ void SceneManager::installScene(loka::app::scene::Scene *next)
       old->updateAttached(false);
       old->updateLifecycle(ON_DETACH);
       old->unmount();
+      // #920: outgoing detach observers can destroy the prepared Scene's rail.
+      if (next->platformController_ && !this->window_->hasLiveScenePlatform())
+      {
+        assert(false && "window rail lost while installing a replacement Scene (#920)");
+        next->platformController_ = 0;
+      }
     }
     this->currentScene_.set(next);
     next->setWindow(this->window_);

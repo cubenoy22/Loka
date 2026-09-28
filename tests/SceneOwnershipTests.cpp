@@ -17,7 +17,7 @@
 #include "testing/app/SceneManagerTestAccess.hpp"
 
 // LeakSanitizer cannot complete its process scan after fork-based death checks.
-#if defined(LOKA_LIFECYCLE_AUDIT) && defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -2057,4 +2057,77 @@ void testPreparedSceneCoalescesDescendantWork()
     LOKA_VERIFY(!SceneTestAccess::runCountingRefreshes(scene, attempts));
     LOKA_VERIFY(attempts == 1);
   }
+}
+
+namespace
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  struct LoseRailDuringInstall
+  {
+    NullWindow &window;
+    Scene &outgoing;
+    Scene &incoming;
+    static void run(void *data)
+    {
+      LoseRailDuringInstall &probe = *static_cast<LoseRailDuringInstall *>(data);
+      if (probe.outgoing.getAttachedState()->get()) return;
+      LOKA_VERIFY(probe.window.scene() == &probe.outgoing);
+      LOKA_VERIFY(SceneTestAccess::platformController(probe.incoming) != 0);
+      probe.window.destroyScenePlatform();
+      LOKA_VERIFY(probe.window.scenePlatformController() == 0);
+      LOKA_VERIFY(SceneTestAccess::platformController(probe.incoming) != 0);
+      std::fprintf(stderr, "#920: detach observer destroyed rail; incoming borrow remains\n");
+    }
+  };
+#endif
+}
+
+void testSceneReplacementDetectsControllerLostDuringInstall()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__)
+  const pid_t child = fork();
+  LOKA_VERIFY(child >= 0);
+  if (child == 0)
+  {
+    WindowCreatingPlatformContext context;
+    WindowProps props;
+    props.scene(new Scene(new loka::app::EditTextDefinition()));
+    NullWindow window(&context, props);
+    WindowAdmissionTestApp app(window);
+    Scene *outgoing = window.scene();
+    Scene *incoming = new Scene(Boundary<PreparedReveal>());
+    LoseRailDuringInstall probe = {window, *outgoing, *incoming};
+    outgoing->getAttachedState()->bind(&LoseRailDuringInstall::run, &probe, false);
+    LOKA_VERIFY(window.sceneManager()->commitTransaction(0, incoming));
+    app.flush();
+#ifdef NDEBUG
+    LOKA_VERIFY(window.scene() == incoming);
+    LOKA_VERIFY(window.visibilityState().get());
+    LOKA_VERIFY(window.scenePlatformController() == 0);
+    LOKA_VERIFY(incoming->getAttachedState()->get());
+    Window *installedWindow = incoming->getWindow();
+    LOKA_VERIFY(installedWindow == &window);
+    LOKA_VERIFY(SceneTestAccess::platformController(*incoming) == 0);
+    LOKA_VERIFY(SceneTestAccess::composed(*incoming));
+    LOKA_VERIFY(!window.sceneManager()->hasPendingReplacement());
+    outgoing->getAttachedState()->unbind(&LoseRailDuringInstall::run, &probe);
+    app.flush();
+    LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
+#endif
+    _exit(0);
+  }
+  int status = 0;
+  LOKA_VERIFY(waitpid(child, &status, 0) == child);
+  std::fprintf(stderr, "#920: child status=%d signal=%d\n", status,
+               WIFSIGNALED(status) ? WTERMSIG(status) : 0);
+#ifdef NDEBUG
+  LOKA_VERIFY(WIFEXITED(status));
+  LOKA_VERIFY(WEXITSTATUS(status) == 0);
+#else
+  LOKA_VERIFY(WIFSIGNALED(status));
+  LOKA_VERIFY(WTERMSIG(status) == SIGABRT);
+#endif
+#else
+  std::printf("[skip] Installation rail-loss pin requires Linux without ASan (fork death check).\n");
+#endif
 }
