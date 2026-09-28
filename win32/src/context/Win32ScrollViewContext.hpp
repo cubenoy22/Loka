@@ -40,6 +40,8 @@ public:
   static bool forwardMouseWheel(HWND root, WPARAM wParam, LPARAM lParam);
 
 private:
+  friend class Win32InputDoor;
+  void handleMouseWheel(WPARAM wParam);
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   bool handleVerticalScroll(int command, int thumbPosition);

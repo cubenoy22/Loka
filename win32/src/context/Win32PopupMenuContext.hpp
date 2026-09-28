@@ -42,9 +42,10 @@ public:
     return hwnd_;
   }
   void relayout(int x, int y, int width, int height);
-  bool handleCommand(WPARAM wParam, LPARAM lParam);
 
 private:
+  friend class Win32InputDoor;
+  bool handleCommand(WPARAM wParam, LPARAM lParam);
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void bindSelection();

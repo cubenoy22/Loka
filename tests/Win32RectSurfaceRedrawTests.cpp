@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "context/Win32EditTextContext.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
@@ -422,7 +423,7 @@ void testWin32EditTextPaintDelivery()
     LOKA_VERIFY(SetWindowTextW(context.hwnd(), L"native"));
     {
       loka::core::StateTrackerGuard guard(&tracker);
-      LOKA_VERIFY(context.handleCommand(MAKEWPARAM(0, EN_CHANGE), 0));
+      LOKA_VERIFY(Win32InputDoor::editTextCommand(context, MAKEWPARAM(0, EN_CHANGE), 0));
     }
     LOKA_VERIFY(value.get().equals(loka::core::String::Literal("native")));
     LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);

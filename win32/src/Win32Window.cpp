@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "Win32Window.hpp"
 #include "Win32App.hpp"
 #include <windows.h>
@@ -435,50 +436,16 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       return 1;
     case WM_SIZE:
       if (self->scenePlatformController_)
-      {
-        int width = LOWORD(lParam);
-        int height = HIWORD(lParam);
-        self->scenePlatformController_->relayoutNativeClientPixels(width, height);
-      }
-      if (wParam != SIZE_MINIMIZED && self->hwnd_)
-      {
+        Win32InputDoor::windowSize(*self, wParam, lParam);
+      else if (wParam != SIZE_MINIMIZED && self->hwnd_)
         self->storeCurrentNativeContentFrame();
-      }
       return 0;
     case kWindowDpiChangedMessage:
-    {
-      const loka::win32::Win32DisplayScale nextScale(LOWORD(wParam));
       if (self->scenePlatformController_)
-      {
-        self->scenePlatformController_->updateDisplayScale(nextScale);
-      }
-      const RECT *suggested = reinterpret_cast<const RECT *>(lParam);
-      if (suggested)
-      {
-        // Windows sizes the suggestion for the destination DPI but does not
-        // keep it inside that monitor's work area; a frame fitted against
-        // the source monitor's edge would otherwise land partly off-screen.
-        RECT outer = *suggested;
-        if (ClampOuterRectToWorkArea(outer))
-        {
-          PositionNativeWindow(hwnd, nextScale.fromDevicePixels(outer));
-        }
-      }
-      if (self->scenePlatformController_)
-      {
-        // SetWindowPos commonly reaches WM_SIZE and lays out once already, but
-        // a size-preserving suggested rectangle need not. The projection pass
-        // is idempotent, so finish from the current client pixels either way.
-        RECT client;
-        if (GetClientRect(hwnd, &client))
-        {
-          self->scenePlatformController_->relayoutNativeClientPixels(
-              client.right - client.left, client.bottom - client.top);
-        }
-      }
-      self->storeCurrentNativeContentFrame();
+        Win32InputDoor::windowDpi(*self, wParam, lParam);
+      else
+        self->handleNativeDpi(wParam, lParam);
       return 0;
-    }
     case WM_MOVE:
       if (self->hwnd_ && !IsIconic(self->hwnd_))
       {
@@ -737,4 +704,58 @@ bool Win32Window::handleCommand(WPARAM wParam, LPARAM lParam)
     return false;
   }
   return scenePlatformController_->handleCommand(wParam, lParam);
+}
+
+void Win32Window::handleNativeSize(WPARAM wParam, LPARAM lParam)
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->scenePlatformController_ && this->scenePlatformController_->operationPhase().open());
+#endif
+  if (this->scenePlatformController_)
+  {
+    int width = LOWORD(lParam);
+    int height = HIWORD(lParam);
+    this->scenePlatformController_->relayoutNativeClientPixels(width, height);
+  }
+  if (wParam != SIZE_MINIMIZED && this->hwnd_)
+  {
+    this->storeCurrentNativeContentFrame();
+  }
+}
+
+void Win32Window::handleNativeDpi(WPARAM wParam, LPARAM lParam)
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+#endif
+  const loka::win32::Win32DisplayScale nextScale(LOWORD(wParam));
+  if (this->scenePlatformController_)
+  {
+    this->scenePlatformController_->updateDisplayScale(nextScale);
+  }
+  const RECT *suggested = reinterpret_cast<const RECT *>(lParam);
+  if (suggested)
+  {
+    // Windows sizes the suggestion for the destination DPI but does not
+    // keep it inside that monitor's work area; a frame fitted against
+    // the source monitor's edge would otherwise land partly off-screen.
+    RECT outer = *suggested;
+    if (ClampOuterRectToWorkArea(outer))
+    {
+      PositionNativeWindow(this->hwnd_, nextScale.fromDevicePixels(outer));
+    }
+  }
+  if (this->scenePlatformController_)
+  {
+    // SetWindowPos commonly reaches WM_SIZE and lays out once already, but
+    // a size-preserving suggested rectangle need not. The projection pass
+    // is idempotent, so finish from the current client pixels either way.
+    RECT client;
+    if (GetClientRect(this->hwnd_, &client))
+    {
+      this->scenePlatformController_->relayoutNativeClientPixels(
+          client.right - client.left, client.bottom - client.top);
+    }
+  }
+  this->storeCurrentNativeContentFrame();
 }

@@ -65,6 +65,32 @@ namespace loka
         const bool previous_;
       };
 
+      namespace detail
+      {
+        /** One scope-owning implementation for all typed arities. The temporary
+            encloses the whole call expression, including the body's continuation. */
+        class InputInvocation : private OperationScope
+        {
+        public:
+          explicit InputInvocation(loka::app::scene::IPlatformController &controller)
+              : OperationScope(controller) {}
+
+          template<class C, class R>
+          R operator()(C &c, R (C::*body)()) const
+          { return (c.*body)(); }
+          template<class C, class R, class A>
+          R operator()(C &c, R (C::*body)(A), A a) const
+          { return (c.*body)(a); }
+          template<class C, class R, class A, class B>
+          R operator()(C &c, R (C::*body)(A, B), A a, B b) const
+          { return (c.*body)(a, b); }
+          template<class C, class R, class A, class B, class D>
+          R operator()(C &c, R (C::*body)(A, B, D), A a, B b, D d) const
+          { return (c.*body)(a, b, d); }
+        };
+
+      } // namespace detail
+
       /**
        * Abstract platform controller for projecting scene changes into native UI.
        */

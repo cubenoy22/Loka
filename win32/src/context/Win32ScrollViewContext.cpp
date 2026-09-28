@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "Win32ScrollViewContext.hpp"
 
 #include <cassert>
@@ -167,6 +168,9 @@ int Win32ScrollViewContext::setScrollMetrics(int contentHeight,
 bool Win32ScrollViewContext::handleVerticalScroll(int command,
                                                   int thumbPosition)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   SCROLLINFO info;
   if (!this->readScrollInfo(info))
   {
@@ -339,32 +343,13 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
   }
 
   if (msg == WM_VSCROLL && self &&
-      self->handleVerticalScroll(LOWORD(wParam), HIWORD(wParam)))
+      Win32InputDoor::verticalScroll(*self, LOWORD(wParam), HIWORD(wParam)))
   {
     return 0;
   }
   if (msg == WM_MOUSEWHEEL && self)
   {
-    UINT lines = 3;
-    if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))
-    {
-      lines = 3;
-    }
-    // Whole detents only: this context has no gesture lifetime in which to
-    // own a sub-detent remainder. Keep all offset writes in the line/page path.
-    const int detents = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
-    const bool page = lines == WHEEL_PAGESCROLL;
-    const int command = page ? (detents > 0 ? SB_PAGEUP : SB_PAGEDOWN)
-                             : (detents > 0 ? SB_LINEUP : SB_LINEDOWN);
-    const UINT steps = page ? 1 : lines;
-    const int count = detents < 0 ? -detents : detents;
-    for (int detent = 0; detent < count; ++detent)
-    {
-      for (UINT step = 0; step < steps; ++step)
-      {
-        self->handleVerticalScroll(command, 0);
-      }
-    }
+    Win32InputDoor::mouseWheel(*self, wParam);
     return 0;
   }
   if (msg == WM_COMMAND && self && self->controller() &&
@@ -376,4 +361,31 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
     return 0;
   }
   return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+void Win32ScrollViewContext::handleMouseWheel(WPARAM wParam)
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
+  UINT lines = 3;
+  if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))
+  {
+    lines = 3;
+  }
+  // Whole detents only: this context has no gesture lifetime in which to
+  // own a sub-detent remainder. Keep all offset writes in the line/page path.
+  const int detents = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
+  const bool page = lines == WHEEL_PAGESCROLL;
+  const int command = page ? (detents > 0 ? SB_PAGEUP : SB_PAGEDOWN)
+                           : (detents > 0 ? SB_LINEUP : SB_LINEDOWN);
+  const UINT steps = page ? 1 : lines;
+  const int count = detents < 0 ? -detents : detents;
+  for (int detent = 0; detent < count; ++detent)
+  {
+    for (UINT step = 0; step < steps; ++step)
+    {
+      this->handleVerticalScroll(command, 0);
+    }
+  }
 }
