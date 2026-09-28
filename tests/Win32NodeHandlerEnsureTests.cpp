@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "support/TextEditorStateOwner.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"
@@ -914,3 +915,150 @@ void testWin32AttributedTextPaintRouting()
   loka::core::testing::allowLokaAllocRaw();
   LOKA_VERIFY(DestroyWindow(rootWindow));
 }
+
+#include "Win32BitmapCapture.hpp"
+
+namespace loka
+{
+  namespace testing
+  {
+    bool measureWin32PlainTextHeightForWidth(HWND hwnd,
+                                           const Win32ScenePlatformController *controller,
+                                           const loka::app::TextNode *text,
+                                           int nativeWidth, HFONT font, int &height);
+  }
+}
+
+namespace
+{
+  int plainTextPaintedRows(HWND child)
+  {
+    loka::core::resource::Image bitmap;
+    if (!loka::win32::CaptureWindowClientBitmap(child, bitmap))
+      return -1;
+    HDC dc = CreateCompatibleDC(NULL);
+    if (!dc)
+      return -1;
+    HGDIOBJ previous = SelectObject(dc, static_cast<HBITMAP>(bitmap.nativeHandle()));
+    int rows = -1;
+    if (previous && previous != HGDI_ERROR)
+    {
+      // Layout reserves bottom padding. Sample its last pixel so system theme
+      // colours do not become a hardcoded assumption about the background.
+      const COLORREF background = GetPixel(dc, bitmap.width() - 1, bitmap.height() - 1);
+      if (background != CLR_INVALID)
+      {
+        rows = 0;
+        bool inRow = false;
+        for (int y = 0; y < bitmap.height(); ++y)
+        {
+          bool ink = false;
+          for (int x = 0; x < bitmap.width(); ++x)
+          {
+            const COLORREF pixel = GetPixel(dc, x, y);
+            if (pixel == CLR_INVALID)
+            {
+              rows = -1;
+              break;
+            }
+            if (pixel != background)
+              ink = true;
+          }
+          if (rows < 0)
+            break;
+          if (ink && !inRow)
+            ++rows;
+          inRow = ink;
+        }
+      }
+      SelectObject(dc, previous);
+    }
+    DeleteDC(dc);
+    return rows;
+  }
+}
+
+void testWin32PlainTextCharWrapCharacterization()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  // #45 item 7 characterization entry: replace with a discriminating pin once
+  // the fix shape is decided. These measurements deliberately have no verdict.
+  const TextWrap modes[] = {TEXT_WRAP_CHAR, TEXT_WRAP_WORD};
+  const char *names[] = {"CHAR", "WORD"};
+  for (int mode = 0; mode < 2; ++mode)
+  {
+    int reserved = -1;
+    int calculated[] = {-1, -1, -1};
+    int rows = -1;
+    int measuredHeight = -1;
+    bool measured = false;
+    unsigned long style = 0;
+    HWND root = CreateWindowExW(0, L"STATIC", L"#45-7", WS_POPUP,
+                                0, 0, 320, 240, NULL, NULL, GetModuleHandleW(NULL), NULL);
+    if (root)
+    {
+      // Identity scale keeps the measured four-glyph pixel width exact in lu.
+      Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
+      RegisterWin32BuiltInSupport(controller);
+      TextNode text((Text("abcdefgh") + FontSize<12>() + BlockStyle().wrap(modes[mode])).props);
+      LayoutState state;
+      state.x = 0;
+      state.y = 0;
+      state.width = 160;
+      state.height = 20;
+      if (controller.prepareProjectedLayout(&text, state))
+      {
+        HWND child = FindWindowExW(root, NULL, L"STATIC", NULL);
+        HDC dc = child ? GetDC(child) : NULL;
+        if (dc)
+        {
+          HFONT font = reinterpret_cast<HFONT>(SendMessageW(child, WM_GETFONT, 0, 0));
+          HGDIOBJ previous = font ? SelectObject(dc, font) : NULL;
+          SIZE four;
+          if (previous && previous != HGDI_ERROR && GetTextExtentPoint32W(dc, L"abcd", 4, &four))
+          {
+            state.width = static_cast<short>(four.cx);
+            text.getContext()->layout(&controller, state);
+            reserved = state.height;
+            const UINT flags[] = {DT_WORDBREAK, 0, DT_EDITCONTROL | DT_WORDBREAK};
+            for (int i = 0; i < 3; ++i)
+            {
+              RECT rc = {0, 0, four.cx, 0};
+              if (DrawTextW(dc, L"abcdefgh", -1, &rc, DT_CALCRECT | DT_LEFT | DT_NOPREFIX | flags[i]))
+                calculated[i] = rc.bottom - rc.top;
+            }
+            // The helper has an in/out height (max with the initial minimum).
+            // Seed zero to report its own measured height plus layout padding.
+            measuredHeight = 0;
+            measured = loka::testing::measureWin32PlainTextHeightForWidth(
+                child, &controller, &text, four.cx, font, measuredHeight);
+            style = static_cast<unsigned long>(GetWindowLongPtrW(child, GWL_STYLE));
+            ShowWindow(root, SW_SHOWNOACTIVATE);
+            ShowWindow(child, SW_SHOWNOACTIVATE);
+            InvalidateRect(root, NULL, TRUE);
+            UpdateWindow(root);
+            InvalidateRect(child, NULL, TRUE);
+            UpdateWindow(child);
+            rows = plainTextPaintedRows(child);
+          }
+          if (previous && previous != HGDI_ERROR)
+            SelectObject(dc, previous);
+          ReleaseDC(child, dc);
+        }
+      }
+    }
+    if (root)
+      DestroyWindow(root);
+    const int printed = std::printf(
+        "#45-7 %s reserved=%d calcrect_wordbreak=%d calcrect_nobreak=%d "
+        "calcrect_editcontrol_wordbreak=%d painted_rows=%d static_style=0x%lx\n",
+        names[mode], reserved, calculated[0], calculated[1], calculated[2], rows, style);
+    const int helperPrinted = std::printf(
+        "#45-7 %s MeasureTextHeightForWidth returned=%d height=%d lu (initial=0)\n",
+        names[mode], measured ? 1 : 0, measuredHeight);
+    LOKA_VERIFY(printed > 0 && helperPrinted > 0);
+  }
+}
+
+#endif // _WIN32

@@ -3,6 +3,7 @@
 
 void testWin32NodeHandlerEnsureContract();
 void testWin32TextFontTable();
+void testWin32PlainTextCharWrapCharacterization();
 
 
 void testWin32AttributedTextPerRunProjection();

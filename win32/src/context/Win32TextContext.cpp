@@ -135,6 +135,22 @@ namespace
 
 } // namespace
 
+// Characterization-only access: keep the anonymous measurement implementation
+// authoritative without adding a production context getter.
+namespace loka
+{
+  namespace testing
+  {
+    bool measureWin32PlainTextHeightForWidth(HWND hwnd,
+                                           const Win32ScenePlatformController *controller,
+                                           const loka::app::TextNode *text,
+                                           int nativeWidth, HFONT font, int &height)
+    {
+      return MeasureTextHeightForWidth(hwnd, controller, text, nativeWidth, font, height);
+    }
+  }
+}
+
 Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
                                    HWND parent,
                                    int x,
