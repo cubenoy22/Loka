@@ -434,14 +434,9 @@ namespace loka
             }
             else
             {
-              notifyComposeEvent(COMPOSE_EVENT_DETACH);
-              teardownComposition();
-              // Teardown destroys the root boundary; drop any queued boundary
-              // update so a re-attach does not swap a transaction that still
-              // holds the freed boundary as its raw target (UAF on the next
-              // flush). unmount() already does this -- detach must match (#45
-              // item 1 / W1-1). Ported from PR #51 to the post-#63 update cycle.
-              clearMountedUpdateState();
+              // The shared detach path clears queued boundary targets before
+              // a later attach can reuse the Scene.
+              this->detachComposition();
             }
           }
         }
@@ -477,11 +472,9 @@ namespace loka
 #ifdef LOKA_LIFECYCLE_AUDIT
           assert(!this->isOperationOpen());
 #endif
-          notifyComposeEvent(COMPOSE_EVENT_DETACH);
-          teardownComposition();
+          this->detachComposition();
           mounted_ = false;
           platformController_ = 0;
-          clearMountedUpdateState();
         }
 
       public:
@@ -1030,6 +1023,25 @@ namespace loka
           logApplyFlags(flags);
           executePendingApplyCycle(flags);
           director_.completeUpdateCycle();
+        }
+
+        /** Runs the detach walk and teardown inside this Scene's run window,
+            so a write from a detach hook or a Held releaser queues the next
+            run instead of entering one (#45 item 1). Calling this from the
+            Scene's own refresh/apply is misuse: the outer pass would resume
+            on destroyed nodes. An inert nested RunScope is bookkeeping, not
+            permission. */
+        void detachComposition()
+        {
+          loka::core::NextTickTracker::RunScope run(this->nextTickTracker_);
+          this->notifyComposeEvent(COMPOSE_EVENT_DETACH);
+          this->teardownComposition();
+          this->clearMountedUpdateState();
+          // A request made during the walk can survive the window. Its next
+          // run finds a detached/unmounted Scene and does not compose, except
+          // after remount root-allocation refusal (!rootNode_ with the white
+          // flag): it allows one more existing bounded ATTACH retry. Cleared
+          // boundary entries never route it back to the torn-down boundaries.
         }
 
         void teardownComposition()
