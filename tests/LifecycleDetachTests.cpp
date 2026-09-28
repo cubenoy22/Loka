@@ -2724,6 +2724,49 @@ void testLocalRebuildSuccessCommitsCandidates()
   LOKA_VERIFY(counts.alive == 0 && counts.destroyed == 1);
 }
 
+namespace
+{
+  class SeatPlanReattachRoot : public BoundaryNodeFor<SeatPlanReattachRoot>
+  {
+  public:
+    explicit SeatPlanReattachRoot(const BoundaryPropsFor<SeatPlanReattachRoot> &props)
+        : BoundaryNodeFor<SeatPlanReattachRoot>(props), declarations(0)
+    {
+      this->state(this->selected, true);
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++this->declarations;
+      FragmentDefinition arm;
+      arm.tag(static_cast<NodeTag>(7600 + this->declarations));
+      composition.declare(ConditionalDefinition(ConditionalProps(this->selected.state(), &arm, 0)));
+    }
+    int declarations;
+    NodeState<bool> selected;
+  };
+}
+
+void testStdBoundaryDetachReattachDeclaresFreshSeatPlans()
+{
+  using loka::dsl::testing::SceneTestAccess;
+  NullScenePlatformController platform;
+  Scene scene((Boundary<SeatPlanReattachRoot>()));
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  SeatPlanReattachRoot *root = static_cast<SeatPlanReattachRoot *>(SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(root->declarations == 1);
+  LOKA_VERIFY(findStrandTag(root, 7601));
+
+  // Send the real direct-root DETACH without Scene's terminal root reclamation.
+  SceneTestAccess::notifyComposeEvent(scene, COMPOSE_EVENT_DETACH);
+  SceneTestAccess::notifyComposeEvent(scene, COMPOSE_EVENT_ATTACH);
+  LOKA_VERIFY(SceneTestAccess::rootBoundary(scene) == root);
+  LOKA_VERIFY(root->declarations == 2);
+  LOKA_VERIFY(!findStrandTag(root, 7601));
+  LOKA_VERIFY(findStrandTag(root, 7602));
+  LOKA_VERIFY(!loka::dsl::testing::OwnershipDump::seatRuntimeRowAddresses(*root).empty());
+}
+
 namespace DetachRunWindow
 {
   using namespace loka::app;
