@@ -456,6 +456,200 @@ namespace
     button->asButtonNode()->props.getOnClick()->emit();
   }
 
+  std::string readCardSource(const char *name)
+  {
+    const std::string path = std::string(SMIRKYCARD_SOURCE_DIR) + "/" + name;
+    std::FILE *file = std::fopen(path.c_str(), "rb");
+    LOKA_VERIFY(file != 0);
+    std::string source;
+    char buffer[4096];
+    size_t count;
+    while ((count = std::fread(buffer, 1, sizeof(buffer), file)) != 0)
+      source.append(buffer, count);
+    LOKA_VERIFY(!std::ferror(file));
+    LOKA_VERIFY(std::fclose(file) == 0);
+    return source;
+  }
+
+  loka::app::CellNode *mineCell(NullWindow &window, int index)
+  {
+    char id[32];
+    std::sprintf(id, "Mines.Cell.%d", index);
+    loka::app::scene::Node *node = windowNode(window, id);
+    LOKA_VERIFY(node && node->asCellNode());
+    return node->asCellNode();
+  }
+
+  std::string mineLabel(NullWindow &window, int index)
+  {
+    const loka::core::StringBuffer buffer =
+        mineCell(window, index)->props.text_->get().bufferWithEncoding(loka::core::StringEncodingUtf8);
+    return std::string(static_cast<const char *>(buffer.data()), buffer.length());
+  }
+
+  void clickMine(NullWindow &window, WindowAdmissionTestApp &admission, int index)
+  {
+    mineCell(window, index)->props.onClick_->emit();
+    admission.flush();
+  }
+
+  std::string minesStatus(NullWindow &window)
+  {
+    loka::app::scene::Node *node = windowNode(window, "Mines.Status");
+    LOKA_VERIFY(node && node->asTextNode());
+    return textValue(node->asTextNode());
+  }
+
+  std::string mineSnapshot(NullWindow &window)
+  {
+    std::string result = minesStatus(window);
+    for (int i = 0; i < 64; ++i)
+      result += "|" + mineLabel(window, i);
+    return result;
+  }
+
+  void checkMines()
+  {
+    const char *directory = "_smirkycard_mines_fixture";
+    const char *mainPath = "_smirkycard_mines_fixture/MAIN.JS";
+    const char *minesPath = "_smirkycard_mines_fixture/MINES.JS";
+    std::remove(mainPath);
+    std::remove(minesPath);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    writeMain(mainPath, readCardSource("MAIN.JS"));
+    writeMain(minesPath, "globalThis.SMIRKY_SEED = 0x13579BDF;\n" + readCardSource("MINES.JS"));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      clickCardButton(window, "SmirkyCard.OpenMines");
+      admission.flush();
+      const int mines[3][10] = {{3, 4, 20, 22, 37, 45, 50, 55, 56, 59},
+                                {1, 6, 16, 23, 27, 30, 34, 44, 45, 53},
+                                {3, 26, 42, 49, 50, 56, 59, 60, 62, 63}};
+      for (int board = 0; board < 3; ++board)
+      {
+        LOKA_VERIFY(minesStatus(window) == "Mines left: 10");
+        for (int i = 0; i < 64; ++i)
+          LOKA_VERIFY(mineLabel(window, i) == ".");
+        clickMine(window, admission, mines[board][0]);
+        LOKA_VERIFY(minesStatus(window) == "Boom");
+        for (int i = 0; i < 64; ++i)
+        {
+          bool expectedMine = false;
+          for (int j = 0; j < 10; ++j)
+            expectedMine = expectedMine || mines[board][j] == i;
+          LOKA_VERIFY(mineLabel(window, i) == (expectedMine ? "X" : "."));
+        }
+        const std::string lost = mineSnapshot(window);
+        for (int i = 0; i < 64; ++i)
+          clickMine(window, admission, i);
+        LOKA_VERIFY(mineSnapshot(window) == lost);
+        if (board < 2)
+        {
+          clickCardButton(window, "Mines.NewGame");
+          admission.flush();
+        }
+      }
+      // Reopening the script restarts its seeded stream, unlike New Game.
+      clickCardButton(window, "SmirkyCard.OpenMain");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "SmirkyCard.Title")->asAttributedTextNode()->props.text_->get()
+                  == loka::app::Styled("Card One", loka::app::FontSize<18>() + loka::app::Bold));
+      clickCardButton(window, "SmirkyCard.OpenMines");
+      admission.flush();
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Flag")
+                      ->asButtonNode()
+                      ->props.getText()
+                      ->get()
+                      .compare(loka::core::String::Literal("Flag mode: on"))
+                  == 0);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0) == "F" && minesStatus(window) == "Mines left: 9");
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      const std::string flagged = mineSnapshot(window);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineSnapshot(window) == flagged);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0) == "." && minesStatus(window) == "Mines left: 10");
+      // A flag inside the zero region must survive flood reveal.
+      clickMine(window, admission, 8);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 2);
+      LOKA_VERIFY(mineLabel(window, 2) == "1");
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineLabel(window, 0).empty());
+      LOKA_VERIFY(mineLabel(window, 1).empty());
+      LOKA_VERIFY(mineLabel(window, 16).empty());
+      LOKA_VERIFY(mineLabel(window, 19) == "1");
+      LOKA_VERIFY(mineLabel(window, 8) == "F");
+      LOKA_VERIFY(mineLabel(window, 7) == "." && mineLabel(window, 63) == ".");
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      const std::string revealed = mineSnapshot(window);
+      clickMine(window, admission, 0);
+      LOKA_VERIFY(mineSnapshot(window) == revealed);
+      clickMine(window, admission, 8);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Flag")
+                      ->asButtonNode()
+                      ->props.getText()
+                      ->get()
+                      .compare(loka::core::String::Literal("Flag mode: off"))
+                  == 0);
+      for (int i = 0; i < 64; ++i)
+      {
+        bool isMine = false;
+        for (int j = 0; j < 10; ++j)
+          isMine = isMine || mines[0][j] == i;
+        if (!isMine)
+          clickMine(window, admission, i);
+      }
+      LOKA_VERIFY(minesStatus(window) == "You win");
+      for (int i = 0; i < 64; ++i)
+      {
+        bool isMine = false;
+        int adjacent = 0;
+        for (int j = 0; j < 10; ++j)
+        {
+          isMine = isMine || mines[0][j] == i;
+          const int dy = std::abs(mines[0][j] / 8 - i / 8);
+          const int dx = std::abs(mines[0][j] % 8 - i % 8);
+          if (dy <= 1 && dx <= 1 && (dx || dy))
+            ++adjacent;
+        }
+        const std::string expected = isMine ? "." : adjacent ? std::string(1, '0' + adjacent) : "";
+        LOKA_VERIFY(mineLabel(window, i) == expected);
+      }
+      const std::string won = mineSnapshot(window);
+      for (int i = 0; i < 64; ++i)
+        clickMine(window, admission, i);
+      LOKA_VERIFY(mineSnapshot(window) == won);
+      clickCardButton(window, "Mines.Flag");
+      admission.flush();
+      clickMine(window, admission, 3);
+      LOKA_VERIFY(mineSnapshot(window) == won);
+    }
+    LOKA_VERIFY(std::remove(mainPath) == 0);
+    LOKA_VERIFY(std::remove(minesPath) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
+  }
+
   void checkOpenSibling()
   {
     const char *directory = "_smirkycard_sibling_fixture";
@@ -1430,6 +1624,12 @@ int main(int argc, char **argv)
     checkManyClickables("Cell");
     return 0;
   }
+  if (argc == 2 && !std::strcmp(argv[1], "--mines"))
+  {
+    checkMines();
+    return 0;
+  }
+  checkMines();
   testScriptAllocatorAlignsTwoByteAlignedBase();
   testScriptContextIsPointerTagAligned();
   checkRegistry();

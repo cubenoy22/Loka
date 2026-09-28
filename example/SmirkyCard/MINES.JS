@@ -1,10 +1,74 @@
-// A sibling script; the game will follow in a later change.
+let random = (globalThis.SMIRKY_SEED === undefined ? Date.now() : globalThis.SMIRKY_SEED) >>> 0;
+function nextIndex() {
+  random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+  return (random >>> 16) % 64;
+}
+
+function neighbors(index) {
+  const result = [];
+  const row = Math.floor(index / 8), col = index % 8;
+  for (let dy = -1; dy <= 1; ++dy)
+    for (let dx = -1; dx <= 1; ++dx) {
+      const y = row + dy, x = col + dx;
+      if ((dx || dy) && y >= 0 && y < 8 && x >= 0 && x < 8)
+        result.push(y * 8 + x);
+    }
+  return result;
+}
+
 card('first', class {
+  constructor() {
+    this.mines = Array(64).fill(false);
+    for (let placed = 0; placed < 10;) {
+      const index = nextIndex();
+      if (!this.mines[index]) {
+        this.mines[index] = true;
+        ++placed;
+      }
+    }
+    this.cells = Array.from({length: 64}, () => state('.'));
+    this.mode = state('Flag mode: off');
+    this.status = state('Mines left: 10');
+  }
+
+  click(index) {
+    if (this.status.get() === 'Boom' || this.status.get() === 'You win') return;
+    const label = this.cells[index].get();
+    if (this.mode.get() === 'Flag mode: on') {
+      if (label !== '.' && label !== 'F') return;
+      this.cells[index].set(label === '.' ? 'F' : '.');
+    } else {
+      if (label !== '.') return;
+      if (this.mines[index]) {
+        this.cells.forEach((cell, i) => { if (this.mines[i]) cell.set('X'); });
+        this.status.set('Boom');
+        return;
+      }
+      const pending = [index];
+      while (pending.length) {
+        const i = pending.pop();
+        if (this.cells[i].get() !== '.') continue;
+        const nearby = neighbors(i);
+        const count = nearby.filter(j => this.mines[j]).length;
+        this.cells[i].set(count ? String(count) : '');
+        if (!count) pending.push(...nearby);
+      }
+    }
+    const won = this.cells.every((cell, i) => this.mines[i] || !['.', 'F'].includes(cell.get()));
+    const flags = this.cells.filter(cell => cell.get() === 'F').length;
+    this.status.set(won ? 'You win' : 'Mines left: ' + (10 - flags));
+  }
+
   compose() {
     return VStack(
-      Text('Minesweeper (coming soon)').TEST_ID('SmirkyCard.Title'),
-      Button('./MAIN.JS', () => open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain'),
-      Text(this.error).TEST_ID('SmirkyCard.Status')
+      Text(this.status).TEST_ID('Mines.Status'),
+      Array.from({length: 8}, (_, row) => Row(
+        this.cells.slice(row * 8, row * 8 + 8).map((seat, col) =>
+          Cell(seat, () => this.click(row * 8 + col)).TEST_ID('Mines.Cell.' + (row * 8 + col))))),
+      Button(this.mode, () => this.mode.set(this.mode.get() === 'Flag mode: off'
+        ? 'Flag mode: on' : 'Flag mode: off')).TEST_ID('Mines.Flag'),
+      Button('New Game', () => go('first')).TEST_ID('Mines.NewGame'),
+      Button('./MAIN.JS', () => open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain')
     );
   }
 });

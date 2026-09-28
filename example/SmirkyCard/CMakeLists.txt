@@ -117,5 +117,7 @@ if(TARGET LokaCommonTesting)
   )
   smirkycard_cpp_target(LokaSmirkyCardTests)
   target_link_libraries(LokaSmirkyCardTests PRIVATE LokaCommonTesting)
+  target_compile_definitions(LokaSmirkyCardTests PRIVATE
+    SMIRKYCARD_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME smirkyCardSceneSwitch COMMAND LokaSmirkyCardTests)
 endif()
