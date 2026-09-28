@@ -1227,117 +1227,127 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
 {
-  ++debugStats_.renderDirtyCalls;
-  ++debugStats_.totalRenderDirtyCalls;
-  if (!window_ || !window_->window() || !rootNode_)
+  const unsigned long start = ToolboxProfileMicroseconds();
+  const unsigned long layoutBefore = this->debugStats_.totalLayoutUs;
+  const unsigned long renderBefore = this->debugStats_.totalRenderUs;
+  // One exit accounts for all replay branches. Nested full rendering already
+  // contributes its layout and paint; the outer interval replaces its paint.
+  do
   {
-    return;
-  }
-  if (forceFullRedraw_)
-  {
-    forceFullRedraw_ = false;
-    render();
-    return;
-  }
-  // The context's attach/retire membership supplies this fact without a
-  // projection-tree discovery pass on each dirty delivery.
-  const bool compositionReplay = this->compositionReplay_.required();
-  if (!compositionReplay && hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
-      && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
-  {
-    if (HasRectSurfaceNode(rootNode_) || HasImageViewNode(rootNode_))
+    ++debugStats_.renderDirtyCalls;
+    ++debugStats_.totalRenderDirtyCalls;
+    if (!window_ || !window_->window() || !rootNode_)
+    {
+      break;
+    }
+    if (forceFullRedraw_)
+    {
+      forceFullRedraw_ = false;
+      render();
+      break;
+    }
+    // The context's attach/retire membership supplies this fact without a
+    // projection-tree discovery pass on each dirty delivery.
+    const bool compositionReplay = this->compositionReplay_.required();
+    if (!compositionReplay && hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
+        && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
+    {
+      if (HasRectSurfaceNode(rootNode_) || HasImageViewNode(rootNode_))
+      {
+        RenderDirtyRectSurfaces(rootNode_, this, rect);
+        RenderDirtyImageViews(rootNode_, this, rect);
+      }
+      else
+      {
+        render();
+      }
+      break;
+    }
+    // Any drawer whose kind order the replay below does not preserve (text-like
+    // drawers replay after surfaces and images regardless of composition order)
+    // sends a ZStack window through the clipped full render instead.
+    bool dirtyIntersectsText = compositionReplay;
+    for (size_t i = 0; i < hitLedger_.textHits_.size() && !dirtyIntersectsText; ++i)
+      dirtyIntersectsText = RectsIntersect(rect, hitLedger_.textHits_[i].rect);
+    for (size_t i = 0; i < editControls_.size() && !dirtyIntersectsText; ++i)
+      dirtyIntersectsText = editControls_[i].te && RectsIntersect(rect, editControls_[i].rect);
+    for (size_t i = 0; i < hitLedger_.cellHits_.size() && !dirtyIntersectsText; ++i)
+      dirtyIntersectsText = RectsIntersect(rect, hitLedger_.cellHits_[i].rect);
+    for (size_t i = 0; i < hitLedger_.popupHits_.size() && !dirtyIntersectsText; ++i)
+      dirtyIntersectsText = RectsIntersect(rect, hitLedger_.popupHits_[i].rect);
+    if (compositionReplay || (dirtyIntersectsText && ToolboxTreeHasKind(rootNode_, loka::app::scene::NODE_KIND_ZSTACK)))
+    {
+      ToolboxRenderDirtyInCompositionOrder(*this, rect);
+      break;
+    }
+    if (HasRectSurfaceNode(rootNode_))
     {
       RenderDirtyRectSurfaces(rootNode_, this, rect);
-      RenderDirtyImageViews(rootNode_, this, rect);
     }
-    else
+    RenderDirtyImageViews(rootNode_, this, rect);
+    for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
     {
-      render();
+      PopupHit &hit = hitLedger_.popupHits_[i];
+      if (!RectsIntersect(rect, hit.rect))
+      {
+        continue;
+      }
+      redrawPopupHit(hit);
     }
-    return;
-  }
-  // Any drawer whose kind order the replay below does not preserve (text-like
-  // drawers replay after surfaces and images regardless of composition order)
-  // sends a ZStack window through the clipped full render instead.
-  bool dirtyIntersectsText = compositionReplay;
-  for (size_t i = 0; i < hitLedger_.textHits_.size() && !dirtyIntersectsText; ++i)
-    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.textHits_[i].rect);
-  for (size_t i = 0; i < editControls_.size() && !dirtyIntersectsText; ++i)
-    dirtyIntersectsText = editControls_[i].te && RectsIntersect(rect, editControls_[i].rect);
-  for (size_t i = 0; i < hitLedger_.cellHits_.size() && !dirtyIntersectsText; ++i)
-    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.cellHits_[i].rect);
-  for (size_t i = 0; i < hitLedger_.popupHits_.size() && !dirtyIntersectsText; ++i)
-    dirtyIntersectsText = RectsIntersect(rect, hitLedger_.popupHits_[i].rect);
-  if (compositionReplay || (dirtyIntersectsText && ToolboxTreeHasKind(rootNode_, loka::app::scene::NODE_KIND_ZSTACK)))
-  {
-    ToolboxRenderDirtyInCompositionOrder(*this, rect);
-    return;
-  }
-  if (HasRectSurfaceNode(rootNode_))
-  {
-    RenderDirtyRectSurfaces(rootNode_, this, rect);
-  }
-  RenderDirtyImageViews(rootNode_, this, rect);
-  for (size_t i = 0; i < hitLedger_.popupHits_.size(); ++i)
-  {
-    PopupHit &hit = hitLedger_.popupHits_[i];
-    if (!RectsIntersect(rect, hit.rect))
+    // Replay over a frozen prefix, by value: registration belongs to the render
+    // walk (#315), so the registry must not change under this loop. The frozen
+    // bound and the copied entry keep a regressed registrar from turning this
+    // into an unbounded loop or a dangling reference even where the assert is
+    // compiled out; the assert makes the contract loud where it is not.
+    const size_t cellReplayCount = hitLedger_.cellHits_.size();
+    for (size_t i = 0; i < cellReplayCount; ++i)
     {
-      continue;
+      CellHit hit = hitLedger_.cellHits_[i];
+      if (!hit.context)
+      {
+        continue;
+      }
+      if (!RectsIntersect(rect, hit.rect))
+      {
+        continue;
+      }
+      hit.context->draw(this);
+      assert(hitLedger_.cellHits_.size() == cellReplayCount
+             && "cell hits register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
     }
-    redrawPopupHit(hit);
-  }
-  // Replay over a frozen prefix, by value: registration belongs to the render
-  // walk (#315), so the registry must not change under this loop. The frozen
-  // bound and the copied entry keep a regressed registrar from turning this
-  // into an unbounded loop or a dangling reference even where the assert is
-  // compiled out; the assert makes the contract loud where it is not.
-  const size_t cellReplayCount = hitLedger_.cellHits_.size();
-  for (size_t i = 0; i < cellReplayCount; ++i)
-  {
-    CellHit hit = hitLedger_.cellHits_[i];
-    if (!hit.context)
+    for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
     {
-      continue;
+      TextHit &hit = hitLedger_.textHits_[i];
+      if (!RectsIntersect(rect, hit.rect))
+      {
+        continue;
+      }
+      redrawTextHit(hit);
     }
-    if (!RectsIntersect(rect, hit.rect))
+    for (size_t i = 0; i < editControls_.size(); ++i)
     {
-      continue;
+      EditTextControlBinding &binding = editControls_[i];
+      if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
+      {
+        continue;
+      }
+      // binding.rect is the inset text rect that TEUpdate needs; draw() frames
+      // the outer rect, so the region that has to trigger a redraw is the outer
+      // one. Gating on the inner rect would skip a dirty strip covering only the
+      // chrome and leave the frame erased.
+      if (!RectsIntersect(rect, (binding.editor ? binding.editor->chromeRect() : static_cast<ToolboxEditTextContext *>(binding.ownerContext)->chromeRect())))
+      {
+        continue;
+      }
+      // Replay borrows established TE placement; it never reprojects or changes
+      // the registry after the viewport's projection scope has popped.
+      if (binding.editor) binding.editor->repaint(binding.te);
+      else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(binding.te);
     }
-    hit.context->draw(this);
-    assert(hitLedger_.cellHits_.size() == cellReplayCount
-           && "cell hits register on the render walk; the dirty replay must not grow the registry it iterates (#315)");
-  }
-  for (size_t i = 0; i < hitLedger_.textHits_.size(); ++i)
-  {
-    TextHit &hit = hitLedger_.textHits_[i];
-    if (!RectsIntersect(rect, hit.rect))
-    {
-      continue;
-    }
-    redrawTextHit(hit);
-  }
-  for (size_t i = 0; i < editControls_.size(); ++i)
-  {
-    EditTextControlBinding &binding = editControls_[i];
-    if (!binding.ownerContext || !binding.te || !binding.usedThisFrame)
-    {
-      continue;
-    }
-    // binding.rect is the inset text rect that TEUpdate needs; draw() frames
-    // the outer rect, so the region that has to trigger a redraw is the outer
-    // one. Gating on the inner rect would skip a dirty strip covering only the
-    // chrome and leave the frame erased.
-    if (!RectsIntersect(rect, (binding.editor ? binding.editor->chromeRect() : static_cast<ToolboxEditTextContext *>(binding.ownerContext)->chromeRect())))
-    {
-      continue;
-    }
-    // Replay borrows established TE placement; it never reprojects or changes
-    // the registry after the viewport's projection scope has popped.
-    if (binding.editor) binding.editor->repaint(binding.te);
-    else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(binding.te);
-  }
-  drawControlsInRect(rect);
+    drawControlsInRect(rect);
+  } while (false);
+  this->debugStats_.totalRenderUs = renderBefore + (ToolboxProfileMicroseconds() - start)
+                                  - (this->debugStats_.totalLayoutUs - layoutBefore);
 }
 
 #include "ToolboxHitLedger.cpp"

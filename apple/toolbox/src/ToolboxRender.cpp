@@ -1,3 +1,5 @@
+#include "ToolboxProfiler.hpp"
+
 /** Included by the production controller and Linux host fixture. */
 void ToolboxScenePlatformController::render()
 {
@@ -8,6 +10,8 @@ void ToolboxScenePlatformController::render()
   {
     return;
   }
+  const unsigned long renderStart = ToolboxProfileMicroseconds();
+  const unsigned long layoutBefore = this->debugStats_.totalLayoutUs;
   {
     // Identity rule: an auto id stays with its context for the context's
     // lifetime. Observed explicit tags only ever RAISE the auto range —
@@ -72,13 +76,16 @@ void ToolboxScenePlatformController::render()
   if (!this->projectionParentScopes_.resetRoot(
           static_cast<void *>(window_->window()), rootClip))
   {
+    this->debugStats_.totalRenderUs += ToolboxProfileMicroseconds() - renderStart;
     return;
   }
   PROFILE_SECTION("layout");
+  const unsigned long layoutStart = ToolboxProfileMicroseconds();
   LayoutNode(rootNode_, state, this, 0);
   assert(this->projectionParentScopes_.activeDepth() == 0 &&
          "a Toolbox projection pass must restore the root scope");
   this->rectSurfaceExtentLedger_.flush();
+  this->debugStats_.totalLayoutUs += ToolboxProfileMicroseconds() - layoutStart;
   RenderNode(rootNode_, this);
   debugStats_.refreshHitCounts(static_cast<int>(hitLedger_.buttonHits_.size()),
                                static_cast<int>(hitLedger_.cellHits_.size()),
@@ -110,5 +117,7 @@ void ToolboxScenePlatformController::render()
       ++i;
     }
   }
+  this->debugStats_.totalRenderUs += (ToolboxProfileMicroseconds() - renderStart)
+                                   - (this->debugStats_.totalLayoutUs - layoutBefore);
 }
 

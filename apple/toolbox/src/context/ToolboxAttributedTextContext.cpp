@@ -77,6 +77,8 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
                                            loka::app::scene::LayoutState &state)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
+  if (toolbox)
+    ++toolbox->debugStats_.totalLeafLayout;
   if (!toolbox || !this->node_ || !this->node_->props.text_)
   {
     this->onPropsApplied();
@@ -126,12 +128,14 @@ ToolboxAttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuer
 
 void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController *)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafRender;
   if (!this->controller() || !this->table_.valid() || !this->node_->props.text_
       || !(this->table_.value() == this->node_->props.text_->get()))
     return;
   this->presented_.invalidate();
   ToolboxTextMeasureScope port(*this->controller());
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   // Classic low-memory fallback (same as Text): an inactive clip keeps the

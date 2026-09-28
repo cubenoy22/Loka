@@ -2,6 +2,7 @@
 #include <Processes.h>
 #include "ToolboxProbeTiming.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxScenePlatformController.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
 #include "app/core/App.hpp"
 #include "app/core/AppComposition.hpp"
@@ -160,6 +161,17 @@ namespace
     }
   };
 
+  /** Exact LOG.TXT format (CR line endings):
+      series=S<1|2> N=<count> phase=<phase> step=<step> us=<elapsed> FreeMem=<bytes> offset=<pixels> texts=<count>
+      Scroll records append, in order:
+       layout_us=<us> render_us=<us> rest_us=<signed us> leaf_layout=<visits> leaf_render=<visits> rgn=<calls>
+      Deltas span timer start before offset.set through the next settled idle.
+      Timing requires LOKA_RETRO68_DIAGNOSTICS=ON (the profiler gate).
+      Render excludes layout; rest is elapsed minus both (no clamping).
+      Layout visits count leaf contexts; render visits count attributed/plain
+      text contexts, including clipped visits;
+      rgn counts attempted NewRgn calls in ToolboxPaintClip, including refusal.
+      Other records retain their existing fields. */
   /** One file for the launch; every record is made durable before continuing. */
   class Report
   {
@@ -186,10 +198,11 @@ namespace
     {
       return this->log_ && !std::ferror(this->log_) && loka::platform::file::FlushWrite(this->log_, this->file_);
     }
-    void measurement(int selected, const char *phase, int step, unsigned long us, int offset, int texts)
+    void measurement(int selected, const char *phase, int step, unsigned long us, int offset, int texts,
+                     const ToolboxSceneDebugStats *before = 0, const ToolboxSceneDebugStats *after = 0)
     {
       std::fprintf(this->log_,
-                   "series=S%d N=%d phase=%s step=%d us=%lu FreeMem=%ld offset=%d texts=%d\r",
+                   "series=S%d N=%d phase=%s step=%d us=%lu FreeMem=%ld offset=%d texts=%d",
                    selected > 0 ? 1 : 2,
                    selected > 0 ? selected : -selected,
                    phase,
@@ -198,6 +211,17 @@ namespace
                    FreeMem(),
                    offset,
                    texts);
+      if (before && after)
+      {
+        const unsigned long layout = after->totalLayoutUs - before->totalLayoutUs;
+        const unsigned long render = after->totalRenderUs - before->totalRenderUs;
+        std::fprintf(this->log_, " layout_us=%lu render_us=%lu rest_us=%ld leaf_layout=%lu leaf_render=%lu rgn=%lu",
+                     layout, render, static_cast<long>(us) - static_cast<long>(layout) - static_cast<long>(render),
+                     after->totalLeafLayout - before->totalLeafLayout,
+                     after->totalLeafRender - before->totalLeafRender,
+                     after->totalPaintClipRegions - before->totalPaintClipRegions);
+      }
+      std::fprintf(this->log_, "\r");
       this->flush();
     }
 
@@ -300,6 +324,7 @@ namespace
     App *app_;
     int phase_;
     UnsignedWide interval_;
+    ToolboxSceneDebugStats initial_;
 
     void stop(const char *phase, unsigned long elapsed)
     {
@@ -336,6 +361,8 @@ namespace
       UnsignedWide now;
       Microseconds(&now);
       const unsigned long elapsed = now.lo - this->interval_.lo;
+      ToolboxScenePlatformController *controller = static_cast<ToolboxWindow *>(window)->scenePlatformController();
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
       const int count = CountCompleted(document);
       const int offset = document->offset();
       const layout::LazyLayout policy = layout::FixedGrid(300, 64, 1, this->model_.size());
@@ -348,7 +375,8 @@ namespace
         return;
       }
       this->report_.measurement(
-          this->selected_, this->phase_ == 0 ? "first-paint" : "scroll", this->phase_, elapsed, offset, count);
+          this->selected_, this->phase_ == 0 ? "first-paint" : "scroll", this->phase_, elapsed, offset, count,
+          this->phase_ > 0 ? &this->initial_ : 0, this->phase_ > 0 ? &stats : 0);
       if (this->phase_ == 5)
       {
 #if defined(LOKA_DIAG) || defined(LOKA_RETRO68_DIAGNOSTICS)
@@ -361,6 +389,7 @@ namespace
         return;
       }
       ++this->phase_;
+      this->initial_ = stats;
       this->startTiming();
       document->scrollOneLine();
     }

@@ -173,13 +173,13 @@ void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value
 
 void ToolboxPopupMenuContext::draw()
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   this->paintFace(clip);
 }
 
 void ToolboxPopupMenuContext::repaint()
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   // Erase under whichever clip is in force: the intersected one, or the
@@ -232,6 +232,8 @@ void ToolboxPopupMenuContext::paintFace(const ToolboxPaintClip &clip)
 short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *controller,
                                       loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   if (!node_)
   {
     return 0;

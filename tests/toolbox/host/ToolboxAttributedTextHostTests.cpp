@@ -99,6 +99,7 @@ int main(int argc, char **argv)
     loka::core::testing::failLokaAllocRaw("ToolboxAttributedText", "Break", 0);
     toolbox_host::reset();
     context->layout(&controller, seat);
+    LOKA_VERIFY(controller.debugStats_.totalLeafLayout == 1);
     const ToolboxAttributedTextTable &table = ToolboxAttributedTextContextAccess::table(*context);
     LOKA_VERIFY(table.valid());
     LOKA_VERIFY(table.lines().lineCount() == 2);
@@ -120,6 +121,13 @@ int main(int argc, char **argv)
                 toolbox_host::metrics);
     Pin("ToolboxAttributedTextTransparentCompositionAndEraseOnReplay");
     context->render(&controller);
+    Pin("ToolboxScrollBreakdownCountsVisitsAndRegionAttempts");
+    LOKA_VERIFY(controller.debugStats_.totalLeafRender == 1);
+    LOKA_VERIFY(controller.debugStats_.totalPaintClipRegions == 2);
+    controller.debugStats_.begin(NODE_DIRTY_LAYOUT, false);
+    LOKA_VERIFY(controller.debugStats_.totalLeafLayout == 1);
+    LOKA_VERIFY(controller.debugStats_.totalLeafRender == 1);
+    LOKA_VERIFY(controller.debugStats_.totalPaintClipRegions == 2);
     LOKA_VERIFY(toolbox_host::erases == 0);
     toolbox_host::draws.clear();
     Repaint(controller, *context);
@@ -130,8 +138,10 @@ int main(int argc, char **argv)
       // the presented history stays unknown.
       const std::size_t before = toolbox_host::draws.size();
       const int erasesBefore = toolbox_host::erases;
+      const unsigned long regionsBefore = controller.debugStats_.totalPaintClipRegions;
       toolbox_host::failRegions = 2;
       context->render(&controller);
+      LOKA_VERIFY(controller.debugStats_.totalPaintClipRegions == regionsBefore + 2);
       LOKA_VERIFY(toolbox_host::draws.size() == before + 3);
       LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
       toolbox_host::failRegions = 0;

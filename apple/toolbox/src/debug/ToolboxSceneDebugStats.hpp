@@ -101,6 +101,13 @@ public:
   // Cumulative only: boundary applies precede onChange (which calls begin) in a
   // cycle that also has global work, so a per-interval copy would be reset
   // right after it was incremented. Read these as deltas across a cycle.
+  /** Cumulative pass microseconds and leaf visits; snapshot as interval deltas.
+      Render excludes layout, including layout nested in dirty replay. */
+  unsigned long totalLayoutUs;
+  unsigned long totalRenderUs;
+  unsigned long totalLeafLayout;
+  unsigned long totalLeafRender;
+  unsigned long totalPaintClipRegions;
   int totalCollectorVisitCount;
   int totalBoundaryApplyCount;
   void noteCollectorVisit();

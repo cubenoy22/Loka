@@ -73,7 +73,7 @@ void ToolboxCellContext::updateRect(const Rect &rect)
 void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 {
   (void)controller;
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   Rect drawRect = this->rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
@@ -102,6 +102,8 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxCellContext::layout(loka::app::scene::IPlatformController *controller,
                                  loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   if (!node_)
   {
     return 0;

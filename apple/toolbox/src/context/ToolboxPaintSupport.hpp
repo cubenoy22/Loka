@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_PAINT_SUPPORT_HPP
 
 #include <Quickdraw.h>
+#include "debug/ToolboxSceneDebugStats.hpp"
 #include "app/scene/projection/PaintFact.hpp"
 #include "app/scene/Node.hpp"
 
@@ -42,9 +43,11 @@ class ToolboxPaintClip
 {
 public:
   enum Operation { INTERSECT, REPLACE };
-  explicit ToolboxPaintClip(const Rect &rect, Operation operation = INTERSECT)
+  explicit ToolboxPaintClip(const Rect &rect, ToolboxSceneDebugStats *stats = 0, Operation operation = INTERSECT)
       : saved_(NewRgn()), clip_(NewRgn())
   {
+    if (stats)
+      stats->totalPaintClipRegions += 2; // Both NewRgn calls above are attempted even on refusal.
     if (!this->isActive())
       return;
     GetClip(this->saved_);

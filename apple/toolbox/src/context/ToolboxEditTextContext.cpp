@@ -124,7 +124,7 @@ void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textR
 
 void ToolboxEditTextContext::repaint(TEHandle te)
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   this->presented_.invalidate();
@@ -149,7 +149,7 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
       return;
     }
   }
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (!clip.isActive() || clip.touches(this->paintRect_))
   {
     this->presented_.invalidate();
@@ -164,6 +164,8 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
 short ToolboxEditTextContext::layout(loka::app::scene::IPlatformController *controller,
                                      loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   (void)controller;
   if (!node_)
   {

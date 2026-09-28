@@ -238,6 +238,9 @@ private:
   friend bool RegisterToolboxBuiltInSupport(ToolboxScenePlatformController &controller);
   template <typename Sink, typename StateType>
   friend class ToolboxEnabledStateBindingPath;
+  friend class ToolboxImageViewContext;
+  friend class ToolboxScrollBarContext;
+  friend class ToolboxAttributedTextContext;
   friend class ToolboxTextContext;
   friend class ToolboxCellContext;
   friend class ToolboxButtonContext;

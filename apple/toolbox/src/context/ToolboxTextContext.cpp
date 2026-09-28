@@ -378,7 +378,7 @@ void ToolboxTextContext::paint(bool erase)
     return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   this->presented_.invalidate();
@@ -446,6 +446,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
   ToolboxScenePlatformController *toolbox =
       static_cast<ToolboxScenePlatformController *>(controller);
   this->captureProps();
+  if (toolbox)
+    ++toolbox->debugStats_.totalLeafLayout;
   if (!toolbox || !node_ || !node_->props.text_)
   {
     this->clearMeasurement();
@@ -487,6 +489,8 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
 
 void ToolboxTextContext::render(loka::app::scene::IPlatformController *controller)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafRender;
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   draw(toolbox);
 }

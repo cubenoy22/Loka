@@ -90,6 +90,8 @@ ToolboxRectSurfaceContext::~ToolboxRectSurfaceContext()
 
 short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   const Rect previousRect = this->rect_;
   const Rect previousPaintRect = this->paintRect_;
 
@@ -112,7 +114,7 @@ short ToolboxRectSurfaceContext::layout(loka::app::scene::IPlatformController *,
 
 void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   // The #412 clipped full walk may exclude this surface entirely. Preserve
   // its last painted sprite positions so a pending dirty flush can erase them.
   if (clip.isActive() && !clip.touches(this->paintRect_))

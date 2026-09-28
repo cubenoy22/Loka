@@ -245,6 +245,8 @@ ToolboxImageViewContext::~ToolboxImageViewContext() {}
 
 short ToolboxImageViewContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   int sizePolicy = loka::app::IMAGE_VIEW_SIZE_AUTO;
   int width = state.width;
   int height = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kImageFallbackHeight;

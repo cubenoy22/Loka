@@ -30,6 +30,7 @@ class ToolboxTextFontDescriptor;
 #include "app/FocusParticipant.hpp"
 class ToolboxTextEditorContext;
 #include "ToolboxCompositionReplay.hpp"
+#include "debug/ToolboxSceneDebugStats.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "support/MeasurementRetryQueue.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
@@ -305,12 +306,7 @@ public:
   ToolboxControlIdAllocator controlIds_;
   std::vector<Rect> pendingDirtyRects_;
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
-  struct RenderStats
-  {
-    unsigned renderCalls, totalRenderCalls;
-    RenderStats() : renderCalls(0), totalRenderCalls(0) {}
-    void refreshHitCounts(int, int, int, int, int) {}
-  } debugStats_;
+  ToolboxSceneDebugStats debugStats_;
   void clearEnabledBindings() {}
   void drawControlsInRect(const Rect &) {}
   virtual void synchronize() {}

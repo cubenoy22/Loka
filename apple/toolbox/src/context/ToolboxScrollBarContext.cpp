@@ -57,6 +57,8 @@ void ToolboxScrollBarContext::updateRect(const Rect &rect)
 short ToolboxScrollBarContext::layout(loka::app::scene::IPlatformController *controller,
                                       loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   (void)controller;
   if (!node_)
   {

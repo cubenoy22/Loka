@@ -139,7 +139,7 @@ void ToolboxButtonContext::updateRect(const Rect &rect)
 
 void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   const bool paints = !clip.isActive() || clip.touches(this->paintRect_);
   if (paints)
     this->presented_.invalidate();
@@ -192,7 +192,7 @@ bool ReconcileToolboxButtonControl(ControlRef control, const loka::core::String 
 
 void ToolboxButtonContext::repaint(ControlRef control, std::string &installedLabel)
 {
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   this->presented_.invalidate();
@@ -215,6 +215,8 @@ void ToolboxButtonContext::forgetPresentedControl()
 short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *controller,
                                    loka::app::scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   (void)controller;
   if (!node_)
   {

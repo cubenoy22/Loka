@@ -696,6 +696,8 @@ scene::PaintAnswer ToolboxTextEditorContext::queryPaintDamage(const scene::Paint
 }
 short ToolboxTextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)
 {
+  if (this->controller())
+    ++this->controller()->debugStats_.totalLeafLayout;
   Rect rect;
   SetRect(&rect, state.x, state.y, state.x + state.width, state.y + (state.height > 0 ? state.height : 80));
   this->updateRect(rect);
@@ -707,7 +709,7 @@ void ToolboxTextEditorContext::repaint(TEHandle te)
 {
   if (EmptyRect(&this->paintRect_))
     return;
-  ToolboxPaintClip clip(this->paintRect_);
+  ToolboxPaintClip clip(this->paintRect_, this->controller() ? &this->controller()->debugStats_ : 0);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   FrameRect(&this->rect_);

@@ -396,5 +396,9 @@ namespace
   }
 }
 #include "core/Profiler.hpp"
+// Host fixture exercises routing, not Classic elapsed time.
+#if LOKA_PROFILE_FUNC_TICKS
+unsigned long ToolboxProfileMicroseconds() { return 0; }
+#endif
 #include "ToolboxRender.cpp"
 void ToolboxScenePlatformController::renderDirty(const Rect &) { this->render(); }
