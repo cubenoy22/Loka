@@ -1,3 +1,4 @@
+#include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxButtonContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -49,6 +50,7 @@ ToolboxButtonContext::ToolboxButtonContext(loka::app::ButtonNode *node, ToolboxS
       node_(node),
       rect_(),
       paintRect_(),
+      widthFromText_(false),
       label_(loka::core::String::Literal("Button")),
       emitter_(0),
       enabled_(0),
@@ -72,18 +74,17 @@ loka::app::scene::PaintAnswer ToolboxButtonContext::queryPaintDamage(const loka:
   {
     // No presented value is required offscreen, but the laid-out title width
     // still constrains placement. A changed width can move visible siblings.
-    if (!this->controller()
-        || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left)
+    if (this->widthFromText_ && (!this->controller()
+        || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left))
       return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
     return ToolboxExactPaint(this->paintRect_, false);
   }
   if (!this->presented_.isKnown())
     return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
-  // The control's width is derived from its title (layout), so a title whose
-  // measured width differs from the presented one moves this button and its
-  // Row siblings: that is layout work, not paint, and exact delivery refuses.
-  if (!this->controller()
-      || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left)
+  // Only a text-sized control can move its Row siblings when the title
+  // changes. A container-sized control retains its laid-out rectangle.
+  if (this->widthFromText_ && (!this->controller()
+      || this->naturalWidth(current.label()) != this->rect_.right - this->rect_.left))
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   return ToolboxExactPaint(this->paintRect_, !(current == this->presented_.value()));
 }
@@ -221,7 +222,9 @@ short ToolboxButtonContext::layout(loka::app::scene::IPlatformController *contro
     return 0;
   }
   this->captureProps();
-  const short width = this->naturalWidth(this->label_);
+  this->widthFromText_ = state.width <= 0;
+  const short width = static_cast<short>(loka::app::layout::offeredOrNaturalWidth(
+      state.width, this->widthFromText_ ? this->naturalWidth(this->label_) : 0));
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;

@@ -1,3 +1,4 @@
+#include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
 #include "context/ToolboxCellContext.hpp"
@@ -133,13 +134,15 @@ short ToolboxCellContext::layout(loka::app::scene::IPlatformController *controll
     return 0;
   }
   this->widthFromText_ = state.width <= 0;
-  short width = state.width;
-  if (width <= 0 && node_->props.text_)
+  short naturalWidth = state.width;
+  if (this->widthFromText_ && node_->props.text_)
   {
     ToolboxScenePlatformController *toolbox =
         static_cast<ToolboxScenePlatformController *>(controller);
-    width = toolbox ? toolbox->measureTextWidth(node_->props.text_->get()) : 0;
+    naturalWidth = toolbox ? toolbox->measureTextWidth(node_->props.text_->get()) : 0;
   }
+  const short width = static_cast<short>(
+      loka::app::layout::offeredOrNaturalWidth(state.width, naturalWidth));
   short height = state.height;
   if (height <= 0)
   {

@@ -6,14 +6,20 @@
 #define LOKA_TOOLBOX_WINDOW_HPP
 #define LOKA_TOOLBOX_WINDOW_CONTEXT_HPP
 #define LOKA_TOOLBOX_APP_HPP
+#ifndef LOKA_HOST_CONTROL_WIDTH
 #define LOKA_TOOLBOX_BUTTON_CONTEXT_HPP
+#endif
 #ifndef LOKA_HOST_CELL_PAINT
 #define LOKA_TOOLBOX_CELL_CONTEXT_HPP
 #endif
+#ifndef LOKA_HOST_CONTROL_WIDTH
 #define LOKA_TOOLBOX_EDIT_TEXT_CONTEXT_HPP
+#endif
 #define LOKA_TOOLBOX_IMAGE_VIEW_CONTEXT_HPP
 #define LOKA_TOOLBOX_OPEN_FILE_DIALOG_CONTEXT_HPP
+#ifndef LOKA_HOST_CONTROL_WIDTH
 #define LOKA_TOOLBOX_POPUP_MENU_CONTEXT_HPP
+#endif
 #define LOKA_TOOLBOX_SCROLL_BAR_CONTEXT_HPP
 class ToolboxTextContext;
 class ToolboxTextFontDescriptor;
@@ -117,6 +123,7 @@ public:
   }
 };
 /** Host neighbor: the production controller only needs the ordinary edit's write seat and invalidation. */
+#ifndef LOKA_HOST_CONTROL_WIDTH
 class ToolboxEditTextContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -127,7 +134,11 @@ public:
   { return this->projectedWriteSeat().state(); }
   void invalidateNativePresentation() {}
 };
+#else
+#include "context/ToolboxEditTextContext.hpp"
+#endif
 /** Host neighbors carry the fields consumed by the unmodified leaf input bodies. */
+#ifndef LOKA_HOST_CONTROL_WIDTH
 class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -137,6 +148,9 @@ public:
   ToolboxButtonContext() : emitter_(0), enabled_(0) {}
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
+#else
+#include "context/ToolboxButtonContext.hpp"
+#endif
 #ifndef LOKA_HOST_CELL_PAINT
 class ToolboxCellContext : public loka::app::scene::NativeNodeContext
 {
@@ -149,6 +163,7 @@ public:
 #else
 #include "context/ToolboxCellContext.hpp"
 #endif
+#ifndef LOKA_HOST_CONTROL_WIDTH
 class ToolboxPopupMenuContext : public loka::app::scene::NativeNodeContext
 {
 public:
@@ -165,6 +180,9 @@ public:
   static void copyToPascalString(const loka::core::String &, Str255 &out) { out[0] = 0; }
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
+#else
+#include "context/ToolboxPopupMenuContext.hpp"
+#endif
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
@@ -249,10 +267,19 @@ public:
   void syncEditTextFromState(EditTextControlBinding &);
   void refreshContextProps(loka::app::scene::Node *, short = 0) {}
   short measureTextWidth(const loka::core::String &, const ToolboxTextFontDescriptor &) const;
-#ifdef LOKA_HOST_CELL_PAINT
+#if defined(LOKA_HOST_CELL_PAINT) || defined(LOKA_HOST_CONTROL_WIDTH)
   short measureTextWidth(const loka::core::String &) const;
   void recordCellHit(const Rect &, loka::core::EmitterState *, loka::app::scene::BoundaryNode *,
                      ToolboxCellContext *, loka::core::State<loka::core::String> *) {}
+#endif
+#ifdef LOKA_HOST_CONTROL_WIDTH
+  short allocateControlId() { return 100; }
+  bool ensureButtonControl(short, const Rect &rect, const loka::core::String &, loka::core::EmitterState *,
+      loka::core::State<bool> *, loka::app::scene::NativeLifetimeHint, ToolboxButtonContext *) { toolbox_host::controlRect = rect; return true; }
+  void destroyButtonControl(short, loka::app::scene::NativeLifetimeHint) {}
+  void recordButtonHit(const Rect &, loka::core::EmitterState *, loka::core::State<bool> *,
+      loka::app::scene::BoundaryNode *, ToolboxButtonContext *) {}
+  void recordPopupHit(const Rect &, loka::core::State<bool> *, ToolboxPopupMenuContext *) {}
 #endif
   void recordTextHit(const Rect &, short, short, loka::core::State<loka::core::String> *,
                      loka::app::scene::BoundaryNode *, bool, short, ToolboxTextContext *) { ++toolbox_host::textHits; }
@@ -305,8 +332,10 @@ public:
     return &cursor;
   }
   bool intersectWithProjectionClip(const Rect &rect, Rect &out) const;
-  void retireNodeContext(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint)
+  void retireNodeContext(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint hint)
   {
+    // Mirrors production: detach strips the context's edit binding first.
+    this->retireEditTextControl(context, hint);
     retired.push_back(context);
   }
   virtual void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
@@ -336,14 +365,20 @@ public:
   {                                                                                                                    \
     return true;                                                                                                       \
   }
+#ifndef LOKA_HOST_CONTROL_WIDTH
 LOKA_HOST_OTHER_HANDLER(Button)
+#endif
 #ifndef LOKA_HOST_CELL_PAINT
 LOKA_HOST_OTHER_HANDLER(Cell)
 #endif
+#ifndef LOKA_HOST_CONTROL_WIDTH
 LOKA_HOST_OTHER_HANDLER(EditText)
+#endif
 LOKA_HOST_OTHER_HANDLER(ImageView)
 LOKA_HOST_OTHER_HANDLER(OpenFileDialog)
+#ifndef LOKA_HOST_CONTROL_WIDTH
 LOKA_HOST_OTHER_HANDLER(PopupMenu)
+#endif
 LOKA_HOST_OTHER_HANDLER(ScrollBar)
 #undef LOKA_HOST_OTHER_HANDLER
 
