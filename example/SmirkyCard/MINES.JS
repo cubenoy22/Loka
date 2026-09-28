@@ -62,13 +62,11 @@ card('first', class {
   compose() {
     return VStack(
       Text(this.status).TEST_ID('Mines.Status'),
-      Array.from({length: 8}, (_, row) => Row(
-        this.cells.slice(row * 8, row * 8 + 8).map((seat, col) =>
-          Cell(seat, () => this.click(row * 8 + col)).TEST_ID('Mines.Cell.' + (row * 8 + col))))),
-      Button(this.mode, () => this.mode.set(this.mode.get() === 'Flag mode: off'
+      Row(Button(this.mode, () => this.mode.set(this.mode.get() === 'Flag mode: off'
         ? 'Flag mode: on' : 'Flag mode: off')).TEST_ID('Mines.Flag'),
-      Button('New Game', () => go('first')).TEST_ID('Mines.NewGame'),
-      Button('./MAIN.JS', () => open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain')
-    );
+        Button('New Game', () => go('first')).TEST_ID('Mines.NewGame'),
+        Button('./MAIN.JS', () => open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain')),
+      Grid(8, 8, this.cells.map((seat, i) => Cell(seat, () => this.click(i)).TEST_ID('Mines.Cell.' + i))).TEST_ID('Mines.Board')
+    ).TEST_ID('Mines.Content');
   }
 });

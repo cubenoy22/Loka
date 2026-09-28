@@ -3,6 +3,8 @@
 #include "SmirkyMarkup.hpp"
 #include "JsClickNode.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -537,6 +539,23 @@ namespace
                                 {3, 26, 42, 49, 50, 56, 59, 60, 62, 63}};
       for (int board = 0; board < 3; ++board)
       {
+        loka::app::scene::Node *content = windowNode(window, "Mines.Content");
+        loka::app::scene::Node *grid = windowNode(window, "Mines.Board");
+        LOKA_VERIFY(content && content->asStackNode());
+        LOKA_VERIFY(content->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN);
+        LOKA_VERIFY(content->asNestable()->childrenCount() == 3);
+        loka::app::scene::Node *status = content->asNestable()->childrenHead();
+        LOKA_VERIFY(status == windowNode(window, "Mines.Status"));
+        loka::app::scene::Node *controls = status->nextInComposition;
+        LOKA_VERIFY(controls && controls->asStackNode());
+        LOKA_VERIFY(controls->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
+        LOKA_VERIFY(controls->asNestable()->childrenCount() == 3);
+        LOKA_VERIFY(find(controls, "Mines.Flag") && find(controls, "Mines.NewGame")
+                    && find(controls, "SmirkyCard.OpenMain"));
+        LOKA_VERIFY(grid && grid->asGridNode() && controls->nextInComposition == grid);
+        LOKA_VERIFY(!grid->nextInComposition);
+        LOKA_VERIFY(grid->asGridNode()->props.rows == 8 && grid->asGridNode()->props.cols == 8);
+        LOKA_VERIFY(grid->asNestable()->childrenCount() == 64);
         LOKA_VERIFY(minesStatus(window) == "Mines left: 10");
         for (int i = 0; i < 64; ++i)
           LOKA_VERIFY(mineLabel(window, i) == ".");
@@ -1094,6 +1113,100 @@ namespace
     LOKA_VERIFY(reload && reload->asButtonNode() && reload->asButtonNode()->props.getOnClick());
   }
 
+  void checkGridShape(int rows, int cols, bool clickable)
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    char prefix[128];
+    std::sprintf(prefix,
+                 "card('first',class{compose(){return Grid(%d,%d,Array.from({length:%d},(_,i)=>",
+                 rows,
+                 cols,
+                 rows * cols);
+    const std::string source = std::string(prefix) + (clickable ? "Cell(String(i),()=>{})" : "Text(String(i))")
+                               + ".TEST_ID(String(i)))).TEST_ID('Board')}});";
+    LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *board = windowNode(window, "Board");
+    LOKA_VERIFY(board && board->asGridNode());
+    loka::app::GridNode *grid = board->asGridNode();
+    LOKA_VERIFY(grid->props.rows == rows && grid->props.cols == cols);
+    LOKA_VERIFY(grid->childrenCount() == static_cast<size_t>(rows * cols));
+    int count = 0;
+    for (loka::app::scene::Node *child = grid->childrenHead(); child; child = child->nextInComposition)
+    {
+      char expected[16];
+      std::sprintf(expected, "%d", count++);
+      loka::app::scene::Node *cell = find(child, expected);
+      LOKA_VERIFY(cell);
+      if (clickable)
+      {
+        LOKA_VERIFY(cell->asCellNode());
+        LOKA_VERIFY(cell->asCellNode()->props.text_->get().compare(loka::core::String::Literal(expected)) == 0);
+      }
+      else
+      {
+        LOKA_VERIFY(cell->asTextNode());
+        LOKA_VERIFY(textValue(cell->asTextNode()) == expected);
+      }
+    }
+    LOKA_VERIFY(count == rows * cols);
+  }
+
+  void checkGrid()
+  {
+    checkGridShape(8, 8, true);
+    // Text nodes cover the capacity without consuming the separate clickable budget.
+    checkGridShape(16, 16, false);
+    checkGridShape(1, 1, true);
+    checkGridShape(2, 3, true);
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String result, error;
+    // Validation belongs to the helper call even if its result is never lowered.
+    LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("Grid(0,8,[]);'unused'"), result, error));
+    const char *stacks[] = {"Row", "VStack"};
+    for (size_t i = 0; i < sizeof(stacks) / sizeof(stacks[0]); ++i)
+    {
+      const std::string source = std::string("card('first',class{compose(){return ") + stacks[i]
+                                 + "(Array.from({length:17},()=>Text('x')))}});";
+      checkComposeRefusal(source.c_str(), "accepts at most 16 children");
+    }
+    const char *badCounts[] = {"63", "65"};
+    for (size_t i = 0; i < sizeof(badCounts) / sizeof(badCounts[0]); ++i)
+    {
+      const std::string source = std::string("card('first',class{compose(){return Grid(8,8,Array.from({length:")
+                                 + badCounts[i] + "},()=>Text('x')))}});";
+      checkComposeRefusal(source.c_str(), "Grid requires exactly rows * cols children (64)");
+    }
+    const char *badDimensions[] = {"0", "17", "-1", "1.5", "NaN", "Infinity", "'8'", "null"};
+    for (size_t i = 0; i < sizeof(badDimensions) / sizeof(badDimensions[0]); ++i)
+      for (int axis = 0; axis < 2; ++axis)
+      {
+        const std::string source = std::string("card('first',class{compose(){return Grid(")
+                                   + (axis == 0 ? badDimensions[i] : "8") + "," + (axis == 1 ? badDimensions[i] : "8")
+                                   + ",[])}});";
+        checkComposeRefusal(source.c_str(), "Grid rows and cols must be integers in 1..16");
+      }
+    checkComposeRefusal("card('first',class{compose(){return Grid(1,1,[[Text('x')]])}});", "nested arrays");
+    checkComposeRefusal("card('first',class{compose(){return Grid(1,1)}});", "Grid(rows, cols, children)");
+    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+                        "g.children.pop();return g}});",
+                        "Grid requires exactly rows * cols children");
+    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+                        "g.children.push(Text('y'));return g}});",
+                        "Grid requires exactly rows * cols children");
+    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{rows:0})}});",
+                        "Grid rows and cols must be integers in 1..16");
+    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{cols:17})}});",
+                        "Grid rows and cols must be integers in 1..16");
+  }
+
   void checkTextStyleRefusals()
   {
     const char *styles[] = {"{colour:1}",
@@ -1624,11 +1737,17 @@ int main(int argc, char **argv)
     checkManyClickables("Cell");
     return 0;
   }
+  if (argc == 2 && !std::strcmp(argv[1], "--grid"))
+  {
+    checkGrid();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--mines"))
   {
     checkMines();
     return 0;
   }
+  checkGrid();
   checkMines();
   testScriptAllocatorAlignsTwoByteAlignedBase();
   testScriptContextIsPointerTagAligned();

@@ -6,6 +6,7 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Grid.hpp"
 #include <new>
 
 namespace smirkycard
@@ -121,10 +122,11 @@ namespace smirkycard
       JS_SetPropertyStr(ctx, node, "TEST_ID", JS_NewCFunction(ctx, &ScriptRuntime::testId, "TEST_ID", 1));
       return node;
     }
-    JSValue buildStack(JSContext *ctx, int kind, const char *name, int argc, JSValueConst *argv)
+    JSValue collectChildren(JSContext *ctx, const char *name, int argc, JSValueConst *argv, uint32_t limit, bool exact)
     {
-      JSValue node = newTree(ctx, kind);
       JSValue children = JS_NewArray(ctx);
+      if (JS_IsException(children))
+        return children;
       uint32_t count = 0;
       for (int i = 0; i < argc; ++i)
       {
@@ -133,7 +135,6 @@ namespace smirkycard
         if (array && JS_GetLength(ctx, argv[i], &length))
         {
           JS_FreeValue(ctx, children);
-          JS_FreeValue(ctx, node);
           return JS_ThrowTypeError(ctx, "%s children must be tree nodes", name);
         }
         const uint32_t entries = array ? static_cast<uint32_t>(length) : 1;
@@ -146,23 +147,62 @@ namespace smirkycard
             JS_FreeValue(ctx, childKind);
             JS_FreeValue(ctx, child);
             JS_FreeValue(ctx, children);
-            JS_FreeValue(ctx, node);
             return JS_ThrowTypeError(ctx, "%s children must be tree nodes (nested arrays are not allowed)", name);
           }
           JS_FreeValue(ctx, childKind);
-          if (count == 16)
+          if (count == limit)
           {
             JS_FreeValue(ctx, child);
             JS_FreeValue(ctx, children);
-            JS_FreeValue(ctx, node);
-            return JS_ThrowRangeError(ctx, "%s accepts at most 16 children", name);
+            return exact ? JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, limit)
+                         : JS_ThrowRangeError(ctx, "%s accepts at most %u children", name, limit);
           }
-          JS_SetPropertyUint32(ctx, children, count++, child);
+          if (JS_SetPropertyUint32(ctx, children, count++, child) < 0)
+          {
+            JS_FreeValue(ctx, children);
+            return JS_EXCEPTION;
+          }
         }
       }
-      JS_SetPropertyStr(ctx, node, "children", children);
-      JS_FreezeObject(ctx, node);
-      return node;
+      if (exact && count != limit)
+      {
+        JS_FreeValue(ctx, children);
+        return JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, limit);
+      }
+      return children;
+    }
+    bool lowerChildren(JsCardNode &node,
+                       JSContext *ctx,
+                       JSValueConst tree,
+                       int depth,
+                       loka::app::scene::INestableDefinition &nest,
+                       int limit,
+                       bool exact,
+                       const char *name)
+    {
+      JSValue children = JS_GetPropertyStr(ctx, tree, "children");
+      int64_t length = 0;
+      if (!JS_IsArray(children) || JS_GetLength(ctx, children, &length) || length < 0 || length > limit
+          || (exact && length != limit))
+      {
+        JS_FreeValue(ctx, children);
+        node.fail(name);
+        return false;
+      }
+      for (uint32_t i = 0; i < static_cast<uint32_t>(length); ++i)
+      {
+        JSValue child = JS_GetPropertyUint32(ctx, children, i);
+        loka::app::scene::NodeDefinitionBase *definition = node.lowerChild(ctx, child, depth + 1);
+        JS_FreeValue(ctx, child);
+        if (!definition)
+        {
+          JS_FreeValue(ctx, children);
+          return false;
+        }
+        nest.addOwnedChild(definition);
+      }
+      JS_FreeValue(ctx, children);
+      return true;
     }
     class StackLowering : public IJsNodeLowering
     {
@@ -175,7 +215,18 @@ namespace smirkycard
       }
       virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
       {
-        return buildStack(ctx, kind, name, argc, argv);
+        JSValue children = collectChildren(ctx, name, argc, argv, 16, false);
+        if (JS_IsException(children))
+          return children;
+        JSValue tree = newTree(ctx, kind);
+        if (JS_IsException(tree))
+        {
+          JS_FreeValue(ctx, children);
+          return tree;
+        }
+        JS_SetPropertyStr(ctx, tree, "children", children);
+        JS_FreezeObject(ctx, tree);
+        return tree;
       }
       virtual loka::app::scene::NodeDefinitionBase *
       lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int depth)
@@ -194,34 +245,93 @@ namespace smirkycard
           stack = column;
           nest = column;
         }
-        JSValue children = JS_GetPropertyStr(ctx, tree, "children");
-        int64_t length = 0;
-        if (!stack || !JS_IsArray(children) || JS_GetLength(ctx, children, &length) || length > 16)
+        if (!stack)
         {
-          JS_FreeValue(ctx, children);
-          delete stack;
-          node.fail("JavaScript stack has invalid children.");
+          node.fail("JavaScript stack allocation refused.");
           return 0;
         }
-        for (uint32_t i = 0; i < static_cast<uint32_t>(length); ++i)
+        if (!lowerChildren(node, ctx, tree, depth, *nest, 16, false, "JavaScript stack has invalid children."))
         {
-          JSValue child = JS_GetPropertyUint32(ctx, children, i);
-          loka::app::scene::NodeDefinitionBase *definition = node.lowerChild(ctx, child, depth + 1);
-          JS_FreeValue(ctx, child);
-          if (!definition)
-          {
-            JS_FreeValue(ctx, children);
-            delete stack;
-            return 0;
-          }
-          nest->addOwnedChild(definition);
+          delete stack;
+          return 0;
         }
-        JS_FreeValue(ctx, children);
         return stack;
       }
 
     private:
       bool row_;
+    };
+    bool readGridDimension(JSContext *ctx, JSValueConst value, short &out)
+    {
+      double number = 0;
+      if (!JS_IsNumber(value) || JS_ToFloat64(ctx, &number, value) || !(number >= 1 && number <= 16)
+          || number != static_cast<short>(number))
+        return false;
+      out = static_cast<short>(number);
+      return true;
+    }
+    class GridLowering : public IJsNodeLowering
+    {
+    public:
+      GridLowering()
+      {
+        name = "Grid";
+        kind = 0;
+      }
+      virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
+      {
+        if (argc != 3)
+          return JS_ThrowTypeError(ctx, "Grid(rows, cols, children) requires three arguments");
+        short rows = 0, cols = 0;
+        if (!readGridDimension(ctx, argv[0], rows) || !readGridDimension(ctx, argv[1], cols))
+          return JS_ThrowRangeError(ctx, "Grid rows and cols must be integers in 1..16");
+        JSValue children = collectChildren(ctx, name, 1, argv + 2, rows * cols, true);
+        if (JS_IsException(children))
+          return children;
+        JSValue tree = newTree(ctx, kind);
+        if (JS_IsException(tree))
+        {
+          JS_FreeValue(ctx, children);
+          return tree;
+        }
+        if (JS_SetPropertyStr(ctx, tree, "children", children) < 0
+            || JS_SetPropertyStr(ctx, tree, "rows", JS_NewInt32(ctx, rows)) < 0
+            || JS_SetPropertyStr(ctx, tree, "cols", JS_NewInt32(ctx, cols)) < 0 || JS_FreezeObject(ctx, tree) < 0)
+        {
+          JS_FreeValue(ctx, tree);
+          return JS_EXCEPTION;
+        }
+        return tree;
+      }
+      virtual loka::app::scene::NodeDefinitionBase *
+      lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int depth)
+      {
+        short rows = 0, cols = 0;
+        JSValue rowValue = JS_GetPropertyStr(ctx, tree, "rows");
+        JSValue colValue = JS_GetPropertyStr(ctx, tree, "cols");
+        const bool valid = readGridDimension(ctx, rowValue, rows) && readGridDimension(ctx, colValue, cols);
+        JS_FreeValue(ctx, rowValue);
+        JS_FreeValue(ctx, colValue);
+        if (!valid)
+        {
+          node.fail("Grid rows and cols must be integers in 1..16");
+          return 0;
+        }
+        loka::app::Grid *grid = new (std::nothrow) loka::app::Grid();
+        if (!grid)
+        {
+          node.fail("JavaScript Grid allocation refused.");
+          return 0;
+        }
+        grid->rows(rows).cols(cols);
+        if (!lowerChildren(
+                node, ctx, tree, depth, *grid, rows * cols, true, "Grid requires exactly rows * cols children"))
+        {
+          delete grid;
+          return 0;
+        }
+        return grid;
+      }
     };
     class TextLowering : public IJsNodeLowering
     {
@@ -402,7 +512,8 @@ namespace smirkycard
            && registry.registerLowering(new (std::nothrow) ClickableLowering(false))
            && registry.registerLowering(new (std::nothrow) StackLowering("Row", true))
            && registry.registerLowering(new (std::nothrow) MarkupLowering())
-           && registry.registerLowering(new (std::nothrow) ClickableLowering(true)) && registry.registerGlobal(card)
+           && registry.registerLowering(new (std::nothrow) ClickableLowering(true))
+           && registry.registerLowering(new (std::nothrow) GridLowering()) && registry.registerGlobal(card)
            && registry.registerGlobal(state) && registry.registerGlobal(go) && registry.registerGlobal(reload)
            && registry.registerGlobal(open);
   }
