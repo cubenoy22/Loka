@@ -1,3 +1,4 @@
+#include "ToolboxInputDoor.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
@@ -203,6 +204,18 @@ namespace
       o.f.context->onPropsApplied();
     }
   };
+  struct DoorSettlementObserver
+  {
+    Fixture &fixture;
+    unsigned reports;
+    explicit DoorSettlementObserver(Fixture &f) : fixture(f), reports(0) {}
+    static void report(void *data)
+    {
+      DoorSettlementObserver &self = *static_cast<DoorSettlementObserver *>(data);
+      ++self.reports;
+      LOKA_VERIFY(self.fixture.controller.operationPhase().open());
+    }
+  };
   struct RequestObserver
   {
     Fixture &f;
@@ -406,6 +419,24 @@ namespace
 } // namespace
 int main(int argc, char **argv)
 {
+  if (argc == 2 && std::strcmp(argv[1], "input-door") == 0)
+  {
+    Fixture f;
+    f.controller.activateEditControl(0);
+    Observer observer(f);
+    observer.external = true;
+    observer.nested = true;
+    DoorSettlementObserver settlement(f);
+    f.cursor.state()->bind(&DoorSettlementObserver::report, &settlement, false);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    f.cursor.state()->unbind(&DoorSettlementObserver::report, &settlement);
+    LOKA_VERIFY(observer.count > 0 && observer.result == EDITOR_REENTRANT);
+    LOKA_VERIFY(settlement.reports > 0 && f.native() == "abxcd\rowner\rabcd");
+    LOKA_VERIFY(!f.controller.operationPhase().open());
+    pin("TextEditor RailOperation settles under input door and restores outer phase");
+    return 0;
+  }
+
   if (argc == 2 && std::strcmp(argv[1], "refused-report") == 0)
   {
     Fixture f(1);
@@ -984,15 +1015,15 @@ int main(int argc, char **argv)
     NodeContext *focused = 0;
     LOKA_VERIFY(f.controller.readNativeFocus(focused) && focused == f.context);
     LOKA_VERIFY((**f.te()).active);
-    f.controller.idleTextEdits();
+    ToolboxInputDoor::idleTextEdits(f.controller);
     LOKA_VERIFY((**f.te()).idleCalls == 1);
     LOKA_VERIFY(!f.controller.handleEditClick(outside));
     LOKA_VERIFY(!f.controller.editControls_.focused() && !(**f.te()).active);
-    f.controller.idleTextEdits();
+    ToolboxInputDoor::idleTextEdits(f.controller);
     LOKA_VERIFY((**f.te()).idleCalls == 1);
     LOKA_VERIFY(f.controller.handleEditClick(inside));
     LOKA_VERIFY((**f.te()).active);
-    f.controller.idleTextEdits();
+    ToolboxInputDoor::idleTextEdits(f.controller);
     LOKA_VERIFY((**f.te()).idleCalls == 2);
     pin("focus activates; blur deactivates and receives no TEIdle; refocus activates and resumes TEIdle");
   }

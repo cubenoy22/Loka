@@ -336,10 +336,7 @@ bool PtInRect(Point p, const Rect *r)
 
 namespace toolbox_host { GrafPtr frontWindow = 0; }
 #include "ToolboxFocus.cpp"
-void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
-{
-  binding.textSeat.set(loka::core::String((**binding.te).text));
-}
+#include "ToolboxEditPublication.cpp"
 
 // Compile the real plain leaf alongside the real attributed leaf in this fixture.
 #include "context/ToolboxTextContext.cpp"
@@ -349,3 +346,55 @@ short ToolboxScenePlatformController::measureTextWidth(
 {
   return ToolboxTextMeasureScope(*this, descriptor).measure(value);
 }
+
+#include "core/util/StateTrackerGuard.hpp"
+namespace toolbox_host
+{
+  ControlRef hitControl = 0;
+  short trackedValue = 1;
+  unsigned tracks = 0;
+}
+namespace
+{
+  int gActiveScrollBarLineStep = 1, gActiveScrollBarPageStep = 1;
+  ControlActionUPP ScrollBarActionUPP() { return 0; }
+  typedef int *MenuHandle;
+  MenuHandle NewMenu(short, const unsigned char *) { return new int(0); }
+  void AppendMenu(MenuHandle, const unsigned char *) {}
+  void InsertMenu(MenuHandle, short) {}
+  void LocalToGlobal(Point *) {}
+  long PopUpMenuSelect(MenuHandle, short, short, short) { return 2; }
+  void DeleteMenu(short) {}
+  void DisposeMenu(MenuHandle menu) { delete menu; }
+}
+#include "ToolboxControlInput.cpp"
+#include "ToolboxInputPublication.cpp"
+#include "context/ToolboxButtonInput.cpp"
+#include "context/ToolboxCellInput.cpp"
+#include "context/ToolboxPopupMenuInput.cpp"
+
+// The host substitutes geometry traversal; the complete production render
+// operation (including extent publication and its continuation) runs below.
+namespace
+{
+  short MaxExplicitControlId(loka::app::scene::Node *) { return 0; }
+  void LayoutNode(loka::app::scene::Node *node, loka::app::scene::LayoutState &state,
+                  ToolboxScenePlatformController *controller, loka::app::scene::BoundaryNode *)
+  {
+    if (!node) return;
+    loka::app::RectSurfaceNode *surface = node->asRectSurfaceNode();
+    if (surface)
+      controller->rectSurfaceExtentLedger_.record(surface, loka::core::Frame(0, 0, state.width, state.height));
+    loka::app::scene::INestable *nestable = node->asNestable();
+    for (loka::app::scene::Node *child = nestable ? nestable->childrenHead() : 0;
+         child; child = child->nextInComposition)
+      LayoutNode(child, state, controller, 0);
+  }
+  void RenderNode(loka::app::scene::Node *, ToolboxScenePlatformController *controller)
+  {
+    if (controller->renderContext) controller->renderContext->render(controller);
+  }
+}
+#include "core/Profiler.hpp"
+#include "ToolboxRender.cpp"
+void ToolboxScenePlatformController::renderDirty(const Rect &) { this->render(); }

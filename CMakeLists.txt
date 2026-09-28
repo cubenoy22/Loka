@@ -458,7 +458,15 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxFocusTests)
   set_target_properties(LokaToolboxFocusTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxFocusTests COMMAND LokaToolboxFocusTests)
-  foreach(_editor_request_case request report project input clear epilogue refuse clamp
+  add_executable(LokaToolboxInputDoorTests tests/toolbox/host/ToolboxInputDoorHostTests.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxInputDoorTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxInputDoorTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxInputDoorTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxInputDoorTests)
+  set_target_properties(LokaToolboxInputDoorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxInputDoorTests COMMAND LokaToolboxInputDoorTests)
+
+  foreach(_editor_request_case input-door request report project input clear epilogue refuse clamp
       take-edit report-edit detach rebind nested retry endless five-reposts
       trace reply-clamp reply-stale empty-settle take-refused-edit reply-edit scroll-cleanup retire-render retire-key retire-click retire-paste refused-report)
     add_test(NAME testToolboxEditorRequest_${_editor_request_case}

@@ -119,7 +119,7 @@ the next message. macOS and Toolbox cadence is unchanged.
 
 The frozen [#977 ruling](https://github.com/cubenoy22/Loka/issues/977)
 (2026-09-28, N1–N9) defines the intended all-rail policy below. **Implemented
-coverage as of 2026-09-28 includes Null, Win32 and macOS**: Null ScrollBar complete
+coverage as of 2026-09-28 includes Null, Win32, macOS and Toolbox**: Null ScrollBar complete
 gestures and split input entries, plus the TextEditor input adapter, use
 `NullInputDoor`. Win32 command inputs (Button, EditText, PopupMenu, TextEditor),
 Cell clicks, ScrollView scrolling (including the whole wheel loop), TextEditor
@@ -130,8 +130,13 @@ recorded in the #977 Win32 PR. macOS Button, EditText, PopupMenu, Cell
 (including its native continuation), ScrollView bounds notifications, TextEditor
 delegates/deferred selectors, window resize/move and each pending relayout step
 use `MacInputDoor`; its pins (`tests/MacInputDoorTests.mm`) are runtime-verified
-on the macOS rig as recorded in the #977 macOS PR. Toolbox routing follows in
-its own PR.
+on the macOS rig as recorded in the #977 macOS PR. Toolbox controller mouse/key
+operations (including tracking and commit), render/layout, dirty-render
+fallbacks and idle TextEditor retries use `ToolboxInputDoor`. Its Linux host
+pins (`tests/toolbox/host/ToolboxInputDoorHostTests.cpp`) exercise production
+operation bodies with substituted OS calls and geometry traversal; they do
+not establish native Classic timing or layout accuracy. Toolbox evidence and
+native verification limits are recorded in the #977 Toolbox PR.
 
 Each rail has one synchronous scope-owning invocation implementation, exposed
 through named typed entries. It opens the existing `OperationScope` on the

@@ -1,6 +1,7 @@
 #ifndef LOKA_TOOLBOX_DIRTY_REPLAY_HPP
 #define LOKA_TOOLBOX_DIRTY_REPLAY_HPP
 #include "app/scene/Node.hpp"
+#include "ToolboxInputDoor.hpp"
 #include <Quickdraw.h>
 
 /** Composition-order fallback for drawers without hit-ledger replay. Walks
@@ -50,7 +51,7 @@ template <class Controller> void ToolboxRenderDirtyInCompositionOrder(Controller
     ClipRect(&rect);
   }
   EraseRect(&rect);
-  controller.render();
+  ToolboxInputDoor::render(controller);
   if (oldClip != 0)
   {
     SetClip(oldClip);

@@ -1,3 +1,4 @@
+#include "ToolboxInputDoor.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxApp.hpp"
 
@@ -477,7 +478,7 @@ bool ToolboxWindow::handleMouseDown(const Point &globalPoint)
   SetPort(window_);
   Point localPoint = globalPoint;
   GlobalToLocal(&localPoint);
-  bool handled = scenePlatformController_->handleMouseDown(localPoint);
+  bool handled = ToolboxInputDoor::mouseDown(*scenePlatformController_, localPoint);
   SetPort(oldPort);
   return handled;
 }
@@ -488,7 +489,7 @@ bool ToolboxWindow::handleKeyDown(char key)
   {
     return false;
   }
-  return scenePlatformController_->handleKeyDown(key);
+  return ToolboxInputDoor::keyDown(*scenePlatformController_, key);
 }
 
 void ToolboxWindow::idleControls(ActivationPhase phase)
@@ -499,7 +500,7 @@ void ToolboxWindow::idleControls(ActivationPhase phase)
     // handle reclamation runs in every phase.
     if (phase == ACTIVATION_FOREGROUND)
     {
-      scenePlatformController_->idleTextEdits();
+      ToolboxInputDoor::idleTextEdits(*scenePlatformController_);
     }
     scenePlatformController_->flushRetiredNativeHandles();
   }
@@ -545,7 +546,7 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   {
     GetClip(oldClip);
     ClipRect(&clip);
-    scenePlatformController_->renderDirty(rect);
+    ToolboxInputDoor::renderDirty(*scenePlatformController_, rect);
     if (drawsGrowBox)
     {
       SetClip(oldClip);
@@ -557,7 +558,7 @@ void ToolboxWindow::drawDirty(const Rect &rect)
   }
   else
   {
-    scenePlatformController_->renderDirty(rect);
+    ToolboxInputDoor::renderDirty(*scenePlatformController_, rect);
   }
   SetPort(oldPort);
 }
@@ -602,7 +603,7 @@ void ToolboxWindow::draw()
   EraseRect(&window_->portRect);
   if (scenePlatformController_)
   {
-    scenePlatformController_->render();
+    ToolboxInputDoor::render(*scenePlatformController_);
     scenePlatformController_->drawControlsInRect(window_->portRect);
   }
   this->drawGrowBox();

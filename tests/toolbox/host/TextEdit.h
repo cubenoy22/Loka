@@ -7,6 +7,7 @@ struct Point
   short v, h;
 };
 typedef char **Handle;
+typedef Handle CharsHandle;
 struct TERec
 {
   Rect destRect, viewRect;
