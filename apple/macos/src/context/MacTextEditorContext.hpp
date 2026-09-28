@@ -46,13 +46,14 @@ public:
     VIEW_CHANGE,
     STORAGE_EDIT
   };
+
+private:
+  friend class MacInputDoor;
   void handleTextDidChange(TextObservation source, std::size_t caretOffset);
-  void applyHighlights();
   void handleSelectionDidChange();
   void captureSelection();
   void restoreCommittedProjection();
-
-private:
+  void applyHighlights();
   friend class loka::testing::MacTextEditorAccess;
   struct Projection;
   Projection *projection_;

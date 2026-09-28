@@ -40,11 +40,12 @@ public:
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
 
-  void handleTextDidChange();
   void *nativeField() const;
   void relayout(int x, int y, int width, int height);
 
 private:
+  friend class MacInputDoor;
+  void handleTextDidChange();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void bindText();

@@ -35,10 +35,11 @@ public:
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
 
-  void handleSelectionChange();
   void relayout(int x, int y, int width, int height);
 
 private:
+  friend class MacInputDoor;
+  void handleSelectionChange();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void bindSelection();

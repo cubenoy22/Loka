@@ -1,4 +1,5 @@
 #include "MacScenePlatformController.hpp"
+#include "MacInputDoor.hpp"
 #include "app/layout/CanvasLayout.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
@@ -403,8 +404,16 @@ void MacScenePlatformController::flushPendingRelayouts()
     {
       continue;
     }
-    controller->relayout(0, 0);
+    MacInputDoor::pendingRelayout(*controller);
   }
+}
+
+void MacScenePlatformController::handlePendingRelayout()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->operationPhase().open());
+#endif
+  this->relayout(0, 0);
 }
 
 void MacScenePlatformController::performLayout(int clientWidth, int clientHeight, bool rebuildContexts)

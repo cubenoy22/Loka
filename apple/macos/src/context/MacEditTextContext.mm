@@ -1,4 +1,5 @@
 #include "MacEditTextContext.hpp"
+#include "../MacInputDoor.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../platform/MacNativeGeometry.hpp"
@@ -63,7 +64,7 @@ namespace
   (void)notification;
   if (self.owner)
   {
-    self.owner->handleTextDidChange();
+    MacInputDoor::editTextChange(*[self owner]);
   }
 }
 @end
@@ -189,6 +190,9 @@ short MacEditTextContext::layout(loka::app::scene::IPlatformController *, loka::
 
 void MacEditTextContext::handleTextDidChange()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (!applyingFromState_)
   {
     syncStateFromControl();

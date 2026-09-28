@@ -36,10 +36,11 @@ public:
   void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
-  void handleClick();
   void relayout(int x, int y, int width, int height);
 
 private:
+  friend class MacInputDoor;
+  void handleClick(void *event);
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void bindText();

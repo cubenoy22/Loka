@@ -1,4 +1,5 @@
 #include "MacWindow.hpp"
+#include "MacInputDoor.hpp"
 #include "MacApp.hpp"
 #include "MacDisplayAppearance.hpp"
 #include "MacObjCCompat.hpp"
@@ -72,7 +73,7 @@
   (void)notification;
   if (self.owner)
   {
-    self.owner->handleWindowDidResize();
+    MacInputDoor::windowResize(*[self owner]);
   }
 }
 
@@ -81,7 +82,7 @@
   (void)notification;
   if (self.owner)
   {
-    self.owner->handleWindowDidMove();
+    MacInputDoor::windowMove(*[self owner]);
   }
 }
 
@@ -599,6 +600,9 @@ void MacWindow::handleWindowWillClose()
 
 void MacWindow::handleWindowDidResize()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+#endif
   NSWindow *window = (NSWindow *)window_;
   NSView *view = (NSView *)contentView_;
   if (!window)
@@ -617,6 +621,9 @@ void MacWindow::handleWindowDidResize()
 
 void MacWindow::handleWindowDidMove()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+#endif
   NSWindow *window = (NSWindow *)window_;
   if (window)
   {
