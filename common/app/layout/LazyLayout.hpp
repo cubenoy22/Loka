@@ -90,7 +90,8 @@ namespace loka
             if (x > static_cast<unsigned>(INT_MAX / this->cellWidth)
                 || y > static_cast<unsigned>(INT_MAX / this->cellHeight))
               return loka::core::Frame();
-            return loka::core::Frame(x * this->cellWidth, y * this->cellHeight, this->cellWidth, this->cellHeight);
+            return loka::core::Frame(static_cast<int>(x * this->cellWidth), static_cast<int>(y * this->cellHeight),
+                                     this->cellWidth, this->cellHeight);
           }
           return loka::core::Frame();
         }
