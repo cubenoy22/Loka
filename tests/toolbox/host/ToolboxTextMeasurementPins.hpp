@@ -176,8 +176,241 @@ namespace
     std::printf("measurement pin: first=%d retry=%d hit=0\n", first, before);
   }
 
+  void PlainWrappedPaintPins()
+  {
+    Pin("PlainWrappedPaintSharesMeasurement");
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+    for (int mode = 0; mode != 2; ++mode)
+    {
+      TextDefinitionWithAttr definition = Text("abcdefgh ijkl mnop")
+          + BlockStyle().wrap(mode == 0 ? TEXT_WRAP_WORD : TEXT_WRAP_CHAR);
+      TextNode *node = static_cast<TextNode *>(definition.create());
+      LOKA_VERIFY(node);
+      LayoutState seat = Seat(40);
+      seat.lineHeight = 14;
+      NodeContext *installed = controller.nodeHandlerRegistry_.find(node)->ensureContext(node, &controller, seat);
+      LOKA_VERIFY(installed);
+      ToolboxTextContext &context = *static_cast<ToolboxTextContext *>(installed);
+      toolbox_host::reset();
+      node->layout(&controller, seat);
+      const Rect rect = MeasurementRect(context);
+      LOKA_VERIFY(rect.bottom - rect.top >= 28);
+      context.repaint();
+      LOKA_VERIFY(!toolbox_host::draws.empty());
+      std::printf("wrap paint probe: height=%d draws=%lu first=%s\n", rect.bottom - rect.top,
+          static_cast<unsigned long>(toolbox_host::draws.size()), toolbox_host::draws[0].bytes.c_str());
+      std::fflush(stdout);
+      LOKA_VERIFY(toolbox_host::draws.size() >= 2);
+      std::string joined;
+      for (std::size_t i = 0; i < toolbox_host::draws.size(); ++i)
+      {
+        joined += toolbox_host::draws[i].bytes;
+        LOKA_VERIFY(toolbox_host::draws[i].y == rect.top + 12 + static_cast<int>(i) * 14);
+      }
+      LOKA_VERIFY(joined == "abcdefgh ijkl mnop");
+      LOKA_VERIFY(rect.bottom - rect.top == static_cast<int>(toolbox_host::draws.size()) * 14 + 4);
+      const std::vector<toolbox_host::Draw> first = toolbox_host::draws;
+      const int calls = MeasurementCalls();
+      seat = Seat(40);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(MeasurementCalls() == calls);
+      LOKA_VERIFY(toolbox_host::draws.size() == first.size());
+      for (std::size_t i = 0; i < first.size(); ++i)
+      {
+        LOKA_VERIFY(toolbox_host::draws[i].bytes == first[i].bytes);
+        LOKA_VERIFY(toolbox_host::draws[i].y == first[i].y);
+      }
+      seat = Seat(20);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      LOKA_VERIFY(MeasurementCalls() > calls);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() > first.size());
+      joined.clear();
+      for (std::size_t i = 0; i < toolbox_host::draws.size(); ++i)
+        joined += toolbox_host::draws[i].bytes;
+      LOKA_VERIFY(joined == "abcdefgh ijkl mnop");
+      DestroyHeapNode(node);
+    }
+  }
+
+  void PlainWordBoundaryPins()
+  {
+    Pin("PlainWordBoundariesAndCharacterFallback");
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+    const char *texts[] = {"ab cdef", "ab cdef", "abcdefgh", "ab\tcdef", "ab  cdef", "abcd ef"};
+    const char *firstLines[] = {"ab ", "ab c", "abcd", "ab\t", "ab  ", "abcd"};
+    const char *secondLines[] = {"cdef", "def", "efgh", "cdef", "cdef", " ef"};
+    for (std::size_t i = 0; i < sizeof(texts) / sizeof(texts[0]); ++i)
+    {
+      TextDefinitionWithAttr definition = Text(texts[i]) + FontSize<12>()
+          + BlockStyle().wrap(i == 1 ? TEXT_WRAP_CHAR : TEXT_WRAP_WORD);
+      TextNode *node = static_cast<TextNode *>(definition.create());
+      LOKA_VERIFY(node);
+      LayoutState seat = Seat(16);
+      NodeContext *installed = controller.nodeHandlerRegistry_.find(node)->ensureContext(node, &controller, seat);
+      LOKA_VERIFY(installed);
+      ToolboxTextContext &context = *static_cast<ToolboxTextContext *>(installed);
+      toolbox_host::reset();
+      node->layout(&controller, seat);
+      const Rect rect = MeasurementRect(context);
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == firstLines[i]);
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == secondLines[i]);
+      const int pitch = toolbox_host::draws[1].y - toolbox_host::draws[0].y;
+      LOKA_VERIFY(pitch > 0);
+      LOKA_VERIFY(rect.bottom - rect.top == 2 * pitch);
+      const int calls = MeasurementCalls();
+      seat = Seat(16);
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(MeasurementCalls() == calls);
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == firstLines[i]);
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == secondLines[i]);
+      DestroyHeapNode(node);
+    }
+  }
+
+  void PlainWrappedEdgePins()
+  {
+    loka::core::testing::failLokaAllocRaw("ToolboxPlainText", "Lines", 0);
+    {
+      Pin("PlainWrappedBreaksStorageRefusalAndEllipsis");
+      ToolboxWindow window;
+      ToolboxScenePlatformController controller(&window);
+      LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+      TextDefinitionWithAttr definition = Text("a\nb\r\n") + BlockStyle().wrap(TEXT_WRAP_WORD);
+      TextNode *node = static_cast<TextNode *>(definition.create());
+      LOKA_VERIFY(node);
+      LayoutState seat = Seat(40);
+      NodeContext *installed = controller.nodeHandlerRegistry_.find(node)->ensureContext(node, &controller, seat);
+      LOKA_VERIFY(installed);
+      ToolboxTextContext &context = *static_cast<ToolboxTextContext *>(installed);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 4);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "a" && toolbox_host::draws[1].bytes == "b");
+      LOKA_VERIFY(toolbox_host::draws[2].bytes.empty() && toolbox_host::draws[3].bytes.empty());
+      LOKA_VERIFY(MeasurementRect(context).bottom - MeasurementRect(context).top == 60);
+
+      // Spill beyond the breaker's 32 inline rows, and cross the Pascal limit.
+      const std::string longText(300, 'a');
+      TextDefinitionWithAttr longDefinition = Text(loka::core::String(longText)) + BlockStyle().wrap(TEXT_WRAP_CHAR);
+      LOKA_VERIFY(longDefinition.applyPropsToNode(node));
+      for (int width = 4; width <= 2000; width += 1996)
+      {
+        seat = Seat(static_cast<short>(width));
+        seat.lineHeight = 14;
+        node->layout(&controller, seat);
+        toolbox_host::draws.clear();
+        context.repaint();
+        LOKA_VERIFY(toolbox_host::draws.size() == (width == 4 ? 300u : 2u));
+        std::string joined;
+        for (std::size_t i = 0; i < toolbox_host::draws.size(); ++i)
+          joined += toolbox_host::draws[i].bytes;
+        LOKA_VERIFY(joined == longText);
+      }
+      const std::string utf8 = std::string(254, 'a') + "\xc3\xa9Z";
+      TextDefinitionWithAttr utf8Definition = Text(loka::core::String(utf8)) + BlockStyle().wrap(TEXT_WRAP_CHAR);
+      LOKA_VERIFY(utf8Definition.applyPropsToNode(node));
+      seat = Seat(2000);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(254, 'a'));
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == "\xc3\xa9Z");
+      LOKA_VERIFY(longDefinition.applyPropsToNode(node));
+
+      // Each new fallible allocation refuses atomically, including after a hit.
+      const char *owners[] = {"ToolboxPlainText", "TextLineBreaker", "Managed"};
+      const char *purposes[] = {"Lines", "Table", "ControlBlock"};
+      for (int failure = 0; failure != 3; ++failure)
+      {
+        loka::core::testing::failLokaAllocRaw(owners[failure], purposes[failure], 1);
+        seat = Seat(4);
+        seat.lineHeight = static_cast<short>(15 + failure);
+        LOKA_VERIFY(node->layout(&controller, seat) == 0);
+        toolbox_host::draws.clear();
+        context.repaint();
+        LOKA_VERIFY(toolbox_host::draws.empty());
+        const Rect refused = MeasurementRect(context);
+        LOKA_VERIFY(EmptyRect(&refused));
+        seat = Seat(4);
+        seat.lineHeight = static_cast<short>(15 + failure);
+        LOKA_VERIFY(node->layout(&controller, seat) == 4);
+        toolbox_host::draws.clear();
+        context.repaint();
+        LOKA_VERIFY(toolbox_host::draws.size() == 300);
+      }
+      TextDefinitionWithAttr tooTall = Text(loka::core::String(std::string(2400, 'a')))
+          + BlockStyle().wrap(TEXT_WRAP_CHAR);
+      LOKA_VERIFY(tooTall.applyPropsToNode(node));
+      seat = Seat(4);
+      seat.lineHeight = 14;
+      LOKA_VERIFY(node->layout(&controller, seat) == 0);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.empty());
+
+      TextDefinitionWithAttr explicitSize = Text("abcdefgh ijkl mnop") + FontSize<12>()
+          + BlockStyle().wrap(TEXT_WRAP_WORD).align(TEXT_ALIGN_RIGHT);
+      LOKA_VERIFY(explicitSize.applyPropsToNode(node));
+      seat = Seat(40);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[0].y == 32 && toolbox_host::draws[1].y == 49);
+      LOKA_VERIFY(toolbox_host::draws[0].x == 14 && toolbox_host::draws[1].x == 14);
+      LOKA_VERIFY(MeasurementRect(context).bottom - MeasurementRect(context).top == 34);
+      toolbox_host::draws.clear();
+      toolbox_host::failRegions = 2;
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      toolbox_host::failRegions = 0;
+
+      // Ellipsis keeps precedence over wrap and its legacy terminal baseline.
+      TextDefinitionWithAttr ellipsis = Text("abcdefgh ijkl mnop")
+          + BlockStyle().wrap(TEXT_WRAP_WORD).truncation(TEXT_TRUNCATION_ELLIPSIS);
+      LOKA_VERIFY(ellipsis.applyPropsToNode(node));
+      seat = Seat(40);
+      seat.lineHeight = 14;
+      node->layout(&controller, seat);
+      const int before = MeasurementCalls();
+      toolbox_host::draws.clear();
+      context.repaint();
+      LOKA_VERIFY(toolbox_host::draws.size() == 1 && toolbox_host::draws[0].bytes == "abcdefg...");
+      LOKA_VERIFY(toolbox_host::draws[0].y == 46);
+      LOKA_VERIFY(MeasurementCalls() > before);
+      DestroyHeapNode(node);
+    }
+    loka::core::testing::allowLokaAllocRaw();
+  }
+
   void MeasurementPins(bool plainPins, bool attributedPins)
   {
+    if (plainPins)
+    {
+      PlainWordBoundaryPins();
+      PlainWrappedPaintPins();
+      PlainWrappedEdgePins();
+    }
     ToolboxWindow window;
     ToolboxScenePlatformController controller(&window);
     LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
