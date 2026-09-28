@@ -3,6 +3,7 @@
 
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "core/Frame.hpp"
+#include "app/layout/LazyLayout.hpp"
 
 namespace loka
 {
@@ -33,6 +34,12 @@ namespace loka
             wrap(1),
             viewport(view)
       {
+      }
+
+      /** Geometry is a completed value; viewport remains a separate live borrow. */
+      layout::LazyLayout layout(unsigned itemCount = 0) const
+      {
+        return layout::FixedGrid(this->cellWidth, this->cellHeight, this->wrap, itemCount, this->axis);
       }
 
       bool operator<(const scene::PropsBase &rhs) const

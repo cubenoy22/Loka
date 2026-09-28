@@ -86,7 +86,8 @@ unsigned NullScenePlatformController::RefusedProjectedNodeHandlers::cellCount() 
 }
 
 NullScenePlatformController::NullScenePlatformController(std::size_t bucketDepthCap, loka::app::TextShaping shaping)
-    : textShaping_(shaping),
+    : leafLayoutVisits_(0),
+      textShaping_(shaping),
       layoutState_(),
       paintScope_(),
       layoutHandlers_(),
@@ -718,6 +719,9 @@ int NullScenePlatformController::layoutNode(loka::app::scene::Node *node,
   {
     return state.y;
   }
+
+  if (!node->asNestable())
+    ++this->leafLayoutVisits_;
 
   if (this->projectionParentScopes_.activeDepth() != 0 &&
       this->projectionParentScopes_.current().hasShortRangeRefusal())
