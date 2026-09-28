@@ -26,6 +26,7 @@
 #include "CanvasLayoutTests.hpp"
 #include "LazyScopeTests.hpp"
 #include "LazyFlexTests.hpp"
+#include "LazyLayoutTests.hpp"
 #include "PropsReconciliationTests.hpp"
 #include "PaintContractTests.hpp"
 #include "PaintBaselineTests.hpp"
