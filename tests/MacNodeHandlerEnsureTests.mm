@@ -545,6 +545,7 @@ void testMacAttributedTextRefusalClearsProjection()
 // Both production measurement sites send this selector to NSTextFieldCell.
 // Install on that class only (even when the SDK inherits it from NSCell).
 static unsigned gMac970Measurements = 0;
+static NSLineBreakMode gMacMeasuredLineBreakMode = NSLineBreakByClipping;
 @interface NSTextFieldCell (Loka970MeasurementCounter)
 - (NSSize)loka970_cellSizeForBounds:(NSRect)bounds;
 @end
@@ -552,6 +553,7 @@ static unsigned gMac970Measurements = 0;
 - (NSSize)loka970_cellSizeForBounds:(NSRect)bounds
 {
   ++gMac970Measurements;
+  gMacMeasuredLineBreakMode = [self lineBreakMode];
   return [self loka970_cellSizeForBounds:bounds];
 }
 @end
@@ -761,6 +763,75 @@ namespace
   }
 }
 
+namespace
+{
+  void VerifyMacPlainTextWrapModes()
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 400, 400)];
+    {
+      MacScenePlatformController controller((void *)root, RailMetrics());
+      MacMeasurementCounter counter;
+      TextNode node((Text("abcdefgh") + FontSize<12>()
+                     + BlockStyle().wrap(TEXT_WRAP_CHAR)).props);
+      node.setPropsTypeId(TextProps::staticTypeId());
+      NSFont *font = (NSFont *)controller.textFont(FontSize<12>());
+      // Include the cell's horizontal inset when choosing a four-glyph width.
+      NSTextFieldCell *reference = [[[NSTextFieldCell alloc] initTextCell:@"abcd"] autorelease];
+      [reference setFont:font];
+      LayoutState state;
+      state.width = controller.projection().measurementToLu([reference cellSize].width);
+      NotifySubtreeNodeAttached(&node);
+      const unsigned before = counter.calls();
+      node.layoutProjected(&controller, state);
+      NSTextField *field = AttributedField(root);
+      const unsigned calls = counter.calls();
+      std::printf("#45 CHAR: width=%d height=%d measureMode=%ld paintMode=%ld calls=%u\n",
+                  state.width, state.height, (long)gMacMeasuredLineBreakMode,
+                  (long)[[field cell] lineBreakMode], calls);
+      LOKA_VERIFY(calls == before + 1);
+      LOKA_VERIFY(gMacMeasuredLineBreakMode == NSLineBreakByCharWrapping);
+      LOKA_VERIFY([[field cell] lineBreakMode] == NSLineBreakByCharWrapping);
+      [reference setStringValue:@"abcd\nefgh"];
+      [reference setWraps:YES];
+      [reference setScrollable:NO];
+      [reference setLineBreakMode:NSLineBreakByCharWrapping];
+      const int twoLineHeight = controller.projection().measurementToLu(
+          [reference cellSizeForBounds:NSMakeRect(0, 0, 400, CGFLOAT_MAX)].height) + 2;
+      LOKA_VERIFY(state.height == twoLineHeight);
+      // Native oracle also accommodates AppKit's overlong-word rule. Compare
+      // each mode with the corresponding actual cell at the allocated width.
+      const TextWrap wraps[] = {TEXT_WRAP_CHAR, TEXT_WRAP_WORD, TEXT_WRAP_CHAR};
+      for (int i = 0; i < 3; ++i)
+      {
+        LOKA_VERIFY((Text("abcdefgh") + FontSize<12>() + BlockStyle().wrap(wraps[i]))
+                        .applyPropsToNode(&node));
+        node.layout(&controller, state);
+        const NSLineBreakMode expected = wraps[i] == TEXT_WRAP_CHAR
+            ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping;
+        LOKA_VERIFY(gMacMeasuredLineBreakMode == expected);
+        LOKA_VERIFY([[field cell] lineBreakMode] == expected);
+        [reference setStringValue:@"abcdefgh"];
+        [reference setWraps:YES];
+        [reference setScrollable:NO];
+        [reference setLineBreakMode:expected];
+        const NSRect bounds = NSMakeRect(0, 0, controller.projection().projectLength(0, state.width).pt,
+                                         CGFLOAT_MAX);
+        const int measured = controller.projection().measurementToLu(
+            [reference cellSizeForBounds:bounds].height) + 2;
+        LOKA_VERIFY(state.height == (measured > 20 ? measured : 20));
+        std::printf("#45 mode=%ld nativeHeight=%d reservedHeight=%d\n",
+                    (long)expected, measured, state.height);
+      }
+      LifecycleFactTestAccess::MarkSubtreeRetired(&node);
+      LifecycleFactTestAccess::DeliverFacts(&node);
+      node.setContext(0);
+    }
+    [root release];
+  }
+}
+
 void testMacPlainTextMeasurementReuse()
 {
   using namespace loka::app;
@@ -769,6 +840,7 @@ void testMacPlainTextMeasurementReuse()
   TextNode node((Text("words that wrap over several lines") + FontSize<12>()
                  + BlockStyle().wrap(TEXT_WRAP_WORD)).props);
   VerifyMacMeasurementReuse(node, false);
+  VerifyMacPlainTextWrapModes();
   [pool drain];
 }
 
