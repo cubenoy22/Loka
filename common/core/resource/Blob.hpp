@@ -204,9 +204,19 @@ namespace loka
           return Managed<BlobRecord>::Wrap(record);
         }
 
+        static Managed<BlobRecord> &EmptyHandleStorage()
+        {
+          static Managed<BlobRecord> empty;
+          return empty;
+        }
+
         static Managed<BlobRecord> &SharedEmptyHandle()
         {
-          static Managed<BlobRecord> empty = CreateHandle();
+          Managed<BlobRecord> &empty = EmptyHandleStorage();
+          if (!empty.isValid())
+          {
+            empty = CreateHandle();
+          }
           LOKA_AUDIT_PROCESS_GLOBAL(BlobSharedEmptyState);
           LOKA_AUDIT_RECLASSIFY_ALIVE(empty->sizeState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
           LOKA_AUDIT_RECLASSIFY_ALIVE(empty->loadingState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
@@ -224,7 +234,7 @@ namespace loka
 
         void ensureHandle()
         {
-          if (!handle_.isValid() || handle_ == SharedEmptyHandle())
+          if (!handle_.isValid() || handle_ == EmptyHandleStorage())
           {
             handle_ = CreateHandle();
           }
