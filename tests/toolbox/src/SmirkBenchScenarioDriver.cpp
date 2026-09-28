@@ -1,4 +1,3 @@
-#include "ToolboxInputDoor.hpp"
 #include "SmirkBenchScenarioDriver.hpp"
 
 #include <cassert>
@@ -9,6 +8,7 @@
 #include "ObservedMainDefinition.hpp"
 #include "RectSurfaceScenarioObservation.hpp"
 #include "ScenarioDriverSupport.hpp"
+#include "ToolboxInputDoor.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/PlatformContext.hpp"
