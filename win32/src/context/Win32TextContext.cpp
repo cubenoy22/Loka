@@ -1,4 +1,5 @@
 #include "Win32TextContext.hpp"
+#include "Win32AttributedTextTable.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
 #include "../Win32BitmapCapture.hpp"
@@ -45,7 +46,9 @@ namespace
     switch (block.hasAlign_ ? block.align_ : loka::app::TEXT_ALIGN_LEFT)
     {
     case loka::app::TEXT_ALIGN_LEFT:
-      return block.hasWrap_ && block.wrap_ != loka::app::TEXT_WRAP_NONE ? SS_LEFT : SS_LEFTNOWORDWRAP;
+      return block.hasTruncation_ && block.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS
+                     && block.hasWrap_ && block.wrap_ != loka::app::TEXT_WRAP_NONE
+                 ? SS_LEFT : SS_LEFTNOWORDWRAP;
     case loka::app::TEXT_ALIGN_CENTER:
       return SS_CENTER;
     case loka::app::TEXT_ALIGN_RIGHT:
@@ -97,21 +100,20 @@ namespace
     return true;
   }
 
+  bool GeneratesLines(const loka::app::TextProps &props)
+  {
+    const loka::app::BlockStyle &block = props.blockStyle_;
+    return block.hasWrap_ && block.wrap_ != loka::app::TEXT_WRAP_NONE
+           && !(block.hasTruncation_ && block.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS);
+  }
+
   bool MeasureTextHeightForWidth(HWND hwnd,
                                 const Win32ScenePlatformController *controller,
-                                const loka::app::TextNode *text,
+                                const std::wstring &wide,
                                 int nativeWidth,
                                 HFONT selectedFont,
                                 int &height)
   {
-    if (!hwnd || !controller || !text || !text->props.text_)
-      return false;
-    if (!text->props.blockStyle_.hasWrap_
-        || text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_NONE || nativeWidth <= 0)
-      return true;
-    std::wstring wide;
-    if (!loka::win32::MaterializeWideString(text->props.text_->get(), wide))
-      return false;
     if (wide.empty())
       return true;
     HDC hdc = GetDC(hwnd);
@@ -120,7 +122,7 @@ namespace
     RECT rc = {0, 0, nativeWidth, 0};
     HGDIOBJ previousFont = selectedFont ? SelectObject(hdc, selectedFont) : 0;
     const bool selected = !selectedFont || (previousFont && previousFont != HGDI_ERROR);
-    const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT | DT_WORDBREAK | DT_EDITCONTROL;
+    const UINT flags = DT_LEFT | DT_NOPREFIX | DT_CALCRECT;
     const bool measured = selected && DrawTextW(hdc, wide.c_str(), -1, &rc, flags) != 0;
     if (previousFont && previousFont != HGDI_ERROR)
       SelectObject(hdc, previousFont);
@@ -150,19 +152,12 @@ Win32TextContext::Win32TextContext(Win32ScenePlatformController *controller,
       didInitialApply_(false),
       textDelivery_(loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN))
 {
-  DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT;
+  DWORD style = WS_VISIBLE | WS_CHILD | SS_LEFT | SS_NOPREFIX;
   if (node_ && node_->props.hasDeclaredStyle())
   {
     const loka::app::BlockStyle &attr = node_->props.blockStyle_;
-    const bool wrapEnabled =
-        attr.hasWrap_
-        && (attr.wrap_ == loka::app::TEXT_WRAP_WORD || attr.wrap_ == loka::app::TEXT_WRAP_CHAR);
     const bool truncEllipsis = attr.hasTruncation_ && attr.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS;
     style |= TextControlType(attr);
-    if (wrapEnabled)
-    {
-      style |= SS_EDITCONTROL;
-    }
     if (truncEllipsis)
     {
       style |= SS_ENDELLIPSIS;
@@ -257,12 +252,15 @@ bool Win32TextContext::applyStyle()
   {
     // Reconciled on every apply, declared or not: a retained change back to an
     // undeclared style restores the creation default instead of keeping the
-    // old SS_CENTER/SS_RIGHT type. Keep the HWND and all non-type flags.
+    // old SS_CENTER/SS_RIGHT type. Keep the HWND and unrelated flags.
     // CENTER/RIGHT use native STATIC wrapping; the NONE + CLIP overflow limit
     // is documented in the guide.
     const LONG_PTR style = GetWindowLongPtrW(this->hwnd_, GWL_STYLE);
-    const LONG_PTR alignedStyle = (style & ~static_cast<LONG_PTR>(SS_TYPEMASK))
-                                  | TextControlTypeFor(this->node_->props);
+    const LONG_PTR alignedStyle = (style & ~static_cast<LONG_PTR>(SS_TYPEMASK | SS_ENDELLIPSIS))
+                                  | TextControlTypeFor(this->node_->props)
+                                  | (this->node_->props.blockStyle_.hasTruncation_
+                                     && this->node_->props.blockStyle_.truncation_ == loka::app::TEXT_TRUNCATION_ELLIPSIS
+                                         ? SS_ENDELLIPSIS : 0);
     if (style != alignedStyle)
     {
       SetWindowLongPtrW(this->hwnd_, GWL_STYLE, alignedStyle);
@@ -285,6 +283,7 @@ bool Win32TextContext::applyStyle()
 
 void Win32TextContext::onPropsApplied()
 {
+  this->measurement_.invalidate();
   if (this->applyStyle())
     this->controller()->requestRelayout();
   if (!this->node_)
@@ -305,10 +304,13 @@ void Win32TextContext::onPropsApplied()
     this->unbindText();
     this->bindText();
   }
+  else
+    this->applyText();
 }
 
 void Win32TextContext::applyAttachedPresentation()
 {
+  this->measurement_.invalidate();
   if (hwnd_)
   {
     ShowWindow(hwnd_, SW_SHOW);
@@ -349,10 +351,27 @@ short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::ap
                               font ? font : this->controller()->displayFont());
   if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
   {
+    // A synchronous WM_SETTEXT reentry must not reuse the previous snapshot.
+    this->measurement_.invalidate();
     int height = 0;
-    if (!MinimumTextHeight(this->hwnd_, font, this->controller(), height)
-        || !MeasureTextHeightForWidth(this->hwnd_, this->controller(), this->node_,
-                                      constraint.width, constraint.font, height))
+    bool measured = MinimumTextHeight(this->hwnd_, font, this->controller(), height);
+    if (measured && this->node_ && GeneratesLines(this->node_->props))
+    {
+      this->textDelivery_ = loka::app::scene::PaintAnswer::refused(loka::app::scene::PAINT_REFUSED_HISTORY_UNKNOWN);
+      Win32AttributedTextTable table;
+      std::wstring wide;
+      HDC dc = GetDC(this->hwnd_);
+      measured = dc && this->node_->props.text_
+                 && table.build(loka::app::Styled(this->node_->props.text_->get(), this->node_->props.resolvedTextStyle()),
+                                this->node_->props.blockStyle_, constraint.width, dc, *this->controller())
+                 && table.joinLines(wide);
+      if (dc)
+        ReleaseDC(this->hwnd_, dc);
+      measured = measured && MeasureTextHeightForWidth(this->hwnd_, this->controller(), wide,
+                                                       constraint.width, constraint.font, height)
+                 && this->writeText(wide);
+    }
+    if (!measured)
     {
       this->controller()->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
@@ -412,9 +431,23 @@ void Win32TextContext::applyText()
   {
     return;
   }
+  if (GeneratesLines(this->node_->props))
+  {
+    this->measurement_.invalidate();
+    this->controller()->requestRelayout();
+    return;
+  }
   std::wstring wide;
   if (!loka::win32::MaterializeWideString(node_->props.text_->get(), wide))
     wide.clear();
+  this->writeText(wide);
+  requestRelayoutIfNeeded();
+}
+
+bool Win32TextContext::writeText(const std::wstring &wide)
+{
+  using namespace loka::app::scene;
+  this->textDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   // Compare lengths first; only matching short strings need a native read.
   // Longer strings conservatively count as changed, so comparison never
   // allocates a previous-text buffer on the apply path.
@@ -440,11 +473,11 @@ void Win32TextContext::applyText()
       }
     }
   }
-  requestRelayoutIfNeeded();
   if (!didInitialApply_)
   {
     didInitialApply_ = true;
   }
+  return applied;
 }
 
 void Win32TextContext::requestRelayoutIfNeeded()

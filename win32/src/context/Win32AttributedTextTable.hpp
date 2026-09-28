@@ -2,6 +2,7 @@
 #define LOKA_WIN32_ATTRIBUTED_TEXT_TABLE_HPP
 
 #include <windows.h>
+#include <string>
 #include "app/layout/TextLineBreaker.hpp"
 #include "app/layout/MeasurementResult.hpp"
 
@@ -43,6 +44,8 @@ public:
   {
     return this->snapshot_;
   }
+  /** Serializes all completed lines, including empty lines, with LF separators. */
+  bool joinLines(std::wstring &out) const;
   bool draw(HDC, const RECT &, const loka::app::BlockStyle &) const;
 
 private:

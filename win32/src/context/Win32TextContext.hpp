@@ -2,6 +2,7 @@
 #define LOKA_WIN32_TEXT_CONTEXT_HPP
 
 #include <windows.h>
+#include <string>
 #include "Win32RetirableContext.hpp"
 #include "../Win32TextEnvironment.hpp"
 #include "core/String.hpp"
@@ -83,6 +84,7 @@ private:
   void bindText();
   void unbindText();
   void applyText();
+  bool writeText(const std::wstring &wide);
   void requestRelayoutIfNeeded();
   static void TextChangedThunk(void *userData);
 
