@@ -119,6 +119,7 @@ struct PAINTSTRUCT { int unused; };
 #define SS_LEFTNOWORDWRAP 12
 #define SS_TYPEMASK 31
 #define SS_EDITCONTROL 8192
+#define SS_NOPREFIX 128
 #define SS_ENDELLIPSIS 16384
 #define GWL_STYLE -16
 #define GWLP_USERDATA -21

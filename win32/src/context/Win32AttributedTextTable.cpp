@@ -218,6 +218,34 @@ bool Win32AttributedTextTable::buildRows(const AttributedString &value,
   return this->lines_ && this->lines_->valid();
 }
 
+bool Win32AttributedTextTable::joinLines(std::wstring &out) const
+{
+  if (!this->valid())
+    return false;
+  std::wstring joined;
+  for (std::size_t i = 0; i < this->lines_->lineCount(); ++i)
+  {
+    if (i)
+    {
+      if (joined.size() == joined.max_size())
+        return false;
+      joined.push_back(L'\n');
+    }
+    const TextLineRecord &line = this->lines_->line(i);
+    for (std::size_t j = 0; j < line.fragmentCount; ++j)
+    {
+      const TextFragment &fragment = this->lines_->fragment(line.firstFragment + j);
+      const std::size_t count = fragment.end - fragment.start;
+      if (count > joined.max_size() - joined.size())
+        return false;
+      if (count)
+        joined.append(&this->units_[fragment.start], count);
+    }
+  }
+  out.swap(joined);
+  return true;
+}
+
 bool Win32AttributedTextTable::draw(HDC dc, const RECT &clip, const BlockStyle &block) const
 {
   if (!this->valid())

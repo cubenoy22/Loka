@@ -170,13 +170,19 @@ HGDIOBJ GetStockObject(int)
 {
   return 0;
 }
-int DrawTextW(HDC dc, LPCWSTR text, int, RECT *r, UINT)
+int DrawTextW(HDC dc, LPCWSTR text, int, RECT *r, UINT flags)
 {
   ++win32_host::drawMeasures;
   if (win32_host::failMeasure)
     return 0;
   int width = static_cast<int>(std::wcslen(text)) * dc->font->advance;
-  int lines = (width + r->right - 1) / r->right;
+  int lines = 1;
+  if ((flags & DT_WORDBREAK) && r->right > 0)
+    lines = (width + r->right - 1) / r->right;
+  else
+    for (const wchar_t *unit = text; *unit; ++unit)
+      if (*unit == L'\n')
+        ++lines;
   r->bottom = (lines ? lines : 1) * (dc->font->ascent + dc->font->descent + dc->font->leading);
   return r->bottom;
 }
