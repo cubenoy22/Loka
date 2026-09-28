@@ -248,26 +248,7 @@ void ToolboxButtonContext::render(loka::app::scene::IPlatformController *control
   draw(toolbox);
 }
 
-bool ToolboxButtonContext::handleMouseDown(const Point &point, ToolboxScenePlatformController *controller)
-{
-  if (!emitter_)
-  {
-    return false;
-  }
-  if (enabled_ && !enabled_->get())
-  {
-    return false;
-  }
-  if (!PtInRect(point, &rect_))
-  {
-    return false;
-  }
-  if (controller)
-  {
-    controller->emitHitEmitter(emitter_);
-  }
-  return true;
-}
+#include "ToolboxButtonInput.cpp"
 
 bool RegisterToolboxButtonNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {

@@ -1223,118 +1223,7 @@ void ToolboxScenePlatformController::refreshContextProps(loka::app::scene::Node 
   }
 }
 
-void ToolboxScenePlatformController::render()
-{
-  PROFILE_FUNC();
-  ++debugStats_.renderCalls;
-  ++debugStats_.totalRenderCalls;
-  if (!window_ || !window_->window() || !rootNode_)
-  {
-    return;
-  }
-  {
-    // Identity rule: an auto id stays with its context for the context's
-    // lifetime. Observed explicit tags only ever RAISE the auto range —
-    // resetting the counter here made lazily-allocating contexts collide
-    // after a Show reveal (issue #120).
-    controlIds_.raiseBaseAbove(MaxExplicitControlId(rootNode_));
-  }
-  {
-    hitLedger_.buttonHits_.clear();
-    hitLedger_.cellHits_.clear();
-    for (size_t i = 0; i < buttonControls_.size(); ++i)
-    {
-      buttonControls_[i].usedThisFrame = false;
-    }
-    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
-    {
-      scrollBarLedger_.scrollBarControls_[i].usedThisFrame = false;
-    }
-    for (size_t i = 0; i < scrollBarLedger_.viewportScrollBars_.size(); ++i)
-    {
-      scrollBarLedger_.viewportScrollBars_[i].usedThisFrame = false;
-    }
-    hitLedger_.editHits_.clear();
-    for (size_t i = 0; i < editControls_.size(); ++i)
-    {
-      editControls_[i].usedThisFrame = false;
-    }
-    hitLedger_.textHits_.clear();
-    hitLedger_.popupHits_.clear();
-    clearEnabledBindings();
-    pendingTextStates_.clear();
-    pendingDirtyRects_.clear();
-  }
-  loka::app::scene::LayoutState state;
-  state.x = 12;
-  state.y = 24;
-  state.lineHeight = 14;
-  state.spacing = 6;
-  {
-    Rect port = window_->window()->portRect;
-    short width = static_cast<short>(port.right - port.left - state.x * 2);
-    short height = static_cast<short>(port.bottom - port.top - state.y * 2);
-    if (width < 0)
-    {
-      width = 0;
-    }
-    if (height < 0)
-    {
-      height = 0;
-    }
-    state.width = width;
-    state.height = height;
-  }
-  assert(this->projectionParentScopes_.activeDepth() == 0 &&
-         "a Toolbox projection pass must begin at the root scope");
-  const Rect rootPort = window_->window()->portRect;
-  const loka::core::Frame rootClip(
-      rootPort.left,
-      rootPort.top,
-      rootPort.right - rootPort.left,
-      rootPort.bottom - rootPort.top);
-  if (!this->projectionParentScopes_.resetRoot(
-          static_cast<void *>(window_->window()), rootClip))
-  {
-    return;
-  }
-  PROFILE_SECTION("layout");
-  LayoutNode(rootNode_, state, this, 0);
-  assert(this->projectionParentScopes_.activeDepth() == 0 &&
-         "a Toolbox projection pass must restore the root scope");
-  this->rectSurfaceExtentLedger_.flush();
-  RenderNode(rootNode_, this);
-  debugStats_.refreshHitCounts(static_cast<int>(hitLedger_.buttonHits_.size()),
-                               static_cast<int>(hitLedger_.cellHits_.size()),
-                               static_cast<int>(hitLedger_.editHits_.size()),
-                               static_cast<int>(hitLedger_.textHits_.size()),
-                               static_cast<int>(hitLedger_.popupHits_.size()));
-  {
-    for (size_t i = 0; i < buttonControls_.size(); ++i)
-    {
-      if (!buttonControls_[i].usedThisFrame && buttonControls_[i].control)
-      {
-        HideControl(buttonControls_[i].control);
-      }
-    }
-    for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
-    {
-      if (!scrollBarLedger_.scrollBarControls_[i].usedThisFrame && scrollBarLedger_.scrollBarControls_[i].control)
-      {
-        HideControl(scrollBarLedger_.scrollBarControls_[i].control);
-      }
-    }
-    for (size_t i = 0; i < editControls_.size();)
-    {
-      if (!editControls_[i].usedThisFrame)
-      {
-        this->retireEditTextControlAt(i, editControls_[i].lifetimeHint);
-        continue;
-      }
-      ++i;
-    }
-  }
-}
+#include "ToolboxRender.cpp"
 
 void ToolboxScenePlatformController::renderDirty(const Rect &rect)
 {
@@ -1453,37 +1342,7 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
 
 #include "ToolboxHitLedger.cpp"
 
-void ToolboxScenePlatformController::emitHitEmitter(loka::core::EmitterState *emitter)
-{
-  if (!emitter)
-  {
-    return;
-  }
-  beginBatchUpdate();
-  emitter->emit();
-  endBatchUpdate();
-}
-
-void ToolboxScenePlatformController::applyPopupSelectionChange(const Rect &rect,
-                                                               loka::app::scene::BoundaryNode *,
-                                                               loka::core::State<int> *selectedIndex,
-                                                               const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
-                                                               loka::core::EmitterState *onChange,
-                                                               int newIndex)
-{
-  if (!selectedIndex)
-  {
-    return;
-  }
-  beginBatchUpdate();
-  addPendingDirty(rect);
-  selectedIndexSeat.set(newIndex, true);
-  if (onChange)
-  {
-    onChange->emit();
-  }
-  endBatchUpdate();
-}
+#include "ToolboxInputPublication.cpp"
 
 #include "ToolboxFocus.cpp"
 
@@ -2424,31 +2283,7 @@ bool ToolboxScenePlatformController::queryEditTextValueForTesting(
 }
 #endif
 
-void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
-{
-  if (!binding.text || !binding.te)
-  {
-    return;
-  }
-  CharsHandle textHandle = TEGetText(binding.te);
-  long length = 0;
-  if (binding.te && *binding.te)
-  {
-    length = (**binding.te).teLength;
-  }
-  std::string utf8;
-  if (textHandle && length > 0)
-  {
-    HLock(reinterpret_cast<Handle>(textHandle));
-    const char *ptr = reinterpret_cast<const char *>(*textHandle);
-    utf8.assign(ptr, static_cast<size_t>(length));
-    HUnlock(reinterpret_cast<Handle>(textHandle));
-  }
-  // State notification fans out to every binding. Mark the typing source
-  // current first so its sync is a no-op and preserves the active selection.
-  binding.lastText = utf8;
-  binding.textSeat.set(loka::core::String(utf8));
-}
+#include "ToolboxEditPublication.cpp"
 
 void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
 {

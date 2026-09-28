@@ -486,3 +486,15 @@ loka_compile_pin(null-input-body
   REFUSES pins/refuses_null_input_body.cpp
   ACCEPTS pins/accepts_null_input_body.cpp
 )
+
+loka_compile_pin(toolbox-input-body
+  REFUSES pins/refuses_toolbox_input_body.cpp
+  ACCEPTS pins/accepts_toolbox_input_body.cpp
+)
+foreach(kind IN ITEMS refuses accepts)
+  target_include_directories(compilePin_toolbox-input-body_${kind} PRIVATE
+    ${PROJECT_SOURCE_DIR}/tests/toolbox/host ${PROJECT_SOURCE_DIR}/tests
+    ${PROJECT_SOURCE_DIR}/apple/toolbox/src)
+  target_compile_options(compilePin_toolbox-input-body_${kind} PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+endforeach()

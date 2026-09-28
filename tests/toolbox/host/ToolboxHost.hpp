@@ -16,6 +16,14 @@
 class ToolboxTextContext;
 class ToolboxTextFontDescriptor;
 #include "Quickdraw.h"
+#include "Controls.h"
+#include "ToolboxScrollBarLedger.hpp"
+#include "ToolboxControlIdAllocator.hpp"
+#include "app/RectSurface.hpp"
+#include "app/scene/projection/ProjectionParentScope.hpp"
+#include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/PopupMenu.hpp"
+#include "app/nodes/nestable/ScrollView.hpp"
 #include "TextEdit.h"
 #include "ToolboxEditControlLedger.hpp"
 #include "ToolboxHitLedger.hpp"
@@ -82,7 +90,7 @@ inline GrafPtr FrontWindow() { return toolbox_host::frontWindow; }
 class ToolboxWindow
 {
 public:
-  GrafPort port;
+  struct WindowPort : GrafPort { Rect portRect; } port;
   ToolboxWindowContext context_;
   void (*onFlush)(void *);
   void *flushData;
@@ -92,10 +100,12 @@ public:
     port.txFont = 3;
     port.txSize = 12;
     port.txFace = 0;
+    SetRect(&port.portRect, 0, 0, 360, 260);
   }
   void flushInvalidate() { if (this->onFlush) this->onFlush(this->flushData); }
+  loka::core::StateTracker *getTracker() { return 0; }
   void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
-  GrafPtr window()
+  WindowPort *window()
   {
     return &port;
   }
@@ -115,9 +125,40 @@ public:
   { return this->projectedWriteSeat().state(); }
   void invalidateNativePresentation() {}
 };
-class ToolboxButtonContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
-class ToolboxCellContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
-class ToolboxPopupMenuContext { public: bool handleMouseDown(const Point &, ToolboxScenePlatformController *) { return false; } };
+/** Host neighbors carry the fields consumed by the unmodified leaf input bodies. */
+class ToolboxButtonContext : public loka::app::scene::NativeNodeContext
+{
+public:
+  loka::core::EmitterState *emitter_;
+  loka::core::State<bool> *enabled_;
+  Rect rect_;
+  ToolboxButtonContext() : emitter_(0), enabled_(0) {}
+  bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
+};
+class ToolboxCellContext : public loka::app::scene::NativeNodeContext
+{
+public:
+  loka::app::CellNode *node_;
+  Rect rect_;
+  ToolboxCellContext() : node_(0) {}
+  bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
+};
+class ToolboxPopupMenuContext : public loka::app::scene::NativeNodeContext
+{
+public:
+  const loka::Vector<loka::core::String> *items_;
+  loka::core::State<int> *selectedIndex_;
+  loka::app::scene::WriteSeat<int> selectedIndexSeat_;
+  loka::core::EmitterState *onChange_;
+  loka::core::State<bool> *enabled_;
+  loka::app::scene::BoundaryNode *boundary_;
+  Rect rect_;
+  ToolboxPopupMenuContext() : items_(0), selectedIndex_(0), onChange_(0), enabled_(0), boundary_(0) {}
+  short menuId() const { return 2000; }
+  short clampIndex(int value) const { return static_cast<short>(value); }
+  static void copyToPascalString(const loka::core::String &, Str255 &out) { out[0] = 0; }
+  bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
+};
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
@@ -129,13 +170,35 @@ public:
   typedef ToolboxHitLedger::CellHit CellHit;
   typedef ToolboxHitLedger::PopupHit PopupHit;
   ToolboxHitLedger hitLedger_;
+  void installHit(const ButtonHit &hit) { this->hitLedger_.buttonHits_.push_back(hit); }
+  void installHit(const CellHit &hit) { this->hitLedger_.cellHits_.push_back(hit); }
+  void installHit(const PopupHit &hit) { this->hitLedger_.popupHits_.push_back(hit); }
   loka::app::scene::FocusLink fallbackFocus_;
   ToolboxEditTextContext *fallbackFocusContext() const;
   virtual bool readNativeFocus(loka::app::scene::NodeContext *&out);
   virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
-  bool handleMouseDown(const Point &);
-  bool handleControlClick(const Point &) { return false; }
-  bool handleKeyDown(char);
+#include "ToolboxInputBodies.hpp"
+public:
+  bool handleControlClick(const Point &);
+  void emitHitEmitter(loka::core::EmitterState *);
+  void applyPopupSelectionChange(const Rect &, loka::app::scene::BoundaryNode *,
+      loka::core::State<int> *, const loka::app::scene::WriteSeat<int> &, loka::core::EmitterState *, int);
+  typedef ToolboxScrollBarLedger::ScrollBarControlBinding ScrollBarControlBinding;
+  typedef ToolboxScrollBarLedger::ViewportScrollBarBinding ViewportScrollBarBinding;
+  ToolboxScrollBarLedger scrollBarLedger_;
+  struct ButtonControlBinding
+  {
+    ControlRef control;
+    loka::core::EmitterState *emitter;
+    loka::core::State<bool> *enabled;
+    bool usedThisFrame;
+  };
+  std::vector<ButtonControlBinding> buttonControls_;
+  void commitScrollBarValueAt(std::size_t);
+  void commitViewportScrollBarValue(ViewportScrollBarBinding &, ScrollBarControlBinding &);
+  void addPendingDirty(const Rect &) {}
+  void installScroll(const ScrollBarControlBinding &row) { this->scrollBarLedger_.scrollBarControls_.push_back(row); }
+
   bool handleTextKey(char);
   void beginBatchUpdate() {}
   void endBatchUpdate() {}
@@ -195,7 +258,6 @@ public:
   TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
   void retireTextEditorControl(loka::app::scene::NodeContext *, loka::app::scene::NativeLifetimeHint);
   void flushTE();
-  void idleTextEdits();
   ToolboxCompositionReplay compositionReplay;
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {
@@ -208,10 +270,13 @@ public:
   Rect projectionClip;
   loka::app::scene::NodeContext *renderContext;
   explicit ToolboxScenePlatformController(ToolboxWindow *window)
-      : poolIntakeAuditFailCount_(0),
+      : scrollBarLedger_(0),
+        poolIntakeAuditFailCount_(0),
         inBatchUpdate_(false),
         window_(window),
-        renderContext(0)
+        renderContext(0),
+        rootNode_(0),
+        controlIds_(100)
   {
     SetRect(&projectionClip, -30000, -30000, 30000, 30000);
   }
@@ -234,11 +299,19 @@ public:
     retired.push_back(context);
   }
   virtual void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
-  void render()
+  loka::app::scene::Node *rootNode_;
+  loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
+  ToolboxControlIdAllocator controlIds_;
+  std::vector<Rect> pendingDirtyRects_;
+  std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
+  struct RenderStats
   {
-    if (this->renderContext)
-      this->renderContext->render(this);
-  }
+    unsigned renderCalls, totalRenderCalls;
+    RenderStats() : renderCalls(0), totalRenderCalls(0) {}
+    void refreshHitCounts(int, int, int, int, int) {}
+  } debugStats_;
+  void clearEnabledBindings() {}
   void drawControlsInRect(const Rect &) {}
   virtual void synchronize() {}
   virtual bool hasPendingSync() const
