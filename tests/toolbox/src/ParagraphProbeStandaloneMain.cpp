@@ -218,6 +218,8 @@ namespace
         return -1;
       ++count;
     }
+    // Boundary nodes expose their own composition children here, including
+    // LazyView -> LazyGeneration -> Fragment -> Canvas -> item components.
     INestable *nestable = node->asNestable();
     for (Node *child = nestable ? nestable->childrenHead() : 0; child; child = child->nextInComposition)
     {
@@ -336,7 +338,10 @@ namespace
       const unsigned long elapsed = now.lo - this->interval_.lo;
       const int count = CountCompleted(document);
       const int offset = document->offset();
-      const int expected = this->selected_ > 0 ? this->selected_ : (offset + 191) / 64 - offset / 64 + 1;
+      const layout::LazyLayout policy = layout::FixedGrid(300, 64, 1, this->model_.size());
+      const int expected = this->selected_ > 0
+                               ? this->selected_
+                               : static_cast<int>(policy.indicesIn(Frame(0, offset, 300, 192)).count);
       if (count != expected || offset != this->phase_ * 16)
       {
         this->stop("projection-refused", elapsed);
