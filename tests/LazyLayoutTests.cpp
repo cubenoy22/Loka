@@ -1,6 +1,6 @@
 #include "LazyLayoutTests.hpp"
 #include "app/layout/LazyLayout.hpp"
-#include "app/nodes/nestable/LazyFlex.hpp"
+#include "app/nodes/nestable/LazyView.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -12,91 +12,44 @@ namespace loka
 {
   namespace testing
   {
-    /** Test-only ownership of evaluator wrappers; restore before generation retirement. */
-    /** Generic test door: swap a DerivedState's evaluator without a feature-named friend. */
-    class DerivedStateTestAccess
+    /** Observe the existing view-owned publications, without production counters. */
+    class LazyViewAccess
     {
-    public:
-      template <class T>
-      static typename core::DerivedState<T>::EvalFn *&evalFn(core::DerivedState<T> &state)
-      {
-        return state.evalFn;
-      }
-    };
-
-    class LazyFlexAccess
-    {
-      typedef core::DerivedState<bool> Derived;
-      class Evaluation : public Derived::EvalFn
-      {
-      public:
-        Evaluation(Derived::EvalFn *source, unsigned &count)
-            : source_(source),
-              count_(count)
-        {
-        }
-        virtual bool operator()()
-        {
-          ++this->count_;
-          return (*this->source_)();
-        }
-        Derived::EvalFn *source_;
-        unsigned &count_;
-      };
-      struct Watch
-      {
-        Derived *state;
-        Evaluation *evaluation;
-      };
-      Watch watches_[LOKA_LAZYFLEX_MAX_ITEMS];
-      unsigned count_;
-      unsigned evaluations_;
+      core::State<app::LazyViewKey> *selection_;
+      core::State<core::Frame> *viewport_;
       unsigned publications_;
       static void published(void *context)
       {
-        ++static_cast<LazyFlexAccess *>(context)->publications_;
+        ++static_cast<LazyViewAccess *>(context)->publications_;
       }
-      LazyFlexAccess(const LazyFlexAccess &);
-      LazyFlexAccess &operator=(const LazyFlexAccess &);
 
     public:
       template <class T>
-      explicit LazyFlexAccess(app::LazyGenerationNode<T> &generation)
-          : count_(generation.count_),
-            evaluations_(0),
+      explicit LazyViewAccess(app::LazyViewNode<T> &view)
+          : selection_(view.selection_.state()),
+            viewport_(view.viewport_.state()),
             publications_(0)
       {
-        for (unsigned i = 0; i < this->count_; ++i)
-        {
-          Watch &watch = this->watches_[i];
-          watch.state = static_cast<Derived *>(generation.visible_[i]);
-          watch.evaluation = new Evaluation(DerivedStateTestAccess::evalFn(*watch.state), this->evaluations_);
-          DerivedStateTestAccess::evalFn(*watch.state) = watch.evaluation;
-          watch.state->bind(&published, this, false);
-        }
+        this->selection_->bind(&published, this, false);
+        this->viewport_->bind(&published, this, false);
       }
-      ~LazyFlexAccess()
+      ~LazyViewAccess()
       {
-        for (unsigned i = 0; i < this->count_; ++i)
-        {
-          Watch &watch = this->watches_[i];
-          watch.state->unbind(&published, this);
-          DerivedStateTestAccess::evalFn(*watch.state) = watch.evaluation->source_;
-          delete watch.evaluation;
-        }
+        this->selection_->unbind(&published, this);
+        this->viewport_->unbind(&published, this);
       }
       void reset(NullScenePlatformController &platform)
       {
-        this->evaluations_ = this->publications_ = 0;
+        this->publications_ = 0;
         platform.leafLayoutVisits_ = 0;
-      }
-      unsigned evaluations() const
-      {
-        return this->evaluations_;
       }
       unsigned publications() const
       {
         return this->publications_;
+      }
+      unsigned count() const
+      {
+        return this->selection_->get().window.count;
       }
       static unsigned replacements(const app::scene::Node *before, const app::scene::Node *after)
       {
@@ -106,6 +59,10 @@ namespace loka
       {
         return platform.leafLayoutVisits_;
       }
+
+    private:
+      LazyViewAccess(const LazyViewAccess &);
+      LazyViewAccess &operator=(const LazyViewAccess &);
     };
   } // namespace testing
 } // namespace loka
@@ -161,10 +118,10 @@ namespace
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     scene.flushInvalidation();
     scene.flushInvalidation();
-    LazyFlexNode<CounterItem> *flex = static_cast<LazyFlexNode<CounterItem> *>(root);
+    LazyViewNode<CounterItem> *flex = static_cast<LazyViewNode<CounterItem> *>(root);
     Node *generation = flex->childrenHead();
     {
-      loka::testing::LazyFlexAccess counters(*static_cast<LazyGenerationNode<CounterItem> *>(generation));
+      loka::testing::LazyViewAccess counters(*flex);
       for (unsigned step = 0; step < 2; ++step)
       {
         counters.reset(platform);
@@ -174,38 +131,37 @@ namespace
         }
         scene.flushInvalidation();
         const unsigned replacements = counters.replacements(generation, flex->childrenHead());
-        const unsigned evaluations = counters.evaluations();
         const unsigned publications = counters.publications();
         const unsigned long leaves = counters.leaves(platform);
-        std::printf("LazyFlex N=%u %s: evaluations=%u publications=%u leaves=%lu replacements=%u\n",
+        std::printf("LazyView N=%u %s: publications=%u leaves=%lu replacements=%u\n",
                     n,
                     step == 0 ? "crossing" : "same-window",
-                    evaluations,
                     publications,
                     leaves,
                     replacements);
-        LOKA_VERIFY(evaluations == n);
-        LOKA_VERIFY(publications == (step == 0 ? 2u : 0u));
-        LOKA_VERIFY(replacements == 0);
-        LOKA_VERIFY(leaves == 4);
+        LOKA_VERIFY(publications == (step == 0 ? 2u : 1u));
+        LOKA_VERIFY(replacements == (step == 0 ? 1u : 0u));
+        generation = flex->childrenHead();
+        LOKA_VERIFY(counters.count() == 6);
+        LOKA_VERIFY(leaves == counters.count());
         counters.reset(platform);
         scene.flushInvalidation();
         platform.drainNativeRetirements();
-        LOKA_VERIFY(counters.evaluations() == 0 && counters.publications() == 0);
+        LOKA_VERIFY(counters.publications() == 0);
         LOKA_VERIFY(counters.leaves(platform) == 0);
       }
     }
     // Positive control: a structure change really does replace the generation.
     LOKA_VERIFY(list.remove(list.at(n - 1).id) == EDIT_OK);
     scene.flushInvalidation();
-    LOKA_VERIFY(loka::testing::LazyFlexAccess::replacements(generation, flex->childrenHead()) == 1);
+    LOKA_VERIFY(loka::testing::LazyViewAccess::replacements(generation, flex->childrenHead()) == 1);
     loka::dsl::testing::SceneTestAccess::unmount(scene);
     scene.flushInvalidation();
     platform.drainNativeRetirements();
   }
 } // namespace
 
-void testLazyFlexFlushCounters()
+void testLazyViewFlushCounters()
 {
   captureScroll(50);
   captureScroll(200);
@@ -214,7 +170,7 @@ void testLazyFlexFlushCounters()
 void testLazyLayoutBoundsAndEdges()
 {
   using namespace loka::app::layout;
-  const LazyLayout grid = FixedGrid(10, 20, 2, 7);
+  const LazyLayout grid = FixedGrid(10, 20, 2, 7, STACK_AXIS_COLUMN, 0);
   LazyWindow window = grid.indicesIn(Frame(0, 19, 20, 2));
   LOKA_VERIFY(window.first == 0 && window.count == 4);
   window = grid.indicesIn(Frame(0, 20, 20, 20));
@@ -239,12 +195,13 @@ void testLazyLayoutBoundsAndEdges()
   LOKA_VERIFY(window.count == 0);
   window = grid.indicesIn(Frame(-1, 0, 20, 20));
   LOKA_VERIFY(window.first == 0 && window.count == 2);
-  const LazyLayout row = FixedGrid(20, 10, 2, 7, STACK_AXIS_ROW);
+  const LazyLayout row = FixedGrid(20, 10, 2, 7, STACK_AXIS_ROW, 0);
   window = row.indicesIn(Frame(19, 0, 2, 20));
   LOKA_VERIFY(window.first == 0 && window.count == 4);
   window = row.indicesIn(Frame(60, 0, 100, 20));
   LOKA_VERIFY(window.first == 6 && window.count == 1);
-  const LazyLayout margin = FixedGrid(10, 20, 2, 7, STACK_AXIS_COLUMN, 1);
+  const LazyLayout margin = FixedGrid(10, 20, 2, 7);
+  LOKA_VERIFY(margin.margin == 1);
   window = margin.indicesIn(Frame(0, 20, 20, 20));
   LOKA_VERIFY(window.first == 0 && window.count == 6);
   window = margin.indicesIn(Frame(0, 60, 20, 20));
@@ -257,7 +214,7 @@ void testLazyLayoutBoundsAndEdges()
 void testLazyLayoutValuesAndWalls()
 {
   using namespace loka::app::layout;
-  const LazyLayout grid = FixedGrid(10, 20, 2, 7);
+  const LazyLayout grid = FixedGrid(10, 20, 2, 7, STACK_AXIS_COLUMN, 0);
   LazyLayout copy = grid;
   LazyExtent extent = copy.extent(7);
   LOKA_VERIFY(extent.status == LAZY_EXTENT_READY && extent.frame == Frame(0, 0, 20, 80));

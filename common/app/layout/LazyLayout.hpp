@@ -144,13 +144,13 @@ namespace loka
         }
       };
 
-      /** Construct a completed policy for a list snapshot. Margin stays zero in PR 1. */
+      /** Construct a completed fixed-grid policy; margin is measured in main-axis rows. */
       inline LazyLayout FixedGrid(short width,
                                   short height,
                                   unsigned short wrap = 1,
                                   unsigned itemCount = 0,
                                   StackAxis axis = STACK_AXIS_COLUMN,
-                                  unsigned short margin = 0)
+                                  unsigned short margin = 1)
       {
         LazyLayout value = {LazyLayout::FIXED_GRID, axis, width, height, wrap, margin, itemCount};
         return value;

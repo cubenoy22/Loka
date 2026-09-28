@@ -1,0 +1,21 @@
+#ifndef LOKA_LAZY_VIEW_TESTS_HPP
+#define LOKA_LAZY_VIEW_TESTS_HPP
+void testLazyViewViewportCrossesTrackersInOneUpdate();
+void testLazyViewEmptyViewportWaitsForFirstWrite();
+void testLazyViewTenPageFlipsKeepOwnershipBounded();
+void testLazyViewVisibleContentAppliesWithoutReconstruction();
+void testLazyViewHiddenContentIsReadOnFirstMaterialization();
+void testLazyViewStructureReplacesGeneration();
+void testLazyViewCapacityRefusal();
+void testLazyViewEditItemsRetireNativeIdentity();
+void testLazyViewTwoListsStayIndependent();
+void testLazyViewBatchRefreshesAllVisibleItems();
+void testLazyViewRefusedGenerationKeepsOldPresentation();
+void testLazyViewUnmountCancelsForeignWatches();
+void testLazyViewRowWrapUsesHalfOpenCells();
+void testLazyViewContentMapsWindowLocally();
+void testLazyViewPropsReselectAndReplaceBorrow();
+void testLazyViewParkedReattachReselects();
+void testLazyViewCanceledQueuedWindowRefreshesContent();
+void testLazyViewCanceledRefusedWindowRefreshesContent();
+#endif

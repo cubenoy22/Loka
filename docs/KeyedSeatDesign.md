@@ -235,14 +235,52 @@ establish production Keyed behavior.
 
 ## From AGENTS.md
 
-For LazyFlex, a viewport write copies State into the stable Boundary and generation, evaluates n item Derived states, toggles entering/leaving Shows, and visits O(S) seats in that Boundary; Canvas additionally seeks O(first) and visits candidate cells. A content update seeks O(change.first) through its own Canvas arms and applies props to materialized items in O(change.count) visits (`LIST_BATCH` visits all n arms); a structure change replaces O(n) old/new generation content, in addition to the existing seat-ledger and observation costs described in [KeyedSeatDesign.md](#review-risk-profile).
+For LazyView (#990), a viewport or list revision notification enters one
+selection writer whose interval calculation is O(1). Props binding windows use the same writer. The completed
+`(first, count, structureRevision)` key drives the existing LazyScope route:
+an unchanged key makes no replacement; a changed key declares only `count`
+items, including overlap. There are no per-item visibility states or Show seats.
+All item-local state and focus are lost on a successful key change. Native focus
+acceptance on target systems remains a runtime-verification follow-up.
 
-`LazyLayout` is the value-owned placement and selection policy; its first policy,
-`FixedGrid`, answers extent, index-window, and placement queries without owning
-State or allocating storage. The current LazyFlex/Canvas path shares its placement
-and extent arithmetic, while per-item `Visible` residents and all Show seats remain
-in place. Selection uses both half-open viewport edges and a bounded `LazyWindow`;
-Canvas retains its conservative far-edge traversal. PR 1 keeps the margin at zero
-and does not consume that window to replace seats, so the cost lines above remain
-unchanged. See [LazyLayout.hpp](../common/app/layout/LazyLayout.hpp) for the value
-contract and [LazyLayoutTests.cpp](../tests/LazyLayoutTests.cpp) for the counters.
+The stable view owns its viewport copy and key State. A generation borrows the
+current view inputs upward and owns its completed window and a bounded index
+of its own fixed item nodes. Building that index is O(count) per attach. Content
+refresh intersects the published change with the admitted window and directly
+applies props at `global - first`, O(changed ∩ window); a batch visits the window.
+Refresh is skipped while a declaration is pending, including after refusal.
+If demand returns to the installed key, that cancellation refreshes the retained
+window in O(count), recovering content edits skipped while demand was pending.
+
+`LazyLayout` is the props-owned policy value, answering extent, selection and
+placement. `FixedGrid` supplies both axes and a default margin of one main-axis
+row. The box clamps selection through the policy's current list bound. Canvas's
+completed placement input separates full-list extent from the resident interval;
+LazyView places every resident at its global content coordinates. ScrollView
+alone translates those coordinates. Standalone Canvas keeps its historical
+conservative clipping and viewport subtraction.
+Horizontal viewport movement selects the window but leaves residents in absolute
+content coordinates; horizontal scrolling is pending a ScrollView X offset.
+
+Candidate declaration refusal preserves the old LazyScope generation. At an
+already moved ScrollView offset, that old window may be stale or vacant; no
+old-offset/pixel atomicity is promised. The full-list extent still follows current
+list size. A pending declaration requests layout through the existing Scene
+after-run door, so retry needs no fresh scroll and does not spin the current
+scheduler drain. The seat's committed-key mismatch is the pending fact; there is
+no extra retry flag. The kernel is unchanged.
+
+Selection is bounded in total list size N for fixed window size K. Declaration,
+indexing, projection, and retirement visit O(K) owned residents; existing generic
+seat-ledger/observation matching can add K-dependent costs described above. This
+is not a measured native timing claim. PR 1's N-dependent counters remain
+historical baseline evidence; PR 2 renews Null counts and allocation ceilings.
+The #639 LazyFlex page-flip timings apply only to that former all-N Show policy.
+Toolbox timing and golden acceptance belong to #990 PR 3.
+
+`LOKA_LAZYFLEX_MAX_ITEMS` remains a reserved-list-capacity admission contract,
+not a window or timing bound. `LazyFlex`, its Props/Node/status family and its
+header are removed; `LazyColumn` and `LazyRow` are fixed-grid helpers for
+`LazyView`. See [LazyView.hpp](../common/app/nodes/nestable/LazyView.hpp),
+[LazyLayout.hpp](../common/app/layout/LazyLayout.hpp), and the LazyView/LazyLayout
+contract tests for exact surfaces and evidence.

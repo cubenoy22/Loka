@@ -55,13 +55,10 @@ namespace lazylist
     {
       return this->attachment_;
     }
-    loka::core::ListEditResult nextPage()
+    /** Consume a rail-reported offset; the model owns viewport selection only. */
+    loka::core::ListEditResult reportScrollOffset(int y)
     {
-      return this->page(this->viewport_.get().height);
-    }
-    loka::core::ListEditResult prevPage()
-    {
-      return this->page(-this->viewport_.get().height);
+      return this->publishViewport(y);
     }
 
     loka::core::ListEditResult renameCard(unsigned short index)
@@ -83,7 +80,7 @@ namespace lazylist
       const loka::core::ListEditResult result =
           this->cards.remove(this->cards.size() ? this->cards.at(0).id : loka::core::ItemId::none());
       if (result == loka::core::EDIT_OK)
-        this->page(0);
+        this->publishViewport(this->viewport_.get().y);
       return result;
     }
     loka::core::ListEditResult insertAtTop()
@@ -116,15 +113,14 @@ namespace lazylist
     {
       return loka::core::String::Literal("Card ") + loka::core::String::FromInt(number);
     }
-    loka::core::ListEditResult page(int delta)
+    loka::core::ListEditResult publishViewport(int y)
     {
       if (this->attachment_ != loka::core::ATTACH_OK)
         return loka::core::EDIT_NOT_ATTACHED;
       loka::core::Frame view = this->viewport_.get();
       const int extent = this->cards.size() * kCellHeight - view.height;
       const int maximum = extent > 0 ? extent : 0;
-      const int next = view.y + delta;
-      view.y = next < 0 ? 0 : (next > maximum ? maximum : next);
+      view.y = y < 0 ? 0 : (y > maximum ? maximum : y);
       if (view != this->viewport_.get())
       {
         loka::core::StateTrackerGuard guard(&this->tracker_);

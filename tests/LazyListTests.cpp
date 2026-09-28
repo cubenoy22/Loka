@@ -51,6 +51,19 @@ namespace
     }
     return 0;
   }
+  ScrollViewNode *scrollView(Node *node)
+  {
+    if (node->asScrollViewNode())
+      return node->asScrollViewNode();
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0; child; child = child->nextInComposition)
+    {
+      ScrollViewNode *found = scrollView(child);
+      if (found)
+        return found;
+    }
+    return 0;
+  }
   void reapply(lazylist::CardNode *resident)
   {
     NodeDefinition<lazylist::CardProps, lazylist::CardNode> definition(resident->props);
@@ -116,6 +129,24 @@ namespace
       n->asButtonNode()->props.onClick_->emit();
       this->drain();
     }
+    void scrollTo(int y)
+    {
+      // Null emulates the rail's clamped offset fact, never an app request.
+      const int extent = this->model.cards.size() * lazylist::kCellHeight - lazylist::kViewportHeight;
+      const int maximum = extent > 0 ? extent : 0;
+      ScrollViewNode *scroll = scrollView(this->root());
+      LOKA_VERIFY(scroll != 0);
+      scroll->props.offset_.set(y < 0 ? 0 : (y > maximum ? maximum : y));
+      this->drain();
+    }
+    void nextPage()
+    {
+      this->scrollTo(this->model.viewport().get().y + lazylist::kViewportHeight);
+    }
+    void prevPage()
+    {
+      this->scrollTo(this->model.viewport().get().y - lazylist::kViewportHeight);
+    }
     String label(unsigned row)
     {
       Node *n = this->node("LazyList.Label", row);
@@ -124,16 +155,14 @@ namespace
     }
     void pageLabels(int first)
     {
-      LOKA_VERIFY(markers(this->root()) == 8);
-      const bool ledgerFact = this->platform.ledger().size() == 14;
+      const unsigned index = static_cast<unsigned>(this->model.viewport().get().y / lazylist::kCellHeight);
+      const unsigned near = index ? index - 1 : 0;
+      const unsigned far = index + 9 < this->model.cards.size() ? index + 9 : this->model.cards.size();
+      LOKA_VERIFY(markers(this->root()) == far - near);
+      const bool ledgerFact = this->platform.ledger().size() == 4 + far - near;
       LOKA_VERIFY(ledgerFact);
-      for (std::size_t i = 0; i < this->platform.ledger().size(); ++i)
-      {
-        const bool visible = this->platform.ledger()[i].visible;
-        LOKA_VERIFY(visible);
-      }
-      for (unsigned i = 0; i < 8; ++i)
-        LOKA_VERIFY(this->label(i).equals(String::Literal("Card ") + String::FromInt(first + i)));
+      for (unsigned i = 0; i < far - near; ++i)
+        LOKA_VERIFY(this->label(i).equals(String::Literal("Card ") + String::FromInt(first - (index ? 1 : 0) + i)));
     }
     lazylist::LazyListModel model;
     NullScenePlatformController platform;
@@ -158,17 +187,17 @@ void testLazyListPagesAndClamps()
   Fixture f;
   f.pageLabels(0);
   for (unsigned i = 0; i < 100; ++i)
-    LOKA_VERIFY(constructions[i] == (i < 8 ? 1u : 0u));
-  f.click("LazyList.Next");
+    LOKA_VERIFY(constructions[i] == (i < 9 ? 1u : 0u));
+  f.nextPage();
   f.pageLabels(8);
   LOKA_VERIFY(f.model.viewport().get().y == 256);
-  f.click("LazyList.Prev");
+  f.prevPage();
   f.pageLabels(0);
   LOKA_VERIFY(constructions[0] == 2);
-  f.click("LazyList.Prev");
+  f.prevPage();
   LOKA_VERIFY(constructions[0] == 2);
   for (unsigned i = 0; i < 20; ++i)
-    f.click("LazyList.Next");
+    f.nextPage();
   f.pageLabels(92);
   LOKA_VERIFY(f.model.viewport().get().y == 2944);
   LOKA_VERIFY(f.model.removeFirst() == EDIT_OK);
@@ -194,10 +223,10 @@ void testLazyListRenamesRetainVisibleStateAndReadHiddenValues()
   LOKA_VERIFY(f.model.renameCard(12) == EDIT_OK);
   f.drain();
   LOKA_VERIFY(constructions[12] == 0);
-  f.click("LazyList.Next");
-  LOKA_VERIFY(f.label(4).equals(String::Literal("Card 12 (1)")));
+  f.nextPage();
+  LOKA_VERIFY(f.label(5).equals(String::Literal("Card 12 (1)")));
   LOKA_VERIFY(constructions[12] == 1);
-  f.click("LazyList.Prev");
+  f.prevPage();
   LOKA_VERIFY(f.label(3).equals(String::Literal("Card 3 (2)")));
   LOKA_VERIFY(constructions[3] == 2);
 }
@@ -209,7 +238,7 @@ void testLazyListStructuralEditsReplaceGeneration()
   f.click("LazyList.Remove");
   f.pageLabels(1);
   LOKA_VERIFY(constructions[1] == 2);
-  LOKA_VERIFY(constructions[8] == 1);
+  LOKA_VERIFY(constructions[8] == 2);
   f.click("LazyList.Marker");
   f.click("LazyList.Insert");
   LOKA_VERIFY(f.label(0).equals(String::Literal("Card 100")));
@@ -241,7 +270,7 @@ void testLazyListRefusalsAndUnmount()
     const bool fact = f.platform.ledger().size() == 0;
     LOKA_VERIFY(fact);
   }
-  LOKA_VERIFY(f.model.nextPage() == EDIT_OK);
+  LOKA_VERIFY(f.model.reportScrollOffset(256) == EDIT_OK);
   LOKA_VERIFY(f.model.renameCard(12) == EDIT_OK);
   LOKA_VERIFY(f.model.removeFirst() == EDIT_OK);
   {
@@ -272,4 +301,13 @@ void testLazyListUnchangedBindingsStayQuiet()
   f.drain();
   LOKA_VERIFY(writes == 1);
   label->unbind(&countWrite, &writes);
+}
+
+void testLazyListNativeOffsetSelectsWindow()
+{
+  Fixture f;
+  f.scrollTo(512);
+  LOKA_VERIFY(f.model.viewport().get().y == 512);
+  LOKA_VERIFY(card(f.root(), 0) == 0 && card(f.root(), 16) != 0);
+  f.pageLabels(16);
 }

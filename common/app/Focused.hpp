@@ -81,7 +81,7 @@ namespace loka
     };
 
     /** Screen-level focus fact. None has no key; key() requires a held value.
-        A LazyFlex item's fact and key stay fixed for its structural lifetime. */
+        A LazyView item's fact and key stay fixed for its structural lifetime. */
     template <typename K> class Focused
     {
     public:

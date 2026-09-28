@@ -527,7 +527,7 @@ int main()
   runUpstreamFlowPin();
   testSeatReservationMineSweeperColdBacking();
 #endif
-  allocpin::RunLazyFlexPageFlipAllocPin();
+  allocpin::RunLazyViewPageFlipAllocPin();
 #ifndef LOKA_UPSTREAM_GAUGE_PIN
   allocpin::RunStateLifetimeTokenAllocPin();
 #endif
