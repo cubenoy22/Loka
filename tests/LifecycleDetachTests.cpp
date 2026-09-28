@@ -2738,7 +2738,7 @@ namespace
     {
       ++this->declarations;
       FragmentDefinition arm;
-      arm.tag(7600 + this->declarations);
+      arm.tag(static_cast<NodeTag>(7600 + this->declarations));
       composition.declare(ConditionalDefinition(ConditionalProps(this->selected.state(), &arm, 0)));
     }
     int declarations;
