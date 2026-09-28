@@ -1,3 +1,4 @@
+#include "platform/null/NullInputDoor.hpp"
 #include "platform/null/context/NullTextEditorContext.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
@@ -452,3 +453,15 @@ bool IsNullTextEditorNodeHandler(const loka::app::scene::IPlatformNodeHandler *c
 {
   return candidate == &textEditorHandler;
 }
+
+// These native-event adapters share the rail door; observation helpers stay local.
+EditorResult loka::testing::TextEditorInput::type(NullTextEditorContext &c, char value)
+{ return NullInputDoor::textEditorInput(c, std::string(1, value), false, 0); }
+EditorResult loka::testing::TextEditorInput::enter(NullTextEditorContext &c)
+{ return NullInputDoor::textEditorInput(c, "\r", false, 0); }
+EditorResult loka::testing::TextEditorInput::backspace(NullTextEditorContext &c)
+{ return NullInputDoor::textEditorInput(c, "", true, 0); }
+EditorResult loka::testing::TextEditorInput::paste(NullTextEditorContext &c, const std::string &text)
+{ return NullInputDoor::textEditorInput(c, text, false, 0); }
+EditorResult loka::testing::TextEditorInput::move(NullTextEditorContext &c, app::LineCursor cursor)
+{ return NullInputDoor::textEditorInput(c, "", false, &cursor); }

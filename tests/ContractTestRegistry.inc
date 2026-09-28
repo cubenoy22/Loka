@@ -1,3 +1,5 @@
+LOKA_TEST(testNullInputDoorLifetime)
+LOKA_TEST(testNullInputDoorNestedSettlement)
 LOKA_TEST(testPlatformOperationNativeDrain)
 LOKA_TEST(testPlatformOperationMountAudit)
 LOKA_TEST(testPlatformOperationPumps)

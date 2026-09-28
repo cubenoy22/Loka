@@ -69,7 +69,9 @@ trace. Lifecycle eligibility remains the seat's separate check.
 
 Window owns the controller; Scene and contexts borrow it. The controller owns
 one small noncopyable `OperationPhase`; only `OperationScope` opens it and
-restores the previous value. There is no counter, allocation, flush on scope
+restores the previous value. The policy openers are `SettleOwnerBase` and the
+rail input-operation door described below; the scope constructor remains
+public for fixtures. There is no counter, allocation, flush on scope
 exit, or coupling to the focus publication phase. A non-template completion
 owner carries this interval independently of the fact type. A controller-less
 fixture door is available only in `loka::app::testing` under `TEST_BUILD`.
@@ -90,8 +92,14 @@ cannot synchronize, drain native retirements or complete focus. App admission
 skips that window's whole busy row: native visibility, Scene replacement,
 dialog-result delivery and close reclamation wait too. Other controllers are
 unaffected. Pending work remains on its existing clock until a later flush.
-Focus publication alone still permits a Scene run. macOS's native-only pending
-relayout remains allowed; it does not run or reclaim the Scene.
+Focus publication alone still permits a Scene run. Layout reached from native
+callbacks is itself an operation: it publishes node facts (for example,
+`RectSurfaceNode`'s laid-out extent), even when it does not run the Scene.
+This includes Win32 size/DPI layout, macOS resize and deferred relayout, and
+Toolbox update/draw/render layout and extent publication. A pending-layout map
+walk invokes each controller's step through its own door, not the whole walk
+under one controller's scope. This corrects #968's native-only relayout
+rationale; production rail routing follows in the #977 rail PRs.
 
 This changes **input completion** to the rule props-apply completion already
 follows: a reply observer that hides the editor does not retire it inside the
@@ -106,6 +114,74 @@ calls or message draining. The second flush advances admission clocks and can
 retry a failure once more in the same loop. Existing admission continues and
 idle transitions remain; work produced by the second flush can still wait for
 the next message. macOS and Toolbox cadence is unchanged.
+
+#### Input-operation door (#977)
+
+The frozen [#977 ruling](https://github.com/cubenoy22/Loka/issues/977)
+(2026-09-28, N1–N9) defines the intended all-rail policy below. **Implemented
+coverage as of 2026-09-28 is the Null rail only**: ScrollBar complete gestures and split input
+entries, plus the TextEditor input adapter, use `NullInputDoor`. Win32, macOS
+and Toolbox routing and their native continuation/layout pins follow in their
+own PRs; this section does not claim those rails already implement the door.
+
+Each rail has one synchronous scope-owning invocation implementation, exposed
+through named typed entries. It opens the existing `OperationScope` on the
+borrowed controller unconditionally and covers the complete operation and its
+continuation: a wheel loop, a Popup write followed by its change emit,
+Toolbox tracking plus commit, a TextEditor saved-procedure call, or a macOS
+Cell emit followed by `super mouseDown:`. Existing `SettleOwner` scopes nest
+unchanged. There is no new phase, counter, lease, registry, reverse pointer or
+settle family.
+
+Native adapters recover the receiver through their existing live back-pointer
+and call the door. Null or retired receivers take the adapter's exact existing
+no-op or native return without reaching an input body. An adapter must not
+access its receiver after an invocation that may retire it. Context input
+bodies are private and the rail door is their supported caller. A compile pin
+with a same-includes accepting twin proves that an external caller cannot call
+a private body; it does not prove correct controller pairing, continuation
+coverage, or that trusted context/door implementation never calls a body
+unscoped. Those are shape-review and runtime-pin obligations. An optional
+lifecycle-audit phase assertion is supplementary; the scope itself is always
+on. Generic `WriteSeat::set` gains no input-phase assertion.
+
+The door returns **without pumping**. Scope exit only restores the previous
+phase; held Scene/owner work advances at Win32's `flushIterationTail`, macOS's
+`flushInvalidationsTick`, or Toolbox present. An outermost scope exit does not
+prove that all borrowers have returned: the caller can still be an immediate
+projection binding, a native continuation, or a pending-layout map walk.
+For a routed entry, existing request settlement stays inside the invoked body
+and completes before invocation returns. Other entry settlements keep their
+existing `SettleOwner` scopes and delivery sites. Door return is not a new
+request-delivery site; the delivery-site inventory below is unchanged.
+
+Owner operations retain their regimes: App admission/close/dialog-result
+delivery, menu and idle pumps, dialog transport, window creation before a
+controller exists and teardown after it is gone, and pure native stretches
+such as paint-only drawing or immediate native fallback. A controller-borrowing
+suboperation reached from any of these goes through that controller's door
+(for example a menu command writing a context's node or idle relayout).
+The criterion is the borrowed controller and its continuation, not whether a
+State write occurs somewhere down the stack. #968 locality, gates,
+modal-holds-until-return and owner preconditions remain in force.
+
+Two consequences require pins on each rail that has the corresponding path:
+
+- During a layout with two RectSurfaces, the first extent observer hiding the
+  second no longer cancels the second's pending extent row in that same layout:
+  detach waits for the pump, so the second fact may publish before detachment.
+  Pin first-hides-second and hide/show cancellation within one operation.
+- During Win32 move/size tracking, structural work requiring held Scene/owner
+  pumps may wait until tracking returns and the queued-message drain reaches
+  `flushIterationTail`. State observers and direct native bindings remain
+  immediate; native layout can proceed while an extent-driven Show waits for
+  a Scene run. This accepted drag tradeoff and its native repaint/resize timing
+  probe are tracked in [#984](https://github.com/cubenoy22/Loka/issues/984),
+  not runtime-verified here. Live structural updates, if required, need a
+  separate Win32 owner-level native-loop completion design. Other rails need
+  no symmetric workaround: macOS registers its timer in default and common
+  modes, and Toolbox calls `SizeWindow` after `GrowWindow` returns; their
+  native timing still requires verification.
 
 The seven seat doors occur in this order; failed stages skip dependent work,
 not the completion path of a still-live take:

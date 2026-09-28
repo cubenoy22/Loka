@@ -4,4 +4,5 @@ void testWriteSeatSettlesIdleOwnerTracker();
 void testWriteSeatJoinsOpenTracker();
 void testWriteSeatRawAndInvalid();
 void testWriteSeatPropsIdentity();
+void testNullInputDoorLifetime();
 #endif

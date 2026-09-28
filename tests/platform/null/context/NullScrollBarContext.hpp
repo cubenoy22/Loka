@@ -50,6 +50,9 @@ public:
       ruling is that a held arrow produces exactly one, not one per tick. */
   unsigned long stateWriteCount() const;
 
+private:
+  friend class NullInputDoor;
+
   /** One complete press: `repeatWhileHeld` action-proc ticks advancing what
       the user sees, then the release that settles the value. */
   void simulatePress(Part part, int repeatWhileHeld);
@@ -64,7 +67,6 @@ public:
   void dragThumbTo(int value);
   void release();
 
-private:
   void commitTrackedValue();
 
   loka::app::ScrollBarNode *node_;
