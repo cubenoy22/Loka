@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(LokaLazyList LANGUAGES CXX)
 
 set(LAZYLIST_CAPACITY 100 CACHE STRING "LazyList card capacity (1..1000)")
-set(LOKA_LAZYFLEX_MAX_ITEMS 256 CACHE STRING "LazyFlex example visibility capacity")
+set(LOKA_LAZYFLEX_MAX_ITEMS 256 CACHE STRING "LazyView example visibility capacity")
 add_compile_definitions(LAZYLIST_CAPACITY=${LAZYLIST_CAPACITY}
   LOKA_LAZYFLEX_MAX_ITEMS=${LOKA_LAZYFLEX_MAX_ITEMS})
 

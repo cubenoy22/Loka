@@ -1505,7 +1505,7 @@ void testFocusPostD1Continues()
   other.setContext(0);
 }
 
-#include "app/nodes/nestable/LazyFlex.hpp"
+#include "app/nodes/nestable/LazyView.hpp"
 namespace
 {
   class FocusItem;

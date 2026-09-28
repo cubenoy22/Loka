@@ -81,17 +81,17 @@ as its own dirty sources; `Stack(axisState)` and `Box().width(widthState)` are
 the first two layout inputs migrated under this ruling.
 Structure that changes is a seat: Match/Show switch arms; Keyed re-declares its
 subtree when its key changes; no boundary recomposes.
-A moving window changes viewport State and flips visibility seats; replacing
-all items is a Keyed / LazyScope generation replacement. The kernel has no
+A moving lazy window changes viewport State and replaces its LazyScope generation
+when `(first, count, structureRevision)` changes. The kernel has no
 recompose door; do not reintroduce one.
 For declaration ownership and replacement sequencing, see
 [Keyed declaration seats](docs/KeyedSeatDesign.md).
 
 - For app-facing composition-form selection, Props/Definition conventions, and
   example style, follow [docs/API_STYLE.md](docs/API_STYLE.md).
-- LazyFlex keeps one logical visibility seat per item and native controls only for visible items: `Show(*visible_[i]).destroyOnDetach() << LazyItem<T>(list, i)`. Hidden items have no item component, native control, or native ledger row; their logical seats remain, and returning items are built from the current model value. The public `LOKA_LAZYFLEX_MAX_ITEMS` cap defaults to 256 and is a capacity contract over reserved entries, not a performance bound (the #639 measurement is recorded in the Programming Guide's LazyColumn/LazyRow section); refusal checks the attached list's capacity, not its current size.
-- Lazy-list items are Component Props: `T::NodeType` must derive from `ComponentNodeWithProps<T>`. Content updates reapply props through `NodeDefinition::applyPropsToNode`, with bindings following props and no re-declaration; successful structure changes replace the generation and its item-local state.
-- Lazy-list focus v1: scrolling an item out destroys its branch and loses its focus; returning constructs a fresh item with no LazyFlex focus restoration. The native focus acceptance check remains pending; the merged EditText pin verifies native identity retirement only.
+- LazyView (#990) owns one window selection; only window items have component/native residents, with no per-item Show seats. LazyColumn/LazyRow are FixedGrid helpers, with a one-row margin by default. `LOKA_LAZYFLEX_MAX_ITEMS` stays a reserved-list-capacity admission contract, not a performance bound. [LazyView ownership and cost](docs/KeyedSeatDesign.md#from-agentsmd)
+- Lazy-list items are Component Props: `T::NodeType` derives from `ComponentNodeWithProps<T>`. Content updates apply props only to the changed range intersecting the window; bindings follow props without re-declaration. Every successful window-key change replaces the generation and its item-local state, including overlap.
+- Lazy-list focus v1: a window-key change destroys every item branch and loses focus; returning constructs fresh items without restoration. Native focus acceptance remains pending; Null retirement pins do not establish native keyboard-focus behavior.
 - Loka compose should use DSL-style chaining; avoid local temporary variables when possible.
 - Prefer `this->` for member access; keep it consistent across the codebase.
 - Prefer `deferBind` for UI projection or lazy updates; use `bind` only when immediate recompute is required.

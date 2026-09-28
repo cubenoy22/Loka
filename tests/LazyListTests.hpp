@@ -6,4 +6,5 @@ void testLazyListStructuralEditsReplaceGeneration();
 void testLazyListRefusalsAndUnmount();
 void testLazyListCapacityRefusal300();
 void testLazyListUnchangedBindingsStayQuiet();
+void testLazyListNativeOffsetSelectsWindow();
 #endif

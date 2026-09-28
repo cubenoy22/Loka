@@ -39,7 +39,7 @@ namespace loka
       /** Geometry is a completed value; viewport remains a separate live borrow. */
       layout::LazyLayout layout(unsigned itemCount = 0) const
       {
-        return layout::FixedGrid(this->cellWidth, this->cellHeight, this->wrap, itemCount, this->axis);
+        return layout::FixedGrid(this->cellWidth, this->cellHeight, this->wrap, itemCount, this->axis, 0);
       }
 
       bool operator<(const scene::PropsBase &rhs) const
@@ -68,6 +68,22 @@ namespace loka
       CANVAS_LAYOUT_SHORT_RANGE_REFUSED
     };
 
+    /** Completed projection input. A resident window places every admitted child;
+        an ordinary Canvas clips candidates using its conservative far edge. */
+    struct CanvasPlacement
+    {
+      enum Traversal
+      {
+        CLIP_CELLS,
+        PLACE_RESIDENTS
+      };
+      layout::LazyLayout policy;
+      loka::core::Frame viewport;
+      layout::LazyExtent extent;
+      unsigned firstIndex;
+      Traversal traversal;
+    };
+
     class CanvasNode : public scene::NestableNode
     {
     public:
@@ -93,6 +109,19 @@ namespace loka
       virtual void declareDirtySources(scene::DirtySourceRegistrar &registrar)
       {
         registrar.markDirtyOnChange(this->props.viewport, scene::NODE_DIRTY_LAYOUT);
+      }
+      /** Full content and child coordinates are independent of resident count. */
+      virtual CanvasPlacement placement() const
+      {
+        const layout::LazyLayout policy = this->props.layout();
+        CanvasPlacement result = {policy,
+                                  this->props.viewport ? this->props.viewport->get() : loka::core::Frame(),
+                                  policy.extent(this->childrenCount()),
+                                  0,
+                                  CanvasPlacement::CLIP_CELLS};
+        if (!this->props.viewport)
+          result.extent.status = layout::LAZY_EXTENT_INVALID_INPUT;
+        return result;
       }
       CanvasLayoutStatus layoutStatus() const
       {

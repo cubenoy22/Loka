@@ -10,7 +10,7 @@
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "app/nodes/nestable/Box.hpp"
-#include "app/nodes/nestable/LazyFlex.hpp"
+#include "app/nodes/nestable/LazyView.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "context/ToolboxAttributedTextContext.hpp"
@@ -135,9 +135,7 @@ namespace
       }
       else
       {
-        // Literal rally composition: Canvas and ScrollView both translate the
-        // offset today. This measures that composition, not visual correctness
-        // of one-line scrolling. Keep the observation in the runtime report.
+        // LazyView selects in content coordinates; ScrollView translates once.
         composition.declare(Box().size(316, 192)
                             << (ScrollView(this->offset_)
                                 << LazyColumn(*this->props.model).cells(300, 64).viewport(*this->viewport_.state())));

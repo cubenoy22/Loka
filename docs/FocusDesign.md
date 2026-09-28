@@ -37,7 +37,7 @@ at `none()`; an initial declaration key initializes the request, not the fact.
 
 `Focused<K>` has an explicit `none()`; `is(key)` tests a held key, and `key()`
 requires a held value. Keys are app data: an enum, integer id, or `ItemId`,
-independent of a control's address. LazyFlex can recreate a control while its
+independent of a control's address. LazyView can recreate a control while its
 model identity survives; a pending request can target a recreated input with the same key.
 
 [Focused.hpp](../common/app/Focused.hpp) owns the key wall. `FocusKeyTraits<K>`
@@ -212,12 +212,12 @@ from freeing the Scene beneath the publication frame, and prevents close
 from deleting the window during publication. Pending work remains for a later
 flush; no separate busy flag is stored.
 
-## LazyFlex and other seats
+## LazyView and other seats
 
 An item keeps its fact and key for its structural lifetime. Content updates
 apply item Props without re-declaring its children, so they do not reapply a
 nested `.focusedAs`; change the key through structural replacement. Ordinary
-retirement on scroll-out reports none (except for #912; see [Known
+retirement on a window-key change (including overlapping items) reports none (except for #912; see [Known
 limits](#known-limits)). App data retains the key, not the focus value, and
 returning does not restore focus. Parked Match/Show branches retain membership
 but lose publication and source.
@@ -278,7 +278,7 @@ Exact storage capacity and representations remain in the code.
 ## Rejected shapes
 
 - Writing the fact from native notifications: no rail delivers a complete set ([#911](https://github.com/cubenoy22/Loka/issues/911)).
-- One fact per input (`.focused(aFocused)`): "one of them" is not a type, and it dies with a LazyFlex item ([#911](https://github.com/cubenoy22/Loka/issues/911)).
+- One fact per input (`.focused(aFocused)`): "one of them" is not a type, and it dies with a LazyView item ([#911](https://github.com/cubenoy22/Loka/issues/911)).
 - `FocusScope` / `FocusField` seat nodes: a Keyed arm misses the enclosing scope, a wrapper is not layout-transparent, and finding the scope is a multi-hop traversal ([#911](https://github.com/cubenoy22/Loka/issues/911)).
 - A per-node "Scene resident" bit: it carries no Scene identity, so a prepared replacement's rows could not be rejected ([#911](https://github.com/cubenoy22/Loka/issues/911)).
 - A common virtual focus holder implemented once per rail: it repeats the common mechanism across four implementations ([#911](https://github.com/cubenoy22/Loka/issues/911)).
@@ -347,7 +347,7 @@ never dereference the context afterward.
 Null's confirming read adds a read inside its write door to common admission
 and readback. No normal-path allocation or retained candidate is added.
 
-An absent LazyFlex row or parked Show field is deferred until it appears and a
+An absent LazyView row or parked Show field is deferred until it appears and a
 later completion runs. An inactive window does not take or activate itself.
 An attempted native refusal consumes the request with no retry (D2). A clipped Toolbox field has no TE or usable fallback hit, so its request is
 refused and consumed. Win32 and macOS accept a clipped control even when the user

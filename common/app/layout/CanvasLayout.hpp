@@ -29,12 +29,7 @@ namespace loka
         /** Full content extents, checked before multiplication. Empty content is 0x0. */
         static CanvasLayoutStatus contentExtent(const CanvasNode &node, loka::core::Frame &out)
         {
-          const CanvasProps &p = node.props;
-          // Viewport remains a separate borrowed input; geometry belongs to the policy.
-          const LazyLayout policy = p.layout();
-          if (!p.viewport || policy.extent(0).status == LAZY_EXTENT_INVALID_INPUT)
-            return CANVAS_LAYOUT_INVALID_INPUT;
-          const LazyExtent extent = policy.extent(node.childrenCount());
+          const LazyExtent extent = node.placement().extent;
           switch (extent.status)
           {
           case LAZY_EXTENT_INVALID_INPUT:
@@ -61,34 +56,38 @@ namespace loka
             status = CANVAS_LAYOUT_INT_RANGE_REFUSED;
           if (status != CANVAS_LAYOUT_READY)
             return refuse(*canvas, status, state.y);
-          const CanvasProps &p = canvas->props;
-          const loka::core::Frame viewport = p.viewport->get();
+          const CanvasPlacement placement = canvas->placement();
+          const LazyLayout &p = placement.policy;
+          const loka::core::Frame viewport = placement.viewport;
           if (viewport.width < 0 || viewport.height < 0)
             return refuse(*canvas, CANVAS_LAYOUT_INVALID_INPUT, state.y);
           canvas->recordLayoutStatus(CANVAS_LAYOUT_READY);
           if (!viewport.width || !viewport.height || !canvas->childrenCount())
             return resultY;
 
-          const bool vertical = p.axis == STACK_AXIS_COLUMN;
-          const int cellMain = vertical ? p.cellHeight : p.cellWidth;
-          const int origin = vertical ? viewport.y : viewport.x;
-          const int size = vertical ? viewport.height : viewport.width;
-          int end = 0;
-          if (!add(origin, size, end))
-            return refuse(*canvas, CANVAS_LAYOUT_INT_RANGE_REFUSED, state.y);
-          if (end < 0)
-            return resultY;
-          const size_t rows = rowCount(canvas->childrenCount(), p.wrap);
-          const size_t firstRow = origin > 0 ? static_cast<size_t>(origin / cellMain) : 0;
-          if (firstRow >= rows)
-            return resultY;
-          size_t lastRow = static_cast<size_t>(end / cellMain);
-          if (lastRow >= rows)
-            lastRow = rows - 1;
-          const size_t first = firstRow * p.wrap;
-          const size_t last = lastRow == rows - 1 ? canvas->childrenCount() : (lastRow + 1) * p.wrap;
-
-          const LazyLayout policy = p.layout();
+          size_t first = 0;
+          size_t last = canvas->childrenCount();
+          if (placement.traversal == CanvasPlacement::CLIP_CELLS)
+          {
+            const bool vertical = p.axis == STACK_AXIS_COLUMN;
+            const int cellMain = vertical ? p.cellHeight : p.cellWidth;
+            const int origin = vertical ? viewport.y : viewport.x;
+            const int size = vertical ? viewport.height : viewport.width;
+            int end = 0;
+            if (!add(origin, size, end))
+              return refuse(*canvas, CANVAS_LAYOUT_INT_RANGE_REFUSED, state.y);
+            if (end < 0)
+              return resultY;
+            const size_t rows = rowCount(canvas->childrenCount(), p.wrap);
+            const size_t firstRow = origin > 0 ? static_cast<size_t>(origin / cellMain) : 0;
+            if (firstRow >= rows)
+              return resultY;
+            size_t lastRow = static_cast<size_t>(end / cellMain);
+            if (lastRow >= rows)
+              lastRow = rows - 1;
+            first = firstRow * p.wrap;
+            last = lastRow == rows - 1 ? canvas->childrenCount() : (lastRow + 1) * p.wrap;
+          }
           // Composition is linked: O(first) to seek once, then O(candidate children).
           loka::dsl::CompositionCursor<scene::Node> cursor(canvas->childrenHead(), canvas->childrenCount());
           for (size_t i = 0; i < first; ++i)
@@ -98,13 +97,14 @@ namespace loka
             scene::Node *child = cursor.next();
             if (!child)
               break;
-            const loka::core::Frame cell = policy.place(i);
+            const loka::core::Frame cell = p.place(placement.firstIndex + i);
             int x = 0;
             int y = 0;
             if (!subtract(cell.x, viewport.x, x) || !subtract(cell.y, viewport.y, y))
               return refuse(*canvas, CANVAS_LAYOUT_INT_RANGE_REFUSED, state.y);
             // Cross-axis rejection uses differences, avoiding overflowing far edges.
-            if (x <= -p.cellWidth || x > viewport.width || y <= -p.cellHeight || y > viewport.height)
+            if (placement.traversal == CanvasPlacement::CLIP_CELLS
+                && (x <= -p.cellWidth || x > viewport.width || y <= -p.cellHeight || y > viewport.height))
               continue;
             if (!add(x, state.x, x) || !add(y, state.y, y))
               return refuse(*canvas, CANVAS_LAYOUT_INT_RANGE_REFUSED, state.y);

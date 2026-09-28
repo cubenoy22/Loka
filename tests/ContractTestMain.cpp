@@ -25,7 +25,7 @@
 #include "ObservableListTests.hpp"
 #include "CanvasLayoutTests.hpp"
 #include "LazyScopeTests.hpp"
-#include "LazyFlexTests.hpp"
+#include "LazyViewTests.hpp"
 #include "LazyLayoutTests.hpp"
 #include "PropsReconciliationTests.hpp"
 #include "PaintContractTests.hpp"

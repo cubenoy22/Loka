@@ -25,7 +25,7 @@ namespace loka
       typedef EditTextTypeTag TypeTag;
       typedef EditTextNode NodeType;
       FocusBinding focus_;
-      /** Borrows an ancestor-owned fact; LazyFlex keeps fact/key structurally stable. */
+      /** Borrows an ancestor-owned fact; LazyView keeps fact/key structurally stable. */
       template <typename K> EditTextProps &focusedAs(Focus<K> &fact, K key)
       {
         this->focus_ = FocusBinding(this->reportSeat(fact), this->requestSeat(fact), key);
