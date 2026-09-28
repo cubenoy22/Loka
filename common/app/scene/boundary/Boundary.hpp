@@ -38,6 +38,7 @@ namespace loka
       class OwnershipDump;
       class PartitionReclaimAccess;
       class SeatBuildRequestAccess;
+      class SceneTestAccess;
     }
   } // namespace dsl
 
@@ -101,6 +102,7 @@ namespace loka
           {
             this->retireDeclarationScope(context, this->branchSeats_);
             this->forgetBranchSeatDirtySources(this->branchSeats_);
+            this->branchSeats_.capture(0);
           }
           ComposableNode::compose(context, event);
         }
@@ -2375,6 +2377,9 @@ namespace loka
           }
         }
 
+      private:
+        using ComposableNode::beginComposition;
+
         /** Reject an incomplete initial capture before any factory runs.
             Cost: once per capture; reset visits this composition's definitions.
             A surviving nonempty root is the established replay instruction. */
@@ -2404,11 +2409,9 @@ namespace loka
             of the candidate's callbacks and Held owner slots. */
         static void RetireUnattachedCandidate(Node *root, void *data);
 
-        /** Captures the attach declaration for subsequent seat updates.
-            The audit diagnostic fires after misuse: beginComposition has
-            already destroyed the borrowed definitions. #936 owns prevention.
-            Without the audit flag, capture proceeds as before; it must not
-            refuse and leave a plan borrowing freed definitions. */
+        /** Captures the initial declaration for subsequent seat updates.
+            Only kernel declaration owners and testing access may enter.
+            The audit diagnostic detects capture over an admitted ledger. */
         void captureBranchSeatPlan()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
@@ -2492,6 +2495,9 @@ namespace loka
         std::vector<detail::NodeArena::RetiredNodeGeneration> retiredGenerations_;
         bool drainingRetiredSubtrees_;
 
+        template <class PropsT> friend class StdCompositionBoundaryNodeBase;
+        friend class RootBoundaryWrapper;
+        friend class ::loka::dsl::testing::SceneTestAccess;
         friend class GenerationDeclaration;
         friend class ::loka::dsl::testing::OwnershipDump;
 #ifdef TEST_BUILD

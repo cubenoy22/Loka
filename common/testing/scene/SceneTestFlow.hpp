@@ -25,6 +25,18 @@ namespace loka
       class SceneTestAccess
       {
       public:
+        /** Exercise composition lifetime independently of Scene root reclamation. */
+        static void notifyComposeEvent(::loka::app::scene::Scene &scene,
+                                       ::loka::app::scene::ComposeEvent event)
+        {
+          scene.notifyComposeEvent(event);
+        }
+        /** Internal capture probes must not reopen subclass declaration doors. */
+        static void captureBranchSeatPlan(::loka::app::scene::BoundaryNode &boundary)
+        {
+          boundary.captureBranchSeatPlan();
+        }
+
         /** Count real refresh attempts using the Scene's own scheduler. */
         static bool runCountingRefreshes(::loka::app::scene::Scene &scene, int &attempts)
         {
