@@ -165,6 +165,14 @@ Cell, as used by the C++ MineSweeper. A handler runs with the card as `this`;
 seat writes update the label without composing the card again.
 Only Button has `.enabled(boolSeat)`. Both support `.TEST_ID('name')`.
 
+`Grid(rows, cols, children)` lowers to Loka's native Grid, with equal-sized
+cells in row-major order. Both dimensions must be numeric integers in 1..16.
+The third argument accepts a tree node or an array of nodes; like stacks,
+only one array level is flattened. The child count must equal `rows * cols`
+(up to 256); a mismatch refuses with `Grid requires exactly rows * cols
+children (N)`. Nested arrays are refused. Grid has its own child limit;
+Row/VStack remain limited to 16. See [the board example](../../docs/smirkycard/clickables.md#grids).
+
 Each card has two independent admission budgets, declared in
 [src/CardRecords.hpp](src/CardRecords.hpp): `kCardSeatBudget` (128 seats) and
 `kCardClickableBudget` (128 total Buttons plus Cells). Exceeding either shows
@@ -172,7 +180,8 @@ the existing refusal card with a message naming that budget and the Reload
 button. Records are allocated only for seats declared and clickables lowered;
 there is no eight-slot allocation or dispatch table. The refusal UI's Reload
 button is a separate host control. The existing 16-children-per-stack and
-depth-eight tree limits still apply; use nested rows for larger cards.
+depth-eight tree limits still apply. Grid capacity does not raise the seat or
+clickable budgets (a 256-cell Grid can use Text, but cannot contain 256 Cells).
 
 The card owns stable seat handles and JS handler records. Each clickable is a
 small child Component that owns its emitter and binds in its own declaration
