@@ -119,10 +119,15 @@ the next message. macOS and Toolbox cadence is unchanged.
 
 The frozen [#977 ruling](https://github.com/cubenoy22/Loka/issues/977)
 (2026-09-28, N1–N9) defines the intended all-rail policy below. **Implemented
-coverage as of 2026-09-28 is the Null rail only**: ScrollBar complete gestures and split input
-entries, plus the TextEditor input adapter, use `NullInputDoor`. Win32, macOS
-and Toolbox routing and their native continuation/layout pins follow in their
-own PRs; this section does not claim those rails already implement the door.
+coverage as of 2026-09-28 includes Null and Win32**: Null ScrollBar complete
+gestures and split input entries, plus the TextEditor input adapter, use
+`NullInputDoor`. Win32 command inputs (Button, EditText, PopupMenu, TextEditor),
+Cell clicks, ScrollView scrolling (including the whole wheel loop), TextEditor
+subclass input/retry, and root size/DPI layout use `Win32InputDoor`. Both doors
+use the internal `scene::detail::InputInvocation` mechanism. The Win32 pins
+(`tests/Win32InputDoorTests.cpp`) are runtime-verified on the Win32 VM rig as
+recorded in the #977 Win32 PR. macOS and Toolbox routing follow in their own
+PRs.
 
 Each rail has one synchronous scope-owning invocation implementation, exposed
 through named typed entries. It opens the existing `OperationScope` on the

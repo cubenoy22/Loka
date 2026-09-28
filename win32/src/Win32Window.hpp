@@ -69,6 +69,9 @@ protected:
   virtual void onCreate();
 
 private:
+  friend class Win32InputDoor;
+  void handleNativeSize(WPARAM wParam, LPARAM lParam);
+  void handleNativeDpi(WPARAM wParam, LPARAM lParam);
   virtual void closeDialogResults() { this->dialogResults_.close(); }
   // Deliberate Win32/Null counterparts: stable service across native recreation.
   virtual loka::app::DialogResultDelivery *dialogResultDelivery()

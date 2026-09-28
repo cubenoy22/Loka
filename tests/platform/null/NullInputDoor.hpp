@@ -10,27 +10,7 @@
 class NullInputDoor
 {
 private:
-  /** One scope-owning implementation for all typed arities. The temporary
-      encloses the whole call expression, including the body's continuation. */
-  class Invocation : private loka::app::scene::OperationScope
-  {
-  public:
-    explicit Invocation(loka::app::scene::IPlatformController &controller)
-        : loka::app::scene::OperationScope(controller) {}
-
-    template<class C, class R>
-    R operator()(C &c, R (C::*body)()) const
-    { return (c.*body)(); }
-    template<class C, class R, class A>
-    R operator()(C &c, R (C::*body)(A), A a) const
-    { return (c.*body)(a); }
-    template<class C, class R, class A, class B>
-    R operator()(C &c, R (C::*body)(A, B), A a, B b) const
-    { return (c.*body)(a, b); }
-    template<class C, class R, class A, class B, class D>
-    R operator()(C &c, R (C::*body)(A, B, D), A a, B b, D d) const
-    { return (c.*body)(a, b, d); }
-  };
+  typedef loka::app::scene::detail::InputInvocation Invocation;
 
 public:
   static void simulatePress(NullScrollBarContext &c, NullScrollBarContext::Part part, int repeats)

@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "Win32CellContext.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
@@ -207,10 +208,8 @@ LRESULT CALLBACK Win32CellContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, L
     return 0;
   }
   case WM_LBUTTONUP:
-    if (self && self->node_ && self->node_->props.onClick_)
-    {
-      self->node_->props.onClick_->emit();
-    }
+    if (self)
+      Win32InputDoor::cellClick(*self);
     return 0;
   default:
     break;
@@ -295,4 +294,13 @@ void Win32CellContext::TextChangedThunk(void *userData)
 void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
 {
   registry.registerHandler(&gWin32CellNodeHandler);
+}
+
+void Win32CellContext::handleClick()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
+  if (this->node_ && this->node_->props.onClick_)
+    this->node_->props.onClick_->emit();
 }

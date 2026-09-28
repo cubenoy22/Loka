@@ -45,6 +45,7 @@
 #include "Win32NodeHandlerEnsureTests.hpp"
 #include "Win32LiveResizeTests.hpp"
 #include "Win32ScrollViewTests.hpp"
+#include "Win32InputDoorTests.hpp"
 #include "Win32EditTextBridgeTests.hpp"
 #include "Win32FilePathTests.hpp"
 #include "Win32OpenFileDialogTransportTests.hpp"

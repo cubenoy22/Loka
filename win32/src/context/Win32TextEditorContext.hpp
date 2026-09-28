@@ -40,12 +40,13 @@ public:
     return this->hwnd_;
   }
   void relayout(const loka::app::scene::LayoutState &state);
-  bool handleCommand(WPARAM wParam, LPARAM lParam);
   /** Named property separates multiline EDIT notifications from EditText's
       GWLP_USERDATA without scanning controller-owned rows. */
   static Win32TextEditorContext *fromWindow(HWND window);
 
 private:
+  friend class Win32InputDoor;
+  bool handleCommand(WPARAM wParam, LPARAM lParam);
   friend class loka::testing::Win32TextEditorAccess;
   enum Phase
   {
@@ -82,6 +83,8 @@ private:
     loka::app::EditorResult capture(loka::app::TextEditorNode &node,
                                     const loka::app::scene::SeamKey<loka::app::TextEditorNode> &key);
   };
+  LRESULT handleInputMessage(UINT message, WPARAM wParam, LPARAM lParam);
+  void handleRestoreTimer();
   static LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
   void captureSelection();
   class RailOperation;

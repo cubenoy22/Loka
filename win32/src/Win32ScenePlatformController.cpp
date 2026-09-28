@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32FocusParticipant.hpp"
 #include "context/Win32EditTextBridge.hpp"
@@ -837,19 +838,19 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
     {
       return false;
     }
-    return button->handleCommand(wParam, lParam);
+    return Win32InputDoor::buttonCommand(*button, wParam, lParam);
   }
   if (code == EN_CHANGE)
   {
     Win32TextEditorContext *editor = Win32TextEditorContext::fromWindow(target);
     if (editor)
-      return editor->handleCommand(wParam, lParam);
+      return Win32InputDoor::textEditorCommand(*editor, wParam, lParam);
     Win32EditTextContext *edit = reinterpret_cast<Win32EditTextContext *>(GetWindowLongPtr(target, GWLP_USERDATA));
     if (!edit)
     {
       return false;
     }
-    return edit->handleCommand(wParam, lParam);
+    return Win32InputDoor::editTextCommand(*edit, wParam, lParam);
   }
   if (code == CBN_SELCHANGE)
   {
@@ -858,7 +859,7 @@ bool Win32ScenePlatformController::handleCommand(WPARAM wParam, LPARAM lParam)
     {
       return false;
     }
-    return popup->handleCommand(wParam, lParam);
+    return Win32InputDoor::popupMenuCommand(*popup, wParam, lParam);
   }
   return false;
 }

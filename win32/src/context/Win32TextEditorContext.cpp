@@ -1,3 +1,4 @@
+#include "Win32InputDoor.hpp"
 #include "Win32TextEditorContext.hpp"
 #include "Win32FocusParticipant.hpp"
 #include "Win32EditTextBridge.hpp"
@@ -687,6 +688,9 @@ EditorResult Win32TextEditorContext::commitNativeChange()
 }
 bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (HIWORD(wParam) != EN_CHANGE)
     return false;
   if (this->phase_ == RESTORING)
@@ -751,54 +755,70 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
     return DefWindowProcW(window, message, wParam, lParam);
   if (message == WM_TIMER && wParam == kRestoreTimer)
   {
-    RailOperation op(*self);
-    KillTimer(window, kRestoreTimer);
-    if (self->phase_ == RETRY)
-    {
-      if (self->node_)
-        op.restore(*self->node_);
-      self->settle(scene::SETTLE_DEFERRED, op);
-    }
+    Win32InputDoor::textEditorRetry(*self);
     return 0;
   }
   if (!isInputMessage(message))
     return CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
-  if (self->phase_ == INPUT || self->phase_ == PASTING)
+  return Win32InputDoor::textEditorInput(*self, message, wParam, lParam);
+}
+void Win32TextEditorContext::handleRestoreTimer()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
+  const HWND window = this->hwnd_;
+  RailOperation op(*this);
+  KillTimer(window, kRestoreTimer);
+  if (this->phase_ == RETRY)
+  {
+    if (this->node_)
+      op.restore(*this->node_);
+    this->settle(scene::SETTLE_DEFERRED, op);
+  }
+}
+LRESULT Win32TextEditorContext::handleInputMessage(UINT message, WPARAM wParam, LPARAM lParam)
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
+  const HWND window = this->hwnd_;
+  if (this->phase_ == INPUT || this->phase_ == PASTING)
   {
     // EDIT can forward input messages while executing one native action. Its
     // EN_CHANGE belongs to that open action; only the outer call closes it.
     // Owner callbacks run in COMMIT, where a second action is rejected below.
     if (message == WM_PASTE)
-      self->phase_ = PASTING;
-    return CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
+      this->phase_ = PASTING;
+    return CallWindowProcW(this->previousProc_, window, message, wParam, lParam);
   }
-  if (self->phase_ != IDLE)
+  if (this->phase_ != IDLE)
   {
-    if (self->phase_ == COMMIT)
-      self->phase_ = REJECTED;
+    if (this->phase_ == COMMIT)
+      this->phase_ = REJECTED;
     return 0;
   }
-  if (!self->node_ || self->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED || self->status_ != EDITOR_OK)
+  if (!this->node_ || this->node_->lifecycleFact() != scene::NODE_FACT_ATTACHED || this->status_ != EDITOR_OK)
   {
-    self->settle(scene::SETTLE_INPUT);
+    this->settle(scene::SETTLE_INPUT);
     return 0;
   }
-  RailOperation op(*self);
-  self->captureSelection();
-  self->phase_ = message == WM_PASTE ? PASTING : INPUT;
-  const LRESULT result = CallWindowProcW(self->previousProc_, window, message, wParam, lParam);
+  RailOperation op(*this);
+  this->captureSelection();
+  this->phase_ = message == WM_PASTE ? PASTING : INPUT;
+  const LRESULT result = CallWindowProcW(this->previousProc_, window, message, wParam, lParam);
   if (!op.hasSameContext())
     return result;
-  if (!self->hwnd_ || !self->node_)
+  if (!this->hwnd_ || !this->node_)
     return result;
-  self->syncCaret();
+  this->syncCaret();
   if (!op.hasSameContext())
     return result;
-  const bool rejected = self->phase_ == REJECTED;
-  self->phase_ = IDLE;
+  const bool rejected = this->phase_ == REJECTED;
+  this->phase_ = IDLE;
   if (rejected)
-    op.restore(*self->node_);
-  self->settle(scene::SETTLE_INPUT, op);
+    op.restore(*this->node_);
+  this->settle(scene::SETTLE_INPUT, op);
   return result;
 }
 short Win32TextEditorContext::layout(scene::IPlatformController *, scene::LayoutState &state)

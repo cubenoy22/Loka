@@ -49,6 +49,8 @@ public:
   void relayout(int x, int y, int width, int height);
 
 private:
+  friend class Win32InputDoor;
+  void handleClick();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
