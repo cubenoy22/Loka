@@ -9,6 +9,7 @@
 #include "support/LokaAllocFailure.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
+#include "platform/file/FileIO.hpp"
 #include "support/TestVerify.hpp"
 #include "ScriptAlignedAlloc.h"
 #include "ScriptEngine.h"
@@ -461,7 +462,7 @@ namespace
   std::string readCardSource(const char *name)
   {
     const std::string path = std::string(SMIRKYCARD_SOURCE_DIR) + "/" + name;
-    std::FILE *file = std::fopen(path.c_str(), "rb");
+    std::FILE *file = loka::platform::file::OpenRead(loka::core::String::Utf8(path.data(), path.size()));
     LOKA_VERIFY(file != 0);
     std::string source;
     char buffer[4096];
@@ -543,10 +544,13 @@ namespace
         loka::app::scene::Node *grid = windowNode(window, "Mines.Board");
         LOKA_VERIFY(content && content->asStackNode());
         LOKA_VERIFY(content->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN);
-        LOKA_VERIFY(content->asNestable()->childrenCount() == 3);
+        LOKA_VERIFY(content->asNestable()->childrenCount() == 4);
         loka::app::scene::Node *status = content->asNestable()->childrenHead();
         LOKA_VERIFY(status == windowNode(window, "Mines.Status"));
-        loka::app::scene::Node *controls = status->nextInComposition;
+        loka::app::scene::Node *error = status->nextInComposition;
+        LOKA_VERIFY(error && error == windowNode(window, "SmirkyCard.Status") && error->asTextNode());
+        LOKA_VERIFY(textValue(error->asTextNode()).empty());
+        loka::app::scene::Node *controls = error->nextInComposition;
         LOKA_VERIFY(controls && controls->asStackNode());
         LOKA_VERIFY(controls->asStackNode()->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
         LOKA_VERIFY(controls->asNestable()->childrenCount() == 3);
@@ -663,8 +667,14 @@ namespace
       admission.flush();
       clickMine(window, admission, 3);
       LOKA_VERIFY(mineSnapshot(window) == won);
+      // A failed open stays on the Mines card and names the file in its status.
+      LOKA_VERIFY(std::remove(mainPath) == 0);
+      clickCardButton(window, "SmirkyCard.OpenMain");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Mines.Board") != 0);
+      const std::string failure = textValue(windowNode(window, "SmirkyCard.Status")->asTextNode());
+      LOKA_VERIFY(failure.find("MAIN.JS") != std::string::npos);
     }
-    LOKA_VERIFY(std::remove(mainPath) == 0);
     LOKA_VERIFY(std::remove(minesPath) == 0);
     LOKA_VERIFY(removeDirectory(directory));
   }

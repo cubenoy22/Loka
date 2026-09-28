@@ -62,6 +62,7 @@ card('first', class {
   compose() {
     return VStack(
       Text(this.status).TEST_ID('Mines.Status'),
+      Text(this.error).TEST_ID('SmirkyCard.Status'),
       Row(Button(this.mode, () => this.mode.set(this.mode.get() === 'Flag mode: off'
         ? 'Flag mode: on' : 'Flag mode: off')).TEST_ID('Mines.Flag'),
         Button('New Game', () => go('first')).TEST_ID('Mines.NewGame'),

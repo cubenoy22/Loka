@@ -154,8 +154,8 @@ namespace smirkycard
           {
             JS_FreeValue(ctx, child);
             JS_FreeValue(ctx, children);
-            return exact ? JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, limit)
-                         : JS_ThrowRangeError(ctx, "%s accepts at most %u children", name, limit);
+            return exact ? JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, static_cast<unsigned>(limit))
+                         : JS_ThrowRangeError(ctx, "%s accepts at most %u children", name, static_cast<unsigned>(limit));
           }
           if (JS_SetPropertyUint32(ctx, children, count++, child) < 0)
           {
@@ -167,7 +167,7 @@ namespace smirkycard
       if (exact && count != limit)
       {
         JS_FreeValue(ctx, children);
-        return JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, limit);
+        return JS_ThrowRangeError(ctx, "%s requires exactly rows * cols children (%u)", name, static_cast<unsigned>(limit));
       }
       return children;
     }
