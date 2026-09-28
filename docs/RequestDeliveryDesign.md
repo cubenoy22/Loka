@@ -126,12 +126,12 @@ Cell clicks, ScrollView scrolling (including the whole wheel loop), TextEditor
 subclass input/retry, and root size/DPI layout use `Win32InputDoor`. These doors
 use the internal `scene::detail::InputInvocation` mechanism. The Win32 pins
 (`tests/Win32InputDoorTests.cpp`) are runtime-verified on the Win32 VM rig as
-recorded in the #977 Win32 PR. macOS Button, EditText, PopupMenu, Cell (including its native continuation),
-ScrollView bounds notifications, TextEditor delegates/deferred selectors, window
-resize/move and each pending relayout step use `MacInputDoor`. The macOS pins
-(`tests/MacInputDoorTests.mm` and nested TextEditor pins) are for the macOS rig;
-the reviewer records build and runtime evidence in the PR. Toolbox routing
-follows in its own PR.
+recorded in the #977 Win32 PR. macOS Button, EditText, PopupMenu, Cell
+(including its native continuation), ScrollView bounds notifications, TextEditor
+delegates/deferred selectors, window resize/move and each pending relayout step
+use `MacInputDoor`; its pins (`tests/MacInputDoorTests.mm`) are runtime-verified
+on the macOS rig as recorded in the #977 macOS PR. Toolbox routing follows in
+its own PR.
 
 Each rail has one synchronous scope-owning invocation implementation, exposed
 through named typed entries. It opens the existing `OperationScope` on the
