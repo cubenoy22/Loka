@@ -59,6 +59,33 @@ the way #496 was characterized, rather than assuming the determinism carries.
 - The checkpoint freezes the goldens with the machine: reverting to it also
   reverts any goldens baked after it.
 
+### Several sessions share one guest
+
+Agent sessions run in parallel and reach the same guest. On 2026-09-28 one
+session ran `git checkout` in the guest's clone while another session was
+building its candidate there. The second session's single-test runs then
+executed the other branch's binary and reported every new test as
+`Unknown test`. These rules keep one guest usable by several sessions:
+
+- **Unit tests and verification builds run in a per-session worktree of the
+  guest's clone:**
+  `git -C <guest-clone> worktree add --detach <guest-clone>-<slug> <sha>`.
+  - The worktree has its own `build\` tree.
+  - It lives on the guest's disk, so the host-side-worktree warning above
+    does not apply.
+  - Never check out or build a candidate in the guest's main clone.
+- **Golden bake/verify and the rig descriptor stay in the guest's main
+  clone**, because the checkpoint freezes them together.
+  - Only one session does golden work at a time.
+  - Before starting, write a lock file in the guest's setup folder saying
+    which session holds it and for what. Remove it when the work ends.
+  - If a lock is present, wait or ask; do not take it over.
+- **Give scheduled tasks names that carry the session's slug**, so that
+  `schtasks /Create /F` cannot silently replace another session's task.
+
+When the work ends, delete your scheduled tasks. Delete your worktree too,
+unless a follow-up on the same issue still needs it.
+
 ## Checkout layout
 
 - **The WSL ext4 clone is the source of truth.** Clone it with WSL `git`, not
