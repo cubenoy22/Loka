@@ -4,6 +4,7 @@
 void testWin32NodeHandlerEnsureContract();
 void testWin32TextFontTable();
 void testWin32PlainTextWrappedLines();
+void testWin32PlainTextWrapWidthAtPlacement();
 
 
 void testWin32AttributedTextPerRunProjection();

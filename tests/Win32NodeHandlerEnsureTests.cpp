@@ -786,6 +786,74 @@ namespace
   }
 }
 
+void testWin32PlainTextWrapWidthAtPlacement()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core::testing;
+  // #1008: at 120 dpi and x=2 the origin-zero width is one pixel wider than
+  // the STATIC's client, so lines broken for it re-wrapped (CENTER/RIGHT) or
+  // clipped (LEFT) inside the control. Lines must be broken for the client.
+  HWND root = attributedHost();
+  {
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(120, RailMetrics()));
+    RegisterWin32BuiltInSupport(controller);
+    const TextAlign aligns[3] = {TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER, TEXT_ALIGN_RIGHT};
+    for (int a = 0; a < 3; ++a)
+    {
+      TextProps props("The quick brown fox jumps over the lazy dog");
+      props.blockStyle_.wrap(TEXT_WRAP_CHAR).align(aligns[a]);
+      TextNode node(props);
+      HWND child = projectFontText(controller, root, node);
+      Win32TextContext *context = static_cast<Win32TextContext *>(node.getContext());
+      LayoutState state;
+      state.x = 2;
+      state.y = 3;
+      state.width = 43;
+      state.height = 80;
+      context->layout(&controller, state);
+      RECT client;
+      LOKA_VERIFY(GetClientRect(child, &client));
+      const int clientWidth = client.right - client.left;
+      // The break width must be the client width, not the origin-zero width.
+      LOKA_VERIFY(clientWidth == controller.displayScale().nativeLength(2, 45).px);
+      wchar_t native[256];
+      const int length = GetWindowTextW(child, native, 256);
+      LOKA_VERIFY(length > 0);
+      HDC dc = GetDC(child);
+      LOKA_VERIFY(dc);
+      HFONT font = reinterpret_cast<HFONT>(SendMessageW(child, WM_GETFONT, 0, 0));
+      HGDIOBJ previous = SelectObject(dc, font);
+      LOKA_VERIFY(previous && previous != HGDI_ERROR);
+      RECT one = {0, 0, clientWidth, 0};
+      LOKA_VERIFY(DrawTextW(dc, L"X", 1, &one, DT_CALCRECT | DT_NOPREFIX));
+      int lines = 0;
+      int start = 0;
+      for (int i = 0; i <= length; ++i)
+      {
+        if (i < length && native[i] != L'\n')
+          continue;
+        ++lines;
+        // Every generated line fits the client width (no clip) and stays one
+        // row under the STATIC's own word-breaking (no re-wrap).
+        SIZE extent;
+        LOKA_VERIFY(GetTextExtentPoint32W(dc, native + start, i - start, &extent));
+        LOKA_VERIFY(extent.cx <= clientWidth);
+        RECT rc = {0, 0, clientWidth, 0};
+        LOKA_VERIFY(DrawTextW(dc, native + start, i - start, &rc, DT_CALCRECT | DT_NOPREFIX | DT_WORDBREAK));
+        LOKA_VERIFY(rc.bottom == one.bottom);
+        start = i + 1;
+      }
+      SelectObject(dc, previous);
+      ReleaseDC(child, dc);
+      LOKA_VERIFY(lines >= 2);
+      context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+      controller.drainNativeRetirements();
+    }
+  }
+  LOKA_VERIFY(DestroyWindow(root));
+}
+
 void testWin32PlainTextWrappedLines()
 {
   using namespace loka::app;

@@ -369,7 +369,10 @@ short Win32TextContext::layout(loka::app::scene::IPlatformController *, loka::ap
 {
   this->applyStyle();
   const HFONT font = ResolveTextFont(this->node_, this->controller());
-  const Constraint constraint(this->controller()->displayScale().nativeLength(0, state.width).px,
+  // The native width the STATIC receives: edges projected at the placement,
+  // like the attributed rail, so generated lines are broken for the rectangle
+  // they are drawn in (#1008: an origin-zero width can be one pixel wider).
+  const Constraint constraint(this->controller()->displayScale().nativeLength(state.x, state.x + state.width).px,
                               font ? font : this->controller()->displayFont());
   if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
   {

@@ -126,8 +126,10 @@ namespace
     calls = measurementCalls();
     state.x = 1;
     node.layout(&controller, state);
-    LOKA_VERIFY(attributed ? measurementCalls() > calls : measurementCalls() == calls);
-    std::printf("  x-phase 144dpi: %s\n", attributed ? "rebuild 152 -> 151px" : "hit (origin-zero width)");
+    // Both rails key on the placement's native width (#1008): the odd origin
+    // rounds the 144 dpi width from 152 to 151 px and rebuilds the lines.
+    LOKA_VERIFY(measurementCalls() > calls);
+    std::printf("  x-phase 144dpi: rebuild 152 -> 151px\n");
 
     // Keep the effective width equal across scales: no key miss can mask a
     // missing assignment delivery. Real CreateFontIndirectW refuses here.
