@@ -35,4 +35,10 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable();
 
 void testLocalRebuildSuccessCommitsCandidates();
 
+void testUnmountDetachWriteRunsWithoutNestedUpdate();
+void testUnmountDestroyingSeatWriteRunsWithoutNestedUpdate();
+void testAttachedDetachWriteOwnsRunWindow();
+void testDestroyingSeatDetachWriteAppliesLater();
+void testParkedReplacementDetachWriteAppliesLater();
+
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
