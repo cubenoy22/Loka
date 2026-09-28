@@ -11,6 +11,7 @@ $process = $null
 
 New-Item -ItemType Directory -Path $workDirectory | Out-Null
 try {
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
     $process = Start-Process `
         -FilePath $TestExecutable `
         -ArgumentList "--win32-assert-probe" `
@@ -20,7 +21,6 @@ try {
     # Force System.Diagnostics.Process to retain a native handle so ExitCode
     # remains queryable after this short-lived child has terminated.
     $null = $process.Handle
-    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 
     # The deadline bounds a hang that shows no window; the window check below
     # is independent of it. A loaded hosted runner has needed more than 5 s to
