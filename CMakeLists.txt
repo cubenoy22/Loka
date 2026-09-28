@@ -466,6 +466,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_target_properties(LokaToolboxInputDoorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxInputDoorTests COMMAND LokaToolboxInputDoorTests)
 
+  add_executable(LokaToolboxCellPaintTests tests/toolbox/host/ToolboxCellPaintHostTests.cpp
+    apple/toolbox/src/debug/ToolboxSceneDebugStats.cpp
+    apple/toolbox/src/context/ToolboxCellContext.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxCellPaintTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_definitions(LokaToolboxCellPaintTests PRIVATE LOKA_HOST_CELL_PAINT=1)
+  target_compile_options(LokaToolboxCellPaintTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxCellPaintTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxCellPaintTests)
+  set_target_properties(LokaToolboxCellPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxCellPaintTests COMMAND LokaToolboxCellPaintTests)
+
   foreach(_editor_request_case input-door request report project input clear epilogue refuse clamp
       take-edit report-edit detach rebind nested retry endless five-reposts
       trace reply-clamp reply-stale empty-settle take-refused-edit reply-edit scroll-cleanup retire-render retire-key retire-click retire-paste refused-report)
