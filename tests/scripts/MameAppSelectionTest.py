@@ -30,6 +30,8 @@ class SelectionTest(unittest.TestCase):
                            CALL_LOG=str(root / "calls"))
                 for key, target, location in (
                     ("HelloWorld", "LokaHello" + suffix, "Release/example/HelloWorld"),
+                    ("SmirkyCard", "LokaSmirkyCard" + suffix, "Release/example/SmirkyCard"),
+                    ("ScrapbookUI", "ScrapbookUI" + suffix, "Release/example/ScrapbookUI"),
                     ("FloppyBirdStandaloneLoop", "LokaFloppyStandaloneLoop" + suffix,
                      "Standalone/Release/tests/toolbox"),
                 ):
@@ -40,6 +42,12 @@ class SelectionTest(unittest.TestCase):
                     self.assertIn("--target " + target + "_APPL", calls)
                     self.assertIn("build/retro68/" + cpu + "/" + location + "/" + target + ".bin", calls)
                     self.assertIn("mame-dev-disk.sh|" + cpu + "|", calls)
+                    if key == "SmirkyCard":
+                        self.assertIn(str(root / "example/SmirkyCard/MAIN.JS") + " " +
+                                      str(root / "example/SmirkyCard/MINES.JS") + "\n", calls)
+                    elif key == "ScrapbookUI":
+                        self.assertIn(str(root / ("build/retro68/" + cpu +
+                                                 "/Release/example/ScrapbookUI/ASSETS.LRP")) + "\n", calls)
                 for key, flag in (("All", "--all"), ("AllStandaloneLoops", "--all-loops"),
                                   ("AllStandaloneFlows", "--all-flows")):
                     Path(env["CALL_LOG"]).write_text("")

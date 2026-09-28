@@ -62,17 +62,21 @@ if(WIN32)
   loka_enable_win32_visual_styles(LokaSmirkyCardWin32)
   target_link_libraries(LokaSmirkyCardWin32 PRIVATE LokaWin32Core)
   configure_file(MAIN.JS MAIN.JS COPYONLY)
+  configure_file(MINES.JS MINES.JS COPYONLY)
 elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   enable_language(OBJCXX)
   loka_suppress_arclite_link()
   set(SMIRKYCARD_MACOS_RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/macos-resources)
   file(MAKE_DIRECTORY ${SMIRKYCARD_MACOS_RESOURCE_DIR})
   configure_file(MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS COPYONLY)
-  set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS PROPERTIES
+  configure_file(MINES.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS COPYONLY)
+  set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS
+    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS PROPERTIES
     GENERATED TRUE
     MACOSX_PACKAGE_LOCATION Resources
   )
-  add_executable(LokaSmirkyCardMacOS MACOSX_BUNDLE src/MacOSMain.mm ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS)
+  add_executable(LokaSmirkyCardMacOS MACOSX_BUNDLE src/MacOSMain.mm
+    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS)
   smirkycard_cpp_target(LokaSmirkyCardMacOS)
   target_link_libraries(LokaSmirkyCardMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)

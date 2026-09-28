@@ -65,7 +65,7 @@ elif [ "$1" = "--all" ]; then
   for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
     MACBINARY_PATHS+=("$PROJECT_DIR/build/retro68/${cpu}/Release/example/${app}${suffix}.bin")
   done
-  set -- "$PROJECT_DIR/build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP" "$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
+  set -- "$PROJECT_DIR/build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP" "$PROJECT_DIR/example/SmirkyCard/MAIN.JS" "$PROJECT_DIR/example/SmirkyCard/MINES.JS"
 else
   MACBINARY_PATHS+=("$1")
   shift

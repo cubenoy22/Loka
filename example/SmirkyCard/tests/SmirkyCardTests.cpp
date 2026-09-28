@@ -434,6 +434,135 @@ namespace
     LOKA_VERIFY(removeDirectory(directory));
   }
 
+  std::string siblingCardSource(const char *title, const char *target)
+  {
+    return std::string("card('first',class{compose(){return VStack(Text('") + title
+           + "').TEST_ID('SmirkyCard.Title'),Button('open',()=>open('" + target
+           + "')).TEST_ID('Open'),Button('reload',()=>reload()).TEST_ID('Reload'),"
+             "Text(this.error).TEST_ID('SmirkyCard.Status'))}});";
+  }
+
+  loka::app::scene::Node *windowNode(NullWindow &window, const char *id)
+  {
+    return find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), id);
+  }
+
+  void clickCardButton(NullWindow &window, const char *id)
+  {
+    loka::app::scene::Node *button = windowNode(window, id);
+    LOKA_VERIFY(button && button->asButtonNode());
+    button->asButtonNode()->props.getOnClick()->emit();
+  }
+
+  void checkOpenSibling()
+  {
+    const char *directory = "_smirkycard_sibling_fixture";
+    const char *mainPath = "_smirkycard_sibling_fixture/MAIN.JS";
+    const char *minesPath = "_smirkycard_sibling_fixture/MINES.JS";
+    std::remove(mainPath);
+    std::remove(minesPath);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    writeMain(mainPath, siblingCardSource("Main", "./MINES.JS"));
+    writeMain(minesPath, siblingCardSource("Mines", "./MAIN.JS"));
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      loka::app::scene::Scene *before = window.scene();
+      smirkycard::JsEngine *engine = runtime.currentEngine();
+      clickCardButton(window, "Open");
+      LOKA_VERIFY(runtime.currentEngine() != engine);
+      LOKA_VERIFY(window.scene() == before);
+      LOKA_VERIFY(runtime.retiredEngineCount() == 1);
+      admission.flush();
+      LOKA_VERIFY(window.scene() != before);
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Title")->asTextNode()) == "Mines");
+      admission.flush();
+      LOKA_VERIFY(runtime.retiredEngineCount() == 0);
+
+      writeMain(minesPath, siblingCardSource("Edited Mines", "./MAIN.JS"));
+      clickCardButton(window, "Reload");
+      admission.flush();
+      admission.flush();
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Title")->asTextNode()) == "Edited Mines");
+      writeMain(mainPath, siblingCardSource("Reopened Main", "MINES.JS"));
+      clickCardButton(window, "Open");
+      admission.flush();
+      admission.flush();
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Title")->asTextNode()) == "Reopened Main");
+      writeMain(mainPath, siblingCardSource("Reloaded Main", "MINES.JS"));
+      clickCardButton(window, "Reload");
+      admission.flush();
+      admission.flush();
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Title")->asTextNode()) == "Reloaded Main");
+      clickCardButton(window, "Open");
+      admission.flush();
+      admission.flush();
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Title")->asTextNode()) == "Edited Mines");
+      clickCardButton(window, "Open");
+      admission.flush();
+      admission.flush();
+
+      const std::string failures[] = {"(", "card('second',class{});", "for(;;){}", std::string(64u * 1024u + 1u, 'x')};
+      const char *reasons[] = {"SyntaxError", "'first'", "interrupted", "64 KiB"};
+      for (size_t i = 0; i <= sizeof(failures) / sizeof(failures[0]); ++i)
+      {
+        if (i < sizeof(failures) / sizeof(failures[0]))
+          writeMain(minesPath, failures[i]);
+        else
+          LOKA_VERIFY(std::remove(minesPath) == 0);
+        before = window.scene();
+        engine = runtime.currentEngine();
+        clickCardButton(window, "Open");
+        LOKA_VERIFY(window.scene() == before && runtime.currentEngine() == engine);
+        LOKA_VERIFY(!window.sceneManager()->hasPendingReplacement());
+        const std::string status = textValue(windowNode(window, "SmirkyCard.Status")->asTextNode());
+        LOKA_VERIFY(status.find("MINES.JS:") != std::string::npos);
+        LOKA_VERIFY(status.find(i < sizeof(failures) / sizeof(failures[0]) ? reasons[i] : "missing")
+                    != std::string::npos);
+        LOKA_VERIFY(runtime.retiredEngineCount() == 0);
+      }
+    }
+    // Each path refusal gets its own live card and exercises the actual JS door.
+    const char *names[] = {
+        "sub/MINES.JS", "../MINES.JS", "././MINES.JS", "MINES.JS\\u0000suffix", "MINES.JS:bad", "sub\\\\MINES.JS"};
+    const char *displayNames[] = {
+        "sub/MINES.JS", "../MINES.JS", "./MINES.JS", "MINES.JS", "MINES.JS:bad", "sub\\MINES.JS"};
+    writeMain(minesPath, siblingCardSource("Must not open", "MAIN.JS"));
+    for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
+    {
+      writeMain(mainPath, siblingCardSource("Stable", names[i]));
+      smirkycard::ScriptRuntime refused;
+      refused.loadMain(&context);
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, refused));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      loka::app::scene::Scene *before = window.scene();
+      smirkycard::JsEngine *engine = refused.currentEngine();
+      clickCardButton(window, "Open");
+      LOKA_VERIFY(window.scene() == before && refused.currentEngine() == engine);
+      LOKA_VERIFY(!window.sceneManager()->hasPendingReplacement());
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Status")->asTextNode()).find(displayNames[i])
+                  != std::string::npos);
+      admission.flush();
+      LOKA_VERIFY(window.scene() == before && refused.currentEngine() == engine);
+    }
+    LOKA_VERIFY(std::remove(mainPath) == 0);
+    LOKA_VERIFY(std::remove(minesPath) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
+  }
+
   void printMemory(const char *phase, smirkycard::ScriptRuntime &runtime)
   {
     JSMemoryUsage usage;
@@ -1192,6 +1321,7 @@ int main()
   checkRequiredRefusals();
   checkRetiredSeatAndIntegerRefusal();
   checkMainJsLoad();
+  checkOpenSibling();
   LOKA_VERIFY(!smirkycard::CreateCard(SMIRKY_CARD_ERROR, runtime));
   std::puts("SmirkyCard: message box, evaluation, failure recovery, and 20 Scene switches passed.");
   return 0;
