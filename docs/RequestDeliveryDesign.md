@@ -124,9 +124,10 @@ gestures and split input entries, plus the TextEditor input adapter, use
 `NullInputDoor`. Win32 command inputs (Button, EditText, PopupMenu, TextEditor),
 Cell clicks, ScrollView scrolling (including the whole wheel loop), TextEditor
 subclass input/retry, and root size/DPI layout use `Win32InputDoor`. Both doors
-use the internal `scene::detail::InputInvocation` mechanism. Win32 native pins
-are staged for VM verification; this coverage statement is not a runtime-verified
-claim. macOS and Toolbox routing follow in their own PRs.
+use the internal `scene::detail::InputInvocation` mechanism. The Win32 pins
+(`tests/Win32InputDoorTests.cpp`) are runtime-verified on the Win32 VM rig as
+recorded in the #977 Win32 PR. macOS and Toolbox routing follow in their own
+PRs.
 
 Each rail has one synchronous scope-owning invocation implementation, exposed
 through named typed entries. It opens the existing `OperationScope` on the
