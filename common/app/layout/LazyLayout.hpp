@@ -71,7 +71,8 @@ namespace loka
               return result;
             }
             result.status = LAZY_EXTENT_READY;
-            result.frame = loka::core::Frame(0, 0, x * this->cellWidth, y * this->cellHeight);
+            // The range check above keeps both products within int (MSVC C4267).
+            result.frame = loka::core::Frame(0, 0, static_cast<int>(x * this->cellWidth), static_cast<int>(y * this->cellHeight));
             return result;
           }
           return result;
@@ -120,14 +121,14 @@ namespace loka
             if (end <= 0)
               return empty;
             const unsigned rows = this->itemCount / this->wrap + (this->itemCount % this->wrap != 0);
-            unsigned near = origin > 0 ? static_cast<unsigned>(origin) / cell : 0;
-            unsigned far = static_cast<unsigned>(end) / cell + (static_cast<unsigned>(end) % cell != 0);
-            near = near > this->margin ? near - this->margin : 0;
-            if (near >= rows)
+            unsigned nearRow = origin > 0 ? static_cast<unsigned>(origin) / cell : 0;
+            unsigned farRow = static_cast<unsigned>(end) / cell + (static_cast<unsigned>(end) % cell != 0);
+            nearRow = nearRow > this->margin ? nearRow - this->margin : 0;
+            if (nearRow >= rows)
               return empty;
-            far = far >= rows || this->margin >= rows - far ? rows : far + this->margin;
-            const unsigned first = near * this->wrap;
-            const unsigned last = far == rows ? this->itemCount : far * this->wrap;
+            farRow = farRow >= rows || this->margin >= rows - farRow ? rows : farRow + this->margin;
+            const unsigned first = nearRow * this->wrap;
+            const unsigned last = farRow == rows ? this->itemCount : farRow * this->wrap;
             LazyWindow result = {first, last - first};
             return result;
           }
