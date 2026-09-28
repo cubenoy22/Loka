@@ -36,3 +36,5 @@ void testLocalRebuildLiveRefusalKeepsFocusReachable();
 void testLocalRebuildSuccessCommitsCandidates();
 
 #endif // LOKA_TESTS_LIFECYCLE_DETACH_TESTS_HPP
+
+void testStdBoundaryDetachReattachDeclaresFreshSeatPlans();
