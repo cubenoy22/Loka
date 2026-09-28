@@ -33,6 +33,7 @@ public:
 
 private:
   friend class loka::testing::TextEditorInput;
+  friend class NullInputDoor;
   enum Phase
   {
     IDLE,
@@ -76,26 +77,11 @@ namespace loka
       static app::scene::Admission
       probeAdmission(NullTextEditorContext &c, bool command, bool busy, bool &supplied, bool &opened);
 #endif
-      static app::EditorResult type(NullTextEditorContext &c, char value)
-      {
-        return c.input(std::string(1, value), false, 0);
-      }
-      static app::EditorResult enter(NullTextEditorContext &c)
-      {
-        return c.input("\r", false, 0);
-      }
-      static app::EditorResult backspace(NullTextEditorContext &c)
-      {
-        return c.input("", true, 0);
-      }
-      static app::EditorResult paste(NullTextEditorContext &c, const std::string &text)
-      {
-        return c.input(text, false, 0);
-      }
-      static app::EditorResult move(NullTextEditorContext &c, app::LineCursor cursor)
-      {
-        return c.input("", false, &cursor);
-      }
+      static app::EditorResult type(NullTextEditorContext &c, char value);
+      static app::EditorResult enter(NullTextEditorContext &c);
+      static app::EditorResult backspace(NullTextEditorContext &c);
+      static app::EditorResult paste(NullTextEditorContext &c, const std::string &text);
+      static app::EditorResult move(NullTextEditorContext &c, app::LineCursor cursor);
       static const std::string &buffer(const NullTextEditorContext &c)
       {
         return c.buffer_;

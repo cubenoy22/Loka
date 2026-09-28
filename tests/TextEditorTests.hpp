@@ -55,4 +55,5 @@ void testPlatformOperationFocusTail();
 void testPlatformOperationMount();
 void testPlatformOperationMountAudit();
 void testPlatformOperationNativeDrain();
+void testNullInputDoorNestedSettlement();
 #endif

@@ -1,3 +1,4 @@
+#include "platform/null/NullInputDoor.hpp"
 #include "NullPlatformContractTests.hpp"
 #include "support/TestVerify.hpp"
 
@@ -4237,7 +4238,7 @@ void testNullPlatformContract_S2_heldArrowSettlesExactlyOnceAfterTheStateWrite()
   assert(witness.emitCount == 0 && "an app-side write is not a user change");
 
   // Control -> app: three action-proc ticks of one held arrow settle once.
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 3);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 3);
   assert(context->displayedValue() == 4 && "the hold clamps at max, it does not wrap");
   assert(value.get() == 4);
   assert(context->stateWriteCount() == 1);
@@ -4293,15 +4294,15 @@ void testNullPlatformContract_S3_declaredOrientationAndStepsDriveTheControl()
   assert(loka::app::ScrollBarDefinition(loka::app::scene::WriteSeat<int>(&value)).props.orientation_ == loka::app::SCROLL_BAR_VERTICAL &&
          "vertical is the default; horizontal must be asked for");
 
-  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_UP, 1);
   assert(value.get() == 4);
   requestChildPump(scene, platform);
 
-  context->simulatePress(NullScrollBarContext::PART_PAGE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_PAGE_DOWN, 1);
   assert(value.get() == 9);
   requestChildPump(scene, platform);
 
-  context->simulateThumbDragTo(17);
+  NullInputDoor::simulateThumbDragTo(*context, 17);
   assert(value.get() == 17);
   assert(context->stateWriteCount() == 3 && "one settle per release, whichever part was pressed");
   resetScrollBarFixture();
@@ -4328,7 +4329,7 @@ void testNullPlatformContract_S4_unscrollableAndDisabledBarsAreInactive()
   assert(platform.ledger().size() == 1 && "an unscrollable bar still exists");
   assert(!context->active());
 
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 1);
   assert(value.get() == 0);
   assert(context->stateWriteCount() == 0);
 
@@ -4344,7 +4345,7 @@ void testNullPlatformContract_S4_unscrollableAndDisabledBarsAreInactive()
   enabled.set(false);
   requestChildPump(scene, platform);
   assert(!context->active());
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 1);
   assert(value.get() == 0);
   assert(context->stateWriteCount() == 0);
   resetScrollBarFixture();
@@ -4431,19 +4432,19 @@ void testNullPlatformContract_S6_gestureSettlingWhereItStartedPublishesNothing()
   // A drag that lands back on its origin is Classic's cancelled outline
   // drag: a gesture the user abandoned, not a decision. Publishing it would
   // fire a page re-read for nothing (both arms carry the appliedValue gate).
-  context->simulateThumbDragTo(2);
+  NullInputDoor::simulateThumbDragTo(*context, 2);
   assert(context->stateWriteCount() == 0);
   assert(witness.emitCount == 0);
   assert(value.get() == 2);
 
   // A real move still publishes -- the gate is about "unchanged", not about
   // suppressing commits generally.
-  context->simulateThumbDragTo(4);
+  NullInputDoor::simulateThumbDragTo(*context, 4);
   assert(context->stateWriteCount() == 1);
   assert(witness.emitCount == 1);
 
   // An arrow held against the end of the range settles where it started.
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 5);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 5);
   assert(context->displayedValue() == 4);
   assert(context->stateWriteCount() == 1 &&
          "a hold clamped at the end publishes nothing");
@@ -4477,34 +4478,34 @@ void testNullPlatformContract_S7_nothingCrossesIntoLokaBeforeTheRelease()
   // word of it until the release. Every part, same sentence.
 
   // Line arrows.
-  context->pressTick(NullScrollBarContext::PART_LINE_DOWN);
-  context->pressTick(NullScrollBarContext::PART_LINE_DOWN);
+  NullInputDoor::pressTick(*context, NullScrollBarContext::PART_LINE_DOWN);
+  NullInputDoor::pressTick(*context, NullScrollBarContext::PART_LINE_DOWN);
   assert(context->displayedValue() == 4);
   assert(value.get() == 0 && context->stateWriteCount() == 0 &&
          "tracking is visual only");
   assert(witness.emitCount == 0);
-  context->release();
+  NullInputDoor::release(*context);
   assert(value.get() == 4 && context->stateWriteCount() == 1);
   assert(witness.emitCount == 1 && witness.valueSeenAtEmit == 4 &&
          "the write precedes the emit on the arrow path");
 
   // Page areas.
-  context->pressTick(NullScrollBarContext::PART_PAGE_DOWN);
+  NullInputDoor::pressTick(*context, NullScrollBarContext::PART_PAGE_DOWN);
   assert(context->displayedValue() == 14);
   assert(value.get() == 4 && context->stateWriteCount() == 1);
   assert(witness.emitCount == 1);
-  context->release();
+  NullInputDoor::release(*context);
   assert(value.get() == 14 && context->stateWriteCount() == 2);
   assert(witness.emitCount == 2 && witness.valueSeenAtEmit == 14 &&
          "the write precedes the emit on the page path");
 
   // The thumb.
-  context->dragThumbTo(33);
+  NullInputDoor::dragThumbTo(*context, 33);
   assert(context->displayedValue() == 33);
   assert(value.get() == 14 && context->stateWriteCount() == 2 &&
          "the outline drag publishes nothing");
   assert(witness.emitCount == 2);
-  context->release();
+  NullInputDoor::release(*context);
   assert(value.get() == 33 && context->stateWriteCount() == 3);
   assert(witness.emitCount == 3 && witness.valueSeenAtEmit == 33 &&
          "the write precedes the emit on the thumb path");
@@ -4536,7 +4537,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
 
   // An arrow pressed against the floor settles where it started -- the S6
   // gate at the lower edge.
-  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 3);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_UP, 3);
   assert(context->displayedValue() == 5);
   assert(context->stateWriteCount() == 0);
 
@@ -4550,7 +4551,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
   context = findScrollBarContext(platform);
   assert(context);
   assert(context->displayedValue() == -2 && "2 clamps to the negative ceiling");
-  context->simulatePress(NullScrollBarContext::PART_LINE_UP, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_UP, 1);
   assert(context->displayedValue() == -3);
   assert(value.get() == -3 && context->stateWriteCount() == 1);
 
@@ -4565,7 +4566,7 @@ void testNullPlatformContract_S8_rangeEdgesClampTheDisplayAndOnlyTheDisplay()
   assert(context);
   assert(!context->active());
   assert(context->displayedValue() == 5 && "a reversed range presents its min");
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 1);
   assert(context->stateWriteCount() == 1 && "no publish through a reversed range");
   assert(value.get() == -3);
 
@@ -4626,7 +4627,7 @@ void testNullPlatformContract_S9_absentBindingsKeepGesturesLocal()
   // without a binding has no settled value for its handler to read, which
   // is the order the whole contract is built on.
   assert(context->displayedValue() == 0 && "an unbound bar rests on its min");
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 2);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 2);
   assert(context->displayedValue() == 2);
   assert(context->stateWriteCount() == 0);
   assert(witness.emitCount == 0 && "onChange without a value binding never fires");
@@ -4651,9 +4652,9 @@ void testNullPlatformContract_S10_stepDefaultsAreOneWithoutBeingRestated()
   NullScrollBarContext *context = findScrollBarContext(platform);
   assert(context);
 
-  context->simulatePress(NullScrollBarContext::PART_LINE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_LINE_DOWN, 1);
   assert(value.get() == 1 && "the default line step is one");
-  context->simulatePress(NullScrollBarContext::PART_PAGE_DOWN, 1);
+  NullInputDoor::simulatePress(*context, NullScrollBarContext::PART_PAGE_DOWN, 1);
   assert(value.get() == 2 && "the default page step is one");
 
   resetScrollBarFixture();

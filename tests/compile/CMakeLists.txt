@@ -481,3 +481,8 @@ loka_compile_pin(operation-owner-copy
   REFUSES pins/refuses_operation-owner-copy.cpp
   ACCEPTS pins/accepts_operation-owner-copy.cpp
 )
+
+loka_compile_pin(null-input-body
+  REFUSES pins/refuses_null_input_body.cpp
+  ACCEPTS pins/accepts_null_input_body.cpp
+)

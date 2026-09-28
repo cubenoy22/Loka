@@ -3073,3 +3073,17 @@ void testPlatformOperationNativeDrain()
   window.flushSceneInvalidation();
   LOKA_VERIFY(platform.retiredCount() == 0 && platform.drains > drains);
 }
+
+void testNullInputDoorNestedSettlement()
+{
+  Fixture fixture;
+  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+  {
+    OperationScope outer(fixture.platform);
+    LOKA_VERIFY(Input::type(*fixture.context, 'x') == EDITOR_OK);
+    LOKA_VERIFY(fixture.platform.operationPhase().open());
+  }
+  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+  LOKA_VERIFY(Input::type(*fixture.context, 'y') == EDITOR_OK);
+  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+}
