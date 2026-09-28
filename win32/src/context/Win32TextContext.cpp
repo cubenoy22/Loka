@@ -100,6 +100,27 @@ namespace
     return true;
   }
 
+  enum NativeTextCompare
+  {
+    NATIVE_TEXT_DIFFERS,
+    /** Same length, content not read: longer strings never allocate a
+        previous-text buffer on the apply path and count as changed. */
+    NATIVE_TEXT_SAME_LENGTH,
+    NATIVE_TEXT_EQUAL
+  };
+  NativeTextCompare CompareNativeText(HWND hwnd, const std::wstring &wide)
+  {
+    wchar_t previous[256];
+    const int length = GetWindowTextLengthW(hwnd);
+    if (static_cast<size_t>(length) != wide.size())
+      return NATIVE_TEXT_DIFFERS;
+    if (wide.size() >= sizeof(previous) / sizeof(previous[0]))
+      return NATIVE_TEXT_SAME_LENGTH;
+    return GetWindowTextW(hwnd, previous, sizeof(previous) / sizeof(previous[0])) == length && wide == previous
+               ? NATIVE_TEXT_EQUAL
+               : NATIVE_TEXT_DIFFERS;
+  }
+
   bool GeneratesLines(const loka::app::TextProps &props)
   {
     const loka::app::BlockStyle &block = props.blockStyle_;
@@ -448,16 +469,13 @@ bool Win32TextContext::writeText(const std::wstring &wide)
 {
   using namespace loka::app::scene;
   this->textDelivery_ = PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
-  // Compare lengths first; only matching short strings need a native read.
-  // Longer strings conservatively count as changed, so comparison never
-  // allocates a previous-text buffer on the apply path.
-  wchar_t previous[256];
-  const int length = GetWindowTextLengthW(this->hwnd_);
-  const bool unchanged = this->didInitialApply_ && static_cast<size_t>(length) == wide.size()
-                         && wide.size() < sizeof(previous) / sizeof(previous[0])
-                         && GetWindowTextW(this->hwnd_, previous, sizeof(previous) / sizeof(previous[0])) == length
-                         && wide == previous;
-  const bool applied = SetWindowTextW(this->hwnd_, wide.c_str()) != FALSE;
+  const bool unchanged = this->didInitialApply_ && CompareNativeText(this->hwnd_, wide) == NATIVE_TEXT_EQUAL;
+  // SetWindowTextW reports success whatever the window procedure answered to
+  // WM_SETTEXT, so the write is verified by reading the text back: a refused
+  // write leaves the previous text, which differs (by content for short
+  // strings, by length otherwise).
+  const bool applied = SetWindowTextW(this->hwnd_, wide.c_str()) != FALSE
+                       && CompareNativeText(this->hwnd_, wide) != NATIVE_TEXT_DIFFERS;
   HWND parent = GetParent(hwnd_);
   if (parent)
   {
