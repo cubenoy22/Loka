@@ -52,6 +52,7 @@ namespace
   }
   void Repaint(ToolboxScenePlatformController &controller, ToolboxAttributedTextContext &context)
   {
+    controller.rootNode_ = context.owner();
     ToolboxRenderDirtyInCompositionOrder(controller, ToolboxAttributedTextContextAccess::paintRect(context));
   }
   void Pin(const char *name)

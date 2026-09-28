@@ -961,3 +961,7 @@ LOKA_TEST(testParkedReplacementDetachWriteAppliesLater)
 LOKA_TEST(testNextTickRunScopeRefusesRun)
 LOKA_TEST(testNextTickNestedRunScopeIsInert)
 LOKA_TEST(testNextTickRunScopePublishesRequestOnClose)
+
+LOKA_TEST(testLazyFlexFlushCounters)
+LOKA_TEST(testLazyLayoutBoundsAndEdges)
+LOKA_TEST(testLazyLayoutValuesAndWalls)

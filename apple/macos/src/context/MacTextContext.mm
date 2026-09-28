@@ -64,7 +64,9 @@ namespace
     [cell setFont:font];
     [cell setWraps:YES];
     [cell setScrollable:NO];
-    [cell setLineBreakMode:NSLineBreakByWordWrapping];
+    // Twin: applyStyle selects the same wrapping mode for the presented cell.
+    [cell setLineBreakMode:text->props.blockStyle_.wrap_ == loka::app::TEXT_WRAP_CHAR
+        ? NSLineBreakByCharWrapping : NSLineBreakByWordWrapping];
     const NSSize size = [cell cellSizeForBounds:loka::macos::MacMeasurementBounds(width)];
     const int measuredWithPadding = projection.measurementToLu(size.height) + 2;
     if (measuredWithPadding > height)

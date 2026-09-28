@@ -75,9 +75,6 @@ public:
 
   /** Refresh existing projection ledgers after a retained props apply. */
   void refreshContextProps(loka::app::scene::Node *node, short buttonResourceId = 0);
-  void render();
-  void renderDirty(const Rect &rect);
-  bool handleMouseDown(const Point &point);
   void emitHitEmitter(loka::core::EmitterState *emitter);
   void recordButtonHit(const Rect &rect,
                        loka::core::EmitterState *emitter,
@@ -110,7 +107,6 @@ public:
                                  const loka::app::scene::WriteSeat<int> &selectedIndexSeat,
                                  loka::core::EmitterState *onChange,
                                  int newIndex);
-  bool handleKeyDown(char key);
   bool handleControlClick(const Point &point);
   void drawControlsInRect(const Rect &rect);
   bool ensureButtonControl(short resourceId,
@@ -153,7 +149,6 @@ public:
                                  const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
                                  loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
-  void idleTextEdits();
   bool isPointInEdit(const Point &point) const;
   short allocateControlId();
   /** Measures against this controller's window port and restores ambient QuickDraw state. */
@@ -230,6 +225,8 @@ public:
   }
   bool refuseNarrowingInScrollScope(int resultY);
   void refuseScrollViewShortRange();
+
+#include "ToolboxInputBodies.hpp"
 
 private:
   void activateEditControl(std::size_t index);

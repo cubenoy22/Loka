@@ -236,3 +236,13 @@ establish production Keyed behavior.
 ## From AGENTS.md
 
 For LazyFlex, a viewport write copies State into the stable Boundary and generation, evaluates n item Derived states, toggles entering/leaving Shows, and visits O(S) seats in that Boundary; Canvas additionally seeks O(first) and visits candidate cells. A content update seeks O(change.first) through its own Canvas arms and applies props to materialized items in O(change.count) visits (`LIST_BATCH` visits all n arms); a structure change replaces O(n) old/new generation content, in addition to the existing seat-ledger and observation costs described in [KeyedSeatDesign.md](#review-risk-profile).
+
+`LazyLayout` is the value-owned placement and selection policy; its first policy,
+`FixedGrid`, answers extent, index-window, and placement queries without owning
+State or allocating storage. The current LazyFlex/Canvas path shares its placement
+and extent arithmetic, while per-item `Visible` residents and all Show seats remain
+in place. Selection uses both half-open viewport edges and a bounded `LazyWindow`;
+Canvas retains its conservative far-edge traversal. PR 1 keeps the margin at zero
+and does not consume that window to replace seats, so the cost lines above remain
+unchanged. See [LazyLayout.hpp](../common/app/layout/LazyLayout.hpp) for the value
+contract and [LazyLayoutTests.cpp](../tests/LazyLayoutTests.cpp) for the counters.

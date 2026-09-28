@@ -8,6 +8,7 @@
 #include "ObservedMainDefinition.hpp"
 #include "RectSurfaceScenarioObservation.hpp"
 #include "ScenarioDriverSupport.hpp"
+#include "ToolboxInputDoor.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/PlatformContext.hpp"
@@ -195,7 +196,7 @@ namespace loka
             // The fixed scenario content frame is declared in compose above.
             Rect rect;
             SetRect(&rect, 0, 0, 636, 400);
-            controller.renderDirty(rect);
+            ToolboxInputDoor::renderDirty(controller, rect);
             return this->recordStep(this->tick_ == 3 ? "apply-A" : "apply-B-replay");
           }
           if (this->tick_ == 5 || this->tick_ == 6)

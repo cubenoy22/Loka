@@ -1,3 +1,4 @@
+#include "ToolboxInputDoor.hpp"
 #include "support/TestVerify.hpp"
 #include "support/Headless.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
@@ -149,7 +150,7 @@ namespace
     void click(int x = 0)
     {
       Point p = {5, static_cast<short>(x + 5)};
-      LOKA_VERIFY(controller.handleMouseDown(p));
+      LOKA_VERIFY(ToolboxInputDoor::mouseDown(controller, p));
     }
     void expect(EditTextNode *node)
     {
@@ -242,7 +243,7 @@ namespace
     LOKA_VERIFY(cursor.state()->get() == before);
     LOKA_VERIFY(lines.revision().get().content == revision.content);
     Point click = {5, 85};
-    LOKA_VERIFY(f.controller.handleMouseDown(click));
+    LOKA_VERIFY(ToolboxInputDoor::mouseDown(f.controller, click));
     LOKA_VERIFY((**te).selStart == (**te).selEnd);
     LifecycleFactTestAccess::MarkSubtreeRetired(&editor);
     context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
@@ -291,14 +292,14 @@ namespace
     LOKA_VERIFY(!(**native).active);
     LOKA_VERIFY(!f.controller.editControls_.focused());
     f.expect(&f.second);
-    LOKA_VERIFY(f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("bx")));
     f.focus.post(FIRST);
     f.app.present(ACTIVATION_FOREGROUND);
     f.expect(&f.first);
     f.controller.retireEditTextControlAt(0, NATIVE_HINT_EAGER_RELEASE);
     // Retiring the native destination must not resurrect the old fallback.
-    LOKA_VERIFY(!f.controller.handleKeyDown('y'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'y'));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("bx")));
   }
   void postedRefusal()
@@ -346,7 +347,7 @@ namespace
       ToolboxScenePlatformController reader(&f.nativeWindow);
       reader.recordEditHit(f.rect(), f.text.state(), 0, f.context(f.first));
       Point p = {5, 5};
-      LOKA_VERIFY(reader.handleMouseDown(p));
+      LOKA_VERIFY(ToolboxInputDoor::mouseDown(reader, p));
       LOKA_VERIFY(SceneFocusTestAccess::sourced(*f.first.asFocusParticipant()));
     }
     LOKA_VERIFY(!SceneFocusTestAccess::sourced(*f.first.asFocusParticipant()));
@@ -356,7 +357,7 @@ namespace
     f.click();
     delete field;
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
   void nativeFocus()
   {
@@ -364,7 +365,7 @@ namespace
     f.native(f.first);
     f.click();
     f.expect(&f.first);
-    LOKA_VERIFY(f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
     LOKA_VERIFY(f.text.get().equals(String::Literal("xa")));
     f.controller.editControls_.clearFocus();
     f.expect(0);
@@ -380,7 +381,7 @@ namespace
     f.click();
     f.retire(f.first);
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
   void sharedTextKey()
   {
@@ -389,7 +390,7 @@ namespace
     f.click();
     f.hit(f.second, 80);
     f.second.props.text(f.replacement);
-    LOKA_VERIFY(f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
     LOKA_VERIFY(f.text.get().equals(String::Literal("ax")));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("b")));
   }
@@ -412,18 +413,18 @@ namespace
     f.hit(f.second, 80);
     f.expect(&f.first);
     f.second.props.text(f.replacement);
-    LOKA_VERIFY(f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
     LOKA_VERIFY(f.text.get().equals(String::Literal("ax")));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("b")));
     // Current props, not cached text state, are the key delivery source.
     f.first.props.text(f.replacement);
-    LOKA_VERIFY(f.controller.handleKeyDown('y'));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'y'));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("by")));
     // Moving the hit before retirement cannot leave a dangling text target.
     f.hit(f.first, 160);
     f.retire(f.first);
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('z'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'z'));
   }
   void nativeWins()
   {
@@ -443,7 +444,7 @@ namespace
     f.click();
     f.native(f.first);
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
   void blankClick()
   {
@@ -452,9 +453,9 @@ namespace
     f.click();
     f.expect(&f.first);
     Point outside = {1000, 1000};
-    LOKA_VERIFY(!f.controller.handleMouseDown(outside));
+    LOKA_VERIFY(!ToolboxInputDoor::mouseDown(f.controller, outside));
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
   void clipping()
   {
@@ -466,7 +467,7 @@ namespace
     f.expect(&f.first);
     f.hit(f.first);
     f.expect(0);
-    LOKA_VERIFY(!f.controller.handleKeyDown('x'));
+    LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
 } // namespace
 int main(int argc, char **argv)
