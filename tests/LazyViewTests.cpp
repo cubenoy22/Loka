@@ -520,7 +520,7 @@ void testLazyViewRowWrapUsesHalfOpenCells()
   Scene scene(LazyRow(f.list).cells(40, 40).wrap(2).viewport(f.view));
   scene.mount(&f.platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
-  rows(f, f.view.get().x == 0 ? 6 : 8);
+  rows(f, 6);
   for (int i = 0; i < 20; ++i)
     LOKA_VERIFY(f.r.constructions[i] == (i < 6 ? 1 : 0));
   {
@@ -530,9 +530,35 @@ void testLazyViewRowWrapUsesHalfOpenCells()
   scene.flushInvalidation();
   scene.flushInvalidation();
   f.platform.drainNativeRetirements();
-  rows(f, f.view.get().x == 0 ? 6 : 8);
+  rows(f, 8);
   for (int i = 0; i < 20; ++i)
+  {
+    LOKA_VERIFY((f.r.cards[i] != 0) == (i >= 4 && i < 12));
     LOKA_VERIFY(f.r.constructions[i] == ((i < 6 ? 1 : 0) + (i >= 4 && i < 12 ? 1 : 0)));
+  }
+  // Moving viewport.x selects only; horizontal scrolling awaits a ScrollView X offset.
+  class AbsoluteRowPlacement : public IPlatformLayoutTraversal
+  {
+  public:
+    virtual int layoutChild(Node *child, const LayoutState &state)
+    {
+      const int index = static_cast<CardNode *>(child)->props.number;
+      LOKA_VERIFY(index >= 4 && index < 12);
+      LOKA_VERIFY(state.x == (index / 2) * 40);
+      LOKA_VERIFY(state.y == (index % 2) * 40);
+      return state.y + state.height;
+    }
+    virtual void setLayoutResultY(short) {}
+    virtual short layoutResultY() const { return 0; }
+  } placement;
+  LazyViewNode<CardProps> *view = static_cast<LazyViewNode<CardProps> *>(
+      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  LOKA_VERIFY(canvas(view)->childrenCount() == 8);
+  LayoutState bounds;
+  bounds.width = 80;
+  bounds.height = 80;
+  layout::CanvasPlatformLayoutHandler handler;
+  handler.layoutNode(canvas(view), bounds, &placement);
   {
     StateTrackerGuard guard(&f.tracker);
     f.view.set(Frame(INT_MIN, 0, INT_MAX, 80));

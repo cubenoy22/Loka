@@ -1045,7 +1045,10 @@ The list and the viewport State belong to the app and must outlive the view.
 c.declare(LazyColumn(cards).cells(200, 20).viewport(*this->viewport_.state()));
 ```
 
-`LazyRow(cards)` selects horizontal progression. `.wrap(count)` groups cells
+`LazyRow(cards)` selects horizontal progression.
+Horizontal viewport movement selects the window but leaves residents in absolute
+content coordinates; horizontal scrolling is pending a ScrollView X offset.
+`.wrap(count)` groups cells
 across the other axis. The explicit form is
 `LazyView<CardProps>(cards, layout::FixedGrid(200, 20))`. The helpers also
 accept `.margin(rows)`, defaulting to one extra main-axis row on each side. The app writes the viewport rectangle in content coordinates.
