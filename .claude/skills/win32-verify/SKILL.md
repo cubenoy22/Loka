@@ -67,19 +67,33 @@ building its candidate there. The second session's single-test runs then
 executed the other branch's binary and reported every new test as
 `Unknown test`. These rules keep one guest usable by several sessions:
 
-- **Unit tests and verification builds run in a per-session worktree of the
-  guest's clone:**
+- **Unit tests and non-golden verification builds run in a per-session
+  worktree of the guest's clone:**
   `git -C <guest-clone> worktree add --detach <guest-clone>-<slug> <sha>`.
   - The worktree has its own `build\` tree.
   - It lives on the guest's disk, so the host-side-worktree warning above
     does not apply.
-  - Never check out or build a candidate in the guest's main clone.
-- **Golden bake/verify and the rig descriptor stay in the guest's main
-  clone**, because the checkpoint freezes them together.
-  - Only one session does golden work at a time.
-  - Before starting, write a lock file in the guest's setup folder saying
-    which session holds it and for what. Remove it when the work ends.
-  - If a lock is present, wait or ask; do not take it over.
+- **Golden bake/verify runs entirely in the guest's main clone, under the
+  golden lock.** This includes checking out and building the candidate it
+  verifies.
+  - The rail reads the goldens *and* the scenario executables from the clone
+    it runs in: `tests/win32/run-scenario.ps1` derives both from
+    `$ProjectDirectory`.
+  - A candidate built in a worktree and verified from the main clone would
+    therefore run the main clone's stale binaries against the goldens.
+  - The rig descriptor and the goldens stay in the main clone because the
+    checkpoint freezes them together.
+  - Outside the lock, never check out or build anything in the main clone.
+- **Take the golden lock atomically and release only your own.** A
+  check-then-write lock lets two sessions both see no lock.
+  - Take it by creating a directory without `-Force`: `New-Item -ItemType
+    Directory <setup-folder>\golden.lock -ErrorAction Stop` fails when the
+    directory already exists.
+  - Then write `owner.txt` inside it with the session and the purpose.
+  - When the work ends, remove the directory only if `owner.txt` still names
+    your session.
+  - If you cannot take the lock, wait or ask. Do not delete another session's
+    lock.
 - **Give scheduled tasks names that carry the session's slug**, so that
   `schtasks /Create /F` cannot silently replace another session's task.
 
