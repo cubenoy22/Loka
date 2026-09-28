@@ -1,5 +1,6 @@
 #ifndef LOKA_SMIRK_BENCH_PLAIN_EDITOR_SCENARIO_HPP
 #define LOKA_SMIRK_BENCH_PLAIN_EDITOR_SCENARIO_HPP
+#include "ToolboxInputDoor.hpp"
 #include "../support/TextEditorAccess.hpp"
 #include "SmirkBenchPlainEditorNode.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -62,33 +63,33 @@ namespace loka
           Point point;
           point.h = (**te).viewRect.left + 1;
           point.v = (**te).viewRect.top + (**te).lineHeight + 1;
-          ok = controller.handleMouseDown(point)
+          ok = ToolboxInputDoor::mouseDown(controller, point)
                && editor->props.cursorState()->get().line == editor->props.lines_->at(1).id;
           step = "click-line-2";
         }
         else if (tick == 3)
         {
-          ok = controller.handleKeyDown('x');
+          ok = ToolboxInputDoor::keyDown(controller, 'x');
           step = "type-x";
         }
         else if (tick == 4)
         {
-          ok = controller.handleKeyDown('\r') && editor->props.lines_->size() == 4;
+          ok = ToolboxInputDoor::keyDown(controller, '\r') && editor->props.lines_->size() == 4;
           step = "split-3-to-4";
         }
         else if (tick == 5)
         {
-          ok = controller.handleKeyDown('y');
+          ok = ToolboxInputDoor::keyDown(controller, 'y');
           step = "type-y";
         }
         else if (tick == 6)
         {
-          ok = controller.handleKeyDown(28);
+          ok = ToolboxInputDoor::keyDown(controller, 28);
           step = "left-to-start";
         }
         else if (tick == 7)
         {
-          ok = controller.handleKeyDown('\b') && editor->props.lines_->size() == 3;
+          ok = ToolboxInputDoor::keyDown(controller, '\b') && editor->props.lines_->size() == 3;
           step = "join-4-to-3";
         }
         else if (tick == 8)
@@ -102,14 +103,14 @@ namespace loka
         {
           TESetSelect(0, 32767, te);
           std::string projection;
-          ok = controller.handleKeyDown('b') && editor->props.lines_->size() == 1
+          ok = ToolboxInputDoor::keyDown(controller, 'b') && editor->props.lines_->size() == 1
                && app::testing::TextEditorAccess::document(*editor).project(projection) == app::EDITOR_OK
                && projection == "b";
           step = "replace-3-to-1";
         }
         else if (tick == 10)
         {
-          ok = controller.handleKeyDown('c');
+          ok = ToolboxInputDoor::keyDown(controller, 'c');
           step = "type-c";
         }
         else if (tick == 12)
@@ -140,7 +141,7 @@ namespace loka
         {
           // Capture with no focused TextEdit caret blinking between settle samples.
           Point outside = {0, 0};
-          (void)controller.handleMouseDown(outside);
+          (void)ToolboxInputDoor::mouseDown(controller, outside);
           ok = !(**te).active;
           step = tick == 11 ? "capture" : "capture-queued";
         }
