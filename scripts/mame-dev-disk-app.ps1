@@ -70,7 +70,7 @@ switch ($Key) {
         exit $LASTEXITCODE
     }
     "HelloWorld" { $cmakeTarget = "LokaHello${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/HelloWorld/LokaHello${suffix}.bin" }
-    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin"; $data = "example/SmirkyCard/MAIN.JS" }
+    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin"; $data = @("example/SmirkyCard/MAIN.JS", "example/SmirkyCard/MINES.JS") }
     "MineSweeper" { $cmakeTarget = "LokaMine${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/MineSweeper/LokaMine${suffix}.bin" }
     "SimpleViewer" { $cmakeTarget = "LokaSimpleViewer${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin" }
     "FloppyBird" { $cmakeTarget = "LokaFloppyBird${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin" }
@@ -111,7 +111,7 @@ if ($Target) {
 } else {
     if ($BuildAndPrepare) { Build-App }
     $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "$PSScriptRoot/mame-dev-disk.ps1", (Join-Path $workspace $bin))
-    if ($data) { $arguments += (Join-Path $workspace $data) }
+    foreach ($item in $data) { $arguments += (Join-Path $workspace $item) }
     & powershell.exe @arguments
     exit $LASTEXITCODE
 }

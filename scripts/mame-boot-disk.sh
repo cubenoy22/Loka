@@ -76,10 +76,12 @@ if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
   if [ -f "$SCRAPBOOK_ASSETS" ]; then
     PLAIN_DATA_PATHS+=("$SCRAPBOOK_ASSETS")
   fi
-  SMIRKYCARD_MAIN="$PROJECT_DIR/example/SmirkyCard/MAIN.JS"
-  if [ -f "$SMIRKYCARD_MAIN" ]; then
-    PLAIN_DATA_PATHS+=("$SMIRKYCARD_MAIN")
-  fi
+  for script in MAIN.JS MINES.JS; do
+    smirkycard_script="$PROJECT_DIR/example/SmirkyCard/$script"
+    if [ -f "$smirkycard_script" ]; then
+      PLAIN_DATA_PATHS+=("$smirkycard_script")
+    fi
+  done
 elif [ $# -ge 1 ]; then
   MACBINARY_PATHS+=("$1")
   shift

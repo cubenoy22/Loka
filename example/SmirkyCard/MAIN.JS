@@ -19,6 +19,7 @@ card('first', class {
       }).TEST_ID('SmirkyCard.RunScript'),
       Text(this.result).TEST_ID('SmirkyCard.Result'),
       Button('Run JavaScript', () => go('second')).TEST_ID('SmirkyCard.Run'),
+      Button('./MINES.JS', () => open('./MINES.JS')).TEST_ID('SmirkyCard.OpenMines'),
       Button('Reload MAIN.JS', () => reload()).TEST_ID('SmirkyCard.Reload'),
       Text(this.error).TEST_ID('SmirkyCard.Status')
     );
