@@ -89,10 +89,56 @@ BOOL ExtTextOutW(HDC dc, int x, int y, UINT flags, const RECT *, const WCHAR *te
 }
 #include "Win32MeasurementPins.inc"
 
+static void pinPlainWrappedLines()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core;
+  Win32ScenePlatformController controller;
+  HostWindow root;
+  controller.rootHwnd_ = &root;
+  PushStateTracker tracker;
+  MutableState<String> live(String::Literal("ab cdef"));
+  tracker.addState(&live);
+  TextProps props(&live);
+  props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+  TextNode node(props);
+  node.setContext(new Win32TextContext(&controller, &root, 0, 0, 100, 20, &node));
+  HWND window = win32_host::windows.back();
+  LayoutState state;
+  state.width = static_cast<short>(controller.displayFont()->advance * 4);
+  Win32TextContext *context = static_cast<Win32TextContext *>(node.getContext());
+  context->layout(&controller, state);
+  LOKA_VERIFY(window->text == L"ab c\ndef");
+  LOKA_VERIFY((window->style & SS_TYPEMASK) == SS_LEFTNOWORDWRAP);
+  node.props.blockStyle_.wrap(TEXT_WRAP_WORD);
+  context->onPropsApplied();
+  context->layout(&controller, state);
+  LOKA_VERIFY(window->text == L"ab \ncdef");
+  node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+  context->onPropsApplied();
+  context->layout(&controller, state);
+  {
+    StateTrackerGuard guard(&tracker);
+    live.set(String::Literal("xy zwvu"));
+  }
+  state.inputs = NODE_DIRTY_NONE;
+  context->layout(&controller, state);
+  LOKA_VERIFY(window->text == L"xy z\nwvu");
+  {
+    StateTrackerGuard guard(&tracker);
+    live.set(String::Literal("xy zwvu"), true);
+  }
+  context->layout(&controller, state);
+  const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+  LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+}
+
 int main(int argc, char **)
 {
   if (argc > 1)
   {
+    pinPlainWrappedLines();
     pinMeasurement(true);
     pinMeasurement(false);
     return 0;

@@ -5,6 +5,7 @@
 #include "support/RailTextLayoutFixture.hpp"
 #include <cassert>
 #include <cstdio>
+#include <string>
 #include <windows.h>
 #include "Win32BuiltInSupport.hpp"
 #include "Win32ScenePlatformController.hpp"
@@ -17,6 +18,7 @@
 #include "app/nodes/controls/ScrollBar.hpp"
 #include "context/Win32ButtonContext.hpp"
 #include "context/Win32TextEditorContext.hpp"
+#include "context/Win32TextContext.hpp"
 
 namespace
 {
@@ -388,10 +390,11 @@ void testWin32TextFontTable()
           TextNode aligned(alignedProps);
           HWND child = projectFontText(controller, root, aligned);
           const LONG_PTR style = GetWindowLongPtrW(child, GWL_STYLE);
-          const LONG_PTR expected = a == 0 ? (wraps ? SS_LEFT : SS_LEFTNOWORDWRAP)
+          const LONG_PTR expected = a == 0 ? (wraps && ellipsis ? SS_LEFT : SS_LEFTNOWORDWRAP)
                                           : a == 1 ? SS_CENTER : SS_RIGHT;
           LOKA_VERIFY((style & SS_TYPEMASK) == expected);
-          LOKA_VERIFY((style & SS_EDITCONTROL) == (wraps ? SS_EDITCONTROL : 0));
+          LOKA_VERIFY((style & SS_EDITCONTROL) == 0);
+          LOKA_VERIFY((style & SS_NOPREFIX) != 0);
           LOKA_VERIFY((style & SS_ENDELLIPSIS) == (ellipsis ? SS_ENDELLIPSIS : 0));
           if (a == 0)
           {
@@ -751,6 +754,224 @@ void testWin32AttributedTextPerRunProjection()
     controller.drainNativeRetirements();
     LOKA_VERIFY(!IsWindow(child));
   }
+  LOKA_VERIFY(DestroyWindow(root));
+}
+
+namespace
+{
+  LRESULT CALLBACK ReenterPlainTextWrite(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  {
+    WNDPROC original = *static_cast<WNDPROC *>(GetPropW(hwnd, L"loka.test.original"));
+    if (message == WM_SETTEXT)
+    {
+      // Restore first: one bounded native reentry, not recursive interception.
+      SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
+      Win32TextContext *context = static_cast<Win32TextContext *>(GetPropW(hwnd, L"loka.test.context"));
+      loka::app::scene::LayoutState *state =
+          static_cast<loka::app::scene::LayoutState *>(GetPropW(hwnd, L"loka.test.layout"));
+      context->layout(0, *state);
+      wchar_t native[256];
+      LOKA_VERIFY(GetWindowTextW(hwnd, native, 256) == 8);
+      // An early measurement commit would reuse the old WORD native string.
+      LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+    }
+    return CallWindowProcW(original, hwnd, message, wParam, lParam);
+  }
+
+  LRESULT CALLBACK RefusePlainTextWrite(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  {
+    if (message == WM_SETTEXT)
+      return FALSE;
+    return DefWindowProcW(hwnd, message, wParam, lParam);
+  }
+}
+
+void testWin32PlainTextWrappedLines()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core;
+  using namespace loka::core::testing;
+  HWND root = attributedHost();
+  failLokaAllocRaw("Win32AttributedText", "Break", 0);
+  for (int dpi = 96; dpi <= 144; dpi += 48)
+  {
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(dpi, RailMetrics()));
+    RegisterWin32BuiltInSupport(controller);
+    TextProps props("ab cdef");
+    props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    TextNode node(props);
+    HWND child = projectFontText(controller, root, node);
+    Win32TextContext *context = static_cast<Win32TextContext *>(node.getContext());
+    HDC dc = GetDC(child);
+    LOKA_VERIFY(dc);
+    HFONT font = reinterpret_cast<HFONT>(SendMessageW(child, WM_GETFONT, 0, 0));
+    LOKA_VERIFY(font == controller.textFont(props.resolvedTextStyle()));
+    HGDIOBJ previous = SelectObject(dc, font);
+    LOKA_VERIFY(previous && previous != HGDI_ERROR);
+    SIZE glyphs = {0, 0};
+    LOKA_VERIFY(GetTextExtentPoint32W(dc, L"abcd", 4, &glyphs));
+    SelectObject(dc, previous);
+    ReleaseDC(child, dc);
+    LayoutState state = attributedSeat(static_cast<short>(controller.displayScale().measurementToLu(glyphs.cx)));
+    context->layout(&controller, state);
+    wchar_t native[256];
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+    LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_TYPEMASK) == SS_LEFTNOWORDWRAP);
+    LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_EDITCONTROL) == 0);
+    LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_NOPREFIX) != 0);
+    const short twoLines = state.height;
+    dc = GetDC(child);
+    LOKA_VERIFY(dc);
+    previous = SelectObject(dc, font);
+    LOKA_VERIFY(previous && previous != HGDI_ERROR);
+    RECT measured = {0, 0, glyphs.cx, 0};
+    LOKA_VERIFY(DrawTextW(dc, native, -1, &measured, DT_CALCRECT | DT_NOPREFIX) != 0);
+    SelectObject(dc, previous);
+    ReleaseDC(child, dc);
+    const int padded = controller.displayScale().measurementToLu(measured.bottom - measured.top) + 8;
+    const int minimum = layout::FallbackControlMetrics::kTextHeight;
+    LOKA_VERIFY(state.height == (padded > minimum ? padded : minimum));
+
+    node.props.blockStyle_.wrap(TEXT_WRAP_WORD);
+    context->onPropsApplied();
+    state.inputs = NODE_DIRTY_NONE;
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab \ncdef");
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    context->onPropsApplied();
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+    LOKA_VERIFY(node.getContext() == context && IsWindow(child));
+
+    PushStateTracker tracker;
+    MutableState<String> live(String("ab cdef"));
+    tracker.addState(&live);
+    node.props = TextProps(&live);
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    context->onPropsApplied();
+    context->layout(&controller, state);
+    {
+      StateTrackerGuard guard(&tracker);
+      live.set(String("xy zwvu"));
+    }
+    // No node dirty input: this discriminates the subscribed applyText invalidation.
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"xy z\nwvu");
+    {
+      StateTrackerGuard guard(&tracker);
+      live.set(String("xy zwvu"), true);
+    }
+    context->layout(&controller, state);
+    const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+
+    node.props.blockStyle_.wrap(TEXT_WRAP_NONE);
+    context->onPropsApplied();
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 7);
+    LOKA_VERIFY(std::wstring(native) == L"xy zwvu");
+    LOKA_VERIFY(twoLines > state.height);
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR).truncation(TEXT_TRUNCATION_ELLIPSIS);
+    context->onPropsApplied();
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 7);
+    LOKA_VERIFY(std::wstring(native) == L"xy zwvu");
+    LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_ENDELLIPSIS) == SS_ENDELLIPSIS);
+    node.props = TextProps("ab cdef\n");
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    context->onPropsApplied(); // Also releases the borrowed live State before it dies.
+    context->layout(&controller, state);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 9);
+    LOKA_VERIFY(std::wstring(native) == L"ab c\ndef\n");
+    LOKA_VERIFY((GetWindowLongPtrW(child, GWL_STYLE) & SS_ENDELLIPSIS) == 0);
+
+    node.props = TextProps("ab cdef");
+    node.props.blockStyle_.wrap(TEXT_WRAP_WORD);
+    context->onPropsApplied();
+    failLokaAllocRaw("Win32AttributedText", "Break", 1);
+    context->layout(&controller, state);
+    LOKA_VERIFY(state.height == 0);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 9);
+    LOKA_VERIFY(std::wstring(native) == L"ab c\ndef\n");
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+    context->layout(&controller, state);
+    LOKA_VERIFY(state.height > 0);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab \ncdef");
+
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    context->onPropsApplied();
+    WNDPROC original = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(
+        child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&RefusePlainTextWrite)));
+    LOKA_VERIFY(original);
+    context->layout(&controller, state);
+    LOKA_VERIFY(state.height == 0);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab \ncdef");
+    SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
+    context->layout(&controller, state);
+    LOKA_VERIFY(state.height > 0);
+    LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+    LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+
+    // A refused write of a long string with the same length as the current
+    // text is still detected: verification compares content at every length.
+    {
+      // Digits are tabular in the UI font, so both texts break into the same
+      // lines and the generated strings have the same length; the pin checks
+      // that precondition after the successful write below.
+      const loka::core::String longA(std::string(300, '0').c_str());
+      const loka::core::String longB(std::string(300, '1').c_str());
+      node.props = TextProps(longA);
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height > 0);
+      const int longLength = GetWindowTextLengthW(child);
+      LOKA_VERIFY(longLength > 300);
+      node.props = TextProps(longB);
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&RefusePlainTextWrite));
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height == 0);
+      LOKA_VERIFY(GetWindowTextLengthW(child) == longLength);
+      wchar_t first[2] = {0, 0};
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'0');
+      SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(original));
+      context->layout(&controller, state);
+      LOKA_VERIFY(state.height > 0);
+      LOKA_VERIFY(GetWindowTextW(child, first, 2) == 1 && first[0] == L'1');
+      LOKA_VERIFY(GetWindowTextLengthW(child) == longLength);
+      node.props = TextProps("ab cdef");
+      node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+      context->onPropsApplied();
+      context->layout(&controller, state);
+      LOKA_VERIFY(GetWindowTextW(child, native, 256) == 8);
+      LOKA_VERIFY(std::wstring(native) == L"ab c\ndef");
+    }
+
+    node.props.blockStyle_.wrap(TEXT_WRAP_WORD);
+    context->onPropsApplied();
+    context->layout(&controller, state);
+    node.props.blockStyle_.wrap(TEXT_WRAP_CHAR);
+    context->onPropsApplied();
+    LOKA_VERIFY(SetPropW(child, L"loka.test.original", &original));
+    LOKA_VERIFY(SetPropW(child, L"loka.test.context", context));
+    LOKA_VERIFY(SetPropW(child, L"loka.test.layout", &state));
+    SetWindowLongPtrW(child, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&ReenterPlainTextWrite));
+    context->layout(&controller, state);
+    RemovePropW(child, L"loka.test.original");
+    RemovePropW(child, L"loka.test.context");
+    RemovePropW(child, L"loka.test.layout");
+  }
+  LOKA_VERIFY(lokaAllocRawLive() == 0);
+  allowLokaAllocRaw();
   LOKA_VERIFY(DestroyWindow(root));
 }
 

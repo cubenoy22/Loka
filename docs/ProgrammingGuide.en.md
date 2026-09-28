@@ -1253,7 +1253,14 @@ across rails.
 
 On Win32, plain `Text` with wrap=NONE, CLIP truncation, and CENTER/RIGHT alignment
 can wrap overflowing words inside its one-line-high native control; ellipsis uses
-the native single-line mode.
+the native single-line mode and takes precedence over wrapping. Wrapped plain
+Text uses the shared breaker for WORD and CHAR and publishes its generated LF
+separators in the native control text. Left-aligned generated lines cannot
+re-break. CENTER/RIGHT have no native no-wrap variant: tabs (measured as a glyph
+by the breaker, expanded by STATIC) and retained trailing spaces may shift a
+line, and the native control may re-break a generated CENTER/RIGHT line that
+lands within a pixel of the width. Prefer LEFT alignment for wrapped text
+whose exact line breaks matter.
 
 ### `Section()` And Tagged Siblings
 

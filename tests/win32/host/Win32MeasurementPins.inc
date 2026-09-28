@@ -194,7 +194,8 @@ namespace
         ++state.width;
         win32_host::failDC = refusal == 0;
         win32_host::failMetrics = refusal == 1;
-        win32_host::failConversion = refusal == 2;
+        if (refusal == 2)
+          loka::core::testing::failLokaAllocRaw("Win32AttributedText", "Break", 1);
         node.layout(&controller, state);
         LOKA_VERIFY(state.height == 0 && IsRectEmpty(&window->rect));
         win32_host::failDC = win32_host::failMetrics = win32_host::failConversion = false;
