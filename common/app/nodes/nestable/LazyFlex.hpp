@@ -17,6 +17,10 @@
 
 namespace loka
 {
+  namespace testing
+  {
+    class LazyFlexAccess;
+  }
   namespace app
   {
     enum LazyFlexStatus
@@ -106,7 +110,7 @@ namespace loka
       public:
         Visible(loka::core::State<loka::core::Frame> *viewport, unsigned short index, const CanvasProps &cells)
             : viewport_(viewport),
-              cell_(cell(index, cells))
+              cell_(cells.layout().place(index))
         {
         }
         virtual bool operator()()
@@ -122,17 +126,6 @@ namespace loka
         {
           return a >= b ? static_cast<unsigned>(a) - static_cast<unsigned>(b) < static_cast<unsigned>(bw)
                         : static_cast<unsigned>(b) - static_cast<unsigned>(a) < static_cast<unsigned>(aw);
-        }
-        static loka::core::Frame cell(unsigned short index, const CanvasProps &p)
-        {
-          if (!p.wrap || p.cellWidth <= 0 || p.cellHeight <= 0
-              || (p.axis != STACK_AXIS_COLUMN && p.axis != STACK_AXIS_ROW))
-            return loka::core::Frame();
-          const unsigned x = p.axis == STACK_AXIS_COLUMN ? index % p.wrap : index / p.wrap;
-          const unsigned y = p.axis == STACK_AXIS_COLUMN ? index / p.wrap : index % p.wrap;
-          if (x > static_cast<unsigned>(INT_MAX / p.cellWidth) || y > static_cast<unsigned>(INT_MAX / p.cellHeight))
-            return loka::core::Frame();
-          return loka::core::Frame(x * p.cellWidth, y * p.cellHeight, p.cellWidth, p.cellHeight);
         }
         loka::core::State<loka::core::Frame> *const viewport_;
         const loka::core::Frame cell_;
@@ -161,6 +154,8 @@ namespace loka
         constructor registrations, inside the LazyScope declaring window. */
     template <class T> class LazyGenerationNode : public scene::LazyScopeNode
     {
+      friend class loka::testing::LazyFlexAccess;
+
     public:
       typedef LazyGenerationProps<T> Props;
       typedef typename Props::TypeTag TypeTag;

@@ -8,6 +8,11 @@
 
 namespace loka
 {
+  namespace testing
+  {
+    /** Test-only door to a DerivedState's evaluator; see tests/support. */
+    class DerivedStateTestAccess;
+  }
   namespace core
   {
 
@@ -587,6 +592,8 @@ namespace loka
     // --- DerivedState: C++98-compatible implementation of State<T> ---
     template <typename T> class DerivedState : public State<T>
     {
+      friend class loka::testing::DerivedStateTestAccess;
+
     public:
       // Pure virtual base class for evaluation expression (C++98-compatible: operator() can be const reference)
       struct EvalFn

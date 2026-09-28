@@ -953,3 +953,7 @@ LOKA_TEST(testNullAttributedMeasurementReuse)
 LOKA_TEST(testNullMeasurementInputPublications)
 LOKA_TEST(testNullMeasurementParkedReattach)
 LOKA_TEST(testSyntheticMeasurementRefusal)
+
+LOKA_TEST(testLazyFlexFlushCounters)
+LOKA_TEST(testLazyLayoutBoundsAndEdges)
+LOKA_TEST(testLazyLayoutValuesAndWalls)

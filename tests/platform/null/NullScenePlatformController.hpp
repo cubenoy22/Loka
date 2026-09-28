@@ -16,6 +16,8 @@ namespace loka { namespace app { class TextWidthSource; } }
 #include "app/scene/projection/PlatformNodeHandler.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
 
+namespace loka { namespace testing { class LazyFlexAccess; } }
+
 class NullButtonContext;
 class NullEditTextContext;
 class NullScrollBarContext;
@@ -265,6 +267,8 @@ public:
   virtual void onPaintCommitted() {}
 
 private:
+  friend class loka::testing::LazyFlexAccess;
+  unsigned long leafLayoutVisits_;
   class PaintCompletionVisitor;
   class PaintInvalidationVisitor;
   class LayoutTraversal;
