@@ -1,6 +1,8 @@
 #include "MyAppConfig.hpp"
 #include "JsCardBindingRegistry.hpp"
 #include "SmirkyMarkup.hpp"
+#include "JsClickNode.hpp"
+#include "app/nodes/controls/Cell.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -606,6 +608,100 @@ namespace
     loka::dsl::testing::SceneTestAccess::updateAttached(*secondWindow.scene(), true);
     printMemory("with two cards alive", runtime);
   }
+  void checkManyClickables(const char *kind, int count = 70)
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    char length[16];
+    std::sprintf(length, "%d", count);
+    const std::string source = std::string("card('first',class{constructor(){this.s=Array.from({length:") + length
+                               + "},(_,i)=>state('seat'+i))}"
+                                 "compose(){return VStack(Array.from({length:Math.ceil(this.s.length/10)},(_,r)=>Row("
+                                 "this.s.slice(r*10,r*10+10).map((s,j)=>"
+                               + kind + "(s,()=>s.set('clicked'+(r*10+j))).TEST_ID('Click'+(r*10+j))))))}});";
+    LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::app::scene::Node *status = find(root, "SmirkyCard.Status");
+    if (status)
+      std::fprintf(stderr, "large card refusal: %s\n", textValue(status->asTextNode()).c_str());
+    const int indices[] = {0, 8, count - 1};
+    for (unsigned i = 0; i < sizeof(indices) / sizeof(indices[0]); ++i)
+    {
+      char id[32];
+      std::sprintf(id, "Click%d", indices[i]);
+      loka::app::scene::Node *node = find(root, id);
+      LOKA_VERIFY(node);
+      if (node->asButtonNode())
+        node->asButtonNode()->props.getOnClick()->emit();
+      else
+        node->asCellNode()->props.onClick_->emit();
+    }
+    for (int i = 0; i < count; ++i)
+    {
+      char id[32], expected[32];
+      std::sprintf(id, "Click%d", i);
+      std::sprintf(expected, i == 0 || i == 8 || i == count - 1 ? "clicked%d" : "seat%d", i);
+      loka::app::scene::Node *node = find(root, id);
+      const loka::core::String value =
+          node->asButtonNode() ? node->asButtonNode()->props.getText()->get() : node->asCellNode()->props.text_->get();
+      LOKA_VERIFY(value.compare(loka::core::String::Utf8(expected, std::strlen(expected))) == 0);
+    }
+  }
+
+  void checkClickableLifetime()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error, result;
+    LOKA_VERIFY(runtime.loadBuiltin("globalThis.clicks=0;card('first',class{compose(){return VStack("
+                                    "Button('go',()=>{++clicks;go('second')}).TEST_ID('Go'),"
+                                    "Cell('stay',()=>{++clicks}).TEST_ID('Stay'))}});"
+                                    "card('second',class{compose(){return Text('second').TEST_ID('Second')}});",
+                                    error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *root = loka::dsl::testing::SceneTestAccess::rootNode(*window.scene());
+    loka::core::EmitterState *go = find(root, "Go")->asButtonNode()->props.getOnClick();
+    loka::core::EmitterState *stay = find(root, "Stay")->asCellNode()->props.onClick_;
+    stay->emit();
+    go->emit();
+    // Exercise withdrawal while storage is live: scene replacement's first
+    // flush reclaims the root and its component arena, not just native contexts.
+    loka::dsl::testing::SceneTestAccess::notifyComposeEvent(*window.scene(), loka::app::scene::COMPOSE_EVENT_DETACH);
+    stay->emit();
+    go->emit();
+    LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("clicks"), result, error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal("2")) == 0);
+    admission.flush();
+    LOKA_VERIFY(window.sceneManager()->hasRetiredScenes());
+    LOKA_VERIFY(find(loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()), "Second"));
+    admission.flush();
+    LOKA_VERIFY(!window.sceneManager()->hasRetiredScenes());
+  }
+
+  void printRecordCosts()
+  {
+    const size_t seat = sizeof(smirkycard::JsSeatRecord);
+    const size_t handler = sizeof(smirkycard::JsHandlerRecord);
+    const size_t child = sizeof(smirkycard::JsClickNode);
+    std::printf("SmirkyCard host costs: seat=%lu handler=%lu child=%lu 67/66=%lu bytes\n",
+                static_cast<unsigned long>(seat),
+                static_cast<unsigned long>(handler),
+                static_cast<unsigned long>(child),
+                static_cast<unsigned long>(67 * seat + 66 * (handler + child)));
+  }
+
   void checkEnabledSeat()
   {
     smirkycard::ScriptRuntime runtime;
@@ -1063,17 +1159,43 @@ namespace
     allowLokaAllocRaw();
   }
 
+  void checkRecordAllocationRefusal()
+  {
+    using namespace loka::core::testing;
+    const char *types[] = {"Seat", "Handler"};
+    for (unsigned i = 0; i < sizeof(types) / sizeof(types[0]); ++i)
+    {
+      failLokaAllocRaw("JsCardNode", types[i], 1);
+      checkComposeRefusal("card('first',class{constructor(){this.s=state('s')}compose(){return "
+                          "Button(this.s,()=>{})}});",
+                          "Could not allocate");
+      LOKA_VERIFY(lokaAllocRawLive() == 0);
+      allowLokaAllocRaw();
+    }
+  }
+
   void checkRequiredRefusals()
   {
     checkComposeRefusal("card('first',class{constructor(){}compose(){state('late');return VStack()}});", "constructor");
     checkComposeRefusal("card('first',class{constructor(){state(1.5)}compose(){return VStack()}});",
                         "state(number) requires an integer");
     checkComposeRefusal("card('first',class{constructor(){}get compose(){for(;;){}}});", "interrupted");
-    checkComposeRefusal(
-        "card('first',class{constructor(){this.a=state(0);this.b=state(0);this.c=state(0);this.d=state(0);this.e=state("
-        "0);this.f=state(0);this.g=state(0);this.h=state(0);this.i=state(0)}compose(){return VStack()}});",
-        "maximum 8");
+    checkComposeRefusal("card('first',class{constructor(){for(let i=0;i<129;++i)state(0)}compose(){return VStack()}});",
+                        "kCardSeatBudget");
+    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+                        "Array.from({length:r==8?1:16},()=>Button('x',()=>{})))))}});",
+                        "kCardClickableBudget");
+    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+                        "Array.from({length:r==8?1:16},()=>Cell('x',()=>{})))))}});",
+                        "kCardClickableBudget");
     checkComposeRefusal("card('first',class{constructor(){}compose(){return {kind:99}}});", "unknown kind");
+
+    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+                        "Array.from({length:r==8?1:16},()=>r%2?Cell('x',()=>{}):Button('x',()=>{})))))}});",
+                        "kCardClickableBudget");
+    checkComposeRefusal("card('first',class{constructor(){this.s=state(1)}compose(){return Cell(this.s,()=>{})}});",
+                        "String state seat");
+    checkComposeRefusal("card('first',class{compose(){return Cell('x',42)}});", "function");
 
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
@@ -1295,8 +1417,19 @@ namespace
   }
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--clickable-lifetime"))
+  {
+    checkClickableLifetime();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--many-clickables"))
+  {
+    checkManyClickables("Button");
+    checkManyClickables("Cell");
+    return 0;
+  }
   testScriptAllocatorAlignsTwoByteAlignedBase();
   testScriptContextIsPointerTagAligned();
   checkRegistry();
@@ -1309,6 +1442,11 @@ int main()
   checkTreePropertyCopy();
   checkTextStyleRefusals();
   checkChangedTextStyleRefusal();
+  printRecordCosts();
+  checkClickableLifetime();
+  checkManyClickables("Button");
+  checkManyClickables("Cell");
+  checkManyClickables("Cell", 128);
   checkEnabledSeat();
   checkArrayChildren();
   checkLifecycleHooks();
@@ -1318,6 +1456,7 @@ int main()
   checkEvaluation(runtime);
   checkMessageBox(runtime);
   checkSceneSwitching(runtime);
+  checkRecordAllocationRefusal();
   checkRequiredRefusals();
   checkRetiredSeatAndIntegerRefusal();
   checkMainJsLoad();

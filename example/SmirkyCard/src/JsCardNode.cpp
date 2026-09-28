@@ -1,4 +1,5 @@
 #include "CardNodes.hpp"
+#include "JsClickNode.hpp"
 #include "JsOwnProperties.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -106,18 +107,13 @@ namespace smirkycard
         constructing_(false),
         failed_(false),
         instance_(JS_UNDEFINED),
-        usedStates_(0),
+        seats_("Seat"),
+        handlers_("Handler"),
         errorSeat_(JS_UNDEFINED),
         tree_(JS_UNDEFINED),
         onAttach_(JS_UNDEFINED),
         onDetach_(JS_UNDEFINED)
   {
-    for (int i = 0; i < 8; ++i)
-    {
-      seats_[i] = JS_UNDEFINED;
-      handlers_[i] = JS_UNDEFINED;
-      seatKinds_[i] = -1;
-    }
     this->state(error_, loka::core::String::Literal(""));
     JSContext *ctx = this->engine_ ? this->engine_->context() : 0;
     JSValue ctor = ctx ? this->engine_->constructorFor(p.card) : JS_UNDEFINED;
@@ -163,19 +159,11 @@ namespace smirkycard
       JSContext *ctx = this->engine_->context();
       if (JS_IsObject(errorSeat_))
         JS_SetOpaque(errorSeat_, 0);
-      for (int i = 0; i < 8; ++i)
-        if (JS_IsObject(seats_[i]))
-          JS_SetOpaque(seats_[i], 0);
       JS_FreeValue(ctx, instance_);
       JS_FreeValue(ctx, tree_);
       JS_FreeValue(ctx, onAttach_);
       JS_FreeValue(ctx, onDetach_);
       JS_FreeValue(ctx, errorSeat_);
-      for (int i = 0; i < 8; ++i)
-      {
-        JS_FreeValue(ctx, seats_[i]);
-        JS_FreeValue(ctx, handlers_[i]);
-      }
     }
   }
   bool JsCardNode::constructing() const
@@ -184,9 +172,28 @@ namespace smirkycard
   }
   JSValue JsCardNode::mintState(JSContext *ctx, JSValueConst initial)
   {
-    if (!constructing_ || usedStates_ >= 8)
+    if (!constructing_)
     {
-      fail("state() is only valid in a constructor (maximum 8 seats).");
+      fail("state() is only valid in a constructor.");
+      return JS_UNDEFINED;
+    }
+    if (this->seats_.count() >= kCardSeatBudget)
+    {
+      fail("kCardSeatBudget exceeded (128 seats).");
+      return JS_UNDEFINED;
+    }
+    if (!JS_IsString(initial) && !JS_IsNumber(initial) && !JS_IsBool(initial))
+    {
+      fail("state() initial value is unsupported.");
+      return JS_UNDEFINED;
+    }
+    JsSeatRecord *record = this->seats_.add(JsSeatRecord::Initial(ctx,
+                                                                  JS_IsString(initial)   ? JsSeatRecord::STRING
+                                                                  : JS_IsNumber(initial) ? JsSeatRecord::INTEGER
+                                                                                         : JsSeatRecord::BOOLEAN));
+    if (!record)
+    {
+      fail("Could not allocate state seat.");
       return JS_UNDEFINED;
     }
     if (JS_IsString(initial))
@@ -198,7 +205,7 @@ namespace smirkycard
         fail("state() initial value is unsupported.");
         return JS_UNDEFINED;
       }
-      this->state(strings_[usedStates_], loka::core::String::Utf8(text, length));
+      this->state(record->string, loka::core::String::Utf8(text, length));
       JS_FreeCString(ctx, text);
     }
     else if (JS_IsNumber(initial))
@@ -209,15 +216,13 @@ namespace smirkycard
         fail("state(number) requires an integer");
         return JS_UNDEFINED;
       }
-      this->state(ints_[usedStates_], static_cast<int>(value));
-      this->derived(
-          derivedStrings_[usedStates_], ints_[usedStates_], new (std::nothrow) FormatIntEval(&ints_[usedStates_]));
+      this->state(record->integer, static_cast<int>(value));
+      this->derived(record->formatted, record->integer, new (std::nothrow) FormatIntEval(&record->integer));
     }
     else if (JS_IsBool(initial))
     {
-      this->state(bools_[usedStates_], JS_ToBool(ctx, initial) != 0);
-      this->derived(
-          derivedStrings_[usedStates_], bools_[usedStates_], new (std::nothrow) FormatBoolEval(&bools_[usedStates_]));
+      this->state(record->boolean, JS_ToBool(ctx, initial) != 0);
+      this->derived(record->formatted, record->boolean, new (std::nothrow) FormatBoolEval(&record->boolean));
     }
     else
     {
@@ -233,58 +238,57 @@ namespace smirkycard
     JS_SetOpaque(seat, this);
     JS_SetPropertyStr(ctx, seat, "get", JS_NewCFunction(ctx, seatGetNative, "get", 0));
     JS_SetPropertyStr(ctx, seat, "set", JS_NewCFunction(ctx, seatSetNative, "set", 1));
-    seatKinds_[usedStates_] = JS_IsString(initial) ? 0 : JS_IsNumber(initial) ? 1 : 2;
-    seats_[usedStates_++] = JS_DupValue(ctx, seat);
+    record->value = JS_DupValue(ctx, seat);
     JS_FreezeObject(ctx, seat);
     return seat;
   }
   JSValue JsCardNode::seatGet(JSContext *ctx, JSValueConst seat)
   {
-    for (int i = 0; i < usedStates_; ++i)
-      if (JS_IsStrictEqual(ctx, seat, seats_[i]))
-      {
-        if (seatKinds_[i] == 0)
-          return jsString(ctx, strings_[i].get());
-        if (seatKinds_[i] == 1)
-          return JS_NewInt32(ctx, ints_[i].get());
-        return JS_NewBool(ctx, bools_[i].get());
-      }
+    JsSeatRecord *record = this->findSeat(ctx, seat);
+    if (record)
+    {
+      if (record->kind == JsSeatRecord::STRING)
+        return jsString(ctx, record->string.get());
+      if (record->kind == JsSeatRecord::INTEGER)
+        return JS_NewInt32(ctx, record->integer.get());
+      return JS_NewBool(ctx, record->boolean.get());
+    }
     return JS_ThrowTypeError(ctx, "unknown state seat");
   }
   JSValue JsCardNode::seatSet(JSContext *ctx, JSValueConst seat, JSValueConst value)
   {
-    for (int i = 0; i < usedStates_; ++i)
-      if (JS_IsStrictEqual(ctx, seat, seats_[i]))
+    JsSeatRecord *record = this->findSeat(ctx, seat);
+    if (record)
+    {
+      if (record->kind == JsSeatRecord::STRING && JS_IsString(value))
       {
-        if (seatKinds_[i] == 0 && JS_IsString(value))
-        {
-          size_t n = 0;
-          const char *s = JS_ToCStringLen(ctx, &n, value);
-          if (!s)
-            return JS_EXCEPTION;
-          strings_[i].writeSeat().set(loka::core::String::Utf8(s, n), true);
-          JS_FreeCString(ctx, s);
-          return JS_UNDEFINED;
-        }
-        if (seatKinds_[i] == 1 && JS_IsNumber(value))
-        {
-          int32_t v = 0;
-          if (!integerNumber(ctx, value, v))
-          {
-            error_.set(loka::core::String::Literal("state(number) requires an integer"));
-            return JS_UNDEFINED;
-          }
-          ints_[i].writeSeat().set(static_cast<int>(v), true);
-          return JS_UNDEFINED;
-        }
-        if (seatKinds_[i] == 2 && JS_IsBool(value))
-        {
-          bools_[i].writeSeat().set(JS_ToBool(ctx, value) != 0, true);
-          return JS_UNDEFINED;
-        }
-        fail("state seat type mismatch.");
+        size_t n = 0;
+        const char *s = JS_ToCStringLen(ctx, &n, value);
+        if (!s)
+          return JS_EXCEPTION;
+        record->string.writeSeat().set(loka::core::String::Utf8(s, n), true);
+        JS_FreeCString(ctx, s);
         return JS_UNDEFINED;
       }
+      if (record->kind == JsSeatRecord::INTEGER && JS_IsNumber(value))
+      {
+        int32_t v = 0;
+        if (!integerNumber(ctx, value, v))
+        {
+          error_.set(loka::core::String::Literal("state(number) requires an integer"));
+          return JS_UNDEFINED;
+        }
+        record->integer.writeSeat().set(static_cast<int>(v), true);
+        return JS_UNDEFINED;
+      }
+      if (record->kind == JsSeatRecord::BOOLEAN && JS_IsBool(value))
+      {
+        record->boolean.writeSeat().set(JS_ToBool(ctx, value) != 0, true);
+        return JS_UNDEFINED;
+      }
+      fail("state seat type mismatch.");
+      return JS_UNDEFINED;
+    }
     return JS_ThrowTypeError(ctx, "unknown state seat");
   }
   JSValue JsCardNode::errorSeatGet(JSContext *ctx)
@@ -375,14 +379,6 @@ namespace smirkycard
   }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
-    t.action(emitters_[0], this, &JsCardNode::fire0);
-    t.action(emitters_[1], this, &JsCardNode::fire1);
-    t.action(emitters_[2], this, &JsCardNode::fire2);
-    t.action(emitters_[3], this, &JsCardNode::fire3);
-    t.action(emitters_[4], this, &JsCardNode::fire4);
-    t.action(emitters_[5], this, &JsCardNode::fire5);
-    t.action(emitters_[6], this, &JsCardNode::fire6);
-    t.action(emitters_[7], this, &JsCardNode::fire7);
     t.action(reloadEmitter_, this, &JsCardNode::requestReload);
   }
   // The card hooks ride the root boundary's own attach/detach doors
@@ -544,7 +540,8 @@ namespace smirkycard
       return 0;
     }
     loka::core::String id;
-    if (treeString(ctx, tree, "testId", id))
+    if (treeString(ctx, tree, "testId", id)
+        && (!out->propsBase() || out->propsBase()->propsTypeId() != JsClickProps::staticTypeId()))
     {
       const loka::core::StringBuffer b = id.bufferWithEncoding(loka::core::StringEncodingUtf8);
       const std::string utf8(static_cast<const char *>(b.data()), b.length());
@@ -750,24 +747,13 @@ namespace smirkycard
       return 0;
     }
     JSValue value = JS_GetPropertyStr(ctx, tree, "text");
-    int seat = -1;
-    for (int i = 0; i < usedStates_; ++i)
-      if (JS_IsStrictEqual(ctx, value, seats_[i]))
-      {
-        seat = i;
-        break;
-      }
-    loka::app::scene::NodeDefinitionBase *out =
-        JS_IsStrictEqual(ctx, value, errorSeat_)
-            ? static_cast<loka::app::scene::NodeDefinitionBase *>(
-                  new (std::nothrow) TextDefinitionWithAttr(Text(error_.state()) + style + block))
-        : seat >= 0
-            ? (seatKinds_[seat] == 0
-                   ? static_cast<loka::app::scene::NodeDefinitionBase *>(
-                         new (std::nothrow) TextDefinitionWithAttr(Text(strings_[seat].state()) + style + block))
-                   : static_cast<loka::app::scene::NodeDefinitionBase *>(new (std::nothrow) TextDefinitionWithAttr(
-                         Text(derivedStrings_[seat].state()) + style + block)))
-            : 0;
+    JsSeatRecord *seat = this->findSeat(ctx, value);
+    loka::app::scene::NodeDefinitionBase *out = 0;
+    if (JS_IsStrictEqual(ctx, value, errorSeat_))
+      out = new (std::nothrow) TextDefinitionWithAttr(Text(error_.state()) + style + block);
+    else if (seat)
+      out = new (std::nothrow) TextDefinitionWithAttr(
+          Text(seat->kind == JsSeatRecord::STRING ? seat->string.state() : seat->formatted.state()) + style + block);
     if (!out && JS_IsString(value))
     {
       loka::core::String text;
@@ -782,114 +768,92 @@ namespace smirkycard
   loka::app::scene::NodeDefinitionBase *JsCardNode::lowerEditText(JSContext *ctx, JSValueConst tree)
   {
     JSValue value = JS_GetPropertyStr(ctx, tree, "seat");
-    int seat = -1;
-    for (int i = 0; i < usedStates_; ++i)
-      if (JS_IsStrictEqual(ctx, value, seats_[i]))
-      {
-        seat = i;
-        break;
-      }
+    JsSeatRecord *seat = this->findSeat(ctx, value);
     JS_FreeValue(ctx, value);
-    if (seat < 0 || seatKinds_[seat] != 0)
+    if (!seat || seat->kind != JsSeatRecord::STRING)
     {
       fail("JavaScript EditText requires a String state seat.");
       return 0;
     }
-    return new (std::nothrow) loka::app::EditText(strings_[seat]);
+    return new (std::nothrow) loka::app::EditText(seat->string);
   }
-  loka::app::scene::NodeDefinitionBase *JsCardNode::lowerButton(JSContext *ctx, JSValueConst tree)
+  loka::app::scene::NodeDefinitionBase *JsCardNode::lowerClickable(JSContext *ctx, JSValueConst tree, bool cell)
   {
+    JSValue value = JS_GetPropertyStr(ctx, tree, "label");
+    JsSeatRecord *seat = this->findSeat(ctx, value);
     loka::core::String label;
-    JSValue handler = JS_GetPropertyStr(ctx, tree, "handler");
-    int slot = JS_IsFunction(ctx, handler) ? handlerSlot(ctx, handler) : -1;
-    JS_FreeValue(ctx, handler);
-    if (!treeString(ctx, tree, "label", label) || slot < 0)
+    const bool validLabel = (seat && seat->kind == JsSeatRecord::STRING) || treeString(ctx, tree, "label", label);
+    JS_FreeValue(ctx, value);
+    if (!validLabel)
     {
-      if (!failed_)
-        fail("JavaScript Button requires a label and handler.");
+      fail("JavaScript clickable requires a literal string or String state seat.");
       return 0;
     }
-    loka::app::ButtonProps props;
-    props.text(label);
-    props.onClick(&emitters_[slot]);
+    loka::core::State<bool> *enabledState = 0;
     JSValue enabled = JS_GetPropertyStr(ctx, tree, "enabledSeat");
     if (!JS_IsUndefined(enabled))
     {
-      int seat = -1;
-      for (int i = 0; i < usedStates_; ++i)
-        if (JS_IsStrictEqual(ctx, enabled, seats_[i]))
-        {
-          seat = i;
-          break;
-        }
-      JS_FreeValue(ctx, enabled);
-      if (seat < 0 || seatKinds_[seat] != 2)
+      JsSeatRecord *enabledSeat = this->findSeat(ctx, enabled);
+      if (cell || !enabledSeat || enabledSeat->kind != JsSeatRecord::BOOLEAN)
       {
+        JS_FreeValue(ctx, enabled);
         fail("JavaScript Button enabled() requires a Bool state seat.");
         return 0;
       }
-      props.enabled(bools_[seat].state());
+      enabledState = enabledSeat->boolean.state();
     }
-    else
-      JS_FreeValue(ctx, enabled);
-    return new (std::nothrow) loka::app::Button(props);
+    JS_FreeValue(ctx, enabled);
+    JSValue handler = JS_GetPropertyStr(ctx, tree, "handler");
+    JsHandlerRecord *record = JS_IsFunction(ctx, handler) ? this->addHandler(ctx, handler) : 0;
+    JS_FreeValue(ctx, handler);
+    if (!record)
+    {
+      if (!failed_)
+        fail("JavaScript clickable requires a handler.");
+      return 0;
+    }
+    loka::core::String testId;
+    treeString(ctx, tree, "testId", testId);
+    return loka::app::scene::Component(JsClickProps(label,
+                                                    seat ? seat->string.state() : 0,
+                                                    enabledState,
+                                                    cell ? JsClickProps::CELL : JsClickProps::BUTTON,
+                                                    record,
+                                                    testId))
+        .clone();
   }
   loka::app::scene::NodeDefinitionBase *JsCardNode::lowerChild(JSContext *ctx, JSValueConst tree, int depth)
   {
     return lower(ctx, tree, depth);
   }
-  int JsCardNode::handlerSlot(JSContext *ctx, JSValueConst handler)
+  JsSeatRecord *JsCardNode::findSeat(JSContext *ctx, JSValueConst value) const
   {
-    for (int i = 0; i < 8; ++i)
-      if (JS_IsUndefined(handlers_[i]))
-      {
-        handlers_[i] = JS_DupValue(ctx, handler);
-        return i;
-      }
-    fail("JavaScript card has more than 8 Button handlers.");
-    return -1;
+    for (JsSeatRecord *seat = this->seats_.head(); seat; seat = seat->next)
+      if (JS_IsStrictEqual(ctx, value, seat->value))
+        return seat;
+    return 0;
   }
-  void JsCardNode::fire(int slot)
+  JsHandlerRecord *JsCardNode::addHandler(JSContext *ctx, JSValueConst handler)
+  {
+    if (this->handlers_.count() >= kCardClickableBudget)
+    {
+      fail("kCardClickableBudget exceeded (128 clickables).");
+      return 0;
+    }
+    JsHandlerRecord *record = this->handlers_.add(JsHandlerRecord::Initial(this, ctx, handler));
+    if (!record)
+      fail("Could not allocate clickable handler.");
+    return record;
+  }
+  void JsCardNode::fire(const JsHandlerRecord &handler)
   {
     loka::core::String error;
     JSValue result = JS_UNDEFINED;
     props.runtime->setActive(this);
-    if (!props.runtime->call(*this->engine_, handlers_[slot], instance_, 0, 0, result, error))
+    if (!props.runtime->call(*this->engine_, handler.value, instance_, 0, 0, result, error))
       error_.set(error);
     props.runtime->setActive(0);
     JS_FreeValue(this->engine_->context(), result);
-  }
-  void JsCardNode::fire0()
-  {
-    fire(0);
-  }
-  void JsCardNode::fire1()
-  {
-    fire(1);
-  }
-  void JsCardNode::fire2()
-  {
-    fire(2);
-  }
-  void JsCardNode::fire3()
-  {
-    fire(3);
-  }
-  void JsCardNode::fire4()
-  {
-    fire(4);
-  }
-  void JsCardNode::fire5()
-  {
-    fire(5);
-  }
-  void JsCardNode::fire6()
-  {
-    fire(6);
-  }
-  void JsCardNode::fire7()
-  {
-    fire(7);
   }
   CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime)
   {

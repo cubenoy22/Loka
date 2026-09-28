@@ -359,29 +359,34 @@ namespace smirkycard
         return node.lowerEditText(ctx, tree);
       }
     };
-    class ButtonLowering : public IJsNodeLowering
+    class ClickableLowering : public IJsNodeLowering
     {
     public:
-      ButtonLowering()
+      explicit ClickableLowering(bool cell)
+          : cell_(cell)
       {
-        name = "Button";
+        name = cell ? "Cell" : "Button";
         kind = 0;
       }
       virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
       {
-        if (argc != 2 || !JS_IsString(argv[0]) || !JS_IsFunction(ctx, argv[1]))
-          return JS_ThrowTypeError(ctx, "Button(label, handler) requires a string and function");
+        if (argc != 2 || !JS_IsFunction(ctx, argv[1]))
+          return JS_ThrowTypeError(ctx, "%s(label, handler) requires a label and function", name);
         JSValue n = newTree(ctx, kind);
         JS_SetPropertyStr(ctx, n, "label", JS_DupValue(ctx, argv[0]));
         JS_SetPropertyStr(ctx, n, "handler", JS_DupValue(ctx, argv[1]));
-        JS_SetPropertyStr(ctx, n, "enabled", JS_NewCFunction(ctx, &ScriptRuntime::enabled, "enabled", 1));
+        if (!this->cell_)
+          JS_SetPropertyStr(ctx, n, "enabled", JS_NewCFunction(ctx, &ScriptRuntime::enabled, "enabled", 1));
         JS_FreezeObject(ctx, n);
         return n;
       }
       virtual loka::app::scene::NodeDefinitionBase *lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int)
       {
-        return node.lowerButton(ctx, tree);
+        return node.lowerClickable(ctx, tree, this->cell_);
       }
+
+    private:
+      const bool cell_;
     };
   } // namespace
   bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry)
@@ -394,9 +399,10 @@ namespace smirkycard
     return registry.registerLowering(new (std::nothrow) StackLowering("VStack", false))
            && registry.registerLowering(new (std::nothrow) TextLowering())
            && registry.registerLowering(new (std::nothrow) EditTextLowering())
-           && registry.registerLowering(new (std::nothrow) ButtonLowering())
+           && registry.registerLowering(new (std::nothrow) ClickableLowering(false))
            && registry.registerLowering(new (std::nothrow) StackLowering("Row", true))
-           && registry.registerLowering(new (std::nothrow) MarkupLowering()) && registry.registerGlobal(card)
+           && registry.registerLowering(new (std::nothrow) MarkupLowering())
+           && registry.registerLowering(new (std::nothrow) ClickableLowering(true)) && registry.registerGlobal(card)
            && registry.registerGlobal(state) && registry.registerGlobal(go) && registry.registerGlobal(reload)
            && registry.registerGlobal(open);
   }

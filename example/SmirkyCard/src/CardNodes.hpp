@@ -2,6 +2,7 @@
 #define SMIRKYCARD_CARD_NODES_HPP
 
 #include "ScriptRuntime.hpp"
+#include "CardRecords.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/state/NodeState.hpp"
@@ -52,7 +53,7 @@ namespace smirkycard
     bool setComposeTree(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);
-    loka::app::scene::NodeDefinitionBase *lowerButton(JSContext *context, JSValueConst tree);
+    loka::app::scene::NodeDefinitionBase *lowerClickable(JSContext *context, JSValueConst tree, bool cell);
     void fail(const char *message);
     loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     virtual void declareBindings(loka::app::scene::BindingToken &token);
@@ -63,19 +64,13 @@ namespace smirkycard
   private:
     friend struct IJsNodeLowering;
     friend class ScriptRuntime;
+    friend class JsClickNode;
     void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
-    int handlerSlot(JSContext *context, JSValueConst handler);
-    void fire(int slot);
+    JsSeatRecord *findSeat(JSContext *context, JSValueConst value) const;
+    JsHandlerRecord *addHandler(JSContext *context, JSValueConst handler);
+    void fire(const JsHandlerRecord &handler);
     void callHook(JSValueConst hook);
-    void fire0();
-    void fire1();
-    void fire2();
-    void fire3();
-    void fire4();
-    void fire5();
-    void fire6();
-    void fire7();
     void declareRefusal(loka::app::scene::NodeComposition &composition);
     JsEngine *engine_;
     JsEngineRef engineRef_;
@@ -83,15 +78,11 @@ namespace smirkycard
     bool failed_;
     JSValue instance_;
     loka::core::String failure_;
-    loka::core::EmitterState emitters_[8];
     loka::core::EmitterState reloadEmitter_;
-    int usedStates_;
-    JSValue seats_[8], handlers_[8], errorSeat_, tree_, onAttach_, onDetach_;
-    int seatKinds_[8];
-    loka::app::scene::NodeState<loka::core::String> strings_[8], script_, result_, error_;
-    loka::app::scene::NodeState<int> ints_[8];
-    loka::app::scene::NodeState<bool> bools_[8];
-    loka::app::scene::DerivedNodeState<loka::core::String> derivedStrings_[8];
+    CardRecords<JsSeatRecord> seats_;
+    CardRecords<JsHandlerRecord> handlers_;
+    JSValue errorSeat_, tree_, onAttach_, onDetach_;
+    loka::app::scene::NodeState<loka::core::String> error_;
   };
   CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime);
 } // namespace smirkycard
