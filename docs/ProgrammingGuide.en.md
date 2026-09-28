@@ -1061,6 +1061,18 @@ Selection is in content coordinates; put the view under ScrollView for scrolling
 ScrollView owns translation, while the view reports the full list extent even
 though only a bounded window is resident.
 
+On Toolbox, a resident Column containing only Text and AttributedText leaves can
+reuse measured advances when its ScrollView moves. Placement visits the range
+covering the previous and new viewport. Changes to unvisited off-screen leaves
+may leave the scrollbar total and downstream positions stale until those leaves
+enter that range. A changed visited advance triggers a complete repair in the
+same layout call, before presentation. Width, ScrollView props, structure and
+reattachment invalidate the measured table. Font/style changes must mark the
+leaves; visible marked leaves detect changed advances through the same repair
+path. Other child kinds keep full placement. Native Win32 and macOS scrolling
+continues to use full layout.
+
+
 A content edit in the window reapplies item Props and refreshes bindings without
 re-declaration. Off-window edits are read when a future generation materializes.
 A change to `(first, count, structureRevision)` replaces the whole LazyScope
