@@ -65,7 +65,9 @@ public:
 
 private:
   Win32TextEnvironment::Subscription textEnvironmentSubscription_;
-  /** Plain measurement projects width from zero, independent of placement. */
+  /** Plain measurement is keyed by the native width the STATIC receives
+      (edges projected at the placement), so a placement whose rounding
+      changes the native width is a miss, as on the attributed rail. */
   struct Constraint
   {
     Constraint(int w = 0, HFONT f = 0) : width(w), font(f) {}

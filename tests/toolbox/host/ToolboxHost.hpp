@@ -360,6 +360,8 @@ namespace toolbox_host
   extern int erases, widths, measures, fonts, metrics;
   /** Remaining NewRgn calls to refuse with a null handle (Classic memory pressure). */
   extern int failRegions;
+  /** NewRgn attempts, including refused ones. */
+  extern int regions;
   void reset();
 } // namespace toolbox_host
 #endif
