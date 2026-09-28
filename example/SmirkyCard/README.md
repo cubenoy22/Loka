@@ -140,3 +140,30 @@ After removing diagnostic logging, it was runtime-verified on MAME 0.289
 pmac6100 (72 MiB, J1-8.1): `1+1` and `2+2` evaluation, ten Card One/Card Two
 round trips (20 navigation calls), and Reload. This evidence does not cover
 physical hardware.
+
+## JS seats and clickables
+
+Declare `state(initial)` only in a card constructor. Initial values may be
+Strings, integers, or Bools; the seat keeps its type. `Text(seat)` formats
+integers and Bools, and `EditText(seat)` requires a String seat.
+
+`Button(textOrSeat, handler)` and `Cell(textOrSeat, handler)` accept a literal
+String or a live String seat. The latter renders Loka's native clickable text
+Cell, as used by the C++ MineSweeper. A handler runs with the card as `this`;
+seat writes update the label without composing the card again.
+Only Button has `.enabled(boolSeat)`. Both support `.TEST_ID('name')`.
+
+Each card has two independent admission budgets, declared in
+[src/CardRecords.hpp](src/CardRecords.hpp): `kCardSeatBudget` (128 seats) and
+`kCardClickableBudget` (128 total Buttons plus Cells). Exceeding either shows
+the existing refusal card with a message naming that budget and the Reload
+button. Records are allocated only for seats declared and clickables lowered;
+there is no eight-slot allocation or dispatch table. The refusal UI's Reload
+button is a separate host control. The existing 16-children-per-stack and
+depth-eight tree limits still apply; use nested rows for larger cards.
+
+The card owns stable seat handles and JS handler records. Each clickable is a
+small child Component that owns its emitter and binds in its own declaration
+window. Detach withdraws that binding synchronously; the card releases records
+only during its destruction after its subtree is detached. Child destruction
+never accesses the borrowed handler.
