@@ -20,8 +20,13 @@ try {
     # Force System.Diagnostics.Process to retain a native handle so ExitCode
     # remains queryable after this short-lived child has terminated.
     $null = $process.Handle
+    $stopwatch = [Diagnostics.Stopwatch]::StartNew()
 
-    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    # The deadline bounds a hang that shows no window; the window check below
+    # is independent of it. A loaded hosted runner has needed more than 5 s to
+    # finish tearing down a process whose assertion had already fired (#919).
+    $deadlineSeconds = 30
+    $deadline = [DateTime]::UtcNow.AddSeconds($deadlineSeconds)
     $dialogHandle = [IntPtr]::Zero
     while (-not $process.HasExited -and [DateTime]::UtcNow -lt $deadline) {
         $process.Refresh()
@@ -42,10 +47,11 @@ try {
         Stop-Process -Id $process.Id -Force
         $process.WaitForExit()
         $timedOutDiagnostic = [IO.File]::ReadAllText($stderrPath)
-        throw "Win32 assert probe did not exit within 5 seconds. stderr: $timedOutDiagnostic"
+        throw "Win32 assert probe did not exit within $deadlineSeconds seconds. stderr: $timedOutDiagnostic"
     }
 
     $process.WaitForExit()
+    $exitMilliseconds = $stopwatch.ElapsedMilliseconds
     $exitCode = $process.ExitCode
     $diagnostic = [IO.File]::ReadAllText($stderrPath)
     if ($null -eq $exitCode) {
@@ -61,7 +67,7 @@ try {
         throw "Win32 assert probe diagnostic did not identify the positive control: $diagnostic"
     }
 
-    Write-Host "Win32 assert exited $exitCode without displaying a dialog."
+    Write-Host "Win32 assert exited $exitCode after $exitMilliseconds ms without displaying a dialog."
 }
 finally {
     if ($process -and -not $process.HasExited) {
