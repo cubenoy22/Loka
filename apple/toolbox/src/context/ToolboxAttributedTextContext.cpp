@@ -130,6 +130,11 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
       || !(this->table_.value() == this->node_->props.text_->get()))
     return;
   this->presented_.invalidate();
+  // Layout already intersected the placement with the projection clip: an
+  // empty paint rect owes no pixels, so leave before switching the port or
+  // allocating clip regions (the resident-Column scroll cost, S1 lane).
+  if (EmptyRect(&this->paintRect_))
+    return;
   ToolboxTextMeasureScope port(*this->controller());
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))

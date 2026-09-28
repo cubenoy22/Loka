@@ -183,7 +183,16 @@ int main(int argc, char **argv)
     LOKA_VERIFY(table.valid());
     Rect hiddenPaint = ToolboxAttributedTextContextAccess::paintRect(*context);
     LOKA_VERIFY(EmptyRect(&hiddenPaint));
-    context->render(&controller);
+    Pin("ToolboxAttributedTextClippedOutRenderAllocatesNoRegion");
+    {
+      // S1 lane: a leaf clipped out by layout leaves render before the port
+      // switch and the clip; no NewRgn, no draw, history stays unknown.
+      const int regionsBefore = toolbox_host::regions;
+      const std::size_t drawsBefore = toolbox_host::draws.size();
+      context->render(&controller);
+      LOKA_VERIFY(toolbox_host::regions == regionsBefore);
+      LOKA_VERIFY(toolbox_host::draws.size() == drawsBefore);
+    }
     LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
     SetRect(&controller.projectionClip, -30000, -30000, 30000, 30000);
     seat = Seat(80);

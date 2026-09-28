@@ -376,6 +376,10 @@ void ToolboxTextContext::paint(bool erase)
 {
   if (!this->node_ || !this->controller() || EmptyRect(&this->rect_))
     return;
+  // Same early exit as AttributedText: a placement clipped out by layout
+  // owes no pixels, so no port switch and no clip regions.
+  if (EmptyRect(&this->paintRect_))
+    return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   ToolboxPaintClip clip(this->paintRect_);
