@@ -14,6 +14,8 @@ option(LOKA_ENABLE_STANDALONE_TARGETS
 option(LOKA_LIFECYCLE_AUDIT "Enable lifecycle alive-counter auditing" OFF)
 option(LOKA_RETRO68_DIAGNOSTICS
   "Diagnostic Retro68 profile: keep MacsBug names, the function-tick profiler, and debug-stats dumps" OFF)
+option(LOKA_TOOLBOX_PASS_TIMING
+  "Measure Toolbox layout/render passes with Microseconds without enabling diagnostic profiling" OFF)
 set(LOKA_SCRAPBOOK_R_HEADER_DIR
   "${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src" CACHE PATH
   "Directory containing lrpc's generated ScrapbookUI R.hpp")
@@ -55,6 +57,10 @@ endif()
 # (PROFILE_FUNC expands inside shared headers).
 if(LOKA_CLASSIC_MAC AND LOKA_RETRO68_DIAGNOSTICS)
   add_definitions(-DLOKA_RETRO68_DIAGNOSTICS=1 -DLOKA_PROFILE_FUNC_TICKS=1)
+endif()
+
+if(LOKA_CLASSIC_MAC AND LOKA_TOOLBOX_PASS_TIMING)
+  add_definitions(-DLOKA_TOOLBOX_PASS_TIMING=1)
 endif()
 
 set(LOKA_CLASSIC_TARGET_SUFFIX "")

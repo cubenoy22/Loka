@@ -180,9 +180,8 @@ set(LOKA_PROBE_SERIES "20,50,-50,100,-200,200" CACHE STRING "Signed paragraph co
 function(loka_add_paragraph_probe)
   set(target "LokaParagraphProbe${LOKA_CLASSIC_TARGET_SUFFIX}")
   loka_add_toolbox_test_application(${target} LokaAppleToolboxCore
-    src/ParagraphProbeStandaloneMain.cpp ParagraphProbeSize.r
-    ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp)
-  target_compile_definitions(${target} PRIVATE TEST_BUILD=1 "LOKA_PROBE_SERIES=${LOKA_PROBE_SERIES}")
+    src/ParagraphProbeStandaloneMain.cpp ParagraphProbeSize.r)
+  target_compile_definitions(${target} PRIVATE "LOKA_PROBE_SERIES=${LOKA_PROBE_SERIES}")
   set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
   set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 endfunction()

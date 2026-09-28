@@ -2,7 +2,7 @@
 #include "core/Profiler.hpp"
 #include <Timer.h>
 
-#if LOKA_PROFILE_FUNC_TICKS
+#if LOKA_PROFILE_FUNC_TICKS || LOKA_TOOLBOX_PASS_TIMING
 #if defined(LOKA_TOOLBOX_MULTIVERSAL_INTERFACES)
 // Multiversal omits Microseconds. The trap writes two consecutive 32-bit words;
 // use stack storage with the same ABI as Universal's UnsignedWide.
@@ -22,7 +22,7 @@ unsigned long ToolboxProfileMicroseconds()
 #endif
 }
 
-#endif // LOKA_PROFILE_FUNC_TICKS
+#endif // LOKA_PROFILE_FUNC_TICKS || LOKA_TOOLBOX_PASS_TIMING
 
 // Backend implementation using TickCount()
 static long ToolboxGetTicks()

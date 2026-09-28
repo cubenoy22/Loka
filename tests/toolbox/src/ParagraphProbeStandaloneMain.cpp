@@ -1,3 +1,7 @@
+#ifdef TEST_BUILD
+#error ParagraphProbe must use the production ABI of LokaAppleToolboxCore
+#endif
+
 #include <cstdio>
 #include <Processes.h>
 #include "ToolboxProbeTiming.hpp"
@@ -161,12 +165,36 @@ namespace
     }
   };
 
+  /** Allocation-free interval baseline; never copy the stats' diagnostic strings. */
+  struct PassStats
+  {
+    unsigned long totalLayoutUs;
+    unsigned long totalRenderUs;
+    unsigned long totalLeafLayout;
+    unsigned long totalLeafRender;
+    unsigned long totalPaintClipRegions;
+
+    explicit PassStats(const ToolboxSceneDebugStats &stats)
+        : totalLayoutUs(stats.totalLayoutUs),
+          totalRenderUs(stats.totalRenderUs),
+          totalLeafLayout(stats.totalLeafLayout),
+          totalLeafRender(stats.totalLeafRender),
+          totalPaintClipRegions(stats.totalPaintClipRegions)
+    {
+    }
+    PassStats()
+        : totalLayoutUs(0), totalRenderUs(0), totalLeafLayout(0),
+          totalLeafRender(0), totalPaintClipRegions(0)
+    {
+    }
+  };
+
   /** Exact LOG.TXT format (CR line endings):
       series=S<1|2> N=<count> phase=<phase> step=<step> us=<elapsed> FreeMem=<bytes> offset=<pixels> texts=<count>
       Scroll records append, in order:
        layout_us=<us> render_us=<us> rest_us=<signed us> leaf_layout=<visits> leaf_render=<visits> rgn=<calls>
       Deltas span timer start before offset.set through the next settled idle.
-      Timing requires LOKA_RETRO68_DIAGNOSTICS=ON (the profiler gate).
+      Timing uses LOKA_TOOLBOX_PASS_TIMING=ON; diagnostics may stay OFF.
       Render excludes layout; rest is elapsed minus both (no clamping).
       Layout visits count leaf contexts; render visits count attributed/plain
       text contexts, including clipped visits;
@@ -199,7 +227,7 @@ namespace
       return this->log_ && !std::ferror(this->log_) && loka::platform::file::FlushWrite(this->log_, this->file_);
     }
     void measurement(int selected, const char *phase, int step, unsigned long us, int offset, int texts,
-                     const ToolboxSceneDebugStats *before = 0, const ToolboxSceneDebugStats *after = 0)
+                     const PassStats *before = 0, const PassStats *after = 0)
     {
       std::fprintf(this->log_,
                    "series=S%d N=%d phase=%s step=%d us=%lu FreeMem=%ld offset=%d texts=%d",
@@ -324,7 +352,7 @@ namespace
     App *app_;
     int phase_;
     UnsignedWide interval_;
-    ToolboxSceneDebugStats initial_;
+    PassStats initial_;
 
     void stop(const char *phase, unsigned long elapsed)
     {
@@ -362,7 +390,8 @@ namespace
       Microseconds(&now);
       const unsigned long elapsed = now.lo - this->interval_.lo;
       ToolboxScenePlatformController *controller = static_cast<ToolboxWindow *>(window)->scenePlatformController();
-      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      // Keep this production-core probe ABI-identical to the linked library.
+      const PassStats stats(controller->debugStats_);
       const int count = CountCompleted(document);
       const int offset = document->offset();
       const layout::LazyLayout policy = layout::FixedGrid(300, 64, 1, this->model_.size());

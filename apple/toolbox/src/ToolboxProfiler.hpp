@@ -2,7 +2,7 @@
 #define TOOLBOX_PROFILER_HPP
 
 /** Low-word microseconds for cumulative diagnostic pass timing (<71 minutes). */
-#if LOKA_PROFILE_FUNC_TICKS
+#if LOKA_PROFILE_FUNC_TICKS || LOKA_TOOLBOX_PASS_TIMING
 unsigned long ToolboxProfileMicroseconds();
 #else
 inline unsigned long ToolboxProfileMicroseconds() { return 0; }
