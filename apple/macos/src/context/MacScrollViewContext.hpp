@@ -32,10 +32,10 @@ public:
       exact logical offset represented after clamping. */
   int setScrollMetrics(int contentHeight, int viewportHeight, int offset);
 
-  /** Notification door used by the owned NSScrollView observer. */
-  void publishClipViewBoundsOrigin();
-
 private:
+  friend class MacInputDoor;
+  /** Bounds-notification body; the rail door owns its complete borrow. */
+  void publishClipViewBoundsOrigin();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   int clampOffset(int value, int maximum) const;

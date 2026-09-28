@@ -1,4 +1,5 @@
 #include "MacPopupMenuContext.hpp"
+#include "../MacInputDoor.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../platform/MacNativeGeometry.hpp"
@@ -56,7 +57,7 @@ namespace
   (void)sender;
   if (self.owner)
   {
-    self.owner->handleSelectionChange();
+    MacInputDoor::popupChange(*[self owner]);
   }
 }
 @end
@@ -169,6 +170,9 @@ short MacPopupMenuContext::layout(loka::app::scene::IPlatformController *, loka:
 
 void MacPopupMenuContext::handleSelectionChange()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (!applyingFromState_)
   {
     syncStateFromControl();

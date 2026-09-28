@@ -52,8 +52,6 @@ public:
   virtual bool queryDisplayAppearance(DisplayAppearance &out) const;
 
   void handleWindowWillClose();
-  void handleWindowDidResize();
-  void handleWindowDidMove();
   void handleWindowDidBecomeKey();
   bool handleKeyPress(char key);
 
@@ -61,6 +59,9 @@ protected:
   virtual void onCreate();
 
 private:
+  friend class MacInputDoor;
+  void handleWindowDidResize();
+  void handleWindowDidMove();
   friend class ::loka::dsl::testing::MacWindowTestAccess;
 
   // Deliberate Win32/Null counterpart: stable across native recreation.

@@ -1,4 +1,5 @@
 #include "MacTextEditorContext.hpp"
+#include "../MacInputDoor.hpp"
 #include "app/nodes/controls/TextChangeSpan.hpp"
 #include "app/nodes/controls/TextEditorDiff.hpp"
 #include "../MacScenePlatformController.hpp"
@@ -168,7 +169,7 @@ namespace
 {
   NSTextView *view = (NSTextView *)[notification object];
   if ([self owner])
-    [self owner]->handleTextDidChange(MacTextEditorContext::VIEW_CHANGE, [view selectedRange].location);
+    MacInputDoor::textEditorChange(*[self owner], MacTextEditorContext::VIEW_CHANGE, [view selectedRange].location);
 }
 - (void)textStorageDidProcessEditing:(NSNotification *)notification
 {
@@ -179,14 +180,14 @@ namespace
     // processEditing, so our styling no longer widens this character-edit range.
     // It still unions all character edits in the pass: evidence of where,
     // not of how much changed. Selection is not final here.
-    [self owner]->handleTextDidChange(MacTextEditorContext::STORAGE_EDIT, [storage editedRange].location);
+    MacInputDoor::textEditorChange(*[self owner], MacTextEditorContext::STORAGE_EDIT, [storage editedRange].location);
   }
 }
 - (void)textViewDidChangeSelection:(NSNotification *)notification
 {
   (void)notification;
   if ([self owner])
-    [self owner]->handleSelectionDidChange();
+    MacInputDoor::textEditorSelection(*[self owner]);
 }
 - (BOOL)textView:(NSTextView *)view shouldChangeTextInRange:(NSRange)range replacementString:(NSString *)text
 {
@@ -194,18 +195,18 @@ namespace
   (void)range;
   (void)text;
   if ([self owner])
-    [self owner]->captureSelection();
+    MacInputDoor::textEditorCapture(*[self owner]);
   return YES;
 }
 - (void)applyHighlights
 {
   if ([self owner])
-    [self owner]->applyHighlights();
+    MacInputDoor::textEditorHighlights(*[self owner]);
 }
 - (void)restoreProjection
 {
   if ([self owner])
-    [self owner]->restoreCommittedProjection();
+    MacInputDoor::textEditorRestore(*[self owner]);
 }
 @end
 
@@ -934,6 +935,9 @@ loka::app::scene::FollowUp MacTextEditorContext::prepareRestore()
 }
 void MacTextEditorContext::restoreCommittedProjection()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   ++this->restores_;
@@ -1071,12 +1075,18 @@ void MacTextEditorContext::restoreSelectionFromFact(RailOperation &op)
 
 void MacTextEditorContext::captureSelection()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (this->projection_->phase == Projection::IDLE || this->projection_->phase == Projection::STORAGE_PENDING)
     this->projection_->selection = [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] selectedRange];
 }
 
 void MacTextEditorContext::handleSelectionDidChange()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   RailOperation op(*this);
   Projection &p = *this->projection_;
   if (p.phase == Projection::INPUT || p.phase == Projection::RECONCILE)
@@ -1200,6 +1210,9 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
 
 void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size_t caretOffset)
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   RailOperation op(*this);
   Projection &p = *this->projection_;
   if (p.phase == Projection::APPLYING || p.phase == Projection::UNAVAILABLE)
@@ -1264,6 +1277,9 @@ void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size
 
 void MacTextEditorContext::applyHighlights()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
   RailOperation op(*this);

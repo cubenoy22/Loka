@@ -4,6 +4,7 @@
 #include "FocusPostTests.hpp"
 #ifdef __APPLE__
 #include "MacTextEditorTests.hpp"
+#include "MacInputDoorTests.hpp"
 #include "MacFocusTests.hpp"
 #endif
 #include "TextEditorTests.hpp"

@@ -1,4 +1,5 @@
 #include "MacCellContext.hpp"
+#include "../MacInputDoor.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../platform/MacNativeGeometry.hpp"
@@ -67,6 +68,7 @@ namespace
 - (void)setText:(NSString *)value;
 - (MacCellContext *)context;
 - (void)setContext:(MacCellContext *)value;
+- (void)continueMouseDown:(NSEvent *)event;
 @end
 
 @implementation LokaCellView
@@ -130,8 +132,14 @@ namespace
 {
   if (self.context)
   {
-    self.context->handleClick();
+    MacInputDoor::cellClick(*[self context], event);
+    return;
   }
+  [super mouseDown:event];
+}
+
+- (void)continueMouseDown:(NSEvent *)event
+{
   [super mouseDown:event];
 }
 @end
@@ -251,13 +259,14 @@ void MacCellContext::relayout(int x, int y, int width, int height)
   [view setNeedsDisplay:YES];
 }
 
-void MacCellContext::handleClick()
+void MacCellContext::handleClick(void *event)
 {
-  if (!node_ || !node_->props.onClick_)
-  {
-    return;
-  }
-  node_->props.onClick_->emit();
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
+  if (this->node_ && this->node_->props.onClick_)
+    this->node_->props.onClick_->emit();
+  [(LokaCellView *)this->view_ continueMouseDown:(NSEvent *)event];
 }
 
 void MacCellContext::bindText()

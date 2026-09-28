@@ -1,3 +1,4 @@
+#include "MacInputDoor.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
 #include "support/TextEditorAccess.hpp"
@@ -214,7 +215,7 @@ namespace
     }
     void edit(NSString *text, NSUInteger caret)
     {
-      this->context->captureSelection();
+      MacInputDoor::textEditorCapture(*this->context);
       // Model a local native edit rather than a whole-document replacement.
       NSString *before = [this->view string];
       NSUInteger first = 0, oldEnd = [before length], newEnd = [text length];
@@ -312,6 +313,7 @@ namespace
       ++self.calls;
       if (self.nested)
       {
+        LOKA_VERIFY(self.fixture.controller.operationPhase().open());
         self.nested = false;
         if (self.deferred)
           loka::core::testing::PushStateTrackerTestAccess::defer(self.fixture.tracker, &reenter, &self);
@@ -342,6 +344,7 @@ namespace
       ++self.calls;
       if (self.nested)
       {
+        LOKA_VERIFY(self.fixture.controller.operationPhase().open());
         self.nested = false;
         [self.fixture.view setSelectedRange:NSMakeRange(8, 0)];
         [[self.fixture.view delegate]
@@ -972,7 +975,7 @@ void testMacTextEditorRequests()
     RequestObserver observer(f, view, LineCursor(f.lines.at(1).id, 1));
     // Selection's synchronous report spends props delivery before its tail.
     [view setSelectedRange:NSMakeRange(0, 0)];
-    f.context->handleSelectionDidChange();
+    MacInputDoor::textEditorSelection(*f.context);
     LOKA_VERIFY(NSEqualRanges([view selectedRange], NSMakeRange(6, 0)));
     LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 1));
     LOKA_VERIFY(f.request.get().isNone());
@@ -989,7 +992,7 @@ void testMacTextEditorRequests()
       [view setDelegate:nil];
     else
       [[view textStorage] setDelegate:nil];
-    f.context->captureSelection();
+    MacInputDoor::textEditorCapture(*f.context);
     const NSUInteger before = [view selectionWrites];
     [[view textStorage] replaceCharactersInRange:NSMakeRange(2, 0) withString:@"x"];
     if (storageOnly)
@@ -1002,7 +1005,7 @@ void testMacTextEditorRequests()
       LOKA_VERIFY([view selectionWrites] == before);
       LOKA_VERIFY(!f.request.get().isNone());
       // Selection reporting is allowed, but cannot open request delivery yet.
-      f.context->handleSelectionDidChange();
+      MacInputDoor::textEditorSelection(*f.context);
       LOKA_VERIFY(!f.request.get().isNone());
       for (int i = 0; i < 20 && !f.request.get().isNone(); ++i)
         f.turn();
@@ -1066,7 +1069,7 @@ void testMacTextEditorRequestReverse()
   requestCaret(f, LineCursor::None());
   LokaRequestEditorView *view = instrumentSelection(f);
   [view setSelectedRange:NSMakeRange(2, 0)];
-  f.context->handleSelectionDidChange();
+  MacInputDoor::textEditorSelection(*f.context);
   RequestObserver observer(f, view, LineCursor::None());
   [view deleteBackward:nil];
   LOKA_VERIFY(bytes(f.lines.at(0).value) == "acd");
@@ -1100,7 +1103,7 @@ void testMacTextEditorLineActions()
     Fixture edge(2, "a");
     const ItemId a = edge.lines.at(0).id, b = edge.lines.at(1).id;
     [edge.view setSelectedRange:NSMakeRange(splitB ? 1 : 2, 0)];
-    edge.context->handleSelectionDidChange();
+    MacInputDoor::textEditorSelection(*edge.context);
     LOKA_VERIFY(edge.cursor.state()->get() == (splitB ? LineCursor(a, 1) : LineCursor(b, 0)));
     id viewDelegate = [edge.view delegate];
     [edge.view setDelegate:nil];
@@ -1129,18 +1132,18 @@ void testMacTextEditorLineActions()
       [edge.view setDelegate:viewDelegate];
       if (storageOnly)
       {
-        edge.context->handleSelectionDidChange();
+        MacInputDoor::textEditorSelection(*edge.context);
         LOKA_VERIFY(edge.cursor.state()->get() == LineCursor(b, 0));
         [edge.view setDelegate:nil];
         [edge.view setSelectedRange:NSMakeRange(0, 0)];
-        edge.context->captureSelection();
+        MacInputDoor::textEditorCapture(*edge.context);
       }
       else
       {
         // The view hint must come from native selection, not the older cursor.
         LOKA_VERIFY(edge.cursor.state()->get() == LineCursor(a, 1));
         [[edge.view textStorage] setDelegate:nil];
-        edge.context->captureSelection();
+        MacInputDoor::textEditorCapture(*edge.context);
       }
       [[edge.view textStorage] replaceCharactersInRange:NSMakeRange(join ? 1 : 2, join ? 1 : 0)
                                             withString:join ? @"" : @"\n"];
@@ -1533,6 +1536,7 @@ void testMacTextEditorNestedInput()
     observer.nested = true;
     observer.deferred = deferred != 0;
     f.edit(@"abxcd\nabcd\nabcd", 3);
+    LOKA_VERIFY(!f.controller.operationPhase().open());
     LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
     LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 3));
     f.restored(1);

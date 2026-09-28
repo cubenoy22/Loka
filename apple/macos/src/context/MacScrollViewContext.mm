@@ -1,4 +1,5 @@
 #include "MacScrollViewContext.hpp"
+#include "../MacInputDoor.hpp"
 #include "../MacObjCCompat.hpp"
 #include "../platform/MacNativeGeometry.hpp"
 #include "../MacScenePlatformController.hpp"
@@ -35,7 +36,7 @@
   (void)notification;
   if (context_)
   {
-    context_->publishClipViewBoundsOrigin();
+    MacInputDoor::scrollBoundsChange(*context_);
   }
 }
 @end
@@ -216,6 +217,9 @@ int MacScrollViewContext::setScrollMetrics(int contentHeight, int viewportHeight
 
 void MacScrollViewContext::publishClipViewBoundsOrigin()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   NSScrollView *scrollView = (NSScrollView *)this->scrollView_;
   if (!scrollView)
   {

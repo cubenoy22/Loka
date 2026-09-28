@@ -1,4 +1,5 @@
 #include "MacButtonContext.hpp"
+#include "../MacInputDoor.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
 #include "../MacObjCCompat.hpp"
@@ -95,7 +96,7 @@ namespace
   (void)sender;
   if (self.owner)
   {
-    self.owner->handlePress();
+    MacInputDoor::buttonPress(*[self owner]);
   }
 }
 @end
@@ -212,6 +213,9 @@ short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::ap
 
 void MacButtonContext::handlePress()
 {
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(this->controller()->operationPhase().open());
+#endif
   if (node_ && node_->props.onClick_)
   {
     node_->props.onClick_->emit();

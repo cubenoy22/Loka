@@ -135,6 +135,8 @@ public:
   void queueNativeRetirement(void *primary, void *auxiliary = 0);
 
 private:
+  friend class MacInputDoor;
+  void handlePendingRelayout();
   friend class ::loka::dsl::testing::MacScenePlatformTestAccess;
   friend class ::loka::app::scene::MacPlatformLayoutTraversal;
   friend void RegisterMacBuiltInSupport(MacScenePlatformController &controller);
