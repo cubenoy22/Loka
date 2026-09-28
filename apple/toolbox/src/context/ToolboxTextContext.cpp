@@ -435,6 +435,11 @@ void ToolboxTextContext::draw(ToolboxScenePlatformController *controller)
 {
   if (!this->node_ || !this->controller() || EmptyRect(&this->rect_))
     return;
+  // A placement clipped out by layout owes no pixels and no hit row
+  // (recordTextHit rejects it too): leave before the measure scope, the
+  // paint clip and the hit-width measurement (S1 lane).
+  if (EmptyRect(&this->paintRect_))
+    return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   // Paint and the hit-width measurement are one non-yielding transaction.
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
