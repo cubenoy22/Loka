@@ -29,7 +29,7 @@ export LOKA_MAME_CPU="$cpu"
 target=
 preset=retro68-${cpu}-release
 bin=
-data=
+data=()
 
 case "$key" in
     AllStandaloneLoops|AllStandaloneFlows)
@@ -60,7 +60,7 @@ case "$key" in
         target=LokaScrapbookStandaloneLoop${suffix}_APPL
         preset=retro68-${cpu}-standalone-release
         bin=build/retro68/${cpu}/Standalone/Release/tests/toolbox/LokaScrapbookStandaloneLoop${suffix}.bin
-        data=build/retro68/${cpu}/Standalone/Release/tests/toolbox/ASSETS.LRP
+        data=(build/retro68/${cpu}/Standalone/Release/tests/toolbox/ASSETS.LRP)
         ;;
     HelloWorldStandaloneLoop)
         target=LokaHelloStandaloneLoop${suffix}_APPL
@@ -101,7 +101,7 @@ case "$key" in
     SmirkyCard)
         target=LokaSmirkyCard${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin
-        data=example/SmirkyCard/MAIN.JS
+        data=(example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS)
         ;;
     MineSweeper)
         target=LokaMine${suffix}_APPL
@@ -130,12 +130,12 @@ case "$key" in
     ScrapbookUI)
         target=ScrapbookUI${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/ScrapbookUI/ScrapbookUI${suffix}.bin
-        data=build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP
+        data=(build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP)
         ;;
     ScrapbookStandaloneFlow)
         target=LokaScrapbookStandaloneFlow${suffix}_APPL
         bin=build/presentation/toolbox-${cpu}-release/LokaScrapbookStandaloneFlow${suffix}.bin
-        data=build/presentation/toolbox-${cpu}-release/ASSETS.LRP
+        data=(build/presentation/toolbox-${cpu}-release/ASSETS.LRP)
         ;;
     HelloWorldStandaloneFlow)
         target=LokaHelloStandaloneFlow${suffix}_APPL
@@ -192,9 +192,9 @@ else
     if [ "$mode" = "--build-and-prepare" ]; then
         build_app
     fi
-    if [ -n "$data" ]; then
-        exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin" "$workspace_dir/$data"
-    else
-        exec "$script_dir/mame-dev-disk.sh" "$workspace_dir/$bin"
-    fi
+    arguments=("$workspace_dir/$bin")
+    for item in ${data[@]+"${data[@]}"}; do
+        arguments+=("$workspace_dir/$item")
+    done
+    exec "$script_dir/mame-dev-disk.sh" "${arguments[@]}"
 fi

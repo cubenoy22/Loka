@@ -350,6 +350,33 @@ namespace smirkycard
     props.runtime->commitReload(candidate);
     scene->replaceWith(next);
   }
+  void JsCardNode::requestOpen(const char *name, size_t length)
+  {
+    const loka::core::String prefix = loka::core::String::Utf8(name, length) + loka::core::String::Literal(": ");
+    CardScene *scene = static_cast<CardScene *>(this->scene());
+    if (!scene)
+    {
+      fail(prefix + loka::core::String::Literal("open() is unavailable while the card is detaching."));
+      return;
+    }
+    loka::core::String error;
+    JsEngine *candidate = props.runtime->prepareOpen(std::string(name, length), error);
+    if (!candidate)
+    {
+      fail(error);
+      return;
+    }
+    // As in requestReload above, admission constructs the node after the commit.
+    CardScene *next = CreateCard(SMIRKY_CARD_FIRST, *props.runtime);
+    if (!next)
+    {
+      props.runtime->discardReload(candidate);
+      fail(prefix + loka::core::String::Literal("Could not create the opened card."));
+      return;
+    }
+    props.runtime->commitReload(candidate);
+    scene->replaceWith(next);
+  }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
     t.action(reloadEmitter_, this, &JsCardNode::requestReload);

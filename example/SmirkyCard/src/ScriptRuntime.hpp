@@ -30,10 +30,12 @@ namespace smirkycard
   private:
     friend class JsEngineRef;
     friend class ScriptRuntime;
-    JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry);
+    JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry, const std::string &sourceName);
     ~JsEngine();
     void markRetired();
     ScriptRuntime *runtime_;
+    /** Immutable origin filename; empty for the built-in fallback. */
+    const std::string sourceName_;
     SmirkyScript *script_;
     JSValue first_;
     JSValue second_;
@@ -104,12 +106,14 @@ namespace smirkycard
     /** Selects MAIN.JS once through the application's portable file door. */
     void loadMain(PlatformContext *context);
     /** Reload is two doors so the runtime truth and the visible card change
-        together: prepareReload evaluates MAIN.JS in a new engine and returns
-        it uncommitted (0 with a message on any failure, including a candidate
+        together: prepareReload evaluates the engine's source file (MAIN.JS for
+        built-ins) in a new engine and returns it uncommitted (0 with a message on any failure, including a candidate
         that does not define the requested card); the caller builds the
         replacement Scene from it and then either commitReload (the candidate
         becomes current, the previous engine retires) or discardReload. */
     JsEngine *prepareReload(SmirkyCardId card, loka::core::String &error);
+    /** Prepares a sibling file whose entry card must be first. */
+    JsEngine *prepareOpen(const std::string &name, loka::core::String &error);
     void commitReload(JsEngine *candidate);
     void discardReload(JsEngine *candidate);
     MainSource mainSource() const
@@ -179,7 +183,7 @@ namespace smirkycard
     friend class JsEngineRef;
     friend class JsCardBindingRegistry;
     friend bool RegisterSmirkyCardBindings(JsCardBindingRegistry &registry);
-    JsEngine *createEngine();
+    JsEngine *createEngine(const std::string &sourceName = std::string());
     void replaceCurrentEngine(JsEngine *engine);
     void destroyRetiredEngine(JsEngine *engine);
     void openInterruptWindow(InterruptWindow &window);
@@ -190,7 +194,9 @@ namespace smirkycard
     static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    bool readMain(std::string &text, loka::core::String &error) const;
+    static JSValue open(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
+    bool readFile(const std::string &name, std::string &text, loka::core::String &error) const;
+    JsEngine *prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error);
     enum MainErrorScope
     {
       MAIN_ERROR_NONE,
