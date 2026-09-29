@@ -171,7 +171,7 @@ namespace smirkycard
   bool JsCardProps::operator<(const loka::app::scene::PropsBase &rhs) const
   {
     const JsCardProps &o = static_cast<const JsCardProps &>(rhs);
-    return runtime != o.runtime ? runtime < o.runtime : card < o.card;
+    return runtime != o.runtime ? runtime < o.runtime : card != o.card ? card < o.card : carry < o.carry;
   }
   JsCardNode::JsCardNode(const JsCardProps &p)
       : loka::app::scene::StdCompositionBoundaryNodeBase<JsCardProps>(p),
@@ -229,6 +229,19 @@ namespace smirkycard
           names[i],
           JS_NewCFunctionData(ctx, contextMethod, i == ContextReload ? 0 : 1, i, 1, &this->capability_));
     if (ok)
+    {
+      JSValue carry = p.carry.decode(ctx);
+      if (JS_IsException(carry))
+      {
+        p.runtime->captureException(*this->engine_, error);
+        fail("Could not decode carry in the destination card.");
+        JS_FreeValue(ctx, context);
+        JS_FreeValue(ctx, ctor);
+        return;
+      }
+      ok = JS_DefinePropertyValueStr(ctx, context, "carry", carry, JS_PROP_C_W_E) >= 0;
+    }
+    if (ok)
       ok = JS_FreezeObject(ctx, context) >= 0;
     if (!ok)
     {
@@ -269,23 +282,26 @@ namespace smirkycard
     }
     if (node->phase_ != Live)
       return JS_ThrowTypeError(ctx, "card navigation requires a Live card");
-    if (operation == ContextReload)
+    const bool reload = operation == ContextReload;
+    if (reload ? argc > 1 : (argc < 1 || argc > 2 || !JS_IsString(argv[0])))
+      return JS_ThrowTypeError(ctx, "navigation requires a name (except reload) and optional carry");
+    CardCarry carry;
+    const int carryIndex = reload ? 0 : 1;
+    if (!CardCarry::encode(ctx, argc > carryIndex ? argv[carryIndex] : JS_UNDEFINED, carry))
+      return JS_EXCEPTION;
+    if (reload)
     {
-      if (argc != 0)
-        return JS_ThrowTypeError(ctx, "c.reload() requires no arguments");
-      node->requestReload();
+      node->reloadWithCarry(carry);
       return JS_UNDEFINED;
     }
-    if (argc != 1 || !JS_IsString(argv[0]))
-      return JS_ThrowTypeError(ctx, "card navigation requires a string name");
     size_t length = 0;
     const char *name = JS_ToCStringLen(ctx, &length, argv[0]);
     if (!name)
       return JS_EXCEPTION;
     if (operation == ContextGo)
-      node->requestGo(name, length);
+      node->requestGo(name, length, carry);
     else
-      node->requestOpen(name, length);
+      node->requestOpen(name, length, carry);
     JS_FreeCString(ctx, name);
     return JS_UNDEFINED;
   }
@@ -445,7 +461,7 @@ namespace smirkycard
       return JS_ThrowTypeError(ctx, "state seat is not materialized");
     return jsString(ctx, this->error_.get());
   }
-  void JsCardNode::requestGo(const char *name, size_t length)
+  void JsCardNode::requestGo(const char *name, size_t length, const CardCarry &carry)
   {
     SmirkyCardId card = length == 5 && !memcmp(name, "first", 5)    ? SMIRKY_CARD_FIRST
                         : length == 6 && !memcmp(name, "second", 6) ? SMIRKY_CARD_SECOND
@@ -455,9 +471,9 @@ namespace smirkycard
       fail("go() requires first or second.");
       return;
     }
-    requestGo(card);
+    requestGo(card, carry);
   }
-  void JsCardNode::requestGo(SmirkyCardId card)
+  void JsCardNode::requestGo(SmirkyCardId card, const CardCarry &carry)
   {
     if (this->phase_ != Live)
       return;
@@ -469,7 +485,7 @@ namespace smirkycard
       fail("go() is unavailable while the card is detaching.");
       return;
     }
-    CardScene *next = CreateCard(card, *props.runtime);
+    CardScene *next = CreateCard(card, *props.runtime, carry);
     if (next)
     {
       this->phase_ = TransitionPending;
@@ -479,6 +495,10 @@ namespace smirkycard
       fail("Could not create the next card.");
   }
   void JsCardNode::requestReload()
+  {
+    this->reloadWithCarry(CardCarry());
+  }
+  void JsCardNode::reloadWithCarry(const CardCarry &carry)
   {
     if (this->phase_ != Live)
       return;
@@ -497,7 +517,7 @@ namespace smirkycard
     }
     // Build the replacement Scene first; the engine swap and the visible card
     // then change together, or neither does.
-    CardScene *next = CreateCard(props.card, *props.runtime);
+    CardScene *next = CreateCard(props.card, *props.runtime, carry);
     if (!next)
     {
       props.runtime->discardReload(candidate);
@@ -508,7 +528,7 @@ namespace smirkycard
     this->phase_ = TransitionPending;
     scene->replaceWith(next);
   }
-  void JsCardNode::requestOpen(const char *name, size_t length)
+  void JsCardNode::requestOpen(const char *name, size_t length, const CardCarry &carry)
   {
     if (this->phase_ != Live)
       return;
@@ -527,7 +547,7 @@ namespace smirkycard
       return;
     }
     // As in requestReload above, admission constructs the node after the commit.
-    CardScene *next = CreateCard(SMIRKY_CARD_FIRST, *props.runtime);
+    CardScene *next = CreateCard(SMIRKY_CARD_FIRST, *props.runtime, carry);
     if (!next)
     {
       props.runtime->discardReload(candidate);
@@ -1051,7 +1071,7 @@ namespace smirkycard
     ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
     this->finishCall(JS_Call(this->engine_->context(), handler.value, this->instance_, 0, 0));
   }
-  CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime)
+  CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime, const CardCarry &carry)
   {
     switch (card)
     {
@@ -1062,7 +1082,7 @@ namespace smirkycard
       break;
     }
     loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> root;
-    root.reset(loka::app::scene::Boundary<JsCardNode>(JsCardProps(&runtime, card)).clone());
+    root.reset(loka::app::scene::Boundary<JsCardNode>(JsCardProps(&runtime, card, carry)).clone());
     if (!root.isSet())
       return 0;
     CardScene *scene = new (std::nothrow) CardScene(root.get());
