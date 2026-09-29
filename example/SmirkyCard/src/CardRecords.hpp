@@ -88,8 +88,6 @@ namespace smirkycard
     }
     ~JsSeatRecord()
     {
-      if (JS_IsObject(this->value))
-        JS_SetOpaque(this->value, 0);
       JS_FreeValue(this->context, this->value);
     }
     JsSeatRecord *next;

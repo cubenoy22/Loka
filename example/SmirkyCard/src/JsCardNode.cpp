@@ -13,38 +13,111 @@ namespace smirkycard
 {
   namespace
   {
-    JSClassID seatClassId = 0;
-    int ensureSeatClass(JSRuntime *runtime)
+    enum ContextOperation
+    {
+      ContextState,
+      ContextGo,
+      ContextOpen,
+      ContextReload,
+      ContextOperation_COUNT
+    };
+    enum SeatOperation
+    {
+      SeatGet,
+      SeatSet,
+      ErrorGet
+    };
+    JSClassID capabilityClassId = 0;
+    int ensureCapabilityClass(JSRuntime *runtime)
     {
       JSClassDef def;
       memset(&def, 0, sizeof(def));
-      def.class_name = "SmirkyCardSeat";
-      if (!seatClassId)
-        JS_NewClassID(runtime, &seatClassId);
-      // Class IDs are process-global, while class definitions are per runtime.
-      // QuickJS returns -1 when this runtime already has this ID.
-      const int registered = JS_NewClass(runtime, seatClassId, &def);
-      return registered == 0 || registered == -1;
+      def.class_name = "SmirkyCardCapability";
+      if (!capabilityClassId)
+        JS_NewClassID(runtime, &capabilityClassId);
+      // IDs are process-global; registration belongs to each QuickJS runtime.
+      return JS_IsRegisteredClass(runtime, capabilityClassId) || JS_NewClass(runtime, capabilityClassId, &def) == 0;
     }
-    JSValue seatGetNative(JSContext *ctx, JSValueConst thisValue, int, JSValueConst *)
+    bool installFunction(JSContext *context, JSValueConst object, const char *name, JSValue function)
     {
-      JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
-      return node ? node->seatGet(ctx, thisValue) : JS_UNDEFINED;
+      if (JS_IsException(function))
+        return false;
+      return JS_SetPropertyStr(context, object, name, function) >= 0;
     }
-    JSValue seatSetNative(JSContext *ctx, JSValueConst thisValue, int argc, JSValueConst *argv)
+    JsCardNode *capabilityNode(JSValueConst capability)
     {
-      JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
+      return static_cast<JsCardNode *>(JS_GetOpaque(capability, capabilityClassId));
+    }
+    JSValue
+    seatNative(JSContext *ctx, JSValueConst receiver, int argc, JSValueConst *argv, int operation, JSValue *data)
+    {
+      JsCardNode *node = capabilityNode(data[0]);
       if (!node)
-        return JS_ThrowTypeError(ctx, "seat belongs to a retired card");
+        return JS_ThrowTypeError(ctx, "seat belongs to a revoked card");
+      if (operation == SeatGet)
+        return node->seatGet(ctx, receiver);
+      if (operation == ErrorGet)
+        return node->errorSeatGet(ctx);
       if (argc != 1)
         return JS_ThrowTypeError(ctx, "seat.set(value) requires one value");
-      return node->seatSet(ctx, thisValue, argv[0]);
+      return node->seatSet(ctx, receiver, argv[0]);
     }
-    JSValue errorGetNative(JSContext *ctx, JSValueConst thisValue, int, JSValueConst *)
+    JSValue declareNative(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int, JSValue *data)
     {
-      JsCardNode *node = static_cast<JsCardNode *>(JS_GetOpaque2(ctx, thisValue, seatClassId));
-      return node ? node->errorSeatGet(ctx) : JS_UNDEFINED;
+      JsCardNode *node = capabilityNode(data[0]);
+      if (!node || !JS_GetOpaque(data[1], capabilityClassId) || argc != 1)
+        return JS_ThrowTypeError(ctx, "declare(tree) is only valid during its compose call");
+      return node->setComposeTree(ctx, argv[0]) ? JS_UNDEFINED : JS_EXCEPTION;
     }
+    /** Owns the one-call declaration window; retained methods keep only a closed token. */
+    class ComposeDelegate
+    {
+    public:
+      ComposeDelegate(JSContext *context, JSValueConst capability)
+          : context_(context),
+            scope_(JS_NewObjectClass(context, capabilityClassId)),
+            value_(JS_UNDEFINED)
+      {
+        if (JS_IsException(this->scope_))
+        {
+          this->value_ = JS_EXCEPTION;
+          return;
+        }
+        JS_SetOpaque(this->scope_, this);
+        this->value_ = JS_NewObject(context);
+        JSValue data[] = {capability, this->scope_};
+        if (!JS_IsException(this->value_)
+            && (!installFunction(
+                    context, this->value_, "declare", JS_NewCFunctionData(context, declareNative, 1, 0, 2, data))
+                || JS_FreezeObject(context, this->value_) < 0))
+        {
+          JS_FreeValue(context, this->value_);
+          this->value_ = JS_EXCEPTION;
+        }
+      }
+      ~ComposeDelegate()
+      {
+        this->close();
+        JS_FreeValue(this->context_, this->value_);
+        JS_FreeValue(this->context_, this->scope_);
+      }
+      void close()
+      {
+        if (JS_IsObject(this->scope_))
+          JS_SetOpaque(this->scope_, 0);
+      }
+      JSValue value() const
+      {
+        return this->value_;
+      }
+
+    private:
+      JSContext *const context_;
+      JSValue scope_;
+      JSValue value_;
+      ComposeDelegate(const ComposeDelegate &);
+      ComposeDelegate &operator=(const ComposeDelegate &);
+    };
     JSValue jsString(JSContext *ctx, const loka::core::String &value)
     {
       const loka::core::StringBuffer buffer = value.bufferWithEncoding(loka::core::StringEncodingUtf8);
@@ -104,7 +177,9 @@ namespace smirkycard
       : loka::app::scene::StdCompositionBoundaryNodeBase<JsCardProps>(p),
         engine_(p.runtime ? p.runtime->currentEngine() : 0),
         engineRef_(this->engine_),
-        constructing_(false),
+        phase_(Live),
+        capability_(JS_UNDEFINED),
+        compose_(JS_UNDEFINED),
         failed_(false),
         instance_(JS_UNDEFINED),
         seats_("Seat"),
@@ -124,41 +199,131 @@ namespace smirkycard
       return;
     }
     ScriptRuntime::InterruptWindow interrupt(*p.runtime, *this->engine_);
-    p.runtime->setActive(this);
-    constructing_ = true;
-    bool ok = p.runtime->callConstructor(*this->engine_, ctor, instance_, error);
-    constructing_ = false;
-    p.runtime->setActive(0);
-    JS_FreeValue(ctx, ctor);
-    if (!ok)
-      fail("Card constructor failed.");
+    if (!ensureCapabilityClass(this->engine_->jsRuntime()))
+    {
+      JS_FreeValue(ctx, ctor);
+      fail("Could not create card context.");
+      return;
+    }
+    this->capability_ = JS_NewObjectClass(ctx, capabilityClassId);
+    if (JS_IsException(this->capability_))
+    {
+      JS_FreeValue(ctx, ctor);
+      p.runtime->captureException(*this->engine_, error);
+      fail(error);
+      return;
+    }
+    JS_SetOpaque(this->capability_, this);
+    JSValue context = JS_NewObject(ctx);
+    this->errorSeat_ = JS_NewObject(ctx);
+    bool ok = !JS_IsException(context) && !JS_IsException(this->errorSeat_);
     if (ok)
+      ok = installFunction(
+               ctx, this->errorSeat_, "get", JS_NewCFunctionData(ctx, seatNative, 0, ErrorGet, 1, &this->capability_))
+           && JS_FreezeObject(ctx, this->errorSeat_) >= 0
+           && JS_SetPropertyStr(ctx, context, "error", JS_DupValue(ctx, this->errorSeat_)) >= 0;
+    const char *names[] = {"state", "go", "open", "reload"};
+    for (int i = 0; ok && i < ContextOperation_COUNT; ++i)
+      ok = installFunction(
+          ctx,
+          context,
+          names[i],
+          JS_NewCFunctionData(ctx, contextMethod, i == ContextReload ? 0 : 1, i, 1, &this->capability_));
+    if (ok)
+      ok = JS_FreezeObject(ctx, context) >= 0;
+    if (!ok)
     {
-      JSValue attach = JS_GetPropertyStr(ctx, instance_, "onAttach");
-      JSValue detach = JS_GetPropertyStr(ctx, instance_, "onDetach");
-      if (JS_IsFunction(ctx, attach))
-        onAttach_ = JS_DupValue(ctx, attach);
-      if (JS_IsFunction(ctx, detach))
-        onDetach_ = JS_DupValue(ctx, detach);
-      JS_FreeValue(ctx, attach);
-      JS_FreeValue(ctx, detach);
+      p.runtime->captureException(*this->engine_, error);
+      fail(error);
     }
-    if (ok && ensureSeatClass(this->engine_->jsRuntime()))
+    else
     {
-      errorSeat_ = JS_NewObjectClass(ctx, seatClassId);
-      JS_SetOpaque(errorSeat_, this);
-      JS_SetPropertyStr(ctx, errorSeat_, "get", JS_NewCFunction(ctx, errorGetNative, "get", 0));
-      JS_FreezeObject(ctx, errorSeat_);
-      JS_SetPropertyStr(ctx, instance_, "error", JS_DupValue(ctx, errorSeat_));
+      this->phase_ = Constructing;
+      this->instance_ = JS_IsConstructor(ctx, ctor) ? JS_CallConstructor(ctx, ctor, 1, &context)
+                                                    : JS_Call(ctx, ctor, JS_UNDEFINED, 1, &context);
+      this->phase_ = Live;
+      ok = !JS_IsException(this->instance_);
+      if (!ok)
+      {
+        // Formatting a thrown object may execute JS; construction has already ended.
+        p.runtime->captureException(*this->engine_, error);
+        fail("Card constructor failed.");
+      }
     }
+    this->phase_ = Live;
+    JS_FreeValue(ctx, context);
+    JS_FreeValue(ctx, ctor);
+    if (ok && JS_IsObject(this->instance_))
+    {
+      const char *properties[] = {"compose", "onAttach", "onDetach"};
+      JSValue *slots[] = {&this->compose_, &this->onAttach_, &this->onDetach_};
+      for (int i = 0; ok && i < 3; ++i)
+      {
+        *slots[i] = JS_GetPropertyStr(ctx, this->instance_, properties[i]);
+        if (JS_IsException(*slots[i]))
+        {
+          p.runtime->captureException(*this->engine_, error);
+          fail(error);
+          ok = false;
+        }
+        else if (!JS_IsFunction(ctx, *slots[i]) && !(i && JS_IsUndefined(*slots[i])))
+          ok = false;
+      }
+    }
+    else
+      ok = false;
+    if (!ok && !this->failed_)
+      fail("card(name, F): F(c) must return an object with compose()");
   }
+  JSValue
+  JsCardNode::contextMethod(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int operation, JSValue *data)
+  {
+    JsCardNode *node = capabilityNode(data[0]);
+    if (!node)
+      return JS_ThrowTypeError(ctx, "context belongs to a revoked card");
+    if (operation == ContextState)
+    {
+      if (argc != 1)
+        return JS_ThrowTypeError(ctx, "c.state(initial) requires one value");
+      return node->mintState(ctx, argv[0]);
+    }
+    if (node->phase_ != Live)
+      return JS_ThrowTypeError(ctx, "card navigation requires a Live card");
+    if (operation == ContextReload)
+    {
+      if (argc != 0)
+        return JS_ThrowTypeError(ctx, "c.reload() requires no arguments");
+      node->requestReload();
+      return JS_UNDEFINED;
+    }
+    if (argc != 1 || !JS_IsString(argv[0]))
+      return JS_ThrowTypeError(ctx, "card navigation requires a string name");
+    size_t length = 0;
+    const char *name = JS_ToCStringLen(ctx, &length, argv[0]);
+    if (!name)
+      return JS_EXCEPTION;
+    if (operation == ContextGo)
+      node->requestGo(name, length);
+    else
+      node->requestOpen(name, length);
+    JS_FreeCString(ctx, name);
+    return JS_UNDEFINED;
+  }
+  void JsCardNode::revoke()
+  {
+    this->phase_ = Revoked;
+    if (JS_IsObject(this->capability_))
+      JS_SetOpaque(this->capability_, 0);
+  }
+
   JsCardNode::~JsCardNode()
   {
+    this->revoke();
     if (this->engine_)
     {
       JSContext *ctx = this->engine_->context();
-      if (JS_IsObject(errorSeat_))
-        JS_SetOpaque(errorSeat_, 0);
+      JS_FreeValue(ctx, this->capability_);
+      JS_FreeValue(ctx, this->compose_);
       JS_FreeValue(ctx, instance_);
       JS_FreeValue(ctx, tree_);
       JS_FreeValue(ctx, onAttach_);
@@ -166,15 +331,11 @@ namespace smirkycard
       JS_FreeValue(ctx, errorSeat_);
     }
   }
-  bool JsCardNode::constructing() const
-  {
-    return constructing_;
-  }
   JSValue JsCardNode::mintState(JSContext *ctx, JSValueConst initial)
   {
-    if (!constructing_)
+    if (this->phase_ != Constructing)
     {
-      fail("state() is only valid in a constructor.");
+      fail("c.state() is only valid in a constructor; the card has failed and undefined is returned.");
       return JS_UNDEFINED;
     }
     if (this->seats_.count() >= kCardSeatBudget)
@@ -229,17 +390,21 @@ namespace smirkycard
       fail("state() initial value is unsupported.");
       return JS_UNDEFINED;
     }
-    if (!ensureSeatClass(this->engine_->jsRuntime()))
+    JSValue seat = JS_NewObject(ctx);
+    if (JS_IsException(seat))
+      return seat;
+    if (!installFunction(ctx, seat, "get", JS_NewCFunctionData(ctx, seatNative, 0, SeatGet, 1, &this->capability_))
+        || !installFunction(ctx, seat, "set", JS_NewCFunctionData(ctx, seatNative, 1, SeatSet, 1, &this->capability_)))
     {
-      fail("Could not create state seat.");
-      return JS_UNDEFINED;
+      JS_FreeValue(ctx, seat);
+      return JS_EXCEPTION;
     }
-    JSValue seat = JS_NewObjectClass(ctx, seatClassId);
-    JS_SetOpaque(seat, this);
-    JS_SetPropertyStr(ctx, seat, "get", JS_NewCFunction(ctx, seatGetNative, "get", 0));
-    JS_SetPropertyStr(ctx, seat, "set", JS_NewCFunction(ctx, seatSetNative, "set", 1));
     record->value = JS_DupValue(ctx, seat);
-    JS_FreezeObject(ctx, seat);
+    if (JS_FreezeObject(ctx, seat) < 0)
+    {
+      JS_FreeValue(ctx, seat);
+      return JS_EXCEPTION;
+    }
     return seat;
   }
   JSValue JsCardNode::seatGet(JSContext *ctx, JSValueConst seat)
@@ -293,7 +458,8 @@ namespace smirkycard
   }
   JSValue JsCardNode::errorSeatGet(JSContext *ctx)
   {
-    return jsString(ctx, error_.get());
+    // Constructor declarations materialize on attach; failure_ already owns the pre-attach fact.
+    return jsString(ctx, this->error_.isValid() ? this->error_.get() : this->failure_);
   }
   void JsCardNode::requestGo(const char *name, size_t length)
   {
@@ -309,6 +475,8 @@ namespace smirkycard
   }
   void JsCardNode::requestGo(SmirkyCardId card)
   {
+    if (this->phase_ != Live)
+      return;
     CardScene *scene = static_cast<CardScene *>(this->scene());
     if (!scene)
     {
@@ -319,12 +487,17 @@ namespace smirkycard
     }
     CardScene *next = CreateCard(card, *props.runtime);
     if (next)
+    {
+      this->phase_ = TransitionPending;
       scene->replaceWith(next);
+    }
     else
       fail("Could not create the next card.");
   }
   void JsCardNode::requestReload()
   {
+    if (this->phase_ != Live)
+      return;
     CardScene *scene = static_cast<CardScene *>(this->scene());
     if (!scene)
     {
@@ -348,10 +521,13 @@ namespace smirkycard
       return;
     }
     props.runtime->commitReload(candidate);
+    this->phase_ = TransitionPending;
     scene->replaceWith(next);
   }
   void JsCardNode::requestOpen(const char *name, size_t length)
   {
+    if (this->phase_ != Live)
+      return;
     const loka::core::String prefix = loka::core::String::Utf8(name, length) + loka::core::String::Literal(": ");
     CardScene *scene = static_cast<CardScene *>(this->scene());
     if (!scene)
@@ -375,6 +551,7 @@ namespace smirkycard
       return;
     }
     props.runtime->commitReload(candidate);
+    this->phase_ = TransitionPending;
     scene->replaceWith(next);
   }
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
@@ -386,27 +563,44 @@ namespace smirkycard
   // path reaches: first mount, Scene::updateAttached, unmount and the
   // SceneManager switch. The lifecycle fact is not that door: a root starts
   // ATTACHED and teardown marks it RETIRED directly.
-  void JsCardNode::callHook(JSValueConst hook)
+  JSValue JsCardNode::callHook(JSValueConst hook)
   {
-    if (!JS_IsFunction(this->engine_->context(), hook))
-      return;
-    loka::core::String error;
-    JSValue result = JS_UNDEFINED;
-    props.runtime->setActive(this);
-    if (!props.runtime->call(*this->engine_, hook, instance_, 0, 0, result, error))
-      error_.set(error);
-    props.runtime->setActive(0);
+    JSContext *context = this->engine_->context();
+    return JS_IsFunction(context, hook) ? JS_Call(context, hook, this->instance_, 0, 0) : JS_UNDEFINED;
+  }
+  void JsCardNode::finishCall(JSValue result)
+  {
+    if (JS_IsException(result))
+    {
+      loka::core::String error;
+      props.runtime->captureException(*this->engine_, error);
+      this->error_.set(error);
+    }
     JS_FreeValue(this->engine_->context(), result);
   }
   void JsCardNode::attachNode(loka::app::scene::NodeComposition &composition)
   {
     StdCompositionBoundaryNodeBase<JsCardProps>::attachNode(composition);
-    callHook(onAttach_);
+    if (this->engine_ && this->engine_->context())
+    {
+      ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
+      this->finishCall(this->callHook(this->onAttach_));
+    }
   }
   void JsCardNode::detachNode(loka::app::scene::NodeComposition &composition)
   {
     // Before the base drops the owner slots, so the hook can still write seats.
-    callHook(onDetach_);
+    this->phase_ = Detaching;
+    if (this->engine_ && this->engine_->context())
+    {
+      ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
+      JSValue result = this->callHook(this->onDetach_);
+      this->revoke();
+      // Exception formatting can reenter JS, so it runs after synchronous revocation.
+      this->finishCall(result);
+    }
+    else
+      this->revoke();
     StdCompositionBoundaryNodeBase<JsCardProps>::detachNode(composition);
   }
   void JsCardNode::composeNode(loka::app::scene::NodeComposition &c)
@@ -422,29 +616,22 @@ namespace smirkycard
     {
       JSContext *ctx = this->engine_->context();
       ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
-      JSValue compose = JS_GetPropertyStr(ctx, instance_, "compose");
       JSValue result = JS_UNDEFINED;
       loka::core::String error;
-      JSValue delegate = JS_NewObject(ctx);
-      JS_SetPropertyStr(ctx, delegate, "declare", JS_NewCFunction(ctx, &ScriptRuntime::declare, "declare", 1));
-      JS_FreezeObject(ctx, delegate);
-      props.runtime->setActive(this);
-      if (JS_IsException(compose))
+      ComposeDelegate delegate(ctx, this->capability_);
+      JSValue argument = delegate.value();
+      result = JS_IsException(argument) ? JS_EXCEPTION : JS_Call(ctx, this->compose_, instance_, 1, &argument);
+      delegate.close();
+      if (JS_IsException(result))
       {
         props.runtime->captureException(*this->engine_, error);
-        fail(error);
-      }
-      else if (!JS_IsFunction(ctx, compose)
-               || !props.runtime->call(*this->engine_, compose, instance_, 1, &delegate, result, error))
         fail(error.empty() ? loka::core::String::Literal("JavaScript compose() failed.") : error);
+      }
       else if (JS_IsObject(result))
         setComposeTree(ctx, result);
       else if (JS_IsUndefined(tree_))
         fail("JavaScript compose() must return or declare a tree.");
-      props.runtime->setActive(0);
-      JS_FreeValue(ctx, delegate);
       JS_FreeValue(ctx, result);
-      JS_FreeValue(ctx, compose);
     }
     if (failed_)
     {
@@ -847,13 +1034,10 @@ namespace smirkycard
   }
   void JsCardNode::fire(const JsHandlerRecord &handler)
   {
-    loka::core::String error;
-    JSValue result = JS_UNDEFINED;
-    props.runtime->setActive(this);
-    if (!props.runtime->call(*this->engine_, handler.value, instance_, 0, 0, result, error))
-      error_.set(error);
-    props.runtime->setActive(0);
-    JS_FreeValue(this->engine_->context(), result);
+    if (this->phase_ != Live)
+      return;
+    ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
+    this->finishCall(JS_Call(this->engine_->context(), handler.value, this->instance_, 0, 0));
   }
   CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime)
   {

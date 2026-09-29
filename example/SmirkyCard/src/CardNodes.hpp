@@ -41,7 +41,6 @@ namespace smirkycard
   public:
     explicit JsCardNode(const JsCardProps &props);
     virtual ~JsCardNode();
-    bool constructing() const;
     JSValue mintState(JSContext *context, JSValueConst initial);
     JSValue seatGet(JSContext *context, JSValueConst seat);
     JSValue seatSet(JSContext *context, JSValueConst seat, JSValueConst value);
@@ -70,11 +69,25 @@ namespace smirkycard
     JsSeatRecord *findSeat(JSContext *context, JSValueConst value) const;
     JsHandlerRecord *addHandler(JSContext *context, JSValueConst handler);
     void fire(const JsHandlerRecord &handler);
-    void callHook(JSValueConst hook);
+    JSValue callHook(JSValueConst hook);
+    void finishCall(JSValue result);
     void declareRefusal(loka::app::scene::NodeComposition &composition);
     JsEngine *engine_;
     JsEngineRef engineRef_;
-    bool constructing_;
+    enum Phase
+    {
+      Constructing,
+      Live,
+      TransitionPending,
+      Detaching,
+      Revoked
+    };
+    Phase phase_;
+    /** QuickJS owns the shared revocable capability captured by native methods. */
+    JSValue capability_;
+    JSValue compose_;
+    static JSValue contextMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
+    void revoke();
     bool failed_;
     JSValue instance_;
     loka::core::String failure_;
