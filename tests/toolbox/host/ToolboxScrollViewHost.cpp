@@ -76,6 +76,8 @@ namespace
   const char kViewportPaintWidenReason[] = "paint-widened-viewport-render";
   struct ToolboxPaintAnswerSource
   {
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
     explicit ToolboxPaintAnswerSource(ToolboxScenePlatformController::RenderStats &) {}
     bool queryPaintAnswer(loka::app::scene::Node *, loka::app::scene::NodeContext *,
         const loka::app::scene::PaintQuery &, loka::app::scene::PaintAnswer &) { return false; }

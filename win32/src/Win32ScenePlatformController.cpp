@@ -71,6 +71,8 @@ namespace
       fixed rail metadata, not a walk through another owner's live rows. */
   struct Win32PaintAnswerSource
   {
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
     bool queryPaintAnswer(loka::app::scene::Node *node,
                           loka::app::scene::NodeContext *context,
                           const loka::app::scene::PaintQuery &query,

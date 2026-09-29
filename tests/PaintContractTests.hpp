@@ -24,4 +24,6 @@ void testPaintAnswersRefusalDisablesGate();
 void testPaintAnswersCapacityDisablesGate();
 void testPaintAnswerVerdictCountsAndBufferReuse();
 void testPaintAnswerFirstWidenReasonSurvivesLaterAnswers();
+void testMergingPaintAnswersKeepCoverageAndRefusals();
+void testMergingPaintAnswersStrengthenCoverage();
 #endif

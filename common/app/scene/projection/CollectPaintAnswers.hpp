@@ -40,6 +40,59 @@ namespace loka
           ++this->count_;
           return true;
         }
+        /** Fold the pair among the full buffer and the incoming damage whose
+            bounding rectangle grows least over the larger of the two.
+            The caller guarantees one destination/space and non-erasing delivery.
+            Visits only this buffer's rows: at most K(K+1)/2 pairs per overflow.
+            Equal costs retain the lexicographically first pair. */
+        void mergeExactDamage(Node *resident, const PaintDamage &damage)
+        {
+          assert(this->count_ == Capacity);
+          unsigned first = 0;
+          unsigned second = 1;
+          unsigned long leastCost = 0;
+          PaintDamage merged = damage;
+          for (unsigned i = 0; i < this->count_; ++i)
+          {
+            const PaintDamage &a = this->entries_[i].damage;
+            for (unsigned j = i + 1; j <= this->count_; ++j)
+            {
+              const PaintDamage &b = j == this->count_ ? damage : this->entries_[j].damage;
+              PaintDamage candidate = a;
+              candidate.x = a.x < b.x ? a.x : b.x;
+              candidate.y = a.y < b.y ? a.y : b.y;
+              const long rightA = static_cast<long>(a.x) + a.width;
+              const long rightB = static_cast<long>(b.x) + b.width;
+              const long bottomA = static_cast<long>(a.y) + a.height;
+              const long bottomB = static_cast<long>(b.y) + b.height;
+              candidate.width = static_cast<int>((rightA > rightB ? rightA : rightB) - candidate.x);
+              candidate.height = static_cast<int>((bottomA > bottomB ? bottomA : bottomB) - candidate.y);
+              // Growth over the larger rectangle: never negative, and a 16-bit
+              // coordinate span squared fits unsigned long without floating point
+              // (68k Classic targets have no FPU).
+              const unsigned long areaA = static_cast<unsigned long>(a.width) * static_cast<unsigned long>(a.height);
+              const unsigned long areaB = static_cast<unsigned long>(b.width) * static_cast<unsigned long>(b.height);
+              const unsigned long cost = static_cast<unsigned long>(candidate.width)
+                                             * static_cast<unsigned long>(candidate.height)
+                                         - (areaA > areaB ? areaA : areaB);
+              if ((i == 0 && j == 1) || cost < leastCost)
+              {
+                first = i;
+                second = j;
+                leastCost = cost;
+                merged = candidate;
+                if (b.coverage == PAINT_COVERAGE_ERASE_AND_PAINT)
+                  merged.coverage = PAINT_COVERAGE_ERASE_AND_PAINT;
+              }
+            }
+          }
+          this->entries_[first].damage = merged;
+          if (second != this->count_)
+          {
+            this->entries_[second].resident = resident;
+            this->entries_[second].damage = damage;
+          }
+        }
         unsigned count() const
         {
           return this->count_;
@@ -156,8 +209,13 @@ namespace loka
               if (answer.damage.width > 0 && answer.damage.height > 0
                   && !this->answers_.append(resident, answer.damage))
               {
-                this->noteWiden(APPLY_PAINT_WIDEN_CAPACITY, PAINT_REFUSED_UNSUPPORTED_KIND);
-                ++this->overflow_;
+                if (Source::kMergesExactDamage)
+                  this->answers_.mergeExactDamage(resident, answer.damage);
+                else
+                {
+                  this->noteWiden(APPLY_PAINT_WIDEN_CAPACITY, PAINT_REFUSED_UNSUPPORTED_KIND);
+                  ++this->overflow_;
+                }
               }
               break;
             case PAINT_ANSWER_NATIVE_SCHEDULED:
@@ -196,6 +254,10 @@ namespace loka
       /** One existing attached-descendant traversal, including nested Boundaries.
           The rail's Source::queryPaintAnswer returns false for non-drawers and
           otherwise fills one answer using its context installation contract.
+          Source must declare enum kMergesExactDamage: true guarantees every exact
+          answer reaches one destination in one coordinate space, where a
+          conservative bounding rectangle suffices with valid backing and no
+          erasure during delivery. False retains capacity widening; no default.
           Source must query synchronously without changing the tree, contexts, or
           presentation history. Common never casts a context or invents a native
           scope/delivery policy. Consume records before detach/context replacement;

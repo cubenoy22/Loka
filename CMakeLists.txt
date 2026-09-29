@@ -479,6 +479,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   set_target_properties(LokaToolboxCellPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxCellPaintTests COMMAND LokaToolboxCellPaintTests)
 
+  add_executable(LokaToolboxPaintFoldTests tests/toolbox/host/ToolboxPaintFoldHostTests.cpp
+    apple/toolbox/src/debug/ToolboxSceneDebugStats.cpp
+    apple/toolbox/src/context/ToolboxCellContext.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxPaintFoldTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_definitions(LokaToolboxPaintFoldTests PRIVATE LOKA_HOST_CELL_PAINT=1)
+  target_compile_options(LokaToolboxPaintFoldTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxPaintFoldTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxPaintFoldTests)
+  set_target_properties(LokaToolboxPaintFoldTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxPaintFoldTests COMMAND LokaToolboxPaintFoldTests)
+
   add_executable(LokaToolboxControlWidthTests tests/toolbox/host/ToolboxControlWidthHostTests.cpp
     apple/toolbox/src/context/ToolboxButtonContext.cpp
     apple/toolbox/src/context/ToolboxEditTextContext.cpp

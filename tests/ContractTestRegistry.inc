@@ -988,3 +988,6 @@ LOKA_TEST(testStackSpansAllocationRefusal)
 LOKA_TEST(testStackSpansColumnCollection)
 LOKA_TEST(testStackSpansEligibility)
 LOKA_TEST(testScrollViewOwnLayoutInputs)
+
+LOKA_TEST(testMergingPaintAnswersKeepCoverageAndRefusals)
+LOKA_TEST(testMergingPaintAnswersStrengthenCoverage)
