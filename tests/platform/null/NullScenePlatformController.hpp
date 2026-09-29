@@ -26,6 +26,8 @@ class NullWindow;
 class NullScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
   /** Retire door for a RectSurface context: takes back that surface's pending
       seat rows so a surface reclaimed during delivery publishes nothing. */
   void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)

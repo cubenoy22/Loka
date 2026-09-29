@@ -1013,6 +1013,8 @@ namespace
   class AnswerPolicyProbe
   {
   public:
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
     enum Mode
     {
       EMPTY,
@@ -1118,6 +1120,8 @@ namespace
   class AnswerSequence
   {
   public:
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
     AnswerSequence(const PaintAnswer *answers)
         : answers_(answers),
           index_(0)
@@ -1168,4 +1172,107 @@ void testPaintAnswerFirstWidenReasonSurvivesLaterAnswers()
     LOKA_VERIFY(plan.refusalReason() == verdict.refusalReason());
   }
   SceneTestAccess::unmount(scene);
+}
+
+namespace
+{
+  /** Synchronous synthetic answers in one conservative, non-erasing destination. */
+  class MergingAnswerProbe
+  {
+  public:
+    enum { kMergesExactDamage = 1 };
+    PaintAnswer answer;
+    bool queryPaintAnswer(Node *, NodeContext *, const PaintQuery &, PaintAnswer &out)
+    {
+      out = this->answer;
+      return true;
+    }
+  };
+
+  template <unsigned Capacity> void mergingAnswerContract()
+  {
+    const PaintScope scope = {1, 0, 0, 0, 0, 1000, 1000};
+    const PaintQuery query = {scope, PLACEMENT_ELIGIBLE};
+    BoundaryLocalApplyInfo info;
+    info.paintKind = LOCAL_APPLY_PAINT_GENERIC;
+    for (unsigned mode = 0; mode < 4; ++mode)
+    {
+      PaintAnswerBuffer<Capacity> buffer;
+      MergingAnswerProbe source;
+      paint_detail::AnswerCollector<Capacity, MergingAnswerProbe> collector(query, buffer, source);
+      if (mode == 1)
+      {
+        source.answer = PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
+        collector.visit(0, 0, 0);
+      }
+      for (unsigned i = 0; i < 12; ++i)
+      {
+        const PaintDamage damage = {scope, static_cast<int>(i * 10), 0, 10, 10,
+                                    PAINT_COVERAGE_PAINT_ONLY};
+        source.answer = PaintAnswer::exact(damage);
+        collector.visit(0, 0, 0);
+      }
+      if (mode == 1 || mode == 2)
+      {
+        source.answer = PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        collector.visit(0, 0, 0);
+      }
+      if (mode == 3)
+      {
+        const PaintDamage empty = {scope, 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+        source.answer = PaintAnswer::exact(empty);
+        ++source.answer.damage.scope.ownerKey;
+        collector.visit(0, 0, 0);
+      }
+      const PaintApplyVerdict verdict = collector.verdict();
+      LOKA_VERIFY(verdict.exactCount() == 12 && verdict.overflowCount() == 0);
+      LOKA_VERIFY(buffer.count() == Capacity);
+      LOKA_VERIFY(verdict.widened() == (mode != 0));
+      LOKA_VERIFY(verdict.canSkipBroadPaint(info) == (mode == 0));
+      LOKA_VERIFY(verdict.refusedCount() == (mode == 0 ? 0u : mode == 1 ? 2u : 1u));
+      if (mode != 0)
+      {
+        LOKA_VERIFY(verdict.widenReason() == APPLY_PAINT_WIDEN_REFUSED);
+        LOKA_VERIFY(verdict.refusalReason() == (mode == 1 ? PAINT_REFUSED_HISTORY_UNKNOWN
+                    : mode == 2 ? PAINT_REFUSED_NO_CONTEXT : PAINT_REFUSED_PLACEMENT_UNSETTLED));
+      }
+      for (unsigned i = 0; i < 12; ++i)
+      {
+        bool covered = false;
+        for (unsigned j = 0; j < buffer.count(); ++j)
+        {
+          const PaintDamage &d = buffer.entry(j).damage;
+          if (d.x <= static_cast<int>(i * 10) && d.x + d.width >= static_cast<int>((i + 1) * 10)
+              && d.y <= 0 && d.y + d.height >= 10)
+            covered = true;
+        }
+        LOKA_VERIFY(covered);
+      }
+    }
+  }
+} // namespace
+
+void testMergingPaintAnswersKeepCoverageAndRefusals()
+{
+  mergingAnswerContract<8>();
+  mergingAnswerContract<1>();
+}
+
+void testMergingPaintAnswersStrengthenCoverage()
+{
+  const PaintScope scope = {1, 0, 0, 0, 0, 100, 100};
+  Node first;
+  Node incoming;
+  for (unsigned reverse = 0; reverse < 2; ++reverse)
+  {
+    PaintAnswerBuffer<1> buffer;
+    const PaintDamage a = {scope, 0, 0, 10, 10,
+                          reverse ? PAINT_COVERAGE_ERASE_AND_PAINT : PAINT_COVERAGE_PAINT_ONLY};
+    const PaintDamage b = {scope, 10, 0, 10, 10,
+                          reverse ? PAINT_COVERAGE_PAINT_ONLY : PAINT_COVERAGE_ERASE_AND_PAINT};
+    LOKA_VERIFY(buffer.append(&first, a));
+    buffer.mergeExactDamage(&incoming, b);
+    LOKA_VERIFY(buffer.count() == 1 && buffer.entry(0).resident == &first);
+    LOKA_VERIFY(buffer.entry(0).damage.coverage == PAINT_COVERAGE_ERASE_AND_PAINT);
+  }
 }

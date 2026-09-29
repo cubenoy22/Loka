@@ -775,6 +775,8 @@ namespace
       PaintApplyVerdict::refusalReason(). No observation survives a collection. */
   struct ProbeSource
   {
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 0 };
     ProbeSource() : siblingX(0), siblingY(0), foundSibling(false), first(0), firstDamage(), refusingKind(NODE_KIND_UNKNOWN) {}
     bool queryPaintAnswer(Node *node, NodeContext *context, const PaintQuery &query, PaintAnswer &answer)
     {

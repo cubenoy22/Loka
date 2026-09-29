@@ -16,6 +16,8 @@
 
   struct ToolboxPaintAnswerSource
   {
+    /** Exact damage may share a conservative, non-erasing destination only when true. */
+    enum { kMergesExactDamage = 1 };
     explicit ToolboxPaintAnswerSource(ToolboxSceneDebugStats &stats) : stats_(stats) {}
 
     bool queryPaintAnswer(loka::app::scene::Node *node,
