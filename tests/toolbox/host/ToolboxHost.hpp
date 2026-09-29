@@ -148,7 +148,7 @@ public:
   loka::core::State<bool> *enabled_;
   Rect rect_;
   ToolboxButtonContext() : emitter_(0), enabled_(0) {}
-  void repaint(ControlRef, const loka::core::String &) {}
+  void repaint(ControlRef, std::string &) {}
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
 #else
@@ -259,7 +259,7 @@ public:
   {
     Rect rect;
     ToolboxButtonContext *context;
-    loka::core::String label;
+    std::string label;
     ControlRef control;
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;

@@ -57,7 +57,6 @@ inline void GetPenState(PenState *) {}
 inline void SetPenState(const PenState *) {}
 inline void PenPat(const int *) {}
 inline void SetControlTitle(ControlRef, const unsigned char *) {}
-inline void Draw1Control(ControlRef) {}
 inline void LineTo(short, short) {}
 typedef int *MenuHandle;
 inline MenuHandle NewMenu(short, const unsigned char *) { return new int(0); }
