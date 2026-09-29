@@ -157,6 +157,16 @@ namespace
     return hwnd;
   }
 
+  // #857: the same binary measured 0 host paints over ssh versus 1 interactively.
+  bool hostReceivesPaint(HWND host)
+  {
+    gLiveResizeHostPaintCount = 0;
+    RedrawWindow(host, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+    const bool receivesPaint = gLiveResizeHostPaintCount != 0;
+    gLiveResizeHostPaintCount = 0;
+    return receivesPaint;
+  }
+
   RECT childRectInParent(HWND child, HWND parent)
   {
     RECT rect;
@@ -174,6 +184,13 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
 {
   std::printf("\n==== [testWin32LayoutPresentsRootOnceAfterPositioningChildren] start ====\n");
   HWND root = createLiveResizeHost();
+  if (!hostReceivesPaint(root))
+  {
+    std::printf("[skip] testWin32LayoutPresentsRootOnceAfterPositioningChildren: this desktop delivers no WM_PAINT to the host (non-interactive session); the paint-count pin cannot discriminate here\n");
+    std::fflush(stdout);
+    LOKA_VERIFY(DestroyWindow(root));
+    return;
+  }
   {
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
@@ -201,6 +218,13 @@ void testWin32ReentrantLayoutSharesOutermostPresentation()
 {
   std::printf("\n==== [testWin32ReentrantLayoutSharesOutermostPresentation] start ====\n");
   HWND root = createLiveResizeHost();
+  if (!hostReceivesPaint(root))
+  {
+    std::printf("[skip] testWin32ReentrantLayoutSharesOutermostPresentation: this desktop delivers no WM_PAINT to the host (non-interactive session); the paint-count pin cannot discriminate here\n");
+    std::fflush(stdout);
+    LOKA_VERIFY(DestroyWindow(root));
+    return;
+  }
   {
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
