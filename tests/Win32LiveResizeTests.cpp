@@ -167,6 +167,16 @@ namespace
     return receivesPaint;
   }
 
+  // Only the paint-count pin depends on paint delivery; the rest of each test
+  // (layout, clamp, reentry) still runs on a desktop that delivers none.
+  void printPaintCountSkip(const char *test)
+  {
+    std::printf("[skip] %s: this desktop delivers no WM_PAINT to the host (non-interactive session); "
+                "the paint-count pin cannot discriminate here\n",
+                test);
+    std::fflush(stdout);
+  }
+
   RECT childRectInParent(HWND child, HWND parent)
   {
     RECT rect;
@@ -184,13 +194,7 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
 {
   std::printf("\n==== [testWin32LayoutPresentsRootOnceAfterPositioningChildren] start ====\n");
   HWND root = createLiveResizeHost();
-  if (!hostReceivesPaint(root))
-  {
-    std::printf("[skip] testWin32LayoutPresentsRootOnceAfterPositioningChildren: this desktop delivers no WM_PAINT to the host (non-interactive session); the paint-count pin cannot discriminate here\n");
-    std::fflush(stdout);
-    LOKA_VERIFY(DestroyWindow(root));
-    return;
-  }
+  const bool hostPaints = hostReceivesPaint(root);
   {
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
@@ -203,7 +207,14 @@ void testWin32LayoutPresentsRootOnceAfterPositioningChildren()
     gLiveResizeHostPaintCount = 0;
     controller.relayout(520, 300);
 
-    assert(gLiveResizeHostPaintCount == 1 && "one native layout pass must present one completed root frame");
+    if (hostPaints)
+    {
+      assert(gLiveResizeHostPaintCount == 1 && "one native layout pass must present one completed root frame");
+    }
+    else
+    {
+      printPaintCountSkip("testWin32LayoutPresentsRootOnceAfterPositioningChildren");
+    }
     controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
@@ -218,13 +229,7 @@ void testWin32ReentrantLayoutSharesOutermostPresentation()
 {
   std::printf("\n==== [testWin32ReentrantLayoutSharesOutermostPresentation] start ====\n");
   HWND root = createLiveResizeHost();
-  if (!hostReceivesPaint(root))
-  {
-    std::printf("[skip] testWin32ReentrantLayoutSharesOutermostPresentation: this desktop delivers no WM_PAINT to the host (non-interactive session); the paint-count pin cannot discriminate here\n");
-    std::fflush(stdout);
-    LOKA_VERIFY(DestroyWindow(root));
-    return;
-  }
+  const bool hostPaints = hostReceivesPaint(root);
   {
     Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
     RegisterWin32BuiltInSupport(controller);
@@ -248,7 +253,14 @@ void testWin32ReentrantLayoutSharesOutermostPresentation()
 
     assert(offset.state().get() == 64);
     assert(offset.reentryCount() == 1 && "one range clamp must cause one synchronous layout reentry");
-    assert(gLiveResizeHostPaintCount == 1 && "nested layout must share one outermost native presentation");
+    if (hostPaints)
+    {
+      assert(gLiveResizeHostPaintCount == 1 && "nested layout must share one outermost native presentation");
+    }
+    else
+    {
+      printPaintCountSkip("testWin32ReentrantLayoutSharesOutermostPresentation");
+    }
     controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
   }
   LOKA_VERIFY(DestroyWindow(root));
