@@ -8389,3 +8389,313 @@ void testStateStreamSingleEvaluatorProjectedReader()
   assert(reader->get() == 12);
   owner.releaseState(reader);
 }
+
+namespace
+{
+  struct OnceCountAdapter
+  {
+    typedef int In;
+    typedef int Out;
+    int *calls;
+    loka::dsl::StepRunStatus terminal;
+    int pendingPolls;
+
+    OnceCountAdapter(int *count, loka::dsl::StepRunStatus result, int polls = 0)
+        : calls(count),
+          terminal(result),
+          pendingPolls(polls)
+    {
+    }
+
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &error) const
+    {
+      ++*this->calls;
+      if (*this->calls <= this->pendingPolls)
+        return loka::dsl::FLOW_STEP_PENDING;
+      out = in + *this->calls;
+      error.kind = 71;
+      error.code = 93;
+      return this->terminal;
+    }
+  };
+
+  struct OnceDiagnosticAdapter
+  {
+    typedef loka::app::scene::Scene *In;
+    typedef loka::app::scene::Scene *Out;
+    int *calls;
+    const std::string *message;
+    OnceDiagnosticAdapter(int *count, const std::string *text)
+        : calls(count),
+          message(text)
+    {
+    }
+    const char *diagnostic() const
+    {
+      return this->message->c_str();
+    }
+    loka::dsl::StepRunStatus run(const In &in, Out &out, loka::dsl::FlowError &error) const
+    {
+      ++*this->calls;
+      out = in;
+      error.kind = 71;
+      error.code = 93;
+      return loka::dsl::FLOW_STEP_FAILED;
+    }
+  };
+
+  struct OnceInheritedDiagnosticAdapter : OnceDiagnosticAdapter
+  {
+    OnceInheritedDiagnosticAdapter(int *count, const std::string *text) : OnceDiagnosticAdapter(count, text) {}
+  };
+
+  struct OnceRecursiveAdapter
+  {
+    typedef int In;
+    typedef int Out;
+    typedef loka::dsl::testing::RunOnceAdapter<OnceRecursiveAdapter> Wrapper;
+    Wrapper **wrapper;
+    int *calls;
+    OnceRecursiveAdapter(Wrapper **value, int *count)
+        : wrapper(value),
+          calls(count)
+    {
+    }
+    loka::dsl::StepRunStatus run(const int &in, int &out, loka::dsl::FlowError &error) const
+    {
+      ++*this->calls;
+      // Bound the negative control so removing the entered guard fails, rather than overflowing.
+      if (*this->calls == 1)
+      {
+        LOKA_VERIFY((*this->wrapper)->run(in, out, error) == loka::dsl::FLOW_STEP_PENDING);
+      }
+      out = in;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+} // namespace
+
+void testSceneRunOnceCachesSuccessAndFailure()
+{
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  int input = 10;
+  int output = 0;
+  int successCalls = 0;
+  FlowChain<int, int> success =
+      Flow() | Step(1, RunOnce(OnceCountAdapter(&successCalls, FLOW_STEP_SUCCEEDED))).input(&input).onSuccess(&output);
+  for (int i = 0; i < 5; ++i)
+  {
+    LOKA_VERIFY(success.runResult() == FLOW_RUN_SUCCEEDED);
+    LOKA_VERIFY(output == 11);
+    ++input;
+  }
+  LOKA_VERIFY(successCalls == 1);
+
+  int failureCalls = 0;
+  FlowChain<int, int> failure =
+      Flow() | Step(1, RunOnce(OnceCountAdapter(&failureCalls, FLOW_STEP_FAILED))).input(&input);
+  for (int i = 0; i < 5; ++i)
+    LOKA_VERIFY(failure.runResult() == FLOW_RUN_FAILED);
+  LOKA_VERIFY(failureCalls == 1);
+
+  int directCalls = 0;
+  RunOnceAdapter<OnceCountAdapter> failed = RunOnce(OnceCountAdapter(&directCalls, FLOW_STEP_FAILED));
+  for (int i = 0; i < 5; ++i)
+  {
+    FlowError error;
+    LOKA_VERIFY(failed.run(input, output, error) == FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.kind == 71 && error.code == 93);
+  }
+  LOKA_VERIFY(directCalls == 1);
+  RunOnceAdapter<OnceCountAdapter> copied(failed);
+  FlowError error;
+  LOKA_VERIFY(copied.run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(directCalls == 1);
+  LOKA_VERIFY(RunOnce(OnceCountAdapter(&directCalls, FLOW_STEP_FAILED)).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(directCalls == 2);
+}
+
+void testSceneRunOncePollsPendingUntilTerminal()
+{
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  for (int fails = 0; fails < 2; ++fails)
+  {
+    int input = 10;
+    int calls = 0;
+    int output = 0;
+    FlowChain<int, int> chain =
+        Flow()
+        | Step(1, RunOnce(OnceCountAdapter(&calls, fails ? FLOW_STEP_FAILED : FLOW_STEP_SUCCEEDED, 2)))
+              .input(&input)
+              .onSuccess(&output);
+    LOKA_VERIFY(chain.runResult() == FLOW_RUN_PENDING);
+    LOKA_VERIFY(calls == 1);
+    LOKA_VERIFY(chain.runResult() == FLOW_RUN_PENDING);
+    LOKA_VERIFY(calls == 2);
+    for (int i = 0; i < 5; ++i)
+      LOKA_VERIFY(chain.runResult() == (fails ? FLOW_RUN_FAILED : FLOW_RUN_SUCCEEDED));
+    LOKA_VERIFY(calls == 3);
+    LOKA_VERIFY(output == (fails ? 0 : 13));
+  }
+}
+
+void testSceneRunOnceMarksEntryBeforeCallingAdapter()
+{
+  using namespace loka::dsl;
+  int calls = 0;
+  OnceRecursiveAdapter::Wrapper *borrow = 0;
+  OnceRecursiveAdapter::Wrapper wrapper = testing::RunOnce(OnceRecursiveAdapter(&borrow, &calls));
+  borrow = &wrapper;
+  int output = 0;
+  FlowError error;
+  LOKA_VERIFY(wrapper.run(42, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(calls == 1 && output == 42);
+}
+
+void testSceneSettlePollsBothQueuesAndRejectsMissingSceneOrController()
+{
+  using namespace loka::app::scene;
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  FlowScenePlatformController platform;
+  Scene scene((BoundaryDefinition<PendingCompositedProbeBoundaryProps, PendingCompositedProbeBoundaryNode>()));
+  Scene *input = 0;
+  Scene *output = 0;
+  FlowError error;
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_NULL_SCENE);
+  input = &scene;
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO
+              && error.code == FLOW_ERROR_SCENE_TEST_CONTROLLER_UNAVAILABLE);
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(output == input);
+  scene.requestInvalidate(NODE_DIRTY_PROPS);
+  const int applies = platform.calls_;
+  const int syncs = platform.synchronizeCalls_;
+  for (int i = 0; i < 5; ++i)
+    LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_PENDING);
+  LOKA_VERIFY(platform.calls_ == applies && platform.synchronizeCalls_ == syncs);
+  LOKA_VERIFY(scene.flushInvalidation());
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  platform.pendingSync_ = true;
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_PENDING);
+  LOKA_VERIFY(platform.pendingSync_);
+  platform.synchronize();
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  SceneTestAccess::unmount(scene);
+  LOKA_VERIFY(Settle().run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_CONTROLLER_UNAVAILABLE);
+}
+
+void testSceneStrictClickRejectsDisabledButtonAndDefaultRemainsNoop()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  FlowScenePlatformController platform;
+  loka::core::MutableState<bool> enabled(false);
+  loka::core::EmitterState click;
+  int calls = 0;
+  click.bind(&incrementNotificationCount, &calls, false);
+  NodeComposition composition;
+  BoxDefinition &root = composition.declare(Box().testId("ClickRegion"));
+  root << Button("Run").enabled(&enabled).onClick(&click).testId("StrictButton");
+  root << Cell("Cell").onClick(&click).testId("StrictCell");
+  NodeDefinitionBase *definition = composition.root()->clone();
+  LOKA_VERIFY(definition != 0);
+  Scene scene(definition);
+  scene.mount(&platform);
+  SceneTestAccess::updateAttached(scene, true);
+  Scene *input = &scene;
+  Scene *output = 0;
+  FlowError error;
+  const NodeSelector<ButtonNode> selector = Within("ClickRegion").descendant<ButtonNode>(1);
+  LOKA_VERIFY(ClickButtonById("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButton("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButton(selector).run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(calls == 0);
+  LOKA_VERIFY(ClickButtonById("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error)
+              == FLOW_STEP_FAILED);
+  LOKA_VERIFY(ClickButton("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(ClickButtonById(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(ClickButton(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(calls == 0);
+  {
+    loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    enabled.set(true);
+  }
+  LOKA_VERIFY(ClickButton("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(calls == 1);
+  LOKA_VERIFY(ClickCell("StrictCell").run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(calls == 2);
+  SceneTestAccess::unmount(scene);
+  click.unbind(&incrementNotificationCount, &calls);
+}
+
+void testSceneRunOnceAuditOwnsEscapedBoundedMessage()
+{
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  const char *path = "_loka_once_message.audit";
+  std::remove(path);
+  int calls = 0;
+  std::string text = "bad \t\n%= " + std::string(300, 'x');
+  const std::string bounded = text.substr(0, 253) + "...";
+  loka::app::scene::Scene *input = 0;
+  loka::app::scene::Scene *output = 0;
+  FlowError error;
+  RunOnceAdapter<OnceDiagnosticAdapter> once = RunOnce(OnceDiagnosticAdapter(&calls, &text));
+  LOKA_VERIFY(once.run(input, output, error) == FLOW_STEP_FAILED);
+  int inheritedCalls = 0;
+  RunOnceAdapter<OnceInheritedDiagnosticAdapter> inherited =
+      RunOnce(OnceInheritedDiagnosticAdapter(&inheritedCalls, &text));
+  LOKA_VERIFY(inherited.run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(std::string(inherited.diagnostic()) == bounded);
+  text = "replaced after failure";
+  LOKA_VERIFY(once.run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(std::string(once.diagnostic()) == bounded);
+  {
+    loka::platform::file::FileHandle destination;
+    destination.displayPath = loka::core::String::Literal(path);
+    ScenarioAuditFile audit(destination, "once-message");
+    ScenarioClock clock;
+    FlowChain<loka::app::scene::Scene *, loka::app::scene::Scene *> chain =
+        (ScenarioFlow(clock, &input).auditTo(&audit) | Then(once).named("fail one")).flow();
+    for (int i = 0; i < 5; ++i)
+    {
+      clock.advanceTo(i);
+      LOKA_VERIFY(chain.runResult() == FLOW_RUN_FAILED);
+    }
+    LOKA_VERIFY(calls == 1);
+    std::string shortMessage = "owned";
+    ScenarioStepTerminal record(2, "plain", 0, 0, FLOW_STEP_FAILED, error, shortMessage.c_str());
+    shortMessage = "changed";
+    LOKA_VERIFY(record.message() == "owned");
+    LOKA_VERIFY(audit.recordStep(ScenarioStepTerminal(2, "plain", 0, 0, FLOW_STEP_FAILED, error)));
+    LOKA_VERIFY(audit.recordStep(ScenarioStepTerminal(3, "empty", 0, 0, FLOW_STEP_FAILED, error, "")));
+    LOKA_VERIFY(ScenarioStepTerminal(4, "limit", 0, 0, FLOW_STEP_FAILED, error, std::string(256, 'a').c_str()).message()
+                == std::string(256, 'a'));
+    LOKA_VERIFY(ScenarioStepTerminal(4, "limit", 0, 0, FLOW_STEP_FAILED, error, std::string(257, 'a').c_str()).message()
+                == std::string(253, 'a') + "...");
+  }
+  const std::string content = ReadFlowMatchAuditBytes(path);
+  std::remove(path);
+  const std::string expected = "loka_scenario_audit version=1 scenario=once-message\n"
+                               "step id=1 due_tick=0 tick=0 status=failed error_kind=71 error_code=93 name=fail%20one "
+                               "message=bad%20%09%0A%25%3D%20"
+                               + std::string(244, 'x')
+                               + "...\n"
+                                 "step id=2 due_tick=0 tick=0 status=failed error_kind=71 error_code=93 name=plain\n"
+                                 "step id=3 due_tick=0 tick=0 status=failed error_kind=71 error_code=93 name=empty\n";
+  LOKA_VERIFY(content == expected);
+}

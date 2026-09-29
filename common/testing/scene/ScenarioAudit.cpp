@@ -48,14 +48,39 @@ namespace loka
         }
       } // namespace
 
-      ScenarioStepTerminal::ScenarioStepTerminal(
-          int stepId, const char *name, long dueTick, long tick, StepRunStatus status, const FlowError &error)
+      std::string scenario_audit_detail::CopyDiagnostic(const char *message)
+      {
+        if (!message)
+        {
+          return std::string();
+        }
+        const std::size_t limit = 256;
+        std::size_t length = 0;
+        while (length < limit && message[length])
+        {
+          ++length;
+        }
+        if (length == limit && message[length])
+        {
+          return std::string(message, limit - 3) + "...";
+        }
+        return std::string(message, length);
+      }
+
+      ScenarioStepTerminal::ScenarioStepTerminal(int stepId,
+                                                 const char *name,
+                                                 long dueTick,
+                                                 long tick,
+                                                 StepRunStatus status,
+                                                 const FlowError &error,
+                                                 const char *message)
           : stepId_(stepId),
             name_(name ? name : ""),
             dueTick_(dueTick),
             tick_(tick),
             status_(status),
-            error_(error)
+            error_(error),
+            message_(scenario_audit_detail::CopyDiagnostic(message))
       {
       }
 
@@ -87,6 +112,11 @@ namespace loka
       const FlowError &ScenarioStepTerminal::error() const
       {
         return this->error_;
+      }
+
+      const std::string &ScenarioStepTerminal::message() const
+      {
+        return this->message_;
       }
 
       ScenarioMatchSelection::ScenarioMatchSelection(int matchStepId)
@@ -216,7 +246,10 @@ namespace loka
       {
       }
 
-      bool scenario_audit_detail::StepTerminalEmitter::emit(long tick, StepRunStatus status, FlowError &error) const
+      bool scenario_audit_detail::StepTerminalEmitter::emit(long tick,
+                                                            StepRunStatus status,
+                                                            FlowError &error,
+                                                            const char *message) const
       {
         assert(status != FLOW_STEP_PENDING && "StepTerminalEmitter requires a terminal step");
         const OnceEmissionState::Decision decision = this->emission_.next();
@@ -232,7 +265,8 @@ namespace loka
         }
         if (this->sink_ != 0)
         {
-          const ScenarioStepTerminal record(this->stepId_, this->name_.c_str(), this->dueTick_, tick, status, error);
+          const ScenarioStepTerminal record(
+              this->stepId_, this->name_.c_str(), this->dueTick_, tick, status, error, message);
           if (!this->sink_->recordStep(record))
           {
             this->emission_.settle(false);
@@ -438,6 +472,10 @@ namespace loka
         if (written)
         {
           written = this->writeEscaped(record.name());
+        }
+        if (written && !record.message().empty())
+        {
+          written = std::fputs(" message=", this->file_) >= 0 && this->writeEscaped(record.message());
         }
         if (written)
         {

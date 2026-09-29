@@ -37,8 +37,13 @@ namespace loka
       class ScenarioStepTerminal
       {
       public:
-        ScenarioStepTerminal(
-            int stepId, const char *name, long dueTick, long tick, StepRunStatus status, const FlowError &error);
+        ScenarioStepTerminal(int stepId,
+                             const char *name,
+                             long dueTick,
+                             long tick,
+                             StepRunStatus status,
+                             const FlowError &error,
+                             const char *message = 0);
 
         int stepId() const;
         const std::string &name() const;
@@ -46,6 +51,8 @@ namespace loka
         long tick() const;
         StepRunStatus status() const;
         const FlowError &error() const;
+        /** Owned diagnostic, at most 256 bytes including a truncation marker; empty means absent. */
+        const std::string &message() const;
 
       private:
         int stepId_;
@@ -54,6 +61,7 @@ namespace loka
         long tick_;
         StepRunStatus status_;
         FlowError error_;
+        std::string message_;
       };
 
       /** Immutable first-match selection fact. A selection without an arm
@@ -116,6 +124,9 @@ namespace loka
 
       namespace scenario_audit_detail
       {
+        /** Copies at most 256 diagnostic bytes, including "..." when truncated. */
+        std::string CopyDiagnostic(const char *message);
+
         /** Owns the shared one-attempt transition used by audit emitters. */
         class OnceEmissionState
         {
@@ -151,7 +162,7 @@ namespace loka
         public:
           StepTerminalEmitter(ScenarioAuditSink *sink, int stepId, const char *name, long dueTick);
 
-          bool emit(long tick, StepRunStatus status, FlowError &error) const;
+          bool emit(long tick, StepRunStatus status, FlowError &error, const char *message = 0) const;
 
         private:
           ScenarioAuditSink *sink_;
