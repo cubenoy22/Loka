@@ -31,8 +31,10 @@ The TTL defaults to 24 hours (`LOKA_CLAIM_TTL_HOURS`). `check` returns 0 for
 free or stale, 1 for held; a stale result is advisory, never an acquisition.
 `take` never steals. Inspect stale work before `release KEY --as OWNER --force`,
 then take it. Force refuses fresh claims. Same-owner take refreshes nothing.
-`INCOMPLETE` means metadata is missing/invalid: treat it as held and inspect
-manually. `RELEASING` marks a release in progress or interrupted cleanup.
+`INCOMPLETE` is held while fresh and becomes stale after the TTL; missing or
+invalid `taken` uses directory mtime. Stale incomplete claims allow `--force`.
+`list` warns about old `.gone.*` release leftovers; inspect and remove them by
+hand. A release race preserves a replacement claim or reports its conflict path.
 Invalid arguments exit 2. Keys and owners use `[a-z0-9][a-z0-9._-]*`.
 
 The Win32 VM golden lock in [win32-verify](../win32-verify/SKILL.md) remains

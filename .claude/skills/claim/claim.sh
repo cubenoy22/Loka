@@ -43,29 +43,36 @@ root=${LOKA_CLAIMS_DIR:-$HOME/.loka-claims}
 mkdir -p -- "$root" || error 'cannot create claims directory'
 path=$root/$key
 
-# The timestamp is published last. Missing metadata is held, never stealable.
+# The timestamp is published last; interrupted publication ages by directory mtime.
 read_claim() {
-    holder=unknown; detail=; age=unknown; marker=INCOMPLETE; stale=0
-    local record stamp seconds elapsed
-    [ -d "$path" ] && [ ! -L "$path" ] || return 0
-    record=$(cat -- "$path/owner" 2>/dev/null) || return 0
+    holder=unknown; detail=; age=unknown; marker=; stale=0
+    record=; stamp=
+    local seconds elapsed
+    [ -d "$path" ] && [ ! -L "$path" ] || { marker=INCOMPLETE; return 0; }
+    record=$(cat -- "$path/owner" 2>/dev/null) || marker=INCOMPLETE
     if [[ $record == owner=* ]] && valid_name "${record#owner=}"; then
         holder=${record#owner=}
     else
-        return 0
+        marker=INCOMPLETE
     fi
-    detail=$(cat -- "$path/purpose" 2>/dev/null) || return 0
+    detail=$(cat -- "$path/purpose" 2>/dev/null) || marker=INCOMPLETE
     detail=${detail//$'\n'/ }; detail=${detail//$'\r'/ }
-    [ -s "$path/host" ] || return 0
-    stamp=$(cat -- "$path/taken" 2>/dev/null) || return 0
-    [[ $stamp =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] || return 0
-    seconds=$(date -u -d "$stamp" +%s 2>/dev/null) || return 0
+    [ -s "$path/host" ] || marker=INCOMPLETE
+    stamp=$(cat -- "$path/taken" 2>/dev/null) || marker=INCOMPLETE
+    seconds=
+    if [[ $stamp =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+        seconds=$(date -u -d "$stamp" +%s 2>/dev/null) || seconds=
+    fi
+    if [ -z "$seconds" ]; then
+        marker=INCOMPLETE
+        seconds=$(stat -c %Y -- "$path" 2>/dev/null) || return 0
+    fi
     elapsed=$(($(date -u +%s) - seconds))
-    [ "$elapsed" -ge 0 ] || return 0
+    [ "$elapsed" -ge 0 ] || { marker=INCOMPLETE; return 0; }
     age="$((elapsed / 3600))h$((elapsed % 3600 / 60))m"
-    marker=
-    if [ "$elapsed" -gt "$ttl_seconds" ]; then stale=1; marker=STALE; fi
-    [ ! -d "$path/.releasing" ] || marker="${marker:+$marker }RELEASING"
+    if [ "$elapsed" -gt "$ttl_seconds" ]; then
+        stale=1; marker="${marker:+$marker }STALE"
+    fi
 }
 report() { printf '%s held by %s for %s: %s%s\n' "$key" "$holder" "$age" "$detail" "${marker:+ [$marker]}"; }
 
@@ -81,7 +88,7 @@ case "$command" in
         else
             [[ -e $path || -L $path ]] || error "cannot create claim: $key"
             read_claim
-            if [ "$holder" = "$owner" ] && [[ $marker != *INCOMPLETE* && $marker != *RELEASING* ]]; then
+            if [ "$holder" = "$owner" ] && [[ $marker != *INCOMPLETE* ]]; then
                 printf 'already yours: %s\n' "$key"
             else report; exit 1; fi
         fi ;;
@@ -97,24 +104,43 @@ case "$command" in
             valid_name "$key" || continue
             read_claim; report; count=$((count + 1))
         done
-        [ "$count" -ne 0 ] || echo 'no claims' ;;
+        [ "$count" -ne 0 ] || echo 'no claims'
+        for gone in "$root"/.gone.*; do
+            [ -d "$gone" ] && [ ! -L "$gone" ] || continue
+            seconds=$(stat -c %Y -- "$gone" 2>/dev/null) || continue
+            if [ "$(($(date -u +%s) - seconds))" -gt "$ttl_seconds" ]; then
+                printf 'WARNING stale release leftover: %s (inspect and remove by hand)\n' "$gone"
+            fi
+        done ;;
     release)
         [[ -e $path || -L $path ]] || { echo "free $key"; exit 0; }
         [ -d "$path" ] && [ ! -L "$path" ] || error "invalid claim directory: $key"
-        # Hold this child until metadata is removed: a second releaser cannot
-        # validate an old owner, then delete a newly taken claim at the same key.
-        mkdir -- "$path/.releasing" 2>/dev/null || { echo "release busy: $key"; exit 1; }
-        trap 'rmdir -- "$path/.releasing" 2>/dev/null || :' EXIT
-        trap 'exit 1' HUP INT TERM
         read_claim
-        if [[ $marker == *INCOMPLETE* ]] ||
-           { [ "$force" -eq 1 ] && [ "$stale" -eq 0 ]; } ||
-           { [ "$force" -eq 0 ] && [ "$holder" != "$owner" ]; }; then
+        if { [ "$force" -eq 1 ] && [ "$stale" -eq 0 ]; } ||
+           { [ "$force" -eq 0 ] && { [ "$holder" != "$owner" ] || [[ $marker == *INCOMPLETE* ]]; }; }; then
             report; exit 1
         fi
-        rm -- "$path/taken" "$path/owner" "$path/purpose" "$path/host" || error "incomplete release: $key"
-        rmdir -- "$path/.releasing" || error "cannot finish release: $key"
-        trap - EXIT
-        rmdir -- "$path" || error "cannot remove claim directory: $key"
+        validated_owner=$record; validated_taken=$stamp
+        gone=$root/.gone.$key.$$
+        # Test-only hook for deterministic replacement between validation and mv.
+        if [ -n "${LOKA_CLAIM_TEST_BEFORE_MV:-}" ]; then
+            bash -c "$LOKA_CLAIM_TEST_BEFORE_MV" || error 'before-mv test hook failed'
+        fi
+        # PID reuse may leave this name behind; never overwrite its contents.
+        if [[ -e $gone || -L $gone ]] || ! mv -T -- "$path" "$gone"; then
+            echo "release raced: $key"; exit 1
+        fi
+        moved_owner=$(cat -- "$gone/owner" 2>/dev/null) || moved_owner=
+        moved_taken=$(cat -- "$gone/taken" 2>/dev/null) || moved_taken=
+        if [ "$moved_owner" != "$validated_owner" ] || [ "$moved_taken" != "$validated_taken" ]; then
+            # -n also protects a take that wins after a free-path observation.
+            if mv -T -n -- "$gone" "$path" && [[ ! -e $gone && ! -L $gone ]]; then
+                echo "release raced: $key (replacement restored)"
+            else
+                echo "release raced: $key; conflict preserved at $gone"
+            fi
+            exit 1
+        fi
+        rm -rf -- "$gone" || error "cannot finish release: $gone"
         echo "released $key" ;;
 esac

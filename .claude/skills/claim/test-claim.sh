@@ -55,13 +55,53 @@ expect 'unpublished force refused' 1 'INCOMPLETE' "$claim" release incomplete --
 printf 'owner=alice\n' > "$LOKA_CLAIMS_DIR/incomplete/owner"
 expect 'partial same-owner take refused' 1 'INCOMPLETE' "$claim" take incomplete --as alice
 expect 'partial owner release refused' 1 'INCOMPLETE' "$claim" release incomplete --as alice
-expect 'release lock setup' 0 'claimed locked' "$claim" take locked --as alice
-mkdir -- "$LOKA_CLAIMS_DIR/locked/.releasing"
-expect 'interrupted release visible' 0 'RELEASING' "$claim" list
-expect 'overlapping release refused' 1 'release busy' "$claim" release locked --as alice
-expect 'retake while releasing refused' 1 'RELEASING' "$claim" take locked --as alice
-rmdir -- "$LOKA_CLAIMS_DIR/locked/.releasing"
-expect 'release after lock cleared' 0 'released locked' "$claim" release locked --as alice
+touch -d '2000-01-01 UTC' -- "$LOKA_CLAIMS_DIR/incomplete"
+expect 'killed take becomes stale' 0 'STALE' "$claim" check incomplete
+expect 'killed take force recovery' 0 'released incomplete' "$claim" release incomplete --as bob --force
+expect 'recovered key free' 0 'free incomplete' "$claim" check incomplete
+mkdir -- "$LOKA_CLAIMS_DIR/bad-time"
+printf 'broken\n' > "$LOKA_CLAIMS_DIR/bad-time/taken"
+touch -d '2000-01-01 UTC' -- "$LOKA_CLAIMS_DIR/bad-time"
+expect 'unparsable timestamp recovery' 0 'released bad-time' "$claim" release bad-time --as bob --force
+mkdir -- "$LOKA_CLAIMS_DIR/.gone.leftover.123"
+expect 'fresh gone hidden' 0 'no claims' "$claim" list
+touch -d '2000-01-01 UTC' -- "$LOKA_CLAIMS_DIR/.gone.leftover.123"
+expect 'old gone warning' 0 "WARNING stale release leftover: $LOKA_CLAIMS_DIR/.gone.leftover.123" "$claim" list
+expect 'gone does not block key' 0 'claimed leftover' "$claim" take leftover --as alice
+
+expect 'ABA setup' 0 'claimed aba' "$claim" take aba --as alice
+swap_owner='printf "owner=bob\n" > "$LOKA_CLAIMS_DIR/aba/owner"'
+expect 'ABA owner change refused' 1 'release raced' env LOKA_CLAIM_TEST_BEFORE_MV="$swap_owner" "$claim" release aba --as alice
+expect 'ABA new owner survives' 1 'held by bob' "$claim" check aba
+swap_time='printf "2001-01-01T00:00:00Z\n" > "$LOKA_CLAIMS_DIR/aba/taken"'
+expect 'ABA timestamp change refused' 1 'release raced' env LOKA_CLAIM_TEST_BEFORE_MV="$swap_time" "$claim" release aba --as bob
+expect 'ABA new timestamp survives' 0 '2001-01-01T00:00:00Z' cat "$LOKA_CLAIMS_DIR/aba/taken"
+expect 'ABA claim remains releasable' 0 'released aba' "$claim" release aba --as bob
+expect 'rename race setup' 0 'claimed vanished' "$claim" take vanished --as alice
+vanish='rm -rf -- "$LOKA_CLAIMS_DIR/vanished"'
+expect 'rename failure reports race' 1 'release raced' env LOKA_CLAIM_TEST_BEFORE_MV="$vanish" "$claim" release vanished --as alice
+
+# Simulate a third session taking the key between rename and ABA restoration.
+mkdir -- "$tmp/bin"
+cat > "$tmp/bin/mv" <<'WRAPPER'
+#!/usr/bin/env bash
+"$CLAIM_TEST_REAL_MV" "$@" || exit "$?"
+if [ "$#" -eq 4 ] && [ "$2" = -- ]; then
+    "$CLAIM_TEST_TOOL" take conflict --as charlie > /dev/null || exit 1
+fi
+WRAPPER
+chmod +x "$tmp/bin/mv"
+expect 'conflict setup' 0 'claimed conflict' "$claim" take conflict --as alice
+swap_conflict='printf "owner=bob\n" > "$LOKA_CLAIMS_DIR/conflict/owner"'
+expect 'ABA conflict reports preserved path' 1 "conflict preserved at $LOKA_CLAIMS_DIR/.gone.conflict." env \
+    PATH="$tmp/bin:$PATH" CLAIM_TEST_REAL_MV="$(command -v mv)" CLAIM_TEST_TOOL="$claim" \
+    LOKA_CLAIM_TEST_BEFORE_MV="$swap_conflict" "$claim" release conflict --as alice
+expect 'ABA conflict keeps third claimant' 1 'held by charlie' "$claim" check conflict
+preserved_conflict() {
+    local dirs=("$LOKA_CLAIMS_DIR"/.gone.conflict.*)
+    [ "${#dirs[@]}" -eq 1 ] && [ "$(cat -- "${dirs[0]}/owner")" = 'owner=bob' ]
+}
+expect 'ABA conflict keeps displaced claimant' 0 '' preserved_conflict
 
 pids=()
 for i in {1..20}; do
