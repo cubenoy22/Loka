@@ -38,7 +38,9 @@ namespace loka
 
         virtual int layoutNode(loka::app::scene::Node *node,
                                const loka::app::scene::LayoutState &state,
-                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+                               loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
         {
           loka::app::BoxNode *box = node ? node->asBoxNode() : 0;
           if (!box || !traversal)
@@ -59,7 +61,9 @@ namespace loka
 
         virtual int layoutNode(loka::app::scene::Node *node,
                                const loka::app::scene::LayoutState &state,
-                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+                               loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
         {
           loka::app::ZStackNode *stack = node ? node->asZStackNode() : 0;
           if (!stack || !traversal)
@@ -85,7 +89,9 @@ namespace loka
 
         virtual int layoutNode(loka::app::scene::Node *node,
                                const loka::app::scene::LayoutState &state,
-                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+                               loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow *range = 0,
+                               loka::app::layout::StackSpans *spans = 0)
         {
           loka::app::StackNode *stack = node ? node->asStackNode() : 0;
           if (!stack || !traversal)
@@ -95,7 +101,7 @@ namespace loka
           if (stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
           {
             return loka::app::layout::computeColumnLayoutResultY(
-                stack, state, traversal, &DispatchTraversalLayoutChild);
+                stack, state, traversal, &DispatchTraversalLayoutChild, range, spans);
           }
           return loka::app::layout::computeRowLayoutResultY(
               stack, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
@@ -120,7 +126,9 @@ namespace loka
 
         virtual int layoutNode(loka::app::scene::Node *node,
                                const loka::app::scene::LayoutState &state,
-                               loka::app::scene::IPlatformLayoutTraversal *traversal)
+                               loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
         {
           loka::app::GridNode *grid = node ? node->asGridNode() : 0;
           if (!grid || !traversal)
