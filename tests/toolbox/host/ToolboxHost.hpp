@@ -148,6 +148,7 @@ public:
   loka::core::State<bool> *enabled_;
   Rect rect_;
   ToolboxButtonContext() : emitter_(0), enabled_(0) {}
+  void repaint(ControlRef, std::string &) {}
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
 #else
@@ -209,6 +210,7 @@ public:
   unsigned leafLayouts;
   int scrollMaximum;
   RgnHandle scrollViewClipRgn_;
+  RgnHandle paintSuppressClipRgn_;
   short layoutScrollView(loka::app::ScrollViewNode *, loka::app::scene::LayoutState &, loka::app::scene::BoundaryNode *);
   void requestStructurePresent();
   virtual void onBoundaryApply(loka::app::scene::Node *, loka::app::scene::BoundaryNode *,
@@ -235,14 +237,29 @@ public:
       loka::core::State<int> *, const loka::app::scene::WriteSeat<int> &, loka::core::EmitterState *, int);
   typedef ToolboxScrollBarLedger::ScrollBarControlBinding ScrollBarControlBinding;
   typedef ToolboxScrollBarLedger::ViewportScrollBarBinding ViewportScrollBarBinding;
-  bool ensureScrollBarBinding(short, const Rect &, int, int maximum, int, int,
+  bool ensureScrollBarBinding(short id, const Rect &rect, int, int maximum, int, int,
       loka::app::scene::NativeLifetimeHint, ScrollBarControlBinding *&out)
-  { this->scrollMaximum = maximum; out = 0; return true; }
+  {
+    this->scrollMaximum = maximum;
+    out = 0;
+    for (std::size_t i = 0; i < this->scrollBarLedger_.scrollBarControls_.size(); ++i)
+      if (this->scrollBarLedger_.scrollBarControls_[i].resourceId == id)
+      {
+        out = &this->scrollBarLedger_.scrollBarControls_[i];
+        out->rect = rect;
+        out->usedThisFrame = true;
+        break;
+      }
+    return true;
+  }
   loka::app::layout::StackSpans *scrollSpans()
   { return this->scrollBarLedger_.viewportScrollBars_.empty() ? 0 : this->scrollBarLedger_.viewportScrollBars_[0].spans.get(); }
   ToolboxScrollBarLedger scrollBarLedger_;
   struct ButtonControlBinding
   {
+    Rect rect;
+    ToolboxButtonContext *context;
+    std::string label;
     ControlRef control;
     loka::core::EmitterState *emitter;
     loka::core::State<bool> *enabled;
@@ -341,6 +358,7 @@ public:
       : leafLayouts(0),
         scrollMaximum(0),
         scrollViewClipRgn_(NewRgn()),
+        paintSuppressClipRgn_(NewRgn()),
         scrollBarLedger_(0),
         poolIntakeAuditFailCount_(0),
         inBatchUpdate_(false),
@@ -353,7 +371,8 @@ public:
   }
   ~ToolboxScenePlatformController()
   {
-    DisposeRgn(this->scrollViewClipRgn_);
+    if (this->scrollViewClipRgn_) DisposeRgn(this->scrollViewClipRgn_);
+    if (this->paintSuppressClipRgn_) DisposeRgn(this->paintSuppressClipRgn_);
     this->flushTE();
     this->textEditBucket_.drainWith(TEDispose);
   }
@@ -382,11 +401,12 @@ public:
   struct RenderStats
   {
     unsigned renderCalls, totalRenderCalls, totalBoundaryApplyCount;
-    RenderStats() : renderCalls(0), totalRenderCalls(0), totalBoundaryApplyCount(0) {}
+    unsigned controlDrawCount, totalControlDrawCount;
+    RenderStats() : renderCalls(0), totalRenderCalls(0), totalBoundaryApplyCount(0), controlDrawCount(0), totalControlDrawCount(0) {}
     void refreshHitCounts(int, int, int, int, int) {}
   } debugStats_;
   void clearEnabledBindings() {}
-  void drawControlsInRect(const Rect &) {}
+  void drawControlsInRect(const Rect &);
   virtual void synchronize() {}
   virtual bool hasPendingSync() const
   {

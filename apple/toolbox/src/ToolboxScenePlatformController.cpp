@@ -404,6 +404,7 @@ ToolboxScenePlatformController::ToolboxScenePlatformController(ToolboxWindow *wi
       poolIntakeAuditFailCount_(0),
       clipRgn_(NewRgn()),
       scrollViewClipRgn_(NewRgn()),
+      paintSuppressClipRgn_(NewRgn()),
       hasClip_(false),
       controlIds_(kAutoControlBaseId),
       debugStats_(),
@@ -432,6 +433,11 @@ ToolboxScenePlatformController::~ToolboxScenePlatformController()
   {
     DisposeRgn(scrollViewClipRgn_);
     scrollViewClipRgn_ = 0;
+  }
+  if (paintSuppressClipRgn_)
+  {
+    DisposeRgn(paintSuppressClipRgn_);
+    paintSuppressClipRgn_ = 0;
   }
 }
 
@@ -1919,45 +1925,7 @@ bool ToolboxScenePlatformController::queryEditTextValueForTesting(
 
 #include "ToolboxEditPublication.cpp"
 
-void ToolboxScenePlatformController::drawControlsInRect(const Rect &rect)
-{
-  for (size_t i = 0; i < buttonControls_.size(); ++i)
-  {
-    ButtonControlBinding &binding = buttonControls_[i];
-    if (!binding.control || !binding.usedThisFrame)
-    {
-      continue;
-    }
-    if (rect.right < binding.rect.left || rect.left > binding.rect.right || rect.bottom < binding.rect.top
-        || rect.top > binding.rect.bottom)
-    {
-      continue;
-    }
-    if (binding.context)
-      binding.context->repaint(binding.control, binding.label);
-    else
-      Draw1Control(binding.control);
-    ++debugStats_.controlDrawCount;
-    ++debugStats_.totalControlDrawCount;
-  }
-  for (size_t i = 0; i < scrollBarLedger_.scrollBarControls_.size(); ++i)
-  {
-    ScrollBarControlBinding &binding = scrollBarLedger_.scrollBarControls_[i];
-    if (!binding.control || !binding.usedThisFrame)
-    {
-      continue;
-    }
-    if (rect.right < binding.rect.left || rect.left > binding.rect.right || rect.bottom < binding.rect.top
-        || rect.top > binding.rect.bottom)
-    {
-      continue;
-    }
-    Draw1Control(binding.control);
-    ++debugStats_.controlDrawCount;
-    ++debugStats_.totalControlDrawCount;
-  }
-}
-
+#include "ToolboxControlPresentation.cpp"
 
 bool ToolboxScenePlatformController::isPointInEdit(const Point &point) const
 {

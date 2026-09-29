@@ -4,6 +4,7 @@
 #include <cstring>
 namespace toolbox_host
 {
+  ControlCalls controlCalls;
   std::vector<Draw> draws;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
@@ -31,6 +32,8 @@ namespace
     return r;
   }
 } // namespace
+namespace toolbox_host { Rect currentClip() { return clip; } }
+
 bool ToolboxScenePlatformController::intersectWithProjectionClip(const Rect &rect, Rect &out) const
 {
   out = Intersection(rect, projectionClip);
