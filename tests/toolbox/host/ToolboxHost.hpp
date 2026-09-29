@@ -304,7 +304,6 @@ public:
                      ToolboxCellContext *, loka::core::State<loka::core::String> *) {}
 #endif
 #ifdef LOKA_HOST_CONTROL_WIDTH
-  short allocateControlId() { return 100; }
   bool ensureButtonControl(short, const Rect &rect, const loka::core::String &, loka::core::EmitterState *,
       loka::core::State<bool> *, loka::app::scene::NativeLifetimeHint, ToolboxButtonContext *) { toolbox_host::controlRect = rect; return true; }
   void destroyButtonControl(short, loka::app::scene::NativeLifetimeHint) {}
