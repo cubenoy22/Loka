@@ -696,13 +696,18 @@ namespace loka
           LayoutInputsCheckpoint &operator=(const LayoutInputsCheckpoint &);
         };
 
+        /** Consume this node's projection inputs, including custom container
+            layouts which bypass context layout. Refusal uses the existing
+            LayoutInputsCheckpoint/requeueLayoutInputs contract. */
+        NodeDirtyFlags takeLayoutInputs() { return this->uses_.takeMark(); }
+
         virtual short layout(IPlatformController *controller, LayoutState &state)
         {
           PROFILE_SECTION("layoutNode");
           if (context)
           {
             const NodeDirtyFlags callerInputs = state.inputs;
-            state.inputs = this->uses_.takeMark();
+            state.inputs = this->takeLayoutInputs();
             const short result = context->layout(controller, state);
             state.inputs = callerInputs;
             return result;

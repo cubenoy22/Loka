@@ -110,6 +110,8 @@ public:
     port.txFace = 0;
     SetRect(&port.portRect, 0, 0, 360, 260);
   }
+  void requestInvalidate() { ++toolbox_host::invalidations; }
+  void requestInvalidateWithReason(const char *) { ++toolbox_host::invalidations; }
   void flushInvalidate() { if (this->onFlush) this->onFlush(this->flushData); }
   loka::core::StateTracker *getTracker() { return 0; }
   void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
@@ -187,7 +189,8 @@ class ToolboxScenePlatformController : public loka::app::scene::IPlatformControl
 {
 public:
   MeasurementRetryQueue relayoutRetries;
-  virtual void requestRelayout() { this->relayoutRetries.request(); }
+  virtual void requestRelayout();
+  void requestSceneRelayout(loka::app::scene::Node *) { this->relayoutRetries.request(); }
 
   typedef ToolboxHitLedger::EditHit EditHit;
   typedef ToolboxHitLedger::ButtonHit ButtonHit;
@@ -203,12 +206,40 @@ public:
   virtual bool applyNativeFocus(loka::app::scene::NodeContext &ctx);
 #include "ToolboxInputBodies.hpp"
 public:
+  unsigned leafLayouts;
+  int scrollMaximum;
+  RgnHandle scrollViewClipRgn_;
+  short layoutScrollView(loka::app::ScrollViewNode *, loka::app::scene::LayoutState &, loka::app::scene::BoundaryNode *);
+  void requestStructurePresent();
+  virtual void onBoundaryApply(loka::app::scene::Node *, loka::app::scene::BoundaryNode *,
+      const loka::app::scene::BoundaryLocalApplyInfo &, const loka::app::scene::PlatformApplyPlan &);
+  virtual void releaseNodeContexts(loka::app::scene::Node *);
+  void refuseScrollViewShortRange()
+  {
+    if (this->projectionParentScopes_.activeDepth())
+      this->projectionParentScopes_.current().markShortRangeRefused();
+  }
+  bool refuseNarrowingInScrollScope(int y)
+  {
+    if (!this->projectionParentScopes_.activeDepth()) return false;
+    if (y < SHRT_MIN || y > SHRT_MAX) this->refuseScrollViewShortRange();
+    return this->projectionParentScopes_.current().hasShortRangeRefusal();
+  }
+  int ensureViewportScrollBarControl(const Rect &, loka::app::ScrollViewNode *, int, int, int);
+  void destroyViewportScrollBarControl(loka::app::ScrollViewNode *, loka::app::scene::NativeLifetimeHint);
+  short allocateControlId() { return this->controlIds_.allocate(); }
+  void destroyScrollBarControl(short id, loka::app::scene::NativeLifetimeHint) { this->controlIds_.release(id); }
   bool handleControlClick(const Point &);
   void emitHitEmitter(loka::core::EmitterState *);
   void applyPopupSelectionChange(const Rect &, loka::app::scene::BoundaryNode *,
       loka::core::State<int> *, const loka::app::scene::WriteSeat<int> &, loka::core::EmitterState *, int);
   typedef ToolboxScrollBarLedger::ScrollBarControlBinding ScrollBarControlBinding;
   typedef ToolboxScrollBarLedger::ViewportScrollBarBinding ViewportScrollBarBinding;
+  bool ensureScrollBarBinding(short, const Rect &, int, int maximum, int, int,
+      loka::app::scene::NativeLifetimeHint, ScrollBarControlBinding *&out)
+  { this->scrollMaximum = maximum; out = 0; return true; }
+  loka::app::layout::StackSpans *scrollSpans()
+  { return this->scrollBarLedger_.viewportScrollBars_.empty() ? 0 : this->scrollBarLedger_.viewportScrollBars_[0].spans.get(); }
   ToolboxScrollBarLedger scrollBarLedger_;
   struct ButtonControlBinding
   {
@@ -308,7 +339,10 @@ public:
   Rect projectionClip;
   loka::app::scene::NodeContext *renderContext;
   explicit ToolboxScenePlatformController(ToolboxWindow *window)
-      : scrollBarLedger_(0),
+      : leafLayouts(0),
+        scrollMaximum(0),
+        scrollViewClipRgn_(NewRgn()),
+        scrollBarLedger_(0),
         poolIntakeAuditFailCount_(0),
         inBatchUpdate_(false),
         window_(window),
@@ -320,6 +354,7 @@ public:
   }
   ~ToolboxScenePlatformController()
   {
+    DisposeRgn(this->scrollViewClipRgn_);
     this->flushTE();
     this->textEditBucket_.drainWith(TEDispose);
   }
@@ -347,8 +382,8 @@ public:
   std::vector<loka::core::State<loka::core::String> *> pendingTextStates_;
   struct RenderStats
   {
-    unsigned renderCalls, totalRenderCalls;
-    RenderStats() : renderCalls(0), totalRenderCalls(0) {}
+    unsigned renderCalls, totalRenderCalls, totalBoundaryApplyCount;
+    RenderStats() : renderCalls(0), totalRenderCalls(0), totalBoundaryApplyCount(0) {}
     void refreshHitCounts(int, int, int, int, int) {}
   } debugStats_;
   void clearEnabledBindings() {}
