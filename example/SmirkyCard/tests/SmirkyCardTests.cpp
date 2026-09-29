@@ -58,7 +58,7 @@ namespace
     duplicateKind->kind = 9;
     LOKA_VERIFY(!registry.registerLowering(duplicateKind));
     delete duplicateKind;
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String result, error;
     LOKA_VERIFY(runtime.evaluateToString(
         loka::core::String::Literal(
@@ -229,9 +229,144 @@ namespace
     return status && status->asTextNode() ? textValue(status->asTextNode()) : std::string();
   }
 
+  double randomNumber(smirkycard::JsEngine &engine, const char *expression = "Math.random()")
+  {
+    JSContext *ctx = engine.context();
+    JSValue value = JS_Eval(ctx, expression, std::strlen(expression), "random-test", JS_EVAL_TYPE_GLOBAL);
+    LOKA_VERIFY(!JS_IsException(value));
+    double result = 0;
+    LOKA_VERIFY(JS_ToFloat64(ctx, &result, value) == 0);
+    JS_FreeValue(ctx, value);
+    return result;
+  }
+
+  void checkRandomGolden()
+  {
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("globalThis.samples = Array.from({length:8},()=>Math.random());", error));
+    // Produced by running this implementation's generation-0 native callback:
+    // temporary --probe-random mode printed eight calls with printf("%.17g").
+    const double expected[] = {0.34673641296103597,
+                               0.66385194123722613,
+                               0.38855586666613817,
+                               0.19003042648546398,
+                               0.63171368977054954,
+                               0.46553329681046307,
+                               0.046941408887505531,
+                               0.38469644798897207};
+    for (unsigned int i = 0; i < sizeof(expected) / sizeof(expected[0]); ++i)
+    {
+      const double actual = randomNumber(*runtime.currentEngine(), "samples.shift()");
+      LOKA_VERIFY(actual >= 0 && actual < 1);
+      LOKA_VERIFY(actual == expected[i]);
+    }
+  }
+
+  void checkRandomSeeds()
+  {
+    smirkycard::ScriptRuntime first(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    smirkycard::ScriptRuntime same(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    smirkycard::ScriptRuntime different(smirkycard::ScriptRandom::Seeded(0x13579BDEUL));
+    for (int i = 0; i < 16; ++i)
+    {
+      const double value = randomNumber(*first.currentEngine());
+      LOKA_VERIFY(value == randomNumber(*same.currentEngine()));
+      LOKA_VERIFY(value != randomNumber(*different.currentEngine()));
+    }
+    // Exercise both legal seed zero and a recurrence step whose result is zero.
+    smirkycard::ScriptRuntime zero(smirkycard::ScriptRandom::Seeded(0));
+    LOKA_VERIFY(randomNumber(*zero.currentEngine()) == 0.23606797284446657);
+    smirkycard::ScriptRuntime zeroStep(smirkycard::ScriptRandom::Seeded(0x25D60FE5UL));
+    const double value = randomNumber(*zeroStep.currentEngine());
+    uint64_t bits = 1;
+    std::memcpy(&bits, &value, sizeof(bits));
+    LOKA_VERIFY(bits == 0);
+    const unsigned long highSeed = 0x13579BDFUL | (~0xFFFFFFFFUL);
+    smirkycard::ScriptRuntime normalized(smirkycard::ScriptRandom::Seeded(highSeed));
+    smirkycard::ScriptRuntime low(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    for (int i = 0; i < 8; ++i)
+      LOKA_VERIFY(randomNumber(*normalized.currentEngine()) == randomNumber(*low.currentEngine()));
+  }
+
+  void checkRandomCandidate(smirkycard::JsEngine *candidate, unsigned long seed)
+  {
+    LOKA_VERIFY(candidate != 0);
+    smirkycard::ScriptRuntime expected(smirkycard::ScriptRandom::Seeded(seed));
+    LOKA_VERIFY(randomNumber(*candidate, "sample") == randomNumber(*expected.currentEngine()));
+    for (int i = 0; i < 8; ++i)
+      LOKA_VERIFY(randomNumber(*candidate) == randomNumber(*expected.currentEngine()));
+  }
+
+  void checkRandomGenerations()
+  {
+    const char *directory = "_smirkycard_random_fixture";
+    const char *path = "_smirkycard_random_fixture/MAIN.JS";
+    std::remove(path);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    runtime.loadMain(&context); // Missing startup file preserves generation zero.
+    const char *source = "globalThis.sample=Math.random();card('first',class{});";
+    writeMain(path, source);
+    runtime.loadMain(&context); // Successful loadMain commits generation one.
+    checkRandomCandidate(runtime.currentEngine(), 0xB18F1598UL);
+    loka::core::String error;
+    smirkycard::JsEngine *discarded = runtime.prepareReload(SMIRKY_CARD_FIRST, error);
+    checkRandomCandidate(discarded, 0x4FC68F51UL);
+    runtime.discardReload(discarded);
+    LOKA_VERIFY(!runtime.prepareOpen("MISSING.JS", error));
+    writeMain(path, "Math.random();throw new Error('failed candidate');");
+    LOKA_VERIFY(!runtime.prepareReload(SMIRKY_CARD_FIRST, error));
+    writeMain(path, "Math.random();card('second',class{});");
+    LOKA_VERIFY(!runtime.prepareOpen("MAIN.JS", error));
+    writeMain(path, source);
+    smirkycard::JsEngine *opened = runtime.prepareOpen("MAIN.JS", error);
+    checkRandomCandidate(opened, 0x4FC68F51UL);
+    runtime.commitReload(opened);
+    smirkycard::JsEngine *reloaded = runtime.prepareReload(SMIRKY_CARD_FIRST, error);
+    checkRandomCandidate(reloaded, 0xEDFE090AUL);
+    runtime.commitReload(reloaded);
+    LOKA_VERIFY(std::remove(path) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
+  }
+
+  void checkRandomEngineBinding()
+  {
+    const char *directory = "_smirkycard_random_binding_fixture";
+    const char *path = "_smirkycard_random_binding_fixture/MAIN.JS";
+    std::remove(path);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    runtime.loadMain(&context);
+    smirkycard::JsEngine *old = runtime.currentEngine();
+    smirkycard::JsEngineRef retained(old);
+    writeMain(path, "card('first',class{});");
+    loka::core::String error;
+    smirkycard::JsEngine *candidate = runtime.prepareOpen("MAIN.JS", error);
+    LOKA_VERIFY(candidate != 0);
+    runtime.commitReload(candidate);
+    LOKA_VERIFY(runtime.retiredEngineCount() == 1);
+    smirkycard::ScriptRuntime expected(smirkycard::ScriptRandom::Seeded(0xB18F1598UL));
+    smirkycard::ScriptRuntime expectedOld(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
+    for (int i = 0; i < 16; ++i)
+    {
+      const double oldValue = randomNumber(*old);
+      LOKA_VERIFY(randomNumber(*candidate) == randomNumber(*expected.currentEngine()));
+      LOKA_VERIFY(oldValue == randomNumber(*expectedOld.currentEngine()));
+    }
+    LOKA_VERIFY(std::remove(path) == 0);
+    LOKA_VERIFY(removeDirectory(directory));
+  }
+
   void printScratchMemory()
   {
-    smirkycard::ScriptRuntime scratch;
+    smirkycard::ScriptRuntime scratch(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(scratch.loadBuiltin(smirkycard::BuiltinMainJs(), error));
     JSMemoryUsage usage;
@@ -252,13 +387,13 @@ namespace
     NullPlatformContext context;
     context.setApplicationDirectory(loka::core::String::Literal(directory));
 
-    smirkycard::ScriptRuntime missing;
+    smirkycard::ScriptRuntime missing(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     missing.loadMain(&context);
     LOKA_VERIFY(missing.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
     LOKA_VERIFY(mountedTitle(missing, context) == "Card One");
 
     writeMain(path, reloadCardSource("Loaded First"));
-    smirkycard::ScriptRuntime loaded;
+    smirkycard::ScriptRuntime loaded(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loaded.loadMain(&context);
     LOKA_VERIFY(loaded.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_FILE);
     LOKA_VERIFY(mountedTitle(loaded, context) == "Loaded First");
@@ -389,7 +524,7 @@ namespace
 
     // A built-in card can reload a file which appears after startup.
     LOKA_VERIFY(std::remove(path) == 0);
-    smirkycard::ScriptRuntime builtin;
+    smirkycard::ScriptRuntime builtin(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     builtin.loadMain(&context);
     LOKA_VERIFY(builtin.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
     {
@@ -411,7 +546,7 @@ namespace
     }
 
     writeMain(path, "(");
-    smirkycard::ScriptRuntime broken;
+    smirkycard::ScriptRuntime broken(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     broken.loadMain(&context);
     LOKA_VERIFY(broken.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
     LOKA_VERIFY(mountedTitle(broken, context) == "Card One");
@@ -423,14 +558,14 @@ namespace
     writeMain(path,
               "globalThis.Text = null; card('first', class { compose() { return VStack(); } }); throw new "
               "Error('poison');");
-    smirkycard::ScriptRuntime poisoned;
+    smirkycard::ScriptRuntime poisoned(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     poisoned.loadMain(&context);
     LOKA_VERIFY(poisoned.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_BUILTIN);
     LOKA_VERIFY(mountedTitle(poisoned, context) == "Card One");
     LOKA_VERIFY(mountedStatus(poisoned, context, SMIRKY_CARD_SECOND).find("poison") != std::string::npos);
 
     writeMain(path, std::string(64u * 1024u + 1u, 'x'));
-    smirkycard::ScriptRuntime tooLarge;
+    smirkycard::ScriptRuntime tooLarge(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     tooLarge.loadMain(&context);
     LOKA_VERIFY(mountedTitle(tooLarge, context) == "Card One");
     LOKA_VERIFY(mountedStatus(tooLarge, context, SMIRKY_CARD_FIRST).find("64 KiB") != std::string::npos);
@@ -524,7 +659,7 @@ namespace
     writeMain(minesPath, "globalThis.SMIRKY_SEED = 0x13579BDF;\n" + readCardSource("MINES.JS"));
     NullPlatformContext context;
     context.setApplicationDirectory(loka::core::String::Literal(directory));
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     runtime.loadMain(&context);
     {
       NullScenePlatformController platform;
@@ -692,7 +827,7 @@ namespace
     context.setApplicationDirectory(loka::core::String::Literal(directory));
     writeMain(mainPath, siblingCardSource("Main", "./MINES.JS"));
     writeMain(minesPath, siblingCardSource("Mines", "./MAIN.JS"));
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     runtime.loadMain(&context);
     {
       NullScenePlatformController platform;
@@ -765,7 +900,7 @@ namespace
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
       writeMain(mainPath, siblingCardSource("Stable", names[i]));
-      smirkycard::ScriptRuntime refused;
+      smirkycard::ScriptRuntime refused(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
       refused.loadMain(&context);
       NullScenePlatformController platform;
       WindowProps props;
@@ -800,7 +935,7 @@ namespace
 
   void checkCounterAndRefusals()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.count=state(0)}compose(){return "
                                     "VStack(Button('+1',()=>{this.count.set(this.count.get()+1)}).TEST_ID('Counter."
@@ -833,7 +968,7 @@ namespace
   }
   void checkManyClickables(const char *kind, int count = 70)
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     char length[16];
     std::sprintf(length, "%d", count);
@@ -880,7 +1015,7 @@ namespace
 
   void checkClickableLifetime()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error, result;
     LOKA_VERIFY(runtime.loadBuiltin("globalThis.clicks=0;card('first',class{compose(){return VStack("
                                     "Button('go',()=>{++clicks;go('second')}).TEST_ID('Go'),"
@@ -927,7 +1062,7 @@ namespace
 
   void checkEnabledSeat()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.on=state(true)}compose(){return "
                                     "VStack(Button('flip',()=>this.on.set(!this.on.get())).TEST_ID('Flip'),Button('"
@@ -956,7 +1091,7 @@ namespace
   }
   void checkArrayChildren()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){}compose(){return "
                                     "VStack(['one','two','three'].map(v=>Text(v))).TEST_ID('Mapped')}});",
@@ -977,7 +1112,7 @@ namespace
   }
   void checkTreePropertyCopy()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String result, error;
     LOKA_VERIFY(runtime.evaluateToString(
         loka::core::String::Literal(
@@ -1014,7 +1149,7 @@ namespace
   void checkTextStyle()
   {
     using namespace loka::app;
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.text=state('live')}compose(){return VStack("
                                     "Text('a',{size:24,weight:'bold',italic:true}).TEST_ID('Styled'),"
@@ -1059,7 +1194,7 @@ namespace
 
   void checkLifecycleHooks()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error, result;
     LOKA_VERIFY(runtime.loadBuiltin(
         "card('first',class{constructor(){this.value=state('new')}onAttach(){this.value.set('attached')}onDetach(){"
@@ -1081,7 +1216,7 @@ namespace
     admission.flush();
     LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("detached"), result, error));
     LOKA_VERIFY(result.compare(loka::core::String::Literal("detached")) == 0);
-    smirkycard::ScriptRuntime throwing;
+    smirkycard::ScriptRuntime throwing(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     LOKA_VERIFY(throwing.loadBuiltin("card('first',class{onAttach(){throw new Error('attach boom')}compose(){return "
                                      "VStack(Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
                                      error));
@@ -1100,7 +1235,7 @@ namespace
 
   void checkComposeRefusal(const char *source, const char *expected, bool consumesException = false)
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin(source, error));
     NullPlatformContext context;
@@ -1125,7 +1260,7 @@ namespace
 
   void checkGridShape(int rows, int cols, bool clickable)
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     char prefix[128];
     std::sprintf(prefix,
@@ -1176,7 +1311,7 @@ namespace
     checkGridShape(16, 16, false);
     checkGridShape(1, 1, true);
     checkGridShape(2, 3, true);
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String result, error;
     // Validation belongs to the helper call even if its result is never lowered.
     LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("Grid(0,8,[]);'unused'"), result, error));
@@ -1323,7 +1458,7 @@ namespace
   void checkMarkup()
   {
     using namespace loka::app;
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error, value;
     LOKA_VERIFY(runtime.evaluateToString(
         loka::core::String::Literal("(()=>{try{Markup('<b>x')}catch(e){return e instanceof TypeError}return false})()"),
@@ -1360,7 +1495,7 @@ namespace
   void checkBlockStyle()
   {
     using namespace loka::app;
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error, value;
     LOKA_VERIFY(runtime.loadBuiltin(
         "card('first',class{constructor(){this.s=state('s');this.n=state(1)}compose(){return VStack("
@@ -1514,7 +1649,7 @@ namespace
                         "String state seat");
     checkComposeRefusal("card('first',class{compose(){return Cell('x',42)}});", "function");
 
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin(
         "card('first',class{constructor(){}compose(){return VStack(Button('Throw',()=>{throw new Error('handler "
@@ -1535,7 +1670,7 @@ namespace
     find(root, "Loop")->asButtonNode()->props.getOnClick()->emit();
     LOKA_VERIFY(textValue(status).find("interrupted") != std::string::npos);
 
-    smirkycard::ScriptRuntime exceptionRuntime;
+    smirkycard::ScriptRuntime exceptionRuntime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     LOKA_VERIFY(exceptionRuntime.loadBuiltin(
         "card('first',class{constructor(){this.value=state('ready')}compose(){return VStack(Button('Throw "
         "object',()=>{throw "
@@ -1559,7 +1694,7 @@ namespace
 
   void checkRetiredSeatAndIntegerRefusal()
   {
-    smirkycard::ScriptRuntime runtime;
+    smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     loka::core::String error;
     LOKA_VERIFY(runtime.loadBuiltin(
         "card('first',class{constructor(){this.count=state(0);globalThis.saved=this.count}compose(){return "
@@ -1588,7 +1723,7 @@ namespace
     LOKA_VERIFY(std::string(static_cast<const char *>(retiredError.data()), retiredError.length()).find("retired card")
                 != std::string::npos);
 
-    smirkycard::ScriptRuntime integerRuntime;
+    smirkycard::ScriptRuntime integerRuntime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
     LOKA_VERIFY(integerRuntime.loadBuiltin(
         "card('first',class{constructor(){this.count=state(1);globalThis.numberSeat=this.count}compose(){return "
         "VStack(Text(this.count).TEST_ID('Number.Count'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
@@ -1736,6 +1871,26 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--random-golden"))
+  {
+    checkRandomGolden();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--random-seeds"))
+  {
+    checkRandomSeeds();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--random-generations"))
+  {
+    checkRandomGenerations();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--random-binding"))
+  {
+    checkRandomEngineBinding();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--clickable-lifetime"))
   {
     checkClickableLifetime();
@@ -1757,6 +1912,10 @@ int main(int argc, char **argv)
     checkMines();
     return 0;
   }
+  checkRandomGolden();
+  checkRandomSeeds();
+  checkRandomGenerations();
+  checkRandomEngineBinding();
   checkGrid();
   checkMines();
   testScriptAllocatorAlignsTwoByteAlignedBase();
@@ -1779,7 +1938,7 @@ int main(int argc, char **argv)
   checkEnabledSeat();
   checkArrayChildren();
   checkLifecycleHooks();
-  smirkycard::ScriptRuntime runtime;
+  smirkycard::ScriptRuntime runtime(smirkycard::ScriptRandom::Seeded(0x13579BDFUL));
   loka::core::String builtinError;
   LOKA_VERIFY(runtime.loadBuiltin(smirkycard::BuiltinMainJs(), builtinError));
   checkEvaluation(runtime);

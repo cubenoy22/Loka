@@ -11,6 +11,7 @@
 #endif
 #include <cassert>
 #include <new>
+#include <stdint.h>
 
 namespace smirkycard
 {
@@ -49,8 +50,12 @@ namespace smirkycard
       return copy;
     }
   } // namespace
-  JsEngine::JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry, const std::string &sourceName)
-      : runtime_(&runtime),
+  JsEngine::JsEngine(ScriptRuntime &runtime,
+                     const JsCardBindingRegistry &registry,
+                     const std::string &sourceName,
+                     unsigned long randomSeed)
+      : randomState_(randomSeed),
+        runtime_(&runtime),
         sourceName_(sourceName),
         script_(SmirkyScriptCreate()),
         first_(JS_UNDEFINED),
@@ -62,11 +67,53 @@ namespace smirkycard
       return;
     JS_SetContextOpaque(this->context(), &runtime);
     JS_SetRuntimeOpaque(this->jsRuntime(), this);
-    if (!registry.install(this->context()))
+    if (!this->installRandom() || !registry.install(this->context()))
     {
       SmirkyScriptDestroy(this->script_);
       this->script_ = 0;
     }
+  }
+
+  bool JsEngine::installRandom()
+  {
+    JSContext *ctx = this->context();
+    JSValue global = JS_GetGlobalObject(ctx);
+    if (JS_IsException(global))
+      return false;
+    JSValue math = JS_GetPropertyStr(ctx, global, "Math");
+    JS_FreeValue(ctx, global);
+    if (JS_IsException(math))
+      return false;
+    JSValue function = JS_NewCFunction(ctx, &JsEngine::random, "random", 0);
+    if (JS_IsException(function))
+    {
+      JS_FreeValue(ctx, math);
+      return false;
+    }
+    const int result =
+        JS_DefinePropertyValueStr(ctx, math, "random", function, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeValue(ctx, math);
+    return result > 0;
+  }
+
+  JSValue JsEngine::random(JSContext *ctx, JSValueConst, int, JSValueConst *)
+  {
+    JsEngine *engine = static_cast<JsEngine *>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+    // Identical masked LCG constants to MineSweeper's MainNode.hpp BoardRandom.
+    engine->randomState_ = (engine->randomState_ * 1664525UL + 1013904223UL) & 0xFFFFFFFFUL;
+    const unsigned long x = engine->randomState_;
+    uint64_t bits = 0;
+    if (x)
+    {
+      unsigned int p = 0;
+      for (unsigned long remaining = x >> 1; remaining; remaining >>= 1)
+        ++p;
+      // x / 2^32: exponent p-32, exact residual significand; no FP arithmetic.
+      bits = (static_cast<uint64_t>(p + 991) << 52) | (static_cast<uint64_t>(x ^ (1UL << p)) << (52 - p));
+    }
+    double value;
+    std::memcpy(&value, &bits, sizeof(value));
+    return JS_NewFloat64(ctx, value);
   }
 
   JsEngine::~JsEngine()
@@ -151,8 +198,10 @@ namespace smirkycard
       engine->runtime_->destroyRetiredEngine(engine);
   }
 
-  ScriptRuntime::ScriptRuntime()
-      : registry_(),
+  ScriptRuntime::ScriptRuntime(const ScriptRandom &random)
+      : random_(random),
+        committedGeneration_(0),
+        registry_(),
         currentEngine_(0),
         retiredEngines_(0),
         active_(0),
@@ -174,7 +223,11 @@ namespace smirkycard
 
   JsEngine *ScriptRuntime::createEngine(const std::string &sourceName)
   {
-    JsEngine *engine = new (std::nothrow) JsEngine(*this, this->registry_, sourceName);
+    JsEngine *engine = new (std::nothrow)
+        JsEngine(*this,
+                 this->registry_,
+                 sourceName,
+                 this->random_.seedForGeneration(this->currentEngine_ ? this->committedGeneration_ + 1 : 0));
     if (engine && !engine->context())
     {
       delete engine;
@@ -188,6 +241,7 @@ namespace smirkycard
     assert(engine && engine != this->currentEngine_);
     JsEngine *old = this->currentEngine_;
     this->currentEngine_ = engine;
+    ++this->committedGeneration_;
     if (old)
       old->markRetired();
   }

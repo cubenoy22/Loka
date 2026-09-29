@@ -2,6 +2,7 @@
 #define SMIRKYCARD_SCRIPT_RUNTIME_HPP
 
 #include "ScriptEngine.h"
+#include "ScriptRandom.hpp"
 #include "JsCardBindingRegistry.hpp"
 #include "quickjs.h"
 #include "core/String.hpp"
@@ -30,9 +31,16 @@ namespace smirkycard
   private:
     friend class JsEngineRef;
     friend class ScriptRuntime;
-    JsEngine(ScriptRuntime &runtime, const JsCardBindingRegistry &registry, const std::string &sourceName);
+    JsEngine(ScriptRuntime &runtime,
+             const JsCardBindingRegistry &registry,
+             const std::string &sourceName,
+             unsigned long randomSeed);
     ~JsEngine();
     void markRetired();
+    bool installRandom();
+    static JSValue random(JSContext *ctx, JSValueConst, int, JSValueConst *);
+    /** Engine-local recurrence; random() is its only writer after construction. */
+    unsigned long randomState_;
     ScriptRuntime *runtime_;
     /** Immutable origin filename; empty for the built-in fallback. */
     const std::string sourceName_;
@@ -88,7 +96,7 @@ namespace smirkycard
       InterruptWindow &operator=(const InterruptWindow &);
     };
 
-    ScriptRuntime();
+    explicit ScriptRuntime(const ScriptRandom &random);
     ~ScriptRuntime();
 
     JsEngine *currentEngine() const
@@ -203,6 +211,10 @@ namespace smirkycard
       MAIN_ERROR_FIRST_CARD,
       MAIN_ERROR_EVERY_CARD
     };
+    const ScriptRandom random_;
+    /** Single writer: replaceCurrentEngine. Only reader: ScriptRuntime candidate
+        seed computation. Failed or discarded candidates never advance it. */
+    unsigned long committedGeneration_;
     JsCardBindingRegistry registry_;
     JsEngine *currentEngine_;
     JsEngine *retiredEngines_;

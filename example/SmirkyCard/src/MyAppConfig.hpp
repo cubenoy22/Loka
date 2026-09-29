@@ -11,9 +11,9 @@
 class SmirkyCardAppConfig : public AppConfigurable
 {
 public:
-  explicit SmirkyCardAppConfig(PlatformContext *context)
+  SmirkyCardAppConfig(PlatformContext *context, const smirkycard::ScriptRandom &random)
       : AppConfigurable(context),
-        runtime_()
+        runtime_(random)
   {
     runtime_.loadMain(context);
   }
