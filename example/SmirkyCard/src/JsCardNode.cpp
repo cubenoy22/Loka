@@ -179,7 +179,6 @@ namespace smirkycard
         engineRef_(this->engine_),
         phase_(Live),
         capability_(JS_UNDEFINED),
-        compose_(JS_UNDEFINED),
         failed_(false),
         instance_(JS_UNDEFINED),
         seats_("Seat"),
@@ -247,32 +246,13 @@ namespace smirkycard
       {
         // Formatting a thrown object may execute JS; construction has already ended.
         p.runtime->captureException(*this->engine_, error);
-        fail("Card constructor failed.");
+        fail(loka::core::String::Literal("Card constructor failed. ") + error);
       }
     }
     this->phase_ = Live;
     JS_FreeValue(ctx, context);
     JS_FreeValue(ctx, ctor);
-    if (ok && JS_IsObject(this->instance_))
-    {
-      const char *properties[] = {"compose", "onAttach", "onDetach"};
-      JSValue *slots[] = {&this->compose_, &this->onAttach_, &this->onDetach_};
-      for (int i = 0; ok && i < 3; ++i)
-      {
-        *slots[i] = JS_GetPropertyStr(ctx, this->instance_, properties[i]);
-        if (JS_IsException(*slots[i]))
-        {
-          p.runtime->captureException(*this->engine_, error);
-          fail(error);
-          ok = false;
-        }
-        else if (!JS_IsFunction(ctx, *slots[i]) && !(i && JS_IsUndefined(*slots[i])))
-          ok = false;
-      }
-    }
-    else
-      ok = false;
-    if (!ok && !this->failed_)
+    if (ok && !JS_IsObject(this->instance_))
       fail("card(name, F): F(c) must return an object with compose()");
   }
   JSValue
@@ -323,7 +303,6 @@ namespace smirkycard
     {
       JSContext *ctx = this->engine_->context();
       JS_FreeValue(ctx, this->capability_);
-      JS_FreeValue(ctx, this->compose_);
       JS_FreeValue(ctx, instance_);
       JS_FreeValue(ctx, tree_);
       JS_FreeValue(ctx, onAttach_);
@@ -410,6 +389,8 @@ namespace smirkycard
   JSValue JsCardNode::seatGet(JSContext *ctx, JSValueConst seat)
   {
     JsSeatRecord *record = this->findSeat(ctx, seat);
+    if (record && !record->isMaterialized())
+      return JS_ThrowTypeError(ctx, "state seat is not materialized");
     if (record)
     {
       if (record->kind == JsSeatRecord::STRING)
@@ -423,6 +404,8 @@ namespace smirkycard
   JSValue JsCardNode::seatSet(JSContext *ctx, JSValueConst seat, JSValueConst value)
   {
     JsSeatRecord *record = this->findSeat(ctx, seat);
+    if (record && !record->isMaterialized())
+      return JS_ThrowTypeError(ctx, "state seat is not materialized");
     if (record)
     {
       if (record->kind == JsSeatRecord::STRING && JS_IsString(value))
@@ -458,8 +441,9 @@ namespace smirkycard
   }
   JSValue JsCardNode::errorSeatGet(JSContext *ctx)
   {
-    // Constructor declarations materialize on attach; failure_ already owns the pre-attach fact.
-    return jsString(ctx, this->error_.isValid() ? this->error_.get() : this->failure_);
+    if (!this->error_.isValid())
+      return JS_ThrowTypeError(ctx, "state seat is not materialized");
+    return jsString(ctx, this->error_.get());
   }
   void JsCardNode::requestGo(const char *name, size_t length)
   {
@@ -581,10 +565,27 @@ namespace smirkycard
   void JsCardNode::attachNode(loka::app::scene::NodeComposition &composition)
   {
     StdCompositionBoundaryNodeBase<JsCardProps>::attachNode(composition);
-    if (this->engine_ && this->engine_->context())
+    if (!this->failed_ && this->phase_ == Live && this->engine_ && this->engine_->context())
     {
       ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
-      this->finishCall(this->callHook(this->onAttach_));
+      JSContext *ctx = this->engine_->context();
+      // Hook getters may read declared seats, just like the compose getter.
+      const char *properties[] = {"onAttach", "onDetach"};
+      JSValue *slots[] = {&this->onAttach_, &this->onDetach_};
+      for (int i = 0; !this->failed_ && i < 2; ++i)
+      {
+        *slots[i] = JS_GetPropertyStr(ctx, this->instance_, properties[i]);
+        if (JS_IsException(*slots[i]))
+        {
+          loka::core::String error;
+          props.runtime->captureException(*this->engine_, error);
+          this->fail(error);
+        }
+        else if (!JS_IsFunction(ctx, *slots[i]) && !JS_IsUndefined(*slots[i]))
+          this->fail("card(name, F): F(c) must return an object with compose()");
+      }
+      if (!this->failed_)
+        this->finishCall(this->callHook(this->onAttach_));
     }
   }
   void JsCardNode::detachNode(loka::app::scene::NodeComposition &composition)
@@ -616,22 +617,33 @@ namespace smirkycard
     {
       JSContext *ctx = this->engine_->context();
       ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
-      JSValue result = JS_UNDEFINED;
+      JSValue compose = JS_GetPropertyStr(ctx, this->instance_, "compose");
       loka::core::String error;
-      ComposeDelegate delegate(ctx, this->capability_);
-      JSValue argument = delegate.value();
-      result = JS_IsException(argument) ? JS_EXCEPTION : JS_Call(ctx, this->compose_, instance_, 1, &argument);
-      delegate.close();
-      if (JS_IsException(result))
+      if (JS_IsException(compose))
       {
         props.runtime->captureException(*this->engine_, error);
-        fail(error.empty() ? loka::core::String::Literal("JavaScript compose() failed.") : error);
+        this->fail(error);
       }
-      else if (JS_IsObject(result))
-        setComposeTree(ctx, result);
-      else if (JS_IsUndefined(tree_))
-        fail("JavaScript compose() must return or declare a tree.");
-      JS_FreeValue(ctx, result);
+      else if (!JS_IsFunction(ctx, compose))
+        this->fail("card(name, F): F(c) must return an object with compose()");
+      else
+      {
+        ComposeDelegate delegate(ctx, this->capability_);
+        JSValue argument = delegate.value();
+        JSValue result = JS_IsException(argument) ? JS_EXCEPTION : JS_Call(ctx, compose, this->instance_, 1, &argument);
+        delegate.close();
+        if (JS_IsException(result))
+        {
+          props.runtime->captureException(*this->engine_, error);
+          fail(error.empty() ? loka::core::String::Literal("JavaScript compose() failed.") : error);
+        }
+        else if (JS_IsObject(result))
+          setComposeTree(ctx, result);
+        else if (JS_IsUndefined(tree_))
+          fail("JavaScript compose() must return or declare a tree.");
+        JS_FreeValue(ctx, result);
+      }
+      JS_FreeValue(ctx, compose);
     }
     if (failed_)
     {

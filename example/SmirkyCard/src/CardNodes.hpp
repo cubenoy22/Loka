@@ -85,7 +85,6 @@ namespace smirkycard
     Phase phase_;
     /** QuickJS owns the shared revocable capability captured by native methods. */
     JSValue capability_;
-    JSValue compose_;
     static JSValue contextMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
     void revoke();
     bool failed_;

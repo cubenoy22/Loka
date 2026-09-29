@@ -1595,11 +1595,77 @@ namespace
     LOKA_VERIFY(result.compare(loka::core::String::Literal(expected)) == 0);
   }
 
+  void checkMaterializedGetters()
+  {
+    std::puts("[pin] card getters read materialized seats");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var reads=[],detached='';card('first',class{constructor(c){this.s=c.state('ready');this.c=c;}"
+        "get onAttach(){reads.push('attach:'+this.s.get());return ()=>reads.push('attached')}"
+        "get onDetach(){reads.push('detach:'+this.s.get());const s=this.s;return "
+        "()=>{s.set('detached');detached=s.get()}}"
+        "get compose(){reads.push('compose:'+this.s.get());const v=this.s.get();"
+        "if(this.c.error.get()!=='')throw Error('unexpected error');return ()=>Text(v).TEST_ID('Getter.Value')}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *value = windowNode(window, "Getter.Value");
+    LOKA_VERIFY(value && value->asTextNode());
+    LOKA_VERIFY(textValue(value->asTextNode()) == "ready");
+    expectJs(runtime, "reads.join(',')", "attach:ready,detach:ready,attached,compose:ready");
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), false);
+    expectJs(runtime, "detached", "detached");
+    expectJs(runtime, "reads.length", "4");
+  }
+
+  void checkEarlySeatRefusal()
+  {
+    std::puts("[pin] unmaterialized seats throw TypeError instead of entering native state access");
+    const char *operations[] = {"c.state('s').get()",
+                                "c.state(1).get()",
+                                "c.state(true).get()",
+                                "c.state('s').set('new')",
+                                "c.state(1).set(2)",
+                                "c.state(true).set(false)",
+                                "c.error.get()"};
+    for (unsigned i = 0; i < sizeof(operations) / sizeof(operations[0]); ++i)
+    {
+      const std::string source =
+          std::string("card('first',class{constructor(c){") + operations[i] + "}compose(){return VStack()}});";
+      checkComposeRefusal(source.c_str(), "TypeError: state seat is not materialized", true);
+    }
+  }
+
+  void checkMissingComposeAfterAttach()
+  {
+    std::puts("[pin] missing compose is refused after attach");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("var attached=false;card('first',c=>({onAttach(){attached=true}}));", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *status = windowNode(window, "SmirkyCard.Status");
+    LOKA_VERIFY(status && status->asTextNode());
+    LOKA_VERIFY(textValue(status->asTextNode()).find("card(name, F): F(c) must return an object with compose()")
+                != std::string::npos);
+    expectJs(runtime, "attached", "true");
+  }
+
   void checkCardContext()
   {
     std::puts("[pin] card context: class, factory, arrow construction exactly once");
-    const char *factories[] = {"class {constructor(c){++calls;if(c.error.get()!=='')throw Error('early error "
-                               "seat');this.s=c.state('class');this.c=c;globalThis.context=c;}"
+    const char *factories[] = {"class {constructor(c){++calls;this.s=c.state('class');this.c=c;globalThis.context=c;}"
                                "compose(d){globalThis.delegate=d;return Text(this.s).TEST_ID('Value')}}",
                                "function(c){++calls;globalThis.context=c;var s=c.state('factory');return {"
                                "compose(d){globalThis.delegate=d;return Text(s).TEST_ID('Value')}}}",
@@ -1928,6 +1994,17 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--materialized-getters"))
+  {
+    checkMaterializedGetters();
+    checkMissingComposeAfterAttach();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--early-seats"))
+  {
+    checkEarlySeatRefusal();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--exception-context"))
   {
     checkExceptionContext();
@@ -1961,6 +2038,9 @@ int main(int argc, char **argv)
     checkMines();
     return 0;
   }
+  checkMaterializedGetters();
+  checkEarlySeatRefusal();
+  checkMissingComposeAfterAttach();
   checkCardContext();
   checkContextRevocation();
   checkExceptionContext();
