@@ -44,7 +44,9 @@ namespace loka
         }
 
         virtual int
-        layoutNode(scene::Node *node, const scene::LayoutState &state, scene::IPlatformLayoutTraversal *traversal)
+        layoutNode(scene::Node *node, const scene::LayoutState &state, scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
         {
           CanvasNode *canvas = node ? node->asCanvasNode() : 0;
           if (!canvas || !traversal)

@@ -4,6 +4,8 @@
 #include "app/scene/projection/NativeHandlePool.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "core/State.hpp"
+#include "core/Managed.hpp"
+#include "app/layout/StackSpans.hpp"
 #include "app/scene/state/WriteSeat.hpp"
 #include <Quickdraw.h>
 #include <Controls.h>
@@ -54,6 +56,7 @@ public:
   {
     short resourceId;
     loka::app::ScrollViewNode *scrollView;
+    loka::core::Managed<loka::app::layout::StackSpans> spans;
     bool usedThisFrame;
     Rect rect;
   };

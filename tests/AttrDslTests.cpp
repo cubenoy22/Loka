@@ -412,7 +412,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       ++layoutCalls_;
       lastState_ = state;
@@ -452,7 +454,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       (void)node;
       (void)state;
@@ -471,7 +475,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       assert(node != 0);
       assert(traversal != 0);
@@ -506,7 +512,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       (void)node;
       (void)state;

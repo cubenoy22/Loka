@@ -64,9 +64,12 @@ namespace
 
 
 #include "ToolboxTextMeasurementPins.hpp"
+#include "ToolboxScrollViewPins.hpp"
 
 int main(int argc, char **argv)
 {
+  if (argc > 1 && std::string(argv[1]) == "scroll-band") { ScrollViewPins(); return 0; }
+  ScrollViewPins();
   if (argc > 1 && std::string(argv[1]) == "measurement-plain") { MeasurementPins(true, false); return 0; }
   if (argc > 1 && std::string(argv[1]) == "measurement-attributed") { MeasurementPins(false, true); return 0; }
   MeasurementPins(true, true);

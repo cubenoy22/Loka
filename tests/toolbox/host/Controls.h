@@ -13,6 +13,9 @@ namespace toolbox_host
   extern unsigned tracks;
 }
 inline short GetControlValue(ControlRef c) { return c->value; }
+inline void SetControlValue(ControlRef c, short value) { c->value = value; }
+inline void HiliteControl(ControlRef, short) {}
+inline void ShowControl(ControlRef) {}
 inline void HideControl(ControlRef) {}
 inline short FindControl(Point, GrafPtr, ControlRef *out)
 { *out = toolbox_host::hitControl; return *out ? kControlIndicatorPart : 0; }
