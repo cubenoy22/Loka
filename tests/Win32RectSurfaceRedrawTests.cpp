@@ -519,6 +519,10 @@ void testWin32PopupMenuPaintDelivery()
 void testWin32ZStackTextShowsSiblingBeneath()
 {
   typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
+  BOOL fontSmoothing = FALSE;
+  UINT fontSmoothingType = 0;
+  LOKA_VERIFY(SystemParametersInfoW(SPI_GETFONTSMOOTHING, 0, &fontSmoothing, 0));
+  LOKA_VERIFY(SystemParametersInfoW(SPI_GETFONTSMOOTHINGTYPE, 0, &fontSmoothingType, 0));
   // Use the production root so its STATIC background and ground-fill policies
   // participate in the pin, along with the two native projection contexts.
   NullPlatformContext platform;
@@ -581,26 +585,28 @@ void testWin32ZStackTextShowsSiblingBeneath()
       const COLORREF below = GetPixel(pixels, 80, 60);
       const COLORREF overlap = GetPixel(pixels, 150, 12);
       const COLORREF ground = GetPixel(pixels, 200, 100);
-      int glyphPixels = 0;
+      // Font smoothing can render the glyph without pure-black pixels (#829).
+      int inkPixels = 0;
       for (int y = 0; y < 24; ++y)
       {
         for (int x = 0; x < 160; ++x)
         {
-          if (GetPixel(pixels, x, y) == RGB(0, 0, 0))
+          if (GetPixel(pixels, x, y) != RGB(255, 255, 255))
           {
-            ++glyphPixels;
+            ++inkPixels;
           }
         }
       }
       SelectObject(pixels, previous);
       DeleteDC(pixels);
-      std::printf("#598 ZStack capture %d: below=%08lX overlap=%08lX ground=%08lX; window=%08lX glyph=%d\n",
+      std::printf("#598 ZStack capture %d: below=%08lX overlap=%08lX ground=%08lX; window=%08lX ink=%d; SPI_GETFONTSMOOTHING=%d SPI_GETFONTSMOOTHINGTYPE=%u\n",
                   phase, static_cast<unsigned long>(below), static_cast<unsigned long>(overlap),
-                  static_cast<unsigned long>(ground), static_cast<unsigned long>(GetSysColor(COLOR_WINDOW)), glyphPixels);
+                  static_cast<unsigned long>(ground), static_cast<unsigned long>(GetSysColor(COLOR_WINDOW)), inkPixels,
+                  static_cast<int>(fontSmoothing), static_cast<unsigned int>(fontSmoothingType));
       std::fflush(stdout);
       LOKA_VERIFY(below == RGB(0, 0, 0));
       LOKA_VERIFY(overlap == RGB(255, 255, 255));
-      LOKA_VERIFY(glyphPixels > 0);
+      LOKA_VERIFY(inkPixels > 0);
       LOKA_VERIFY(ground == GetSysColor(COLOR_WINDOW) && ground != RGB(0, 0, 0));
     }
 
