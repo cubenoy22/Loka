@@ -101,6 +101,45 @@ int main(int argc, char **argv)
   std::printf("%s unchanged partial\n", mode); std::fflush(stdout);
   { ToolboxPaintClip clip(partial); Draw(*context, controller, mode, control, installedLabel); }
   ExactEmpty(*context, query);
+  if (id == "attributed")
+  {
+    // The host controller has no render traversal. Mirror production replay's
+    // layout-then-render sequence, including its unchanged layout inputs.
+    std::puts("attributed unchanged replay layout"); std::fflush(stdout);
+    {
+      ToolboxPaintClip clip(partial);
+      seat = Seat(); seat.inputs = NODE_DIRTY_NONE;
+      context->layout(&controller, seat);
+      context->render(&controller);
+    }
+    ExactEmpty(*context, query);
+    const char *changes[] = {"rebuilt equal value", "moved x", "moved y", "changed width"};
+    for (unsigned i = 0; i < sizeof(changes) / sizeof(changes[0]); ++i)
+    {
+      std::printf("attributed %s\n", changes[i]); std::fflush(stdout);
+      seat = Seat(); seat.inputs = NODE_DIRTY_NONE;
+      if (i == 0) seat.inputs = NODE_DIRTY_PROPS;
+      if (i == 1) ++seat.x;
+      if (i == 2) ++seat.y;
+      if (i == 3) ++seat.width;
+      {
+        ToolboxPaintClip clip(partial);
+        context->layout(&controller, seat);
+        const PaintAnswer laidOut = context->queryPaintDamage(query);
+        LOKA_VERIFY(laidOut.kind == PAINT_ANSWER_REFUSED
+            && laidOut.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+        context->render(&controller);
+      }
+      const PaintAnswer replayed = context->queryPaintDamage(query);
+      LOKA_VERIFY(replayed.kind == PAINT_ANSWER_REFUSED
+          && replayed.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+      // Restore the same full-draw baseline for each independent negative.
+      seat = Seat(); seat.inputs = NODE_DIRTY_NONE;
+      context->layout(&controller, seat);
+      context->render(&controller);
+      ExactEmpty(*context, query);
+    }
+  }
   // Change the drawer's value without changing placement. AttributedText must
   // rebuild its table via layout, which conservatively revokes the old fact.
   {
