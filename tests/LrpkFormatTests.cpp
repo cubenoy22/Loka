@@ -1233,28 +1233,9 @@ void testLrpcValidatesBeforeItPacks()
     writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, outOfRange, kBw, sizeof(kBw));
     LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_REFERENCE);
   }
-  {
-    Writer writer;
-    const U32 one[1] = {1};
-    AxisKind invalidKind = AXIS_KIND_ENUM;
-    const int invalidKindBits = 255;
-    assert(sizeof(invalidKind) == sizeof(invalidKindBits));
-    std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
-    writer.declareAxis(invalidKind, 0, one, 1);
-    const std::size_t bag = writer.addBag();
-    writer.addAsset(AssetLayoutKey(""), 7, bag, ASSET_KIND_IMAGE, plain, kDefault, sizeof(kDefault));
-    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_AXIS_KIND);
-  }
-  {
-    Writer writer;
-    AssetKind invalidKind = ASSET_KIND_UNKNOWN;
-    const int invalidKindBits = 255;
-    assert(sizeof(invalidKind) == sizeof(invalidKindBits));
-    std::memcpy(&invalidKind, &invalidKindBits, sizeof(invalidKind));
-    const std::size_t bag = writer.addBag();
-    writer.addAsset(AssetLayoutKey(""), 7, bag, invalidKind, plain, kDefault, sizeof(kDefault));
-    LOKA_VERIFY(writer.build(kStamp, out) == Writer::BUILD_BAD_ASSET_KIND);
-  }
+  // BUILD_BAD_AXIS_KIND and BUILD_BAD_ASSET_KIND are not pinned: a typed
+  // caller cannot pass an AxisKind or AssetKind outside its enumerators, and
+  // forcing one in (memcpy of 255) is undefined behavior that UBSan reports (#676).
   {
     Writer writer;
     const U32 one[1] = {1};

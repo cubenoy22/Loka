@@ -314,7 +314,13 @@ void OffsetRect(Rect *r, short x, short y)
   r->top += y;
   r->bottom += y;
 }
+#ifdef LOKA_HOST_CONTROL_WIDTH
+namespace toolbox_host { Rect controlRect; }
+HostQD qd;
+void FrameRect(const Rect *rect) { toolbox_host::controlRect = *rect; }
+#else
 void FrameRect(const Rect *) {}
+#endif
 #include "ToolboxTextEditorBinding.cpp"
 #include "ToolboxNativeRetirement.cpp"
 #include "ToolboxEditTextBinding.cpp"
@@ -360,6 +366,7 @@ namespace
 {
   int gActiveScrollBarLineStep = 1, gActiveScrollBarPageStep = 1;
   ControlActionUPP ScrollBarActionUPP() { return 0; }
+#ifndef LOKA_HOST_CONTROL_WIDTH
   typedef int *MenuHandle;
   MenuHandle NewMenu(short, const unsigned char *) { return new int(0); }
   void AppendMenu(MenuHandle, const unsigned char *) {}
@@ -368,14 +375,19 @@ namespace
   long PopUpMenuSelect(MenuHandle, short, short, short) { return 2; }
   void DeleteMenu(short) {}
   void DisposeMenu(MenuHandle menu) { delete menu; }
+#endif
 }
 #include "ToolboxControlInput.cpp"
 #include "ToolboxInputPublication.cpp"
+#ifndef LOKA_HOST_CONTROL_WIDTH
 #include "context/ToolboxButtonInput.cpp"
+#endif
 #ifndef LOKA_HOST_CELL_PAINT
 #include "context/ToolboxCellInput.cpp"
 #endif
+#ifndef LOKA_HOST_CONTROL_WIDTH
 #include "context/ToolboxPopupMenuInput.cpp"
+#endif
 
 // The host substitutes geometry traversal; the complete production render
 // operation (including extent publication and its continuation) runs below.
@@ -403,7 +415,7 @@ namespace
 #include "ToolboxRender.cpp"
 void ToolboxScenePlatformController::renderDirty(const Rect &) { this->render(); }
 
-#ifdef LOKA_HOST_CELL_PAINT
+#if defined(LOKA_HOST_CELL_PAINT) || defined(LOKA_HOST_CONTROL_WIDTH)
 short ToolboxScenePlatformController::measureTextWidth(const loka::core::String &value) const
 {
   return this->measureTextWidth(value, ToolboxTextFontDescriptor());

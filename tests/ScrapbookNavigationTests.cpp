@@ -288,8 +288,8 @@ void testScrapbookRenderedNavigationButtonsMoveAndStopAtEndpoints()
   NullPlatformContext context;
   scrapbook_navigation_test::MainProps props;
   props.platformContext(&context);
-  loka::app::scene::NodeDefinition<scrapbook_navigation_test::MainProps,
-                                   scrapbook_navigation_test::MainNode>
+  loka::app::scene::BoundaryDefinition<scrapbook_navigation_test::MainProps,
+                                       scrapbook_navigation_test::MainNode>
       mainDefinition(props);
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(mainDefinition.clone());
@@ -331,8 +331,8 @@ void testScrapbookRenderedNextButtonAdvancesOnTwoConsecutiveClicks()
   NullPlatformContext context;
   scrapbook_navigation_test::MainProps props;
   props.platformContext(&context);
-  loka::app::scene::NodeDefinition<scrapbook_navigation_test::MainProps,
-                                   scrapbook_navigation_test::MainNode>
+  loka::app::scene::BoundaryDefinition<scrapbook_navigation_test::MainProps,
+                                       scrapbook_navigation_test::MainNode>
       mainDefinition(props);
   NullScenePlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
@@ -363,8 +363,8 @@ void testScrapbookSizedPageContainerOwnsBothPresentations()
   NullPlatformContext context;
   scrapbook_navigation_test::MainProps props;
   props.platformContext(&context);
-  loka::app::scene::NodeDefinition<scrapbook_navigation_test::MainProps,
-                                   scrapbook_navigation_test::MainNode>
+  loka::app::scene::BoundaryDefinition<scrapbook_navigation_test::MainProps,
+                                       scrapbook_navigation_test::MainNode>
       mainDefinition(props);
   NullScenePlatformController platform;
   loka::app::scene::Scene scene(mainDefinition.clone());
