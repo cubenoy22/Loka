@@ -73,6 +73,7 @@ namespace loka
       {
         return 1;
       }
+      typedef ShowDefinition CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         return new ShowDefinition(*this);

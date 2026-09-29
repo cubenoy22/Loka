@@ -154,6 +154,7 @@ namespace
     {
     }
 
+    typedef FailingCloneDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return this->props.fail ? 0 : new FailingCloneDefinition(false);

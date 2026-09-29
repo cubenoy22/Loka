@@ -81,6 +81,7 @@ namespace loka
       {
         return 1;
       }
+      typedef PolicyScopeDefinition CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         return new PolicyScopeDefinition(*this);

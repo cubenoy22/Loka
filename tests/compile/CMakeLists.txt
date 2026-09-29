@@ -503,3 +503,8 @@ loka_compile_pin(boundary-declaration-is-kernel-owned
   REFUSES pins/refuses_boundary_declaration.cpp
   ACCEPTS pins/accepts_boundary_declaration.cpp
 )
+
+loka_compile_pin(declare-returns-clone-type
+  REFUSES pins/refuses_declare_clone_type.cpp
+  ACCEPTS pins/accepts_declare_clone_type.cpp
+)

@@ -41,6 +41,7 @@ namespace LocalRebuildRefusalSupport
     RebuildRefusalObservation *observation;
     explicit RefusingRetainedFragment(RebuildRefusalObservation *value = 0)
         : observation(value) {}
+    typedef RefusingRetainedFragment CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new RefusingRetainedFragment(*this);

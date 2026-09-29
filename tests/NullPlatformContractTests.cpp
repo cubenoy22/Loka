@@ -2961,6 +2961,7 @@ namespace
     {
     }
 
+    typedef DialogPresentationProbeDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       DialogPresentationProbeDefinition *copy =
@@ -3252,6 +3253,7 @@ namespace
     {
     }
 
+    typedef PolicyDeliveryProbeDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       PolicyDeliveryProbeDefinition *copy =

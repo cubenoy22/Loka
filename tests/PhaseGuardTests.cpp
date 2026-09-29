@@ -140,9 +140,8 @@ namespace
     }
     virtual void composeChildren(loka::app::scene::NodeComposition &composition)
     {
-      // The clone returns NodeDefinitionBase; the fixture needs no wrapper
-      // return type from declare (the typed wrapper downcast is separate).
-      composition.declare(static_cast<const loka::app::scene::NodeDefinitionBase &>(loka::app::Button("A")));
+      // declare returns the stored clone type for this leaf definition.
+      composition.declare(loka::app::Button("A"));
     }
     void requestStructure()
     {
