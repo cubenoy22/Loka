@@ -205,13 +205,20 @@ namespace smirkycard
         JS_FreeValue(this->ctx_, intrinsic);
         if (!plainPrototype)
           return this->typeError();
-        JsOwnProperties keys(this->ctx_);
-        if (!keys.read(value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK))
-          return false;
+        // An array's length is read without enumerating, so an oversized array
+        // is refused before its keys are listed. A plain object has no
+        // count-only query in the QuickJS API: listing its keys is bounded by
+        // the engine heap that already holds them, and a failed listing is a
+        // refusal (#1037 review).
         int64_t length = 0;
         if (array && JS_GetLength(this->ctx_, value, &length) < 0)
           return false;
-        if (array && (length < 0 || static_cast<uint64_t>(length) + 1 != keys.count()))
+        if (array && (length < 0 || static_cast<uint64_t>(length) > kCarryEntryBudget - this->entries_))
+          return this->rangeError();
+        JsOwnProperties keys(this->ctx_);
+        if (!keys.read(value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK))
+          return false;
+        if (array && static_cast<uint64_t>(length) + 1 != keys.count())
           return this->typeError();
         const uint32_t count = keys.count() - (array ? 1 : 0);
         if (count > kCarryEntryBudget - this->entries_)

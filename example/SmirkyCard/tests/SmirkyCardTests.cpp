@@ -1743,7 +1743,9 @@ namespace
                                "(()=>{var x=0;for(var i=0;i<33;i++)x=[x];return x})()",
                                "Array(1025).fill(0)",
                                "({a:Array(512).fill(0),b:Array(511).fill(0)})",
-                               "(()=>{var x={};for(var i=0;i<1025;i++)x[i]=0;return x})()"};
+                               "(()=>{var x={};for(var i=0;i<1025;i++)x[i]=0;return x})()",
+                               // Refused by length before its keys are listed (#1037 review).
+                               "(()=>{var a=[];a.length=1000000;return a})()"};
     const char *doors[] = {"firstContext.go('second',", "firstContext.open('NEXT.JS',", "firstContext.reload("};
     for (unsigned d = 0; d < 3; ++d)
     {
