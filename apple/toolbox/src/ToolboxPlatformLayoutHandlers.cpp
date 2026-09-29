@@ -34,7 +34,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       loka::app::BoxNode *box = node ? node->asBoxNode() : 0;
       if (!box || !traversal)
@@ -103,7 +105,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0)
     {
       loka::app::ZStackNode *stack = node ? node->asZStackNode() : 0;
       if (!stack || !traversal)
@@ -146,7 +150,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                           const loka::app::layout::LazyWindow *range = 0,
+                           loka::app::layout::StackSpans *spans = 0)
     {
       loka::app::StackNode *stack = node ? node->asStackNode() : 0;
       if (!stack || !traversal)
@@ -157,48 +163,91 @@ namespace
       if (stack->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN)
       {
         loka::app::StackNode *column = stack;
-        short width = 0;
-        short currentY = state.y;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
-        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
+        if (spans && !loka::app::layout::mayBandColumn(column))
         {
-          loka::app::scene::LayoutState childState = state;
-          childState.y = currentY;
-          if (state.height > 0)
+          spans->invalidate();
+          spans = 0;
+        }
+        const unsigned count = static_cast<unsigned>(column->childrenCount());
+        bool band = range && spans && spans->valid() && spans->size() == count && range->first <= count
+                    && range->count <= count - range->first;
+        // Keep selection/repair paired with common ColumnLayout.hpp; this rail
+        // additionally returns the maximum width through its traversal channel.
+        for (;;)
+        {
+          const unsigned first = band ? range->first : 0;
+          const unsigned last = band ? first + range->count : count;
+          if (!band && spans)
+            spans->begin(count);
+          short width = 0;
+          short currentY = static_cast<short>(state.y + (band && first < count ? spans->start(first) : 0));
+          unsigned index = 0;
+          bool mismatch = false;
+          loka::dsl::CompositionCursor<loka::app::scene::Node> it(column->childrenHead(), column->childrenCount());
+          for (loka::app::scene::Node *child = it.next(); child; child = it.next())
           {
-            childState.height =
-                static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
-          }
-          short childWidth = state.width;
-          short childOffset = 0;
-          if (column->props.hasHorizontalAlignment_)
-          {
-            childWidth = static_cast<short>(
-                loka::app::layout::preferredChildWidthForColumn(child, state.width));
-            short remain = static_cast<short>(state.width - childWidth);
-            if (remain > 0)
+            if (index >= last)
+              break;
+            if (index++ < first)
+              continue;
+            const short startY = currentY;
+            loka::app::scene::LayoutState childState = state;
+            childState.y = currentY;
+            if (state.height > 0)
             {
-              if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+              childState.height =
+                  static_cast<short>(loka::app::layout::remainingChildHeightForColumn(state.height, state.y, currentY));
+            }
+            short childWidth = state.width;
+            short childOffset = 0;
+            if (column->props.hasHorizontalAlignment_)
+            {
+              childWidth = static_cast<short>(loka::app::layout::preferredChildWidthForColumn(child, state.width));
+              short remain = static_cast<short>(state.width - childWidth);
+              if (remain > 0)
               {
-                childOffset = static_cast<short>(remain / 2);
-              }
-              else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
-              {
-                childOffset = remain;
+                if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_CENTER)
+                {
+                  childOffset = static_cast<short>(remain / 2);
+                }
+                else if (column->props.horizontalAlignment_ == loka::app::HORIZONTAL_ALIGNMENT_TRAILING)
+                {
+                  childOffset = remain;
+                }
               }
             }
+            childState.x = static_cast<short>(state.x + childOffset);
+            childState.width = childWidth;
+            const int childWidthUsed = DispatchTraversalLayoutChild(traversal, child, childState);
+            if (childWidthUsed > width)
+            {
+              width = static_cast<short>(childWidthUsed);
+            }
+            currentY = traversal->layoutResultY();
+            if (band)
+            {
+              if (currentY - state.y != spans->end(index - 1))
+              {
+                spans->invalidate();
+                mismatch = true;
+                break;
+              }
+            }
+            else if (spans)
+              spans->append(startY - state.y, currentY - state.y);
           }
-          childState.x = static_cast<short>(state.x + childOffset);
-          childState.width = childWidth;
-          const int childWidthUsed = DispatchTraversalLayoutChild(traversal, child, childState);
-          if (childWidthUsed > width)
+          if (mismatch)
           {
-            width = static_cast<short>(childWidthUsed);
+            band = false;
+            continue;
           }
-          currentY = traversal->layoutResultY();
+          if (band)
+            currentY = static_cast<short>(state.y + spans->total());
+          else if (spans)
+            spans->finish();
+          traversal->setLayoutResultY(currentY);
+          return width;
         }
-        traversal->setLayoutResultY(currentY);
-        return width;
       }
 
       return ComputeToolboxRowLayout(stack, state, traversal);
@@ -215,7 +264,9 @@ namespace
 
     virtual int layoutNode(loka::app::scene::Node *node,
                            const loka::app::scene::LayoutState &state,
-                           loka::app::scene::IPlatformLayoutTraversal *traversal)
+                           loka::app::scene::IPlatformLayoutTraversal *traversal,
+                           const loka::app::layout::LazyWindow * = 0,
+                           loka::app::layout::StackSpans * = 0)
     {
       loka::app::GridNode *grid = node ? node->asGridNode() : 0;
       if (!grid || !traversal)
@@ -387,14 +438,16 @@ bool ApplyToolboxPlatformLayoutHandler(
     loka::app::scene::Node &node,
     loka::app::scene::LayoutState &state,
     loka::app::scene::IPlatformLayoutTraversal &traversal,
-    short &width)
+    short &width,
+    const loka::app::layout::LazyWindow *range,
+    loka::app::layout::StackSpans *spans)
 {
   loka::app::scene::IPlatformLayoutHandler *handler = registry.find(&node);
   if (!handler)
   {
     return false;
   }
-  width = static_cast<short>(handler->layoutNode(&node, state, &traversal));
+  width = static_cast<short>(handler->layoutNode(&node, state, &traversal, range, spans));
   state.y = traversal.layoutResultY();
   return true;
 }

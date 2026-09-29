@@ -423,6 +423,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_executable(LokaToolboxAttributedTextTests
     tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
     tests/toolbox/host/ToolboxHost.cpp
+    tests/toolbox/host/ToolboxScrollViewHost.cpp
+    apple/toolbox/src/ToolboxPlatformLayoutHandlers.cpp
     apple/toolbox/src/ToolboxString.cpp
     tests/TestingHooks.cpp
     apple/toolbox/src/context/ToolboxTextEditorContext.cpp
@@ -476,6 +478,20 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxCellPaintTests)
   set_target_properties(LokaToolboxCellPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxCellPaintTests COMMAND LokaToolboxCellPaintTests)
+
+  add_executable(LokaToolboxControlWidthTests tests/toolbox/host/ToolboxControlWidthHostTests.cpp
+    apple/toolbox/src/context/ToolboxButtonContext.cpp
+    apple/toolbox/src/context/ToolboxEditTextContext.cpp
+    apple/toolbox/src/context/ToolboxPopupMenuContext.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxControlWidthTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_definitions(LokaToolboxControlWidthTests PRIVATE LOKA_HOST_CONTROL_WIDTH=1)
+  target_compile_options(LokaToolboxControlWidthTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxControlWidthTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxControlWidthTests)
+  set_target_properties(LokaToolboxControlWidthTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_control_width_case column-button column-edit column-popup natural row-title natural-title equal-title clipped-title)
+    add_test(NAME testToolboxControlWidth_${_control_width_case} COMMAND LokaToolboxControlWidthTests ${_control_width_case})
+  endforeach()
 
   foreach(_editor_request_case input-door request report project input clear epilogue refuse clamp
       take-edit report-edit detach rebind nested retry endless five-reposts
