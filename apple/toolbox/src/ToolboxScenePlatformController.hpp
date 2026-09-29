@@ -338,6 +338,7 @@ public:
   int poolIntakeAuditFailCount_;
   RgnHandle clipRgn_;
   RgnHandle scrollViewClipRgn_;
+  RgnHandle paintSuppressClipRgn_;
   bool hasClip_;
   ToolboxControlIdAllocator controlIds_;
   mutable ToolboxSceneDebugStats debugStats_;

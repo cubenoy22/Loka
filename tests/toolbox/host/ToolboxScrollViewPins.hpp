@@ -69,6 +69,79 @@ namespace
 
   void ScrollViewPins()
   {
+    Pin("ToolboxScrollBarSetterPaintSuppressed");
+    {
+      ScrollFixture f;
+      HostControl control = {0};
+      ToolboxScenePlatformController::ScrollBarControlBinding row =
+          ToolboxScenePlatformController::ScrollBarControlBinding();
+      row.resourceId = 100; // First auto id in the host controller.
+      row.control = &control;
+      f.controller.installScroll(row);
+      const Rect previous = {2, 3, 90, 120};
+      const Rect viewport = {0, 0, 34, 100};
+      ClipRect(&previous);
+      toolbox_host::controlCalls = toolbox_host::ControlCalls();
+      f.step(0);
+      LOKA_VERIFY(control.value == 0);
+      f.controller.drawControlsInRect(viewport);
+      const toolbox_host::ControlCalls mounted = toolbox_host::controlCalls;
+      toolbox_host::controlCalls = toolbox_host::ControlCalls();
+      f.step(17);
+      const toolbox_host::ControlCalls &calls = toolbox_host::controlCalls;
+      std::fprintf(stderr, "scroll offset step value=%u empty=%d show=%u draw=%u\n",
+                   calls.values, EmptyRect(&calls.valueClip), calls.shows, calls.draws);
+      LOKA_VERIFY(calls.values == 1 && EmptyRect(&calls.valueClip));
+      LOKA_VERIFY(calls.hilites == 1 && EmptyRect(&calls.hiliteClip));
+      LOKA_VERIFY(calls.shows == 1 && EmptyRect(&calls.showClip));
+      LOKA_VERIFY(calls.draws == 0 && control.value == 17);
+      const Rect restored = toolbox_host::currentClip();
+      LOKA_VERIFY(restored.top == previous.top && restored.left == previous.left
+                  && restored.bottom == previous.bottom && restored.right == previous.right);
+      const std::size_t contentDraws = toolbox_host::draws.size();
+      f.leaf(1)->getContext()->render(&f.controller);
+      LOKA_VERIFY(toolbox_host::draws.size() > contentDraws && calls.draws == 0);
+      f.controller.drawControlsInRect(viewport);
+      LOKA_VERIFY(calls.draws == 1);
+      LOKA_VERIFY(calls.drawClip.top == previous.top && calls.drawClip.left == previous.left
+                  && calls.drawClip.bottom == previous.bottom && calls.drawClip.right == previous.right);
+      LOKA_VERIFY(mounted.values == 1 && EmptyRect(&mounted.valueClip));
+      LOKA_VERIFY(mounted.shows == 1 && EmptyRect(&mounted.showClip) && mounted.draws == 1);
+      LOKA_VERIFY(mounted.drawClip.top == previous.top && mounted.drawClip.left == previous.left
+                  && mounted.drawClip.bottom == previous.bottom && mounted.drawClip.right == previous.right);
+      const Rect unclipped = {-30000, -30000, 30000, 30000};
+      ClipRect(&unclipped);
+    }
+    Pin("ToolboxScrollBarSuppressionAllocationRefused");
+    {
+      ToolboxWindow window;
+      toolbox_host::failRegions = 2; // Refuse both controller scratch regions.
+      ToolboxScenePlatformController controller(&window);
+      LOKA_VERIFY(!controller.paintSuppressClipRgn_);
+      LOKA_VERIFY(toolbox_host::failRegions == 0);
+      ScrollViewNode scroll((ScrollViewProps()));
+      HostControl control = {0};
+      ToolboxScenePlatformController::ScrollBarControlBinding row =
+          ToolboxScenePlatformController::ScrollBarControlBinding();
+      row.resourceId = 100;
+      row.control = &control;
+      controller.installScroll(row);
+      const Rect previous = {2, 3, 90, 120};
+      const Rect viewport = {0, 0, 34, 100};
+      ClipRect(&previous);
+      toolbox_host::controlCalls = toolbox_host::ControlCalls();
+      LOKA_VERIFY(controller.ensureViewportScrollBarControl(viewport, &scroll, 200, 34, 17) == 17);
+      const toolbox_host::ControlCalls &calls = toolbox_host::controlCalls;
+      LOKA_VERIFY(calls.values == 1 && !EmptyRect(&calls.valueClip) && control.value == 17);
+      LOKA_VERIFY(calls.hilites == 1 && !EmptyRect(&calls.hiliteClip));
+      LOKA_VERIFY(calls.shows == 1 && !EmptyRect(&calls.showClip));
+      controller.drawControlsInRect(viewport);
+      LOKA_VERIFY(calls.draws == 1);
+      LOKA_VERIFY(calls.drawClip.top == previous.top && calls.drawClip.left == previous.left
+                  && calls.drawClip.bottom == previous.bottom && calls.drawClip.right == previous.right);
+      const Rect unclipped = {-30000, -30000, 30000, 30000};
+      ClipRect(&unclipped);
+    }
     Pin("ToolboxScrollViewBandExitsAndEntries");
     {
       ScrollFixture f;

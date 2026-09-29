@@ -63,6 +63,7 @@ short LayoutNode(loka::app::scene::Node *node, loka::app::scene::LayoutState &st
 }
 #include "ToolboxScrollViewLayout.cpp"
 #include "ToolboxViewportScrollBar.cpp"
+#include "ToolboxControlPresentation.cpp"
 #include "ToolboxStructurePresent.cpp"
 
 #include "ToolboxDirtyReplay.hpp"
