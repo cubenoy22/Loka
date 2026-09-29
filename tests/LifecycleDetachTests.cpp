@@ -43,6 +43,7 @@ namespace
         : Base(key, owner, declare, nodes) {}
     ArenaDeclarationFixture(const ArenaDeclarationFixture &other) : Base(other) {}
     virtual const loka::app::scene::detail::SeatReservation *seatReservation() const { return 0; }
+    typedef ArenaDeclarationFixture CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     { return new ArenaDeclarationFixture(*this); }
   };
@@ -2369,6 +2370,7 @@ namespace
   /** Force a real REPLACE candidate during the parked branch's re-entry. */
   struct StrandCandidateDefinition : NodeDefinition<TextProps, StrandCandidateNode>
   {
+    typedef StrandCandidateDefinition CloneType;
     virtual NodeDefinitionBase *clone() const { return new StrandCandidateDefinition(*this); }
     virtual bool isCompatibleWithNode(const Node *) const { return false; }
     virtual Node *create() const
@@ -2834,6 +2836,7 @@ namespace DetachRunWindow
   // Force the public compatibility door's REPLACE path on parked re-entry.
   struct ReplacingWriter : NodeDefinition<WriterProps, Writer>
   {
+    typedef ReplacingWriter CloneType;
     virtual NodeDefinitionBase *clone() const { return new ReplacingWriter(*this); }
     virtual bool isCompatibleWithNode(const Node *) const { return false; }
   };

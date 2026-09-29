@@ -120,6 +120,7 @@ namespace loka
           {
             return 1;
           }
+          typedef ProbeArmSeatDefinition CloneType;
           virtual NodeDefinitionBase *clone() const
           {
             return new ProbeArmSeatDefinition(*this);

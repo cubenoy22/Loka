@@ -237,6 +237,7 @@ namespace loka
       {
         return 1;
       }
+      typedef MatchDefinition CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         MatchDefinition *copy = new MatchDefinition(*this);

@@ -864,6 +864,7 @@ namespace
       }
       return BaseType::create();
     }
+    typedef RefusableRootDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new RefusableRootDefinition(*this);
@@ -952,6 +953,7 @@ namespace
       }
       return BaseType::create();
     }
+    typedef AttachRefusalRootDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new AttachRefusalRootDefinition(*this);

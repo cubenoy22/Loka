@@ -30,6 +30,7 @@ namespace loka
       {
       }
 
+      typedef ObservedMainDefinition CloneType;
       virtual app::scene::NodeDefinitionBase *clone() const
       {
 #ifdef TEST_BUILD

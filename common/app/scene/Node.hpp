@@ -1141,6 +1141,9 @@ namespace loka
         virtual Node *createInPlace(void *mem) const = 0;
         virtual size_t nodeSize() const = 0;
         virtual size_t nodeAlign() const = 0;
+        /** The most-derived type every clone() in this class's hierarchy is guaranteed
+         * to produce; NodeComposition returns stored clones as this type. */
+        typedef NodeDefinitionBase CloneType;
         virtual NodeDefinitionBase *clone() const = 0;
         virtual NodeKind nodeKind() const = 0;
         virtual const PropsBase *propsBase() const = 0;
@@ -1409,6 +1412,7 @@ namespace loka
         {
           return detail::AlignOf<NodeT>::value;
         }
+        typedef NodeDefinition CloneType;
         virtual NodeDefinitionBase *clone() const
         {
           return new NodeDefinition(*this);
@@ -1663,6 +1667,7 @@ namespace loka
           return static_cast<const DerivedT *>(this);
         }
 
+        typedef DerivedT CloneType;
         virtual NodeDefinitionBase *clone() const
         {
           DerivedT *copy = new DerivedT();

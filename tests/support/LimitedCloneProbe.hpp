@@ -89,6 +89,7 @@ namespace DefinitionCloneTestSupport
 
   struct LimitedCloneProbeDefinition : public CloneProbeDefinition
   {
+    typedef LimitedCloneProbeDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       if (!limitedCloneBudgetAllowsClone())
@@ -160,6 +161,7 @@ namespace DefinitionCloneTestSupport
     {
     }
 
+    typedef LimitedClonePolicyProbeDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       if (!limitedCloneBudgetAllowsClone())

@@ -2519,6 +2519,7 @@ namespace loka
             : BaseType(p)
         {
         }
+        typedef BoundaryDefinition CloneType;
         virtual NodeDefinitionBase *clone() const
         {
           return new BoundaryDefinition(*this);

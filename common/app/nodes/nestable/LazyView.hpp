@@ -60,6 +60,7 @@ namespace loka
       {
         return this->factory().nodeKind();
       }
+      typedef LazyItem CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         return new (std::nothrow) LazyItem(*this);

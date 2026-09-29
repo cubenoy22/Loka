@@ -73,6 +73,7 @@ namespace loka
         Node *createInPlace(void *mem) const;
         size_t nodeSize() const;
         size_t nodeAlign() const;
+        typedef ConditionalDefinition CloneType;
         virtual NodeDefinitionBase *clone() const;
         virtual NodeKind nodeKind() const
         {

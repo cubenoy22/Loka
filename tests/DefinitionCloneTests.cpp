@@ -472,10 +472,10 @@ void testNodeCompositionSkipsOomClones()
     assert(storedRoot != 0);
 
     loka::app::scene::NodeDefinitionBase *grouped = composition.group(failingDefinition);
-    OomCloneProbeDefinition &typedResult = composition.declare(failingDefinition);
+    OomCloneProbeDefinition::CloneType &typedResult = composition.declare(failingDefinition);
     loka::app::scene::NodeDefinitionBase &baseResult = composition.declare(failingBase);
     loka::app::scene::NodeDefinitionBase &taggedResult = composition.declareTagged(42, failingBase);
-    OomCloneProbeDefinition &typedTaggedResult = composition.declareTagged(42, failingDefinition);
+    OomCloneProbeDefinition::CloneType &typedTaggedResult = composition.declareTagged(42, failingDefinition);
 
     (void)grouped;
     assert(grouped == 0);

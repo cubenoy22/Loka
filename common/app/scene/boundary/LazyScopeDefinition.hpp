@@ -92,6 +92,7 @@ namespace loka
         {
           return 1;
         }
+        typedef LazyScopeDefinition CloneType;
         virtual NodeDefinitionBase *clone() const
         {
           return new LazyScopeDefinition(*this);

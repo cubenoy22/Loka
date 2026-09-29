@@ -49,6 +49,7 @@ namespace
       --g_sceneOwnershipDefinitionsAlive;
     }
 
+    typedef SceneOwnershipDefinition CloneType;
     virtual loka::app::scene::NodeDefinitionBase *clone() const
     {
       return new SceneOwnershipDefinition(*this);

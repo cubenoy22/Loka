@@ -585,6 +585,7 @@ namespace
         : NodeDefinition<KeyedLeafProps, KeyedLeaf>(KeyedLeafProps(&r, r.value))
     {
     }
+    typedef KeyedLeafDefinition CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       return new KeyedLeafDefinition(*this);
