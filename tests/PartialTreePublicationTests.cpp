@@ -152,6 +152,7 @@ namespace
       --fixture->factoryDepth;
       return node;
     }
+    typedef RefusedChild CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       return new RefusedChild(*this);
@@ -367,6 +368,7 @@ namespace
   /** Count the wrapper's root declaration capture, not runtime factories. */
   struct WrapperDefinition : FragmentDefinition
   {
+    typedef WrapperDefinition CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       ++fixture->declarations;
@@ -393,6 +395,7 @@ namespace
       ++liveScopeDefinitions;
     }
     virtual ~CountedScopeDefinition() { --liveScopeDefinitions; }
+    typedef CountedScopeDefinition CloneType;
     virtual NodeDefinitionBase *clone() const { return new CountedScopeDefinition(*this); }
   };
 
@@ -823,6 +826,7 @@ namespace
       fresh->factoryTag = 0;
       return node;
     }
+    typedef FreshLeafDefinition CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       if ((fresh->door == FRESH_CHILD_CLONE || fresh->door == FRESH_COPY_CLONE) && fresh->refusing)
@@ -835,6 +839,7 @@ namespace
   };
   struct FreshRootDefinition : FragmentDefinition
   {
+    typedef FreshRootDefinition CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       if (fresh->door == FRESH_ROOT_CLONE && fresh->refusing)

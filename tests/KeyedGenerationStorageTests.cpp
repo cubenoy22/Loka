@@ -335,6 +335,7 @@ namespace
     {
       return *this->refusing_ ? 0 : FragmentDefinition::createInPlace(storage);
     }
+    typedef NestedRefusingTail CloneType;
     virtual NodeDefinitionBase *clone() const { return new NestedRefusingTail(*this); }
     const bool *refusing_;
   };
@@ -801,6 +802,7 @@ namespace
         : NodeDefinition<TextProps, TextNode>(TextProps("refused"))
     {
     }
+    typedef RefusedLocalText CloneType;
     virtual NodeDefinitionBase *clone() const
     {
       return new RefusedLocalText(*this);

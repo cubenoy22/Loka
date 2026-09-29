@@ -276,6 +276,7 @@ namespace loka
         return *this;
       }
 
+      typedef BoundarySectionDefinition CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         this->assertValidIdentity();

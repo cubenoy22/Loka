@@ -199,6 +199,7 @@ namespace loka
       {
         return 1;
       }
+      typedef KeyedDefinition CloneType;
       virtual scene::NodeDefinitionBase *clone() const
       {
         KeyedDefinition *copy = new KeyedDefinition(*this);

@@ -472,9 +472,9 @@ namespace loka
         }
 
         // Store a copy of the definition in the arena and return pointer
-        template <typename T> T *store(const T &def)
+        template <typename T> typename T::CloneType *store(const T &def)
         {
-          return static_cast<T *>(storeBase(def));
+          return static_cast<typename T::CloneType *>(storeBase(def));
         }
         NodeDefinitionBase *store(const NodeDefinitionBase &def)
         {
@@ -482,14 +482,14 @@ namespace loka
         }
 
         // Declare root node
-        template <typename T> T &declare(const T &def)
+        template <typename T> typename T::CloneType &declare(const T &def)
         {
           if (activeParent_)
           {
             (*activeParent_) << const_cast<T &>(def);
             return const_cast<T &>(def);
           }
-          T *newRoot = this->store(def);
+          typename T::CloneType *newRoot = this->store(def);
           if (!newRoot)
           {
             return const_cast<T &>(def);
@@ -498,11 +498,11 @@ namespace loka
           return *newRoot;
         }
 
-        template <typename T> T &declareTagged(NodeTag tag, const T &def)
+        template <typename T> typename T::CloneType &declareTagged(NodeTag tag, const T &def)
         {
           T tagged(def);
           tagged.tag(tag);
-          T &declared = this->declare(tagged);
+          typename T::CloneType &declared = this->declare(tagged);
           if (&declared == &tagged)
           {
             // declare() handed back our stack-local copy (parent path or clone
@@ -640,7 +640,7 @@ namespace loka
           return this->conditional(condition, x, emptyDef);
         }
 
-        template <typename T> T *group(const T &x)
+        template <typename T> typename T::CloneType *group(const T &x)
         {
           return this->store(x);
         }
