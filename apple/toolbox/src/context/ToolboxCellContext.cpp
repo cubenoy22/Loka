@@ -101,8 +101,10 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
   // Full/clipped render and dirty replay share the #763 history rule.
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
-  this->presented_.invalidate();
   const loka::core::String current = this->text_ ? this->text_->get() : loka::core::String();
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && current.equals(this->presented_.value()));
+  this->presented_.invalidate();
   Rect drawRect = this->rect_;
   EraseRect(&drawRect);
   FrameRect(&drawRect);
@@ -122,7 +124,7 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
     MoveTo(textX, textY);
     DrawString(text);
   }
-  if (!EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
+  if (completes)
     this->presented_.commit(current, ToolboxPaintScope());
 }
 

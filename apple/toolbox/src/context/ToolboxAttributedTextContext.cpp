@@ -86,22 +86,28 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
   const loka::app::AttributedString &value = this->node_->props.text_->get();
   // The builder reads width, not lineHeight. Ambient fonts follow the frozen
   // environment contract on ToolboxTextMeasureScope.
-  if ((state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->table_.reusable(state.width))
-      && !this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
+  const bool reused = state.inputs == loka::app::scene::NODE_DIRTY_NONE && this->table_.reusable(state.width);
+  if (!reused && !this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
   {
     controller->refuseTextMeasurement(this->node_, state);
     this->presented_.invalidate();
     return 0;
   }
-  this->presented_.invalidate();
   const short width = state.width > 0 ? state.width : this->table_.width();
-  this->rect_.left = state.x;
-  this->rect_.top = state.y;
-  this->rect_.right = Coordinate(state.x + width);
-  this->rect_.bottom = Coordinate(state.y + this->table_.height());
-  this->paintRect_ = this->rect_;
-  if (!toolbox->intersectWithProjectionClip(this->rect_, this->paintRect_))
-    SetRect(&this->paintRect_, 0, 0, 0, 0);
+  Rect rect;
+  rect.left = state.x;
+  rect.top = state.y;
+  rect.right = Coordinate(state.x + width);
+  rect.bottom = Coordinate(state.y + this->table_.height());
+  Rect paintRect = rect;
+  if (!toolbox->intersectWithProjectionClip(rect, paintRect))
+    SetRect(&paintRect, 0, 0, 0, 0);
+  // Like Cell, unchanged geometry preserves history; a rebuilt table cannot,
+  // even for an equal value, because width or font metrics may change pixels.
+  if (!reused || !EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
+    this->presented_.invalidate();
+  this->rect_ = rect;
+  this->paintRect_ = paintRect;
   state.y = Coordinate(this->rect_.bottom + state.spacing);
   return width;
 }
@@ -129,14 +135,19 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
   if (!this->controller() || !this->table_.valid() || !this->node_->props.text_
       || !(this->table_.value() == this->node_->props.text_->get()))
     return;
-  this->presented_.invalidate();
   // Layout already intersected the placement with the projection clip: an
   // empty paint rect owes no pixels, so leave before switching the port or
   // allocating clip regions (the resident-Column scroll cost, S1 lane).
   if (EmptyRect(&this->paintRect_))
+  {
+    this->presented_.invalidate();
     return;
+  }
   ToolboxTextMeasureScope port(*this->controller());
   ToolboxPaintClip clip(this->paintRect_);
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && this->table_.value() == this->presented_.value());
+  this->presented_.invalidate();
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
   // Classic low-memory fallback (same as Text): an inactive clip keeps the
@@ -147,7 +158,7 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
                                          *this->controller(),
                                          this->node_->props.blockStyle_,
                                          this->rect_.right - this->rect_.left);
-  if (painted && clip.covers(this->paintRect_))
+  if (painted && completes)
     this->presented_.commit(this->table_.value(), ToolboxPaintScope());
 }
 

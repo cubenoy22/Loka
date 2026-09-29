@@ -25,7 +25,7 @@ inline bool ToolboxPaintIsClippedOut(const Rect &layoutRect, const Rect &paintRe
 }
 
 /** Only a rectangular clip covering the entire projected visible placement
-    can establish a completed paint fact. Complex/partial clips refuse history. */
+    can establish new history. Complex/partial clips alone cannot do so. */
 inline bool ToolboxPaintClipCovers(RgnHandle clip, const Rect &rect)
 {
   if (!clip || !*clip || (**clip).rgnSize != sizeof(Region))
@@ -78,6 +78,20 @@ private:
   RgnHandle saved_;
   RgnHandle clip_;
 };
+
+/** A successful draw completes the placement when it covers it, or when
+    the same scoped value was already presented outside the clip. Geometry
+    changes must revoke the drawer's fact before this query. Evaluate before
+    invalidating for the draw; a failed draw must not commit the result. */
+template <class Value>
+inline bool ToolboxPaintCompletes(const ToolboxPaintClip &clip, const Rect &rect,
+                                  const loka::app::scene::PaintFact<Value> &presented,
+                                  bool sameValue)
+{
+  return clip.isActive() && !EmptyRect(&rect)
+         && (clip.covers(rect) || (presented.isKnown()
+             && presented.scope() == ToolboxPaintScope() && sameValue));
+}
 
 inline loka::app::scene::PaintAnswer ToolboxExactPaint(const Rect &rect, bool changed)
 {
