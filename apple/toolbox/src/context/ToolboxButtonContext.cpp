@@ -142,6 +142,9 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
 {
   ToolboxPaintClip clip(this->paintRect_);
   const bool paints = !clip.isActive() || clip.touches(this->paintRect_);
+  const ToolboxButtonPaintValue current(this->label_, !this->enabled_ || this->enabled_->get());
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && current == this->presented_.value());
   if (paints)
     this->presented_.invalidate();
   // ensureButtonControl also marks the native control used by this render.
@@ -154,9 +157,8 @@ void ToolboxButtonContext::draw(ToolboxScenePlatformController *controller)
   {
     if (controller->ensureButtonControl(resourceId_, rect_, label_, emitter_, enabled_, lifetimeHint(), this))
     {
-      if (!EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
-        this->presented_.commit(ToolboxButtonPaintValue(this->label_, !this->enabled_ || this->enabled_->get()),
-                                ToolboxPaintScope());
+      if (paints && completes)
+        this->presented_.commit(current, ToolboxPaintScope());
       return;
     }
   }
@@ -196,16 +198,21 @@ void ToolboxButtonContext::repaint(ControlRef control, std::string &installedLab
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
-  this->presented_.invalidate();
   if (!this->node_ || !control)
+  {
+    this->presented_.invalidate();
     return;
+  }
   const loka::core::String label = this->node_->props.text_
       ? this->node_->props.text_->get() : loka::core::String::Literal("Button");
+  const ToolboxButtonPaintValue current(label, !this->node_->props.enabled_ || this->node_->props.enabled_->get());
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && current == this->presented_.value());
+  this->presented_.invalidate();
   const bool submitted = ReconcileToolboxButtonControl(control, label, this->node_->props.enabled_, installedLabel);
   Draw1Control(control);
-  if (submitted && !EmptyRect(&this->paintRect_) && clip.covers(this->paintRect_))
-    this->presented_.commit(ToolboxButtonPaintValue(label,
-        !this->node_->props.enabled_ || this->node_->props.enabled_->get()), ToolboxPaintScope());
+  if (submitted && completes)
+    this->presented_.commit(current, ToolboxPaintScope());
 }
 
 void ToolboxButtonContext::forgetPresentedControl()

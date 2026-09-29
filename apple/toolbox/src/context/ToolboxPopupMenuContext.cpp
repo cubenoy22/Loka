@@ -204,10 +204,15 @@ void ToolboxPopupMenuContext::paintFace(const ToolboxPaintClip &clip)
   // allocation refusal still draws under the caller's clip, without a commit.
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
-  this->presented_.invalidate();
   if (!this->node_)
+  {
+    this->presented_.invalidate();
     return;
+  }
   const FaceValue face = this->faceValue();
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && face.equals(this->presented_.value()));
+  this->presented_.invalidate();
   PenState penState;
   GetPenState(&penState);
   FrameRect(&rect_);
@@ -226,7 +231,7 @@ void ToolboxPopupMenuContext::paintFace(const ToolboxPaintClip &clip)
   LineTo(arrowRight, arrowMidY - 3);
   LineTo(static_cast<short>(arrowRight - 3), arrowMidY + 3);
   LineTo(static_cast<short>(arrowRight - 6), arrowMidY - 3);
-  if (labelDrawn && clip.covers(this->paintRect_))
+  if (labelDrawn && completes)
     this->presented_.commit(face, ToolboxPaintScope());
 }
 

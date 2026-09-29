@@ -493,6 +493,21 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME testToolboxControlWidth_${_control_width_case} COMMAND LokaToolboxControlWidthTests ${_control_width_case})
   endforeach()
 
+  add_executable(LokaToolboxPartialPaintTests tests/toolbox/host/ToolboxPartialPaintHostTests.cpp
+    apple/toolbox/src/context/ToolboxCellContext.cpp
+    apple/toolbox/src/context/ToolboxButtonContext.cpp
+    apple/toolbox/src/context/ToolboxEditTextContext.cpp
+    apple/toolbox/src/context/ToolboxPopupMenuContext.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxPartialPaintTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_definitions(LokaToolboxPartialPaintTests PRIVATE LOKA_HOST_CONTROL_WIDTH=1 LOKA_HOST_CELL_PAINT=1)
+  target_compile_options(LokaToolboxPartialPaintTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxPartialPaintTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxPartialPaintTests)
+  set_target_properties(LokaToolboxPartialPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_partial_paint_case cell text text-repaint button button-repaint popup popup-repaint attributed)
+    add_test(NAME testToolboxPartialPaint_${_partial_paint_case} COMMAND LokaToolboxPartialPaintTests ${_partial_paint_case})
+  endforeach()
+
   foreach(_editor_request_case input-door request report project input clear epilogue refuse clamp
       take-edit report-edit detach rebind nested retry endless five-reposts
       trace reply-clamp reply-stale empty-settle take-refused-edit reply-edit scroll-cleanup retire-render retire-key retire-click retire-paste refused-report)

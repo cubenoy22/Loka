@@ -104,8 +104,21 @@ int main()
   LOKA_VERIFY(cell.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
   Rect partial = {20, 10, 30, 20};
   { ToolboxPaintClip clip(partial); cell.draw(&controller); }
-  LOKA_VERIFY(cell.queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+  const PaintAnswer unchanged = cell.queryPaintDamage(query);
+  std::printf("unchanged partial Cell: kind=%d reason=%d\n", unchanged.kind, unchanged.reason);
+  std::fflush(stdout);
+  LOKA_VERIFY(unchanged.kind == PAINT_ANSWER_EXACT);
+  LOKA_VERIFY(unchanged.damage.width == 0 && unchanged.damage.height == 0);
+  {
+    StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
+    static_cast<CellPaintNode *>(SceneTestAccess::rootBoundary(scene))->text.set(String::Literal("changed-value"));
+  }
+  { ToolboxPaintClip clip(partial); cell.draw(&controller); }
+  const PaintAnswer changed = cell.queryPaintDamage(query);
+  LOKA_VERIFY(changed.kind == PAINT_ANSWER_REFUSED && changed.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
   cell.draw(&controller);
+  LOKA_VERIFY(cell.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+  LOKA_VERIFY(cell.queryPaintDamage(query).damage.width == 0);
   toolbox_host::failRegions = 2;
   cell.draw(&controller);
   LOKA_VERIFY(cell.queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);

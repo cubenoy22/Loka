@@ -385,6 +385,8 @@ void ToolboxTextContext::paint(bool erase)
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && this->text_ && this->text_->get().equals(this->presented_.value()));
   this->presented_.invalidate();
   if (!this->text_)
     return;
@@ -422,7 +424,7 @@ void ToolboxTextContext::paint(bool erase)
     painted = DrawStringAt(this->textX_, this->textY_, this->text_->get(),
                  this->maxWidth_, this->node_->props.blockStyle_);
   }
-  if (painted && clip.covers(this->paintRect_))
+  if (painted && completes)
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
 }
 
