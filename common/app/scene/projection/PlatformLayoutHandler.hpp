@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_PROJECTION_PLATFORM_LAYOUT_HANDLER_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/layout/StackSpans.hpp"
 
 namespace loka
 {
@@ -24,7 +25,14 @@ namespace loka
         virtual ~IPlatformLayoutHandler() {}
 
         virtual const void *nodeTypeKey() const = 0;
-        virtual int layoutNode(Node *node, const LayoutState &state, IPlatformLayoutTraversal *traversal) = 0;
+        /** Optional Column-only range and pass-local collector. Null range means
+            the full pass. The caller owns spans and must invalidate it before
+            changes to constraints, structure, props or attachment; range reuse
+            requires unchanged placement inputs. Descendant calls do not inherit
+            these arguments. No rail selects a band until it owns that contract. */
+        virtual int layoutNode(Node *node, const LayoutState &state, IPlatformLayoutTraversal *traversal,
+                               const loka::app::layout::LazyWindow * = 0,
+                               loka::app::layout::StackSpans * = 0) = 0;
       };
 
       class PlatformLayoutHandlerRegistry

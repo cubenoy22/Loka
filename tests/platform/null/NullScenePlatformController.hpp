@@ -208,7 +208,11 @@ public:
   /** Runs the same deterministic projection traversal as onChange with
       caller-supplied bounds, retaining them for subsequent onChange calls. */
   int projectLayoutForTesting(loka::app::scene::Node *node,
-                              const loka::app::scene::LayoutState &state);
+                              const loka::app::scene::LayoutState &state,
+                    const loka::app::layout::LazyWindow *range = 0,
+                    loka::app::layout::StackSpans *spans = 0);
+
+  unsigned long leafLayoutVisitsForTesting() const { return this->leafLayoutVisits_; }
 
   const std::vector<LedgerRow> &ledger() const;
   loka::app::scene::NodeDirtyFlags lastOnChangeFlags() const
@@ -331,11 +335,17 @@ private:
   void observeHint(FakeControlHandle *handle, loka::app::scene::NativeLifetimeHint hint);
   LedgerRow *findLedgerRow(FakeControlHandle *handle);
   int layoutNode(loka::app::scene::Node *node,
-                 const loka::app::scene::LayoutState &state);
+                 const loka::app::scene::LayoutState &state,
+                    const loka::app::layout::LazyWindow *range = 0,
+                    loka::app::layout::StackSpans *spans = 0);
   int layoutScrollView(loka::app::scene::Node *node,
-                       const loka::app::scene::LayoutState &state);
+                       const loka::app::scene::LayoutState &state,
+                    const loka::app::layout::LazyWindow *range = 0,
+                    loka::app::layout::StackSpans *spans = 0);
   int projectLayout(loka::app::scene::Node *node,
-                    const loka::app::scene::LayoutState &state);
+                    const loka::app::scene::LayoutState &state,
+                    const loka::app::layout::LazyWindow *range = 0,
+                    loka::app::layout::StackSpans *spans = 0);
   void refuseScrollViewShortRange();
   void refuseNestedScrollView();
   bool refuseNarrowingInScrollScope(int resultY);
