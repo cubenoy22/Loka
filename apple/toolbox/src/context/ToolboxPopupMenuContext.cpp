@@ -1,3 +1,4 @@
+#include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
 #include "context/ToolboxPopupMenuContext.hpp"
@@ -236,11 +237,13 @@ short ToolboxPopupMenuContext::layout(loka::app::scene::IPlatformController *con
   {
     return 0;
   }
-  short width = 120;
+  const short width = static_cast<short>(loka::app::layout::offeredOrNaturalWidth(state.width, 120));
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
-  rect.right = static_cast<short>(state.x + width + 8);
+  // Preserve the legacy outer inset only for an unconstrained control.
+  rect.right = static_cast<short>(state.x
+      + loka::app::layout::offeredOrNaturalWidth(state.width, 120 + 8));
   rect.bottom = static_cast<short>(state.y + state.lineHeight - ToolboxLayoutMetrics::kControlAscentInset
                                    + ToolboxLayoutMetrics::kControlDescent);
   this->captureProps();

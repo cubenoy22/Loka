@@ -95,6 +95,8 @@ private:
   loka::app::ButtonNode *node_;
   Rect rect_;
   Rect paintRect_;
+  /** Layout provenance cannot be recovered from a coincidentally equal width. */
+  bool widthFromText_;
   loka::core::String label_;
   loka::core::EmitterState *emitter_;
   loka::core::State<bool> *enabled_;
