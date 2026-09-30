@@ -5,6 +5,9 @@
 #include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "JsNativeClass.hpp"
 #include "app/FileImageSource.hpp"
@@ -1244,6 +1247,51 @@ namespace smirkycard
       return 0;
     }
     return new (std::nothrow) loka::app::EditText(seat->string);
+  }
+  loka::app::scene::NodeDefinitionBase *JsCardNode::lowerShow(JSContext *ctx, JSValueConst tree, int depth)
+  {
+    JSValue value = JS_GetPropertyStr(ctx, tree, "seat");
+    JsSeatRecord *seat = this->findSeat(ctx, value);
+    JS_FreeValue(ctx, value);
+    if (!seat || seat->kind != JsSeatRecord::BOOLEAN)
+    {
+      this->fail("JavaScript Show requires an own Bool state seat.");
+      return 0;
+    }
+    JSValue childTree = JS_GetPropertyStr(ctx, tree, "child");
+    loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> child(this->lowerChild(ctx, childTree, depth + 1));
+    JS_FreeValue(ctx, childTree);
+    if (!child.isSet())
+      return 0;
+    loka::app::ShowDefinition *show = new (std::nothrow) loka::app::ShowDefinition(seat->boolean.state());
+    if (!show)
+      return 0;
+    *show << child.take();
+    return show;
+  }
+  loka::app::scene::NodeDefinitionBase *JsCardNode::lowerOpenFileDialog(JSContext *ctx, JSValueConst tree)
+  {
+    JSValue value = JS_GetPropertyStr(ctx, tree, "seat");
+    JsSeatRecord *seat = this->findSeat(ctx, value);
+    JS_FreeValue(ctx, value);
+    if (!seat || seat->kind != JsSeatRecord::FILE_RESULT)
+    {
+      this->fail("JavaScript OpenFileDialog requires an own File state seat.");
+      return 0;
+    }
+    return new (std::nothrow) loka::app::OpenFileDialog(loka::app::OpenFileDialog().result(seat->file));
+  }
+  loka::app::scene::NodeDefinitionBase *JsCardNode::lowerImageView(JSContext *ctx, JSValueConst tree)
+  {
+    JSValue value = JS_GetPropertyStr(ctx, tree, "seat");
+    JsSeatRecord *seat = this->findSeat(ctx, value);
+    JS_FreeValue(ctx, value);
+    if (!seat || seat->kind != JsSeatRecord::IMAGE)
+    {
+      this->fail("JavaScript ImageView requires an own Image state seat.");
+      return 0;
+    }
+    return new (std::nothrow) loka::app::ImageView(loka::app::ImageView().image(seat->image.state()));
   }
   loka::app::scene::NodeDefinitionBase *JsCardNode::lowerClickable(JSContext *ctx, JSValueConst tree, bool cell)
   {

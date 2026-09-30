@@ -11,6 +11,9 @@
 #include "app/nodes/nestable/Grid.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/AttributedText.hpp"
+#include "app/nodes/ImageView.hpp"
+#include "app/OpenFileDialog.hpp"
+#include "core/util/OwnedDef.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -64,6 +67,12 @@ namespace smirkycard
         for (JsSeatRecord *s = card()->seats_.head(); s; s=s->next)
           if (s->kind == JsSeatRecord::IMAGE) return s->image.get();
         return loka::core::resource::Image::Empty();
+      }
+      static loka::core::State<loka::core::resource::Image> *imageState()
+      {
+        for (JsSeatRecord *s = card()->seats_.head(); s; s = s->next)
+          if (s->kind == JsSeatRecord::IMAGE) return s->image.state();
+        return 0;
       }
       static int notifications;
       static ScriptRuntime *settlementRuntime;
@@ -3359,6 +3368,161 @@ namespace
     std::remove("_handle_image.bin");
   }
 
+  void settleLowering(NullWindow &window)
+  {
+    if (window.scene()->hasPendingInvalidation())
+      (void)window.scene()->flushInvalidation();
+  }
+
+  void checkMinimumLowerings()
+  {
+    std::fputs("[pin] H8 Show, chooser completion, ImageView identity and A10\n", stderr);
+    FILE *file = std::fopen("_handle_image.bin", "wb");
+    LOKA_VERIFY(file);
+    LOKA_VERIFY(std::fwrite("img", 1, 3, file) == 3);
+    LOKA_VERIFY(std::fclose(file) == 0);
+    HandlePlatform context(HandlePlatform::Success);
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    context.opens = context.decodes = 0;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+      "var c0,shown,fs,picture,inside,log=[];card('first',c=>{c0=c;"
+      "shown=c.state(false);fs=c.state.file();picture=c.state.image();"
+      "c.flow(Flow().watch(fs,r=>{if(r.kind===0)return Flow.SKIP;"
+      "shown.set(false);log.push('closed:'+shown.get());"
+      "if(r.isCanceled)return Flow.SKIP;if(r.isError)throw Error('chooser');return r.file})"
+      ".step(h=>{log.push('load:'+shown.get());picture.set(c.native.loadImage(h))})"
+      ".onSuccess(()=>log.push('ok')).onFailure(()=>log.push('failed')));"
+      "inside=c.flow(Flow().step(()=>shown.set(true)));"
+      "return {compose(){return VStack(Button('open',()=>shown.set(true)).TEST_ID('Open'),"
+      "Button('hide',()=>shown.set(false)).TEST_ID('Hide'),"
+      "Show(shown,VStack(Text('child').TEST_ID('Child'),OpenFileDialog(fs).TEST_ID('Chooser'))),"
+      "ImageView(picture).TEST_ID('Picture'))}}});", error));
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    smirkycard::testing::CardFlowAccess::scene = window.scene();
+    LOKA_VERIFY(!windowNode(window, "Child") && !windowNode(window, "Chooser"));
+    loka::app::scene::Node *imageNode = windowNode(window, "Picture");
+    LOKA_VERIFY(imageNode && imageNode->asImageViewNode());
+    loka::app::ImageViewNode *picture = imageNode->asImageViewNode();
+    LOKA_VERIFY(picture->props.image_ == smirkycard::testing::CardFlowAccess::imageState());
+    LOKA_VERIFY(!picture->props.image_->get().isValid());
+    clickCardButton(window, "Open");
+    settleLowering(window);
+    LOKA_VERIFY(windowNode(window, "Child") && windowNode(window, "Chooser"));
+    clickCardButton(window, "Hide");
+    settleLowering(window);
+    LOKA_VERIFY(!windowNode(window, "Child") && !windowNode(window, "Chooser"));
+
+    using loka::app::FileChooserResult;
+    const FileChooserResult outcomes[] = {
+      FileChooserResult::File(loka::file::File::FromPath("_handle_image.bin")),
+      FileChooserResult::File(loka::file::File::FromPath("_handle_image.bin")),
+      FileChooserResult::Canceled(), FileChooserResult::Error(7), FileChooserResult::Canceled()};
+    for (unsigned i = 0; i < 5; ++i)
+    {
+      clickCardButton(window, "Open");
+      settleLowering(window);
+      loka::app::scene::Node *node = windowNode(window, "Chooser");
+      LOKA_VERIFY(node && node->asOpenFileDialogNode() && windowNode(window, "Child"));
+      loka::app::OpenFileDialogNode *dialog = node->asOpenFileDialogNode();
+      LOKA_VERIFY(dialog->props.result_.isValid());
+      // Mirror the rail: copy the result door before completion can detach it.
+      loka::app::scene::NodeState<FileChooserResult> result = dialog->props.result_;
+      {
+        loka::core::StateTrackerGuard transaction(smirkycard::testing::CardFlowAccess::card()->tracker());
+        result.set(outcomes[i], true);
+      }
+      settleLowering(window);
+      LOKA_VERIFY(!windowNode(window, "Chooser") && !windowNode(window, "Child"));
+      LOKA_VERIFY(context.opens == static_cast<int>(i < 2 ? i + 1 : 2));
+      LOKA_VERIFY(context.decodes == context.opens);
+      LOKA_VERIFY(picture->props.image_->get().isValid());
+      LOKA_VERIFY(picture->props.image_->get() == smirkycard::testing::CardFlowAccess::image());
+    }
+    expectJs(runtime, "log.join(',')",
+      "closed:false,load:false,ok,closed:false,load:false,ok,closed:false,closed:false,failed,closed:false");
+    expectJs(runtime, "picture.set(null);'cleared'", "cleared");
+    LOKA_VERIFY(!picture->props.image_->get().isValid());
+
+    // Null has no native attach completion. This observation is not permission
+    // to open inside a Flow on synchronous rails (A10); no replay is installed.
+    expectJs(runtime, "log=[];inside.run();shown.get()", "true");
+    settleLowering(window);
+    LOKA_VERIFY(windowNode(window, "Chooser"));
+    expectJs(runtime, "log.length", "0");
+    smirkycard::testing::CardFlowAccess::writeFile(FileChooserResult::Canceled());
+    settleLowering(window);
+    LOKA_VERIFY(!windowNode(window, "Chooser"));
+    expectJs(runtime, "log.join(',')", "closed:false");
+    LOKA_VERIFY(std::remove("_handle_image.bin") == 0);
+  }
+
+  void checkLoweringRefusals()
+  {
+    const char *trees[] = {"Show(c.state(1),Text('x'))", "Show({},Text('x'))",
+      "OpenFileDialog(c.state.image())", "OpenFileDialog(null)",
+      "ImageView(c.state.file())", "ImageView(42)",
+      "Show(c.state(true),VStack(Text('prefix').TEST_ID('Prefix'),{kind:99999}))"};
+    const char *messages[] = {"Bool", "Bool", "File", "File", "Image", "Image", "tree"};
+    for (unsigned i = 0; i < sizeof(trees) / sizeof(trees[0]); ++i)
+    {
+      std::string source = "card('first',c=>{const tree=";
+      source += trees[i];
+      source += ";return {compose(){return tree}}});";
+      checkComposeRefusal(source.c_str(), messages[i]);
+    }
+    const char *badBuilds[] = {"Show()", "Show({},[])", "Show({},Text('x'),Text('y'))",
+      "OpenFileDialog()", "OpenFileDialog({}, {})", "ImageView()", "ImageView({}, {})"};
+    smirkycard::ScriptRuntime runtime;
+    for (unsigned i = 0; i < sizeof(badBuilds) / sizeof(badBuilds[0]); ++i)
+    {
+      std::string expression = "(()=>{try{";
+      expression += badBuilds[i];
+      expression += ";return false}catch(e){return e instanceof TypeError}})()";
+      expectJs(runtime, expression.c_str(), "true");
+    }
+    expectJs(runtime, "[Show({},Text('x')),OpenFileDialog({}),ImageView({})].every(Object.isFrozen)", "true");
+
+    // Keep the first card alive so foreign identity refusal cannot be explained
+    // by revocation. Direct lowering also pins failure before a definition escapes.
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("var own,foreign;card('first',c=>{own={b:c.state(true),"
+      "f:c.state.file(),i:c.state.image(),c};return {compose(){return Text('alive')}}});", error));
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow first(&context, props, &platform);
+    WindowAdmissionTestApp admission(first);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*first.scene(), true);
+    expectJs(runtime, "foreign=own;'saved'", "saved");
+    WindowProps secondProps;
+    secondProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow second(&context, secondProps, &platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*second.scene(), true);
+    smirkycard::testing::CardFlowAccess::scene = second.scene();
+    const char *foreignTrees[] = {"Show(foreign.b,Text('x'))", "OpenFileDialog(foreign.f)",
+      "ImageView(foreign.i)", "Show(own.b,{kind:99999})"};
+    for (unsigned i = 0; i < 4; ++i)
+    {
+      JSValue tree = JS_Eval(runtime.context(), foreignTrees[i], std::strlen(foreignTrees[i]),
+                            "lowering pin", JS_EVAL_TYPE_GLOBAL);
+      LOKA_VERIFY(!JS_IsException(tree));
+      loka::core::OwnedDef<loka::app::scene::NodeDefinitionBase> lowered(
+        smirkycard::testing::CardFlowAccess::card()->lowerChild(runtime.context(), tree, 0));
+      JS_FreeValue(runtime.context(), tree);
+      LOKA_VERIFY(!lowered.isSet());
+      expectJs(runtime, i == 3 ? "own.c.error.get().includes('tree')"
+                              : "own.c.error.get().includes('own')", "true");
+    }
+  }
+
   void checkExecutionSerial()
   {
     std::fputs("[pin] execution serial constructor seed and permanent exhaustion\n", stderr);
@@ -3483,6 +3647,12 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--lowerings"))
+  {
+    checkMinimumLowerings();
+    checkLoweringRefusals();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--execution-serial"))
   {
     checkExecutionSerial();
@@ -3590,6 +3760,8 @@ int main(int argc, char **argv)
     return 0;
   }
   checkExecutionSerial();
+  checkMinimumLowerings();
+  checkLoweringRefusals();
   checkTypedSeats();
   checkHandles();
   checkProductionFlow();
