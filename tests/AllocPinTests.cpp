@@ -220,7 +220,7 @@ namespace allocpin
         std::string("HelloWorld.LeftPanel.ActionSummary"), idMatches, typedMatches, summary);
     LOKA_VERIFY(idMatches == 1 && typedMatches == 1 && summary && summary->props.text_);
     LOKA_VERIFY(summary->props.text_->get().equals(
-        loka::core::String::Literal("Button enabled: yes / clicks: 4")));
+        loka::core::String::Literal("Enabled: yes / clicks: 4")));
     const bool settled = !scene.hasPendingInvalidation();
     LOKA_VERIFY(settled);
 #endif

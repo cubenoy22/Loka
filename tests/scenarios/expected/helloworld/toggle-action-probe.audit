@@ -19,6 +19,6 @@ schema_version	1
 status	ok
 step	toggle-action-probe
 test	HelloWorld
-text.value	Button enabled: no / clicks: 1
+text.value	Enabled: no / clicks: 1
 tick	92
 terminal status=succeeded

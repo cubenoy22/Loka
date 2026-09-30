@@ -188,7 +188,11 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   loka::app::ScrollViewNode *mainPanelsScroll =
       findMainPanelsScroll(*window->scene());
   loka::app::StackNode *mainPanels = findMainPanels(*window->scene());
-  LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
+  loka::app::scene::Node *mainPanelsInset = mainPanelsScroll->childrenHead();
+  LOKA_VERIFY(mainPanelsInset != 0);
+  LOKA_VERIFY(mainPanelsInset->testId() == "HelloWorld.MainPanelsInset");
+  LOKA_VERIFY(mainPanelsInset->nextInComposition == 0);
+  LOKA_VERIFY(mainPanelsInset->asNestable()->childrenHead() == mainPanels);
   LOKA_VERIFY(mainPanels->nextInComposition == 0);
   LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
   loka::app::scene::Node *leftPanel = mainPanels->childrenHead();
@@ -206,7 +210,8 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   loka::app::testing::WindowTestAccess::storeNativeFrame(*window, narrowFrame);
   LOKA_VERIFY(findMainPanelsScroll(*window->scene()) == mainPanelsScroll);
   LOKA_VERIFY(findMainPanels(*window->scene()) == mainPanels);
-  LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
+  LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanelsInset);
+  LOKA_VERIFY(mainPanelsInset->asNestable()->childrenHead() == mainPanels);
   LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_COLUMN);
   LOKA_VERIFY(mainPanels->childrenHead() == leftPanel);
   LOKA_VERIFY(leftPanel->nextInComposition == rightPanel);
@@ -219,7 +224,8 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   loka::app::testing::WindowTestAccess::storeNativeFrame(*window, wideDefault);
   LOKA_VERIFY(findMainPanelsScroll(*window->scene()) == mainPanelsScroll);
   LOKA_VERIFY(findMainPanels(*window->scene()) == mainPanels);
-  LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanels);
+  LOKA_VERIFY(mainPanelsScroll->childrenHead() == mainPanelsInset);
+  LOKA_VERIFY(mainPanelsInset->asNestable()->childrenHead() == mainPanels);
   LOKA_VERIFY(mainPanels->props.effectiveAxis() == loka::app::STACK_AXIS_ROW);
   LOKA_VERIFY(mainPanels->childrenHead() == leftPanel);
   LOKA_VERIFY(leftPanel->nextInComposition == rightPanel);
@@ -251,7 +257,13 @@ namespace
       LOKA_VERIFY(scrollId == "HelloWorld.MainPanelsScroll");
       loka::app::scene::INestableDefinition *scrollChildren = scroll->asNestableDefinition();
       LOKA_VERIFY(scrollChildren != 0);
-      loka::app::scene::NodeDefinitionBase *panels = scrollChildren->childrenHead();
+      loka::app::scene::NodeDefinitionBase *inset = scrollChildren->childrenHead();
+      LOKA_VERIFY(inset != 0);
+      const std::string insetId = inset->testIdValue();
+      LOKA_VERIFY(insetId == "HelloWorld.MainPanelsInset");
+      loka::app::scene::INestableDefinition *insetChildren = inset->asNestableDefinition();
+      LOKA_VERIFY(insetChildren != 0);
+      loka::app::scene::NodeDefinitionBase *panels = insetChildren->childrenHead();
       LOKA_VERIFY(panels != 0);
       const std::string panelsId = panels->testIdValue();
       LOKA_VERIFY(panelsId == "HelloWorld.MainPanels");
@@ -316,7 +328,7 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   loka::app::ButtonNode *toggle =
       findByTestId(root, "HelloWorld.LeftPanel.ToggleEnabledButton")->asButtonNode();
   LOKA_VERIFY(summary && fruit && bmi && fruitPicker && height && weight && probe && toggle);
-  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 0")));
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Enabled: yes / clicks: 0")));
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Apple.")));
   LOKA_VERIFY(bmi->props.text_->get().equals(String::Literal("BMI: 20.76")));
 
@@ -372,9 +384,9 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   fruitPicker->props.selectedIndex_.set(2, true);
   LOKA_VERIFY(fruit->props.text_->get().equals(String::Literal("You chose Cherry.")));
   probe->props.onClick_->emit();
-  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: yes / clicks: 1")));
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Enabled: yes / clicks: 1")));
   toggle->props.onClick_->emit();
-  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Button enabled: no / clicks: 1")));
+  LOKA_VERIFY(summary->props.text_->get().equals(String::Literal("Enabled: no / clicks: 1")));
   // The raw emitter is not enabled-aware (the native control gates disabled
   // clicks), so the disabled state is checked on the Button's input instead
   // of by emitting through it.
