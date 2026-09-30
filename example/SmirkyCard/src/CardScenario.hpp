@@ -17,7 +17,6 @@ namespace smirkycard
   public:
     CardScenario(JsCardNode &card, JSValueConst context);
     ~CardScenario();
-    static bool installBuilder(JSContext *ctx);
     bool installContext(JSContext *ctx, JSValueConst context, JSValue capability, JSCFunctionData *method);
     JSValue operation(JSContext *ctx, int argc, JSValueConst *argv, int op);
     void attach(CardScene *scene);
