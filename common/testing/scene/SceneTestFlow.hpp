@@ -450,6 +450,38 @@ namespace loka
 
       /** Runs one Scene action to completion, then keeps its output pending until that
           action's requested projection has crossed the selected milestone. */
+      namespace scenario_step_detail
+      {
+        template <class AdapterT> class HasDiagnostic
+        {
+          template <class T>
+          static char test(char (*)[sizeof(static_cast<const char *>(static_cast<const T *>(0)->diagnostic()))]);
+          template <class T> static long test(...);
+
+        public:
+          enum
+          {
+            value = sizeof(test<AdapterT>(0)) == sizeof(char)
+          };
+        };
+
+        template <class AdapterT, bool Has = HasDiagnostic<AdapterT>::value> struct Diagnostic
+        {
+          static const char *get(const AdapterT &)
+          {
+            return 0;
+          }
+        };
+
+        template <class AdapterT> struct Diagnostic<AdapterT, true>
+        {
+          static const char *get(const AdapterT &adapter)
+          {
+            return adapter.diagnostic();
+          }
+        };
+      } // namespace scenario_step_detail
+
       template <class AdapterT> class ProjectionWaitAdapter
       {
       public:
@@ -467,6 +499,12 @@ namespace loka
               appliedGenerationBeforeAction_(0),
               completedOut_()
         {
+        }
+
+        /** Forwards the wrapped action's failure diagnostic, so message= survives waitUntil. */
+        const char *diagnostic() const
+        {
+          return scenario_step_detail::Diagnostic<AdapterT>::get(this->adapter_);
         }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
@@ -584,37 +622,6 @@ namespace loka
         };
       } // namespace scenario_projection_wait_detail
 
-      namespace scenario_step_detail
-      {
-        template <class AdapterT> class HasDiagnostic
-        {
-          template <class T>
-          static char test(char (*)[sizeof(static_cast<const char *>(static_cast<const T *>(0)->diagnostic()))]);
-          template <class T> static long test(...);
-
-        public:
-          enum
-          {
-            value = sizeof(test<AdapterT>(0)) == sizeof(char)
-          };
-        };
-
-        template <class AdapterT, bool Has = HasDiagnostic<AdapterT>::value> struct Diagnostic
-        {
-          static const char *get(const AdapterT &)
-          {
-            return 0;
-          }
-        };
-
-        template <class AdapterT> struct Diagnostic<AdapterT, true>
-        {
-          static const char *get(const AdapterT &adapter)
-          {
-            return adapter.diagnostic();
-          }
-        };
-      } // namespace scenario_step_detail
 
       /** Caches the first terminal outcome of an owned adapter, including failure.
           Construct a fresh wrapper for a new execution; copies carry the current

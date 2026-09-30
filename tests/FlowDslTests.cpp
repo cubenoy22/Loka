@@ -8664,6 +8664,11 @@ void testSceneRunOnceAuditOwnsEscapedBoundedMessage()
   text = "replaced after failure";
   LOKA_VERIFY(once.run(input, output, error) == FLOW_STEP_FAILED);
   LOKA_VERIFY(std::string(once.diagnostic()) == bounded);
+  // waitUntil wraps the action; the wrapper must forward its diagnostic (#1038 review).
+  ProjectionWaitAdapter<RunOnceAdapter<OnceDiagnosticAdapter> > wait(once, ProjectionEvent::APPLIED);
+  const char *forwarded =
+      scenario_step_detail::Diagnostic<ProjectionWaitAdapter<RunOnceAdapter<OnceDiagnosticAdapter> > >::get(wait);
+  LOKA_VERIFY(forwarded && std::string(forwarded) == bounded);
   {
     loka::platform::file::FileHandle destination;
     destination.displayPath = loka::core::String::Literal(path);
