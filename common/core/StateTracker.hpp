@@ -20,6 +20,8 @@ namespace loka
   {
 
     class StateBase;
+    class Operation;
+    struct OperationBudget;
 
     // StateTracker transaction phase.
     enum TrackerPhase
@@ -217,6 +219,8 @@ namespace loka
         void begin();
         TransactionIntake &intake(TrackerPhase phase);
         void advance();
+        /** Opens a fresh commit snapshot without touching either intake. */
+        void beginCommit();
         void removeState(StateBase *state);
 
         TransactionIntake current;
@@ -256,7 +260,19 @@ namespace loka
       StateEntry *freeEntries_;
       StateEntryChunk *chunks_;
 
+      /** Borrowed clock membership; Operation owns the intrusive list. */
+      Operation *op_;
+      PushStateTracker *opNext_;
+
       friend struct testing::PushStateTrackerTestAccess;
+      friend class Operation;
+      enum StepResult { STEP_DONE, STEP_STATE_BUDGET };
+      StepResult step(OperationBudget &budget);
+      bool hasWork() const;
+      void installRoute(StateBase *state);
+      void removeRoutes();
+      bool drainDeferred(OperationBudget &budget);
+      void releaseClockLevel();
       void propagateDirty(StateBase *state, unsigned long pass);
       StateEntry *allocateEntry(StateBase *state);
       void allocateEntries(size_t count);

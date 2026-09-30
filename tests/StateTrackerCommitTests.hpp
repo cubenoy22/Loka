@@ -7,4 +7,8 @@ void testStateTrackerCommitChainReportsIterationLimit();
 void testStateTrackerGuardOpenedDuringSettlementJoinsTransaction();
 void testStateTrackerGuardOpenedDuringCommitJoinsTransaction();
 
+void testStateTrackerRefusalRunsLeftoverDeferred();
+void testStateTrackerStateBudgetRunsCurrentDeferred();
+void testStateTrackerLegacyEndPreservesCompletedSnapshot();
+
 #endif // LOKA_STATE_TRACKER_COMMIT_TESTS_HPP

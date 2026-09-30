@@ -85,6 +85,11 @@ namespace
     }
   };
 
+  void countDeferredWork(void *data)
+  {
+    ++*static_cast<int *>(data);
+  }
+
   struct RecomputeCount : StateBase
   {
     int calls;
@@ -287,6 +292,29 @@ void testStateTrackerReservedPropagation()
     }
   }
   LokaAllocSetBackend(0, 0);
+
+  // Successful legacy clocks retain their warmed deferred intake capacity.
+  PushStateTracker deferredTracker;
+  int deferredCalls = 0;
+  {
+    StateTrackerGuard guard(&deferredTracker);
+    testing::PushStateTrackerTestAccess::defer(deferredTracker, &countDeferredWork, &deferredCalls);
+  }
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::BeginCapture(0);
+#endif
+  for (int i = 0; i < 100; ++i)
+  {
+    StateTrackerGuard guard(&deferredTracker);
+    testing::PushStateTrackerTestAccess::defer(deferredTracker, &countDeferredWork, &deferredCalls);
+  }
+#ifdef LOKA_STATE_TRACKER_ALLOC_CENSUS
+  allocpin::EndCapture();
+  const unsigned long deferredAllocations = allocpin::CaptureAllocCount(0);
+  std::printf("tracker warmed deferred: 100 transactions, heap=%lu\n", deferredAllocations);
+  LOKA_VERIFY(deferredAllocations == 0);
+#endif
+  assert(deferredCalls == 101);
 }
 
 void testStateTrackerCycleAndDiamond()

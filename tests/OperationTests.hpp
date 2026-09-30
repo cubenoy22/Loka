@@ -1,0 +1,29 @@
+#ifndef LOKA_OPERATION_TESTS_HPP
+#define LOKA_OPERATION_TESTS_HPP
+
+void testOperationLedgerOpenedDuringRoundWaitsForNextRound();
+void testOperationWriteToVisitedLedgerSettlesNextRound();
+void testOperationSecondRoundSnapshotHoldsOnlyNewIdentities();
+void testOperationWriteToUnvisitedLedgerSettlesSameRound();
+void testOperationCleanLedgerClosesIdleWithoutInvalidate();
+void testOperationOneWriteSettlesInOneRound();
+void testOperationChainLimitClosesAllLedgers();
+void testOperationStateBudgetClosesAllLedgers();
+void testOperationSettlesOnLastPermittedRound();
+void testOperationCloseDrainIsBounded();
+void testOperationWriteDuringCloseIsUnmarked();
+void testOperationRejectsLedgerDestructionWhileOpen();
+void testStateTrackerNestedGuardInsideOperationDoesNotDrive();
+void testOperationAuditRejectsRouteInstallOverAnotherLedgerBegin();
+void testOperationAuditRejectsRouteInstallOverAnotherLedgerAddState();
+void testOperationAuditRejectsRouteInstallOverAnotherLedgerAddStateUnchecked();
+void testOperationRefusesNonPushAndBusyLedgers();
+void testOperationScheduleOrderIsObservable();
+void testOperationStateBudgetIsSharedAcrossLedgers();
+void testOperationStateRefusalCleanupUsesRemainingRounds();
+void testOperationDestructorClosesClock();
+void testOperationReleaseWithdrawalAndRouteReplacement();
+
+void testOperationClockContracts();
+
+#endif
