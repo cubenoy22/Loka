@@ -134,7 +134,7 @@ void testHelloWorldToggleActionProbeDrivesOwnerCommands()
   LOKA_VERIFY(record.get("test", value) && value == "HelloWorld");
   LOKA_VERIFY(record.get("step", value) && value == "toggle-action-probe");
   LOKA_VERIFY(record.get("node", value) && value == "HelloWorld.LeftPanel.ActionSummary");
-  LOKA_VERIFY(record.get("text.value", value) && value == "Button enabled: no / clicks: 1");
+  LOKA_VERIFY(record.get("text.value", value) && value == "Enabled: no / clicks: 1");
   LOKA_VERIFY(record.get("disabled_probe_ignored", value) && value == "true");
   VerifyRecordInt(record, "tick", 92);
   VerifyRecordInt(record, "crop_left", 0);
@@ -180,7 +180,7 @@ void testHelloWorldToggleActionProbeHoldsFinalScene()
   LOKA_VERIFY(scenario.step(93, &scene, bounds, record) == loka::scenario_tests::SCENARIO_ADVANCE_FINAL_SCENE_HELD);
 
   std::string value;
-  LOKA_VERIFY(record.get("text.value", value) && value == "Button enabled: no / clicks: 1");
+  LOKA_VERIFY(record.get("text.value", value) && value == "Enabled: no / clicks: 1");
   LOKA_VERIFY(audit.terminals.size() == 1);
   LOKA_VERIFY(audit.terminals[0] == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
   LOKA_VERIFY(audit.verdicts.size() == 1);

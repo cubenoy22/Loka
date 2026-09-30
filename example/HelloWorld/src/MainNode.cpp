@@ -2,6 +2,7 @@
 
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
+#include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -18,6 +19,12 @@ namespace helloworld
   {
     kMainPanelsScrollTag = 1,
     kDecorationTag = 2
+  };
+  // The panels keep a gap from the scroll bar; ScrollView offers its content
+  // the full width up to the bar on every rail (#1040).
+  enum
+  {
+    kContentInset = 6
   };
 
   namespace
@@ -37,7 +44,7 @@ namespace helloworld
     virtual String operator()()
     {
       const String enabledText = this->enabled_.get() ? String::Literal("yes") : String::Literal("no");
-      return String::Literal("Button enabled: ") + enabledText + String::Literal(" / clicks: ")
+      return String::Literal("Enabled: ") + enabledText + String::Literal(" / clicks: ")
              + String::FromInt(this->count_.get());
     }
 
@@ -253,15 +260,16 @@ namespace helloworld
     loka::app::scene::NodeComposition::ParentScope scope(c, root);
     ScrollView mainPanels = ScrollView(this->scrollOffset_)
                                 .TEST_ID("HelloWorld.MainPanelsScroll")
-                            << (Stack(this->axis_.state())
-                                    .TEST_ID("HelloWorld.MainPanels")
-                                << this->mainLeftPanel()
-                                << MainRightPanel(&this->fruits_,
-                                                  this->fruitIndex_,
-                                                  this->fruitMessage_.state(),
-                                                  this->heightInput_,
-                                                  this->weightInput_,
-                                                  this->bmiResult_.state()));
+                            << (Box().padding(kContentInset).TEST_ID("HelloWorld.MainPanelsInset")
+                                << (Stack(this->axis_.state())
+                                        .TEST_ID("HelloWorld.MainPanels")
+                                    << this->mainLeftPanel()
+                                    << MainRightPanel(&this->fruits_,
+                                                      this->fruitIndex_,
+                                                      this->fruitMessage_.state(),
+                                                      this->heightInput_,
+                                                      this->weightInput_,
+                                                      this->bmiResult_.state())));
     mainPanels.tag(kMainPanelsScrollTag);
     c.declare(mainPanels);
     TextDefinition decoration = Text("*").TEST_ID("HelloWorld.Decoration");

@@ -36,21 +36,21 @@ namespace loka
         const long finalTick = disabledTick + kStepSpacingTicks;
         return (ScenarioFlow(clock, sceneInput).auditTo(audit)
                 | AtTick(kInitialTick,
-                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: yes / clicks: 0"))
+                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Enabled: yes / clicks: 0"))
                       .named("verify-initial-action-summary")
                 | AtTick(kInitialTick, ClickButton("HelloWorld.LeftPanel.ProbeButton")).named("probe-enabled-action")
                 | AtTick(enabledTick,
-                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: yes / clicks: 1"))
+                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Enabled: yes / clicks: 1"))
                       .named("verify-enabled-probe")
                 | AtTick(enabledTick, ClickButton("HelloWorld.LeftPanel.ToggleEnabledButton"))
                       .named("toggle-probe-disabled")
                 | AtTick(disabledTick,
-                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: no / clicks: 1"))
+                         CheckText("HelloWorld.LeftPanel.ActionSummary", "Enabled: no / clicks: 1"))
                       .named("verify-disabled-action-summary")
                 // Deliberately click the disabled probe to verify that its action is ignored.
                 | AtTick(disabledTick, ClickButton("HelloWorld.LeftPanel.ProbeButton", CLICK_DISABLED_IS_NOOP))
                       .named("probe-disabled-action")
-                | AtTick(finalTick, CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: no / clicks: 1"))
+                | AtTick(finalTick, CheckText("HelloWorld.LeftPanel.ActionSummary", "Enabled: no / clicks: 1"))
                       .named("verify-disabled-probe-was-ignored")
                 | AtTick(finalTick,
                          SnapText("HelloWorld.LeftPanel.ActionSummary", "HelloWorld", kToggleActionProbe, finalTick, 1))
