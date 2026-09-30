@@ -29,7 +29,10 @@ user reads it directly).
 2. **前ハンドオフ**: link the previous HANDOFF file and one line on how this
    session continues it. Record the resulting `main` SHA.
 3. **作業場所**: which clone/worktrees were used (fleet `~/loka` vs `/mnt/c`),
-   including branches — the next session must not guess.
+   including branches — the next session must not guess. Also the session's
+   name (the claim owner slug, e.g. `opus1`) and the output of
+   `.claude/skills/claim/claim.sh list`: say which claims were released and
+   which the receiving session should take (then `board.sh start` them).
 4. **状態サマリ**: a table of item → state (merged SHAs, open PRs, blocked
    items).
 5. **中身とエビデンス**: per deliverable, the verification actually run
