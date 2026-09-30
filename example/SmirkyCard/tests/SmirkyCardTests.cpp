@@ -2999,8 +2999,53 @@ namespace
     expectJs(runtime, "c0.error.get()", "Flow input could not be read (out of memory)");
   }
 
+  void checkProductionFlowWithoutWindow()
+  {
+    std::fprintf(stderr, "[pin] production Flow watch/run without Window\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var s,result,f,constructing;card('first',c=>{s=c.state(0);result=c.state(0);"
+        "f=c.flow(Flow().watch(s,v=>v+1).step(v=>v*2).onSuccess(v=>result.set(v)));"
+        "constructing=f.run(7);return {compose(){return Text('flow')}}});",
+        error));
+    NullScenePlatformController platform;
+    smirkycard::CardScene *scene = smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime);
+    LOKA_VERIFY(scene != 0);
+    LOKA_VERIFY(scene->mount(&platform));
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
+    expectJs(runtime, "constructing", "false");
+    expectJs(runtime, "result.get()", "0");
+    expectJs(runtime, "s.set(3);result.get()", "8");
+    expectJs(runtime, "f.run(5)", "true");
+    expectJs(runtime, "result.get()", "10");
+    delete scene;
+    expectJs(runtime, "f.run(9)", "false");
+  }
+
+  void checkProductionFlowBeforeComposition()
+  {
+    std::fprintf(stderr, "[pin] production Flow constructor exception formatter refuses run\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var f,admitted,n=0;card('first',c=>{f=c.flow(Flow().step(v=>n++));"
+        "throw {toString(){admitted=f.run(7);return 'constructor failed'}}});",
+        error));
+    NullScenePlatformController platform;
+    smirkycard::CardScene *scene = smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime);
+    LOKA_VERIFY(scene != 0);
+    LOKA_VERIFY(scene->mount(&platform));
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
+    expectJs(runtime, "admitted", "false");
+    expectJs(runtime, "n", "0");
+    delete scene;
+  }
+
   void checkProductionFlowEdges()
   {
+    checkProductionFlowWithoutWindow();
+    checkProductionFlowBeforeComposition();
     checkProductionFlowInputAllocationFailure();
     checkProductionFlowDiagnosticAllocationFailure();
     checkProductionFlowNesting();
