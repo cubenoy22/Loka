@@ -34,7 +34,7 @@ void testSceneRunOnceCachesSuccessAndFailure();
 void testSceneRunOncePollsPendingUntilTerminal();
 void testSceneRunOnceMarksEntryBeforeCallingAdapter();
 void testSceneSettlePollsBothQueuesAndRejectsMissingSceneOrController();
-void testSceneStrictClickRejectsDisabledButtonAndDefaultRemainsNoop();
+void testSceneDefaultClickRejectsDisabledButtonAndExplicitNoopSucceeds();
 void testSceneRunOnceAuditOwnsEscapedBoundedMessage();
 void testSceneFlowAtTickRunsEachActionOnceInOrder();
 void testSceneFlowThenRunsEachActionOnceInOrder();

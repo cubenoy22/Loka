@@ -8592,7 +8592,7 @@ void testSceneSettlePollsBothQueuesAndRejectsMissingSceneOrController()
   LOKA_VERIFY(error.code == FLOW_ERROR_SCENE_TEST_CONTROLLER_UNAVAILABLE);
 }
 
-void testSceneStrictClickRejectsDisabledButtonAndDefaultRemainsNoop()
+void testSceneDefaultClickRejectsDisabledButtonAndExplicitNoopSucceeds()
 {
   using namespace loka::app;
   using namespace loka::app::scene;
@@ -8616,19 +8616,49 @@ void testSceneStrictClickRejectsDisabledButtonAndDefaultRemainsNoop()
   Scene *output = 0;
   FlowError error;
   const NodeSelector<ButtonNode> selector = Within("ClickRegion").descendant<ButtonNode>(1);
-  LOKA_VERIFY(ClickButtonById("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(ClickButton("StrictButton").run(input, output, error) == FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(ClickButton(selector).run(input, output, error) == FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(calls == 0);
-  LOKA_VERIFY(ClickButtonById("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
-  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
-  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error)
+  LOKA_VERIFY(EmitNodeClick<ButtonNode>(input, scene_test_detail::NodeTarget<ButtonNode>(selector), error)
               == FLOW_STEP_FAILED);
-  LOKA_VERIFY(ClickButton("StrictButton", CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
-  LOKA_VERIFY(ClickButtonById(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
-  LOKA_VERIFY(ClickButtonByIdAndFlush(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
-  LOKA_VERIFY(ClickButton(selector, CLICK_DISABLED_FAILS).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAdapter("StrictButton").run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAdapter(selector).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonById("StrictButton").run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonById(selector).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAndFlushAdapter("StrictButton").run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAndFlushAdapter(selector).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton").run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush(selector).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButton("StrictButton").run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(ClickButton(selector).run(input, output, error) == FLOW_STEP_FAILED);
+  LOKA_VERIFY(error.kind == FLOW_ERROR_KIND_SCENE_SCENARIO && error.code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+  LOKA_VERIFY(calls == 0);
+  LOKA_VERIFY(EmitNodeClick<ButtonNode>(
+                  input, scene_test_detail::NodeTarget<ButtonNode>(selector), error, CLICK_DISABLED_IS_NOOP)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAdapter("StrictButton", CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAdapter(selector, CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonById("StrictButton", CLICK_DISABLED_IS_NOOP).run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonById(selector, CLICK_DISABLED_IS_NOOP).run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAndFlushAdapter("StrictButton", CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAndFlushAdapter(selector, CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush("StrictButton", CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButtonByIdAndFlush(selector, CLICK_DISABLED_IS_NOOP).run(input, output, error)
+              == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButton("StrictButton", CLICK_DISABLED_IS_NOOP).run(input, output, error) == FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(ClickButton(selector, CLICK_DISABLED_IS_NOOP).run(input, output, error) == FLOW_STEP_SUCCEEDED);
   LOKA_VERIFY(calls == 0);
   {
     loka::core::StateTrackerGuard guard(SceneTestAccess::rootBoundary(scene)->tracker());
