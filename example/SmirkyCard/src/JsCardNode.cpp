@@ -1051,7 +1051,7 @@ namespace smirkycard
     JsOwnProperties names(ctx);
     if (!names.read(dict, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK))
       return false;
-    TextStyle result;
+    loka::app::TextStyle result;
     for (uint32_t i = 0; i < names.count(); ++i)
     {
       JSValue key = JS_AtomToValue(ctx, names.atom(i));
@@ -1195,7 +1195,7 @@ namespace smirkycard
   loka::app::scene::NodeDefinitionBase *JsCardNode::lowerText(JSContext *ctx, JSValueConst tree)
   {
     using namespace loka::app;
-    TextStyle style;
+    loka::app::TextStyle style;
     JSValue dict = JS_GetPropertyStr(ctx, tree, "style");
     bool valid = !JS_IsException(dict) && (JS_IsUndefined(dict) || readTextStyle(ctx, dict, style));
     JS_FreeValue(ctx, dict);
