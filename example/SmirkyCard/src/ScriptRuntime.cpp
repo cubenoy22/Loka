@@ -11,6 +11,9 @@
 #endif
 #include <cassert>
 #include <new>
+#ifdef TEST_BUILD
+#include "CardScenario.hpp"
+#endif
 
 namespace smirkycard
 {
@@ -55,6 +58,11 @@ namespace smirkycard
         script_(SmirkyScriptCreate()),
         first_(JS_UNDEFINED),
         second_(JS_UNDEFINED),
+#ifdef TEST_BUILD
+        scenarioFirst_(JS_UNDEFINED),
+        scenarioSecond_(JS_UNDEFINED),
+        scenarioLaunch_(JS_UNDEFINED),
+#endif
         cardCount_(0),
         nextRetired_(0)
   {
@@ -62,7 +70,11 @@ namespace smirkycard
       return;
     JS_SetContextOpaque(this->context(), &runtime);
     JS_SetRuntimeOpaque(this->jsRuntime(), this);
-    if (!registry.install(this->context()))
+    if (!registry.install(this->context())
+#ifdef TEST_BUILD
+        || (runtime.runnerEnabled() && !runtime.installRunner(*this))
+#endif
+    )
     {
       SmirkyScriptDestroy(this->script_);
       this->script_ = 0;
@@ -76,6 +88,11 @@ namespace smirkycard
     {
       JS_FreeValue(this->context(), this->first_);
       JS_FreeValue(this->context(), this->second_);
+#ifdef TEST_BUILD
+      JS_FreeValue(this->context(), this->scenarioFirst_);
+      JS_FreeValue(this->context(), this->scenarioSecond_);
+      JS_FreeValue(this->context(), this->scenarioLaunch_);
+#endif
     }
     SmirkyScriptDestroy(this->script_);
   }
@@ -152,7 +169,11 @@ namespace smirkycard
   }
 
   ScriptRuntime::ScriptRuntime()
-      : registry_(),
+      :
+#ifdef TEST_BUILD
+        runner_(0),
+#endif
+        registry_(),
         currentEngine_(0),
         retiredEngines_(0),
         mainSource_(MAIN_SOURCE_BUILTIN),
@@ -169,6 +190,9 @@ namespace smirkycard
     assert(!this->interrupts_.top);
     assert(!this->retiredEngines_ && "retired JS engines must outlive no cards at runtime teardown");
     delete this->currentEngine_;
+#ifdef TEST_BUILD
+    delete this->runner_;
+#endif
   }
 
   JsEngine *ScriptRuntime::createEngine(const std::string &sourceName)
@@ -360,6 +384,25 @@ namespace smirkycard
       error = loka::core::String::Literal("JavaScript runtime is unavailable.");
       return false;
     }
+#ifdef TEST_BUILD
+    if (this->runner_)
+    {
+      JsEngine *candidate = this->createEngine();
+      if (!candidate)
+      {
+        error = loka::core::String::Literal("Could not allocate scenario engine");
+        return false;
+      }
+      if (!this->evalMain(*candidate, source, strlen(source), "BuiltinCards.js", error)
+          || !this->evalCompanion(*candidate, SMIRKY_CARD_FIRST, error))
+      {
+        delete candidate;
+        return false;
+      }
+      this->replaceCurrentEngine(candidate);
+      return true;
+    }
+#endif
     return this->evalMain(*this->currentEngine_, source, strlen(source), "BuiltinCards.js", error);
   }
 
@@ -379,9 +422,40 @@ namespace smirkycard
     this->mainErrorScope_ = MAIN_ERROR_NONE;
     if (!this->context())
       return; // unavailable runtime: every later call reports it (loadBuiltin's path)
+#ifdef TEST_BUILD
+    if (this->runner_)
+    {
+      std::string text;
+      loka::core::String error;
+      const FileReadResult readResult = this->readFile("MAIN.JS", text, error);
+      JsEngine *candidate = 0;
+      if (readResult != FILE_READ_FAILED)
+      {
+        const bool file = readResult == FILE_READ_OK;
+        candidate = this->createEngine(file ? "MAIN.JS" : "");
+        if (!candidate)
+          error = loka::core::String::Literal("Could not allocate scenario engine");
+        else if (this->evalMain(*candidate,
+                                file ? text.data() : BuiltinMainJs(),
+                                file ? text.size() : strlen(BuiltinMainJs()),
+                                file ? "MAIN.JS" : "BuiltinCards.js",
+                                error)
+                 && this->evalCompanion(*candidate, SMIRKY_CARD_FIRST, error))
+        {
+          this->replaceCurrentEngine(candidate);
+          this->mainSource_ = file ? MAIN_SOURCE_FILE : MAIN_SOURCE_BUILTIN;
+          return;
+        }
+      }
+      delete candidate;
+      this->mainError_ = loka::core::String::Literal("Runner setup failed: ") + error;
+      this->mainErrorScope_ = MAIN_ERROR_EVERY_CARD;
+      return;
+    }
+#endif
     std::string text;
     loka::core::String error;
-    if (this->readFile("MAIN.JS", text, error))
+    if (this->readFile("MAIN.JS", text, error) == FILE_READ_OK)
     {
       JsEngine *candidate = this->createEngine("MAIN.JS");
       if (!candidate)
@@ -407,7 +481,8 @@ namespace smirkycard
     this->loadBuiltin(BuiltinMainJs(), ignored);
   }
 
-  bool ScriptRuntime::readFile(const std::string &name, std::string &text, loka::core::String &error) const
+  ScriptRuntime::FileReadResult
+  ScriptRuntime::readFile(const std::string &name, std::string &text, loka::core::String &error) const
   {
     const loka::core::String fileName = loka::core::String::Utf8(name.data(), name.size());
     const loka::file::File item = loka::file::File::Application() << loka::file::File(fileName);
@@ -415,7 +490,7 @@ namespace smirkycard
     if (!this->mainContext_ || !this->mainContext_->openFile(item, handle))
     {
       error = fileName + loka::core::String::Literal(": file is missing");
-      return false;
+      return FILE_READ_MISSING;
     }
 #if defined(LOKA_RETRO68)
     loka::toolbox::ToolboxByteSource source;
@@ -425,19 +500,21 @@ namespace smirkycard
     if (handle.displayPath.empty() || !source.open(handle.displayPath))
 #endif
     {
+      // Some platform contexts resolve a path without checking it exists, so a
+      // file that cannot be opened counts as missing; only content refusals fail.
       error = fileName + loka::core::String::Literal(": file is missing or could not read");
-      return false;
+      return FILE_READ_MISSING;
     }
     std::size_t length = 0;
     if (!source.size(length))
     {
       error = fileName + loka::core::String::Literal(": could not read");
-      return false;
+      return FILE_READ_FAILED;
     }
     else if (length > 64u * 1024u)
     {
       error = fileName + loka::core::String::Literal(": exceeds 64 KiB");
-      return false;
+      return FILE_READ_FAILED;
     }
     else
     {
@@ -445,10 +522,10 @@ namespace smirkycard
       if (!source.readAt(0, length ? reinterpret_cast<unsigned char *>(&text[0]) : 0, length))
       {
         error = fileName + loka::core::String::Literal(": could not read");
-        return false;
+        return FILE_READ_FAILED;
       }
       error = loka::core::String();
-      return true;
+      return FILE_READ_OK;
     }
   }
 
@@ -467,7 +544,7 @@ namespace smirkycard
   JsEngine *ScriptRuntime::prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error)
   {
     std::string text;
-    if (!this->readFile(name, text, error))
+    if (this->readFile(name, text, error) != FILE_READ_OK)
       return 0;
     const loka::core::String prefix =
         loka::core::String::Utf8(name.data(), name.size()) + loka::core::String::Literal(": ");
@@ -491,6 +568,13 @@ namespace smirkycard
               + loka::core::String::Literal("' is not defined");
       return 0;
     }
+#ifdef TEST_BUILD
+    if (this->runner_ && !this->evalCompanion(*candidate, card, error))
+    {
+      delete candidate;
+      return 0;
+    }
+#endif
     error = loka::core::String();
     return candidate;
   }
@@ -507,6 +591,92 @@ namespace smirkycard
   }
 
 #ifdef TEST_BUILD
+  JSValue JsEngine::takeScenario()
+  {
+    JSValue result = this->scenarioLaunch_;
+    this->scenarioLaunch_ = JS_UNDEFINED;
+    return result;
+  }
+
+  bool ScriptRuntime::enableRunner(loka::dsl::testing::ScenarioAuditSink *sink,
+                                   loka::dsl::testing::ScenarioClock *clock,
+                                   unsigned long seed,
+                                   const char *companion)
+  {
+    if (!sink || !clock || !companion || !*companion || this->runner_ || !this->currentEngine_
+        || this->currentEngine_->cardCount_ || this->currentEngine_->hasConstructor(SMIRKY_CARD_FIRST)
+        || this->currentEngine_->hasConstructor(SMIRKY_CARD_SECOND))
+      return false;
+    this->runner_ = new (std::nothrow) Runner(sink, clock, seed, companion);
+    return this->runner_ && this->installRunner(*this->currentEngine_);
+  }
+
+  bool ScriptRuntime::installRunner(JsEngine &engine)
+  {
+    JSContext *ctx = engine.context();
+    JSValue global = JS_GetGlobalObject(ctx);
+    const bool ok = JS_SetPropertyStr(ctx, global, "scenario", JS_NewCFunction(ctx, scenario, "scenario", 2)) >= 0
+                    && CardScenario::installBuilder(ctx);
+    JS_FreeValue(ctx, global);
+    return ok;
+  }
+
+  JSValue ScriptRuntime::scenario(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv)
+  {
+    ScriptRuntime *self = static_cast<ScriptRuntime *>(JS_GetContextOpaque(ctx));
+    JsEngine *engine = static_cast<JsEngine *>(JS_GetRuntimeOpaque(JS_GetRuntime(ctx)));
+    if (!self->runner_ || self->runner_->registering != engine)
+      return JS_ThrowTypeError(ctx, "scenario() is only valid during companion evaluation");
+    if (argc != 2 || !JS_IsString(argv[0]) || !JS_IsFunction(ctx, argv[1]))
+      return JS_ThrowTypeError(ctx, "scenario(cardName, fn) requires a string and function");
+    size_t length = 0;
+    const char *name = JS_ToCStringLen(ctx, &length, argv[0]);
+    if (!name)
+      return JS_EXCEPTION;
+    const SmirkyCardId id = length == 5 && !memcmp(name, "first", 5)    ? SMIRKY_CARD_FIRST
+                            : length == 6 && !memcmp(name, "second", 6) ? SMIRKY_CARD_SECOND
+                                                                        : SMIRKY_CARD_ERROR;
+    JS_FreeCString(ctx, name);
+    if (!engine->hasConstructor(id))
+      return JS_ThrowTypeError(ctx, "scenario: unknown card or missing constructor");
+    JSValue &slot = id == SMIRKY_CARD_FIRST ? engine->scenarioFirst_ : engine->scenarioSecond_;
+    if (!JS_IsUndefined(slot))
+      return JS_ThrowTypeError(ctx, "scenario: duplicate registration");
+    slot = JS_DupValue(ctx, argv[1]);
+    return JS_UNDEFINED;
+  }
+
+  bool ScriptRuntime::evalCompanion(JsEngine &engine, SmirkyCardId selected, loka::core::String &error)
+  {
+    std::string text;
+    if (this->readFile(this->runner_->companion, text, error) != FILE_READ_OK)
+      return false;
+    this->runner_->registering = &engine;
+    const bool ok = this->evalMain(engine, text.data(), text.size(), this->runner_->companion.c_str(), error);
+    this->runner_->registering = 0;
+    if (!ok)
+      return false;
+    JSValue fn = selected == SMIRKY_CARD_FIRST ? engine.scenarioFirst_ : engine.scenarioSecond_;
+    if (!engine.hasConstructor(selected) || JS_IsUndefined(fn))
+    {
+      error = loka::core::String::Literal("scenario: no registration for selected card");
+      return false;
+    }
+    engine.scenarioLaunch_ = JS_DupValue(engine.context(), fn);
+    return true;
+  }
+
+  bool ScriptRuntime::call(
+      JsEngine &engine, JSValueConst fn, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error)
+  {
+    InterruptWindow interrupt(*this, engine);
+    result = JS_Call(engine.context(), fn, JS_UNDEFINED, argc, argv);
+    if (JS_IsException(result))
+      return this->captureException(engine, error);
+    error = loka::core::String();
+    return true;
+  }
+
   unsigned int ScriptRuntime::retiredEngineCount() const
   {
     unsigned int count = 0;

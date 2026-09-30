@@ -2247,6 +2247,435 @@ namespace
     LOKA_VERIFY((reinterpret_cast<uintptr_t>(SmirkyScriptRuntime(script)) & (SMIRKY_SCRIPT_ALLOC_ALIGN - 1)) == 0);
     SmirkyScriptDestroy(script);
   }
+  loka::platform::file::FileHandle scenarioAuditDestination()
+  {
+    loka::platform::file::FileHandle file;
+    file.displayPath = loka::core::String::Literal("_smirky_scenario.audit");
+    return file;
+  }
+  std::string readScenarioAudit()
+  {
+    FILE *file = std::fopen("_smirky_scenario.audit", "rb");
+    LOKA_VERIFY(file);
+    std::string text;
+    char buffer[256];
+    size_t n;
+    while ((n = std::fread(buffer, 1, sizeof(buffer), file)))
+      text.append(buffer, n);
+    LOKA_VERIFY(std::fclose(file) == 0);
+    return text;
+  }
+  /** Plays the runner: owns services, enables before loading, drives only CardScene. */
+  class CardRunnerHarness : public loka::dsl::testing::ScenarioAuditSink
+  {
+  public:
+    CardRunnerHarness(const char *source, const char *companion, unsigned long seed = 7)
+        : audit(scenarioAuditDestination(), "card"),
+          window(0),
+          admission(0),
+          actionScene(0),
+          terminalCount(0),
+          terminal(loka::dsl::testing::SCENARIO_AUDIT_FAILED)
+    {
+      LOKA_VERIFY(audit.isValid());
+      std::remove("_smirky_scenario/MAIN.JS");
+      std::remove("_smirky_scenario/CARD.FLOW.JS");
+      removeDirectory("_smirky_scenario");
+      LOKA_VERIFY(makeDirectory("_smirky_scenario"));
+      context.setApplicationDirectory(loka::core::String::Literal("_smirky_scenario"));
+      if (source)
+        writeMain("_smirky_scenario/MAIN.JS", source);
+      if (companion)
+        writeMain("_smirky_scenario/CARD.FLOW.JS", companion);
+      LOKA_VERIFY(runtime.enableRunner(this, &clock, seed, "CARD.FLOW.JS"));
+      runtime.loadMain(&context);
+    }
+    ~CardRunnerHarness()
+    {
+      delete admission;
+      delete window;
+      std::remove("_smirky_scenario/MAIN.JS");
+      std::remove("_smirky_scenario/CARD.FLOW.JS");
+      removeDirectory("_smirky_scenario");
+    }
+    void mount()
+    {
+      LOKA_VERIFY(runtime.mainErrorFor(SMIRKY_CARD_FIRST).empty());
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      window = new NullWindow(&context, props, &platform);
+      admission = new WindowAdmissionTestApp(*window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window->scene(), true);
+      admission->flush();
+      actionScene = static_cast<smirkycard::CardScene *>(window->scene());
+    }
+    void tick()
+    {
+      // Exercise native-class GC markers with live cards and accepted builders.
+      JS_RunGC(runtime.jsRuntime());
+      clock.advanceTo(clock.currentTick() + 1);
+      static_cast<smirkycard::CardScene *>(window->scene())->tickScenario();
+    }
+    void ticks(int count)
+    {
+      for (int i = 0; i < count; ++i)
+        tick();
+    }
+    virtual bool recordStep(const loka::dsl::testing::ScenarioStepTerminal &r)
+    {
+      steps.push_back(r);
+      return audit.recordStep(r);
+    }
+    virtual bool recordMatch(const loka::dsl::testing::ScenarioMatchSelection &)
+    {
+      return true;
+    }
+    virtual bool recordSubstep(const loka::dsl::testing::ScenarioSubstepTerminal &)
+    {
+      return true;
+    }
+    virtual bool recordVerdict(const loka::dsl::SnapRecord &)
+    {
+      return true;
+    }
+    virtual bool recordTerminal(loka::dsl::testing::ScenarioAuditTerminalStatus value)
+    {
+      ++terminalCount;
+      terminal = value;
+      return audit.recordTerminal(value);
+    }
+    virtual bool recordLog(const std::string &text)
+    {
+      if (!audit.recordLog(text))
+        return false;
+      logs.push_back(text);
+      if (text == "invalidate")
+        actionScene->requestInvalidate();
+      if (text == "reenter")
+        actionScene->tickScenario();
+      // Exercise the synchronous detach line while preserving the runner-owned
+      // Scene until this tick unwinds; updateAttached also reclaims the root.
+      if (text == "detach")
+        loka::dsl::testing::SceneTestAccess::notifyComposeEvent(*actionScene, loka::app::scene::COMPOSE_EVENT_DETACH);
+      return true;
+    }
+    loka::dsl::testing::ScenarioAuditFile audit;
+    loka::dsl::testing::ScenarioClock clock;
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    smirkycard::ScriptRuntime runtime;
+    NullWindow *window;
+    WindowAdmissionTestApp *admission;
+    smirkycard::CardScene *actionScene;
+    std::vector<loka::dsl::testing::ScenarioStepTerminal> steps;
+    std::vector<std::string> logs;
+    int terminalCount;
+    loka::dsl::testing::ScenarioAuditTerminalStatus terminal;
+  };
+
+  const char *scenarioCard =
+      "var saved,invoked=0,steps=0,success=0,failure=0,after=0,firstRandom;"
+      "card('first',function(c){saved=c;firstRandom=c.test.random();var s=c.state('before'),off=c.state(false);"
+      "return {compose:function(){return VStack(Text(s).TEST_ID('title'),"
+      "Button('change',function(){s.set('after');}).TEST_ID('change'),"
+      "Button('disabled',function(){throw Error('must not click');}).enabled(off).TEST_ID('off'),"
+      "Cell('cell',function(){s.set('cell');}).TEST_ID('cell'),"
+      "Markup('<b>markup</b>').TEST_ID('markup'),EditText(s).TEST_ID('edit'),"
+      "Text('a').TEST_ID('duplicate'),Text('b').TEST_ID('duplicate'));}};});"
+      "card('second',function(c){return {compose:function(){return "
+      "Button('back',function(){c.go('first');}).TEST_ID('back');}};});";
+
+  void checkCardScenarios(int only = 0)
+  {
+    using namespace loka::dsl;
+    using namespace loka::dsl::testing;
+    std::puts("[pin] runner Flow happy path, values, freeze, once, failure, cancellation");
+    if (!only || only == 1)
+    {
+      CardRunnerHarness h(
+          scenarioCard,
+          "scenario('first',function(c){++invoked;var f=Flow().step(function(v){"
+          "if(v!==undefined)throw Error('initial value');c.test.click('change');"
+          "if(c.test.text('title')!=='after'||c.test.text('edit')!=='after'||c.test.text('change')!=='change')throw "
+          "Error('text');"
+          "if(c.test.text('markup')!=='markup')throw Error('markup');c.test.click('cell');"
+          "if(c.test.text('title')!=='cell')throw Error('cell');return 41;}).named('click')"
+          ".step(function(v){if(v!==41)throw Error('value41');return 42;}).named('value')"
+          ".step(function(v){c.test.log(String(v));}).named('log')"
+          ".onSuccess(function(){++success;}).onFailure(function(){++failure;});c.run(f);"
+          "try{f.step(function(){});throw Error('mutation accepted');}catch(e){if(!(e instanceof TypeError))throw e;}"
+          "try{c.run(f);throw Error('reuse accepted');}catch(e){if(!(e instanceof TypeError))throw e;}});");
+      h.mount();
+      // Class registrations must remain distinct across independent engines:
+      // force tracing of the card capability while its scenario roots are live.
+      JS_RunGC(h.runtime.jsRuntime());
+      expectJs(h.runtime, "invoked", "0");
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_SUCCEEDED);
+      LOKA_VERIFY(h.steps.size() == 6 && h.steps[0].name() == "click" && h.steps[2].name() == "value");
+      LOKA_VERIFY(h.logs.size() == 1 && h.logs[0] == "42");
+      const std::string audit = readScenarioAudit();
+      LOKA_VERIFY(audit.find("name=click\n") < audit.find("terminal status=succeeded\n"));
+      LOKA_VERIFY(audit.find("log text=42\n") != std::string::npos);
+      expectJs(h.runtime, "[invoked,success,failure].join(',')", "1,1,0");
+      expectJs(h.runtime,
+               "(function(){try{saved.run(Flow().step(function(){}));return 'bad';}catch(e){return e instanceof "
+               "TypeError;}})()",
+               "true");
+      SceneTestAccess::updateAttached(*h.window->scene(), false);
+      SceneTestAccess::updateAttached(*h.window->scene(), true);
+      h.ticks(10);
+      expectJs(h.runtime, "invoked", "1");
+    }
+    if (!only || only == 2)
+    {
+      CardRunnerHarness h(scenarioCard,
+                          "scenario('first',function(c){++invoked;c.run(Flow().step(function(){++steps;c.test.log('"
+                          "reenter');throw Error('boom message');})"
+                          ".named('throwing').onFailure(function(){++failure;}));});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_FAILED);
+      LOKA_VERIFY(h.steps.size() == 1 && h.steps[0].status() == FLOW_STEP_FAILED);
+      LOKA_VERIFY(h.steps[0].message().find("boom message") != std::string::npos);
+      LOKA_VERIFY(readScenarioAudit().find("message=Error%3A%20boom%20message\n") != std::string::npos);
+      expectJs(h.runtime, "[invoked,steps,failure].join(',')", "1,1,1");
+    }
+    if (!only || only == 3)
+    {
+      CardRunnerHarness h(
+          scenarioCard,
+          "scenario('first',function(c){c.run(Flow().step(function(){++steps;c.test.log('invalidate');})"
+          ".named('once').step(function(){++after;}));});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.window->scene()->hasPendingInvalidation());
+      LOKA_VERIFY(h.terminalCount == 0 && h.steps.size() == 1);
+      expectJs(h.runtime, "[steps,after].join(',')", "1,0");
+      h.admission->flush();
+      h.tick();
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_SUCCEEDED);
+      expectJs(h.runtime, "[steps,after].join(',')", "1,1");
+    }
+    if (!only || only == 4)
+    {
+      CardRunnerHarness h(scenarioCard,
+                          "scenario('first',function(c){c.run(Flow().step(function(){if(c.test.enabled('off'))throw "
+                          "Error('enabled');c.test.click('off');}));});");
+      h.mount();
+      h.tick();
+      LOKA_VERIFY(h.terminal == SCENARIO_AUDIT_FAILED && h.terminalCount == 1);
+      LOKA_VERIFY(h.steps[0].error().code == FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED);
+      LOKA_VERIFY(h.steps[0].message().find("button 'off' is disabled") != std::string::npos);
+    }
+    if (!only || only == 5)
+    {
+      CardRunnerHarness h(
+          scenarioCard,
+          "scenario('first',function(c){++invoked;c.run(Flow().step(function(){++steps;c.go('second');})"
+          ".named('go').step(function(){++after;}).onSuccess(function(){++success;}).onFailure(function(){++failure;}))"
+          ";});"
+          "scenario('second',function(c){++invoked;c.run(Flow().step(function(){++after;}));});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.window->sceneManager()->hasPendingReplacement());
+      LOKA_VERIFY(h.terminalCount == 0 && h.steps.size() == 1);
+      expectJs(h.runtime, "[invoked,steps,after,success,failure].join(',')", "1,1,0,0,0");
+      h.admission->flush();
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_CANCELED);
+      h.ticks(10);
+      loka::app::scene::Scene *scene = h.window->scene();
+      FlowError error;
+      loka::app::scene::Scene *out = 0;
+      LOKA_VERIFY(ClickButton("back").run(scene, out, error) == FLOW_STEP_SUCCEEDED);
+      h.admission->flush();
+      h.ticks(10);
+      expectJs(h.runtime, "[invoked,steps,after,success,failure].join(',')", "1,1,0,0,0");
+      LOKA_VERIFY(h.terminalCount == 1);
+    }
+    for (int throwing = 0; (!only || only == 6) && throwing < 2; ++throwing)
+    {
+      const std::string companion =
+          std::string("scenario('first',function(c){c.run(Flow().step(function(){c.test.log('detach');")
+          + (throwing ? "throw Error('detached throw');" : "return 99;")
+          + "}).named('inflight').step(function(){++after;}).onSuccess(function(){++success;}).onFailure(function(){++"
+            "failure;}));});";
+      CardRunnerHarness h(scenarioCard, companion.c_str());
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_CANCELED);
+      LOKA_VERIFY(h.steps.size() == 1 && h.steps[0].status() == (throwing ? FLOW_STEP_FAILED : FLOW_STEP_SUCCEEDED));
+      if (throwing)
+        LOKA_VERIFY(h.steps[0].message().find("detached throw") != std::string::npos);
+      expectJs(h.runtime, "[after,success,failure].join(',')", "0,0,0");
+    }
+    const char *badOperations[] = {"c.test.click('missing')",
+                                   "c.test.click('duplicate')",
+                                   "c.test.click('title')",
+                                   "c.test.text('cell')",
+                                   "c.test.enabled('title')"};
+    for (unsigned i = 0; (!only || only == 7) && i < sizeof(badOperations) / sizeof(badOperations[0]); ++i)
+    {
+      const std::string companion =
+          std::string("scenario('first',function(c){c.run(Flow().step(function(){") + badOperations[i] + ";}));});";
+      CardRunnerHarness h(scenarioCard, companion.c_str());
+      h.mount();
+      h.tick();
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_FAILED);
+    }
+    if (!only || only == 8)
+    {
+      std::puts("[pin] runner click settles formatted integer text within one JS step");
+      CardRunnerHarness h(
+          "card('first',function(c){var n=c.state(0);return {compose:function(){return VStack("
+          "Button('inc',function(){n.set(n.get()+1);}).TEST_ID('inc'),Text(n).TEST_ID('count'));}};});",
+          "scenario('first',function(c){c.run(Flow().step(function(){c.test.click('inc');"
+          "if(c.test.text('count')!=='1')throw Error('first count: '+c.test.text('count'));"
+          "c.test.click('inc');if(c.test.text('count')!=='2')throw Error('second count: '+c.test.text('count'));}));});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_SUCCEEDED);
+    }
+  }
+
+  void checkScenarioSetup()
+  {
+    const char *sources[] = {0,
+                             "scenario('unknown',function(){});",
+                             "scenario('first',function(){});scenario('first',function(){});",
+                             "throw Error('companion exploded');",
+                             "var nothing=0;",
+                             "scenario('first',42);"};
+    const char *messages[] = {
+        "missing", "unknown card", "duplicate", "companion exploded", "no registration", "function"};
+    for (unsigned i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i)
+    {
+      CardRunnerHarness h(scenarioCard, sources[i]);
+      const loka::core::StringBuffer b =
+          h.runtime.mainErrorFor(SMIRKY_CARD_FIRST).bufferWithEncoding(loka::core::StringEncodingUtf8);
+      LOKA_VERIFY(std::string(static_cast<const char *>(b.data()), b.length()).find(messages[i]) != std::string::npos);
+      LOKA_VERIFY(!h.runtime.currentEngine()->hasConstructor(SMIRKY_CARD_FIRST));
+    }
+    {
+      CardRunnerHarness h(scenarioCard, "scenario('first',function(c){throw Error('invocation exploded');});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_FAILED);
+      LOKA_VERIFY(h.logs[0].find("invocation exploded") != std::string::npos);
+    }
+    {
+      CardRunnerHarness h(scenarioCard, "scenario('first',function(c){c.run(Flow().step(function(){}));});");
+      h.mount();
+      expectJs(h.runtime,
+               "(function(){try{saved.run(Flow().step(function(){}));return 'bad';}catch(e){return "
+               "String(e);}})().indexOf('scenario invocation')>=0",
+               "true");
+      expectJs(
+          h.runtime,
+          "(function(){try{scenario('first',function(){});return 'bad';}catch(e){return e instanceof TypeError;}})()",
+          "true");
+      smirkycard::JsEngine *old = h.runtime.currentEngine();
+      writeMain("_smirky_scenario/CARD.FLOW.JS", "throw Error('reload companion');");
+      loka::core::String error;
+      LOKA_VERIFY(!h.runtime.prepareReload(SMIRKY_CARD_FIRST, error));
+      LOKA_VERIFY(h.runtime.currentEngine() == old && !error.empty());
+      LOKA_VERIFY(!h.runtime.prepareOpen("MAIN.JS", error));
+      writeMain("_smirky_scenario/CARD.FLOW.JS",
+                "scenario('first',function(c){c.run(Flow().step(function(){c.test.log('fresh');}));});");
+      smirkycard::JsEngine *candidate = h.runtime.prepareOpen("MAIN.JS", error);
+      LOKA_VERIFY(candidate && candidate != old);
+      h.runtime.discardReload(candidate);
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.logs.empty());
+    }
+    {
+      std::puts("[pin] runner refuses MAIN.JS exceeding 64 KiB");
+      const std::string source(64u * 1024u + 1u, ' ');
+      CardRunnerHarness h(source.c_str(), "scenario('first',function(c){c.run(Flow().step(function(){}));});");
+      const loka::core::StringBuffer b =
+          h.runtime.mainErrorFor(SMIRKY_CARD_FIRST).bufferWithEncoding(loka::core::StringEncodingUtf8);
+      LOKA_VERIFY(std::string(static_cast<const char *>(b.data()), b.length()).find("exceeds 64 KiB")
+                  != std::string::npos);
+      LOKA_VERIFY(!h.runtime.currentEngine()->hasConstructor(SMIRKY_CARD_FIRST));
+    }
+    {
+      CardRunnerHarness h(0, "scenario('first',function(c){c.run(Flow().step(function(){c.test.log('builtin');}));});");
+      h.mount();
+      h.tick();
+      LOKA_VERIFY(h.logs.size() == 1 && h.logs[0] == "builtin");
+      LOKA_VERIFY(h.recordLog("space tab\tline\n%"));
+      LOKA_VERIFY(readScenarioAudit().find("log text=space%20tab%09line%0A%25\n") != std::string::npos);
+    }
+  }
+
+  void checkScenarioEngineReplacement()
+  {
+    for (int open = 0; open < 2; ++open)
+    {
+      const std::string companion =
+          std::string("scenario('first',function(c){c.run(Flow().step(function(){")
+          + (open ? "c.open('MAIN.JS');" : "c.reload();")
+          + "return 'old engine value';}).named('replace').step(function(){throw Error('old next');})"
+            ".onSuccess(function(){throw Error('old success');}).onFailure(function(){throw Error('old "
+            "failure');}));});";
+      CardRunnerHarness h(scenarioCard, companion.c_str());
+      h.mount();
+      smirkycard::JsEngine *old = h.runtime.currentEngine();
+      writeMain("_smirky_scenario/CARD.FLOW.JS",
+                "scenario('first',function(c){c.run(Flow().step(function(){c.test.log('new engine');}));});");
+      h.tick();
+      LOKA_VERIFY(h.runtime.currentEngine() != old && h.runtime.retiredEngineCount() == 1);
+      JS_RunGC(old->jsRuntime());
+      LOKA_VERIFY(h.terminalCount == 0 && h.steps.size() == 1);
+      h.admission->flush();
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_CANCELED);
+      h.tick();
+      LOKA_VERIFY(h.terminalCount == 2 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+      LOKA_VERIFY(h.logs.size() == 1 && h.logs[0] == "new engine");
+      h.admission->flush();
+      LOKA_VERIFY(h.runtime.retiredEngineCount() == 0);
+    }
+  }
+
+  void checkScenarioRandom()
+  {
+    std::string sequence;
+    for (int pass = 0; pass < 2; ++pass)
+    {
+      CardRunnerHarness h(
+          scenarioCard,
+          "scenario('first',function(c){c.run(Flow().step(function(){var "
+          "a=[firstRandom,c.test.random(),c.test.random(),c.test.random()];"
+          "for(var i=0;i<a.length;++i)if(!(a[i]>=0&&a[i]<1))throw Error('range');c.test.log(a.join(','));}));});",
+          7);
+      h.mount();
+      h.tick();
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+      LOKA_VERIFY(h.logs.size() == 1);
+      if (!pass)
+        sequence = h.logs[0];
+      else
+        LOKA_VERIFY(sequence == h.logs[0]);
+    }
+    std::printf("[probe] scenario random seed=7 first4=%s\n", sequence.c_str());
+    // Golden captured from --scenarios on the host, then independently checked
+    // with integer LCG states divided by 2^32 (see #1033 d1 findings).
+    LOKA_VERIFY(sequence == "0.23878083983436227,0.9134932646993548,0.6124916663393378,0.9269814591389149");
+  }
+
+  void checkScenarioOff()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(
+        runtime.loadBuiltin("var off;card('first',function(c){off=[typeof Flow,typeof scenario,typeof c.run,typeof "
+                            "c.test].join(',');return {compose:function(){return Text('off');}};});",
+                            error));
+    NullPlatformContext context;
+    mountedTitle(runtime, context);
+    expectJs(runtime, "off", "undefined,undefined,undefined,undefined");
+    std::remove("_smirky_scenario.audit");
+  }
 } // namespace
 
 int main(int argc, char **argv)
@@ -2310,6 +2739,25 @@ int main(int argc, char **argv)
     checkMines();
     return 0;
   }
+  if (argc == 3 && !std::strcmp(argv[1], "--scenario-case"))
+  {
+    checkCardScenarios(std::atoi(argv[2]));
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--scenarios"))
+  {
+    checkCardScenarios();
+    checkScenarioSetup();
+    checkScenarioRandom();
+    checkScenarioEngineReplacement();
+    checkScenarioOff();
+    return 0;
+  }
+  checkCardScenarios();
+  checkScenarioSetup();
+  checkScenarioRandom();
+  checkScenarioEngineReplacement();
+  checkScenarioOff();
   checkCarry();
   checkMaterializedGetters();
   checkEarlySeatRefusal();
