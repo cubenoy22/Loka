@@ -21,6 +21,18 @@ shared rig resource, take `vm-<thing>` (for example `vm-golden` or
 ```
 
 A refused take means choose other work or coordinate with the holder.
+
+After a successful `take issue-<n>`, show it on the Loka Board (GitHub
+Project, visible to people and other sessions):
+
+```bash
+.claude/skills/claim/board.sh start 877 opus-0929a
+```
+
+The claim stays the lock; the board is the view. Closing the issue or merging
+its PR moves the card to Done by itself. A board failure (for example a gh
+token without the `project` scope) only warns and never affects the claim.
+
 Keep the GitHub "picking this up" comment as the human-visible record.
 Release when work is merged, abandoned, or handed off; include `list` output
 in handoffs, and have the receiving session take the released claim.
