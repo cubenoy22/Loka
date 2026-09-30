@@ -3,6 +3,7 @@
 
 void testOperationLedgerOpenedDuringRoundWaitsForNextRound();
 void testOperationWriteToVisitedLedgerSettlesNextRound();
+void testOperationSecondRoundSnapshotHoldsOnlyNewIdentities();
 void testOperationWriteToUnvisitedLedgerSettlesSameRound();
 void testOperationCleanLedgerClosesIdleWithoutInvalidate();
 void testOperationOneWriteSettlesInOneRound();

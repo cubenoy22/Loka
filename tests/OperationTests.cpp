@@ -33,6 +33,21 @@ namespace
     }
   };
 
+
+  // Records the commit snapshot each time a ledger invalidates, so a cross-round
+  // pin can see whether a later round's snapshot still carries the earlier one.
+  struct SnapshotTrace
+  {
+    Ledger *ledger;
+    std::vector<std::vector<StateBase *> > snapshots;
+    static void invoke(void *data)
+    {
+      SnapshotTrace &trace = *static_cast<SnapshotTrace *>(data);
+      ++trace.ledger->invalidations;
+      trace.snapshots.push_back(trace.ledger->tracker.committedDirtyStates());
+    }
+  };
+
   struct Increment : DerivedState<int>::EvalFn
   {
     State<int> *source;
@@ -262,6 +277,30 @@ void testOperationWriteToVisitedLedgerSettlesNextRound()
   assert(b.tracker.transactionDirty());
   assert(b.tracker.peekDirty());
   b.tracker.removeState(&derived);
+}
+
+void testOperationSecondRoundSnapshotHoldsOnlyNewIdentities()
+{
+  // #1062 bot P2: a write into an already-stepped ledger lands in current, so the
+  // next step must not keep the previous round's commit snapshot under it.
+  Ledger a, b;
+  MutableState<int> second(0);
+  b.tracker.addState(&second);
+  SnapshotTrace trace = { &b, std::vector<std::vector<StateBase *> >() };
+  b.tracker.setInvalidateCallback(&SnapshotTrace::invoke, &trace);
+  Write write = { &a, &second, 1 };
+  a.tracker.setInvalidateCallback(&Write::invoke, &write);
+  Operation operation;
+  LOKA_VERIFY(operation.open(&b.tracker) == OPEN_OK);
+  LOKA_VERIFY(operation.open(&a.tracker) == OPEN_OK);
+  b.source.set(1);
+  a.source.set(1);
+  const OperationOutcome outcome = operation.close();
+  LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 2);
+  LOKA_VERIFY(trace.snapshots.size() == 2);
+  LOKA_VERIFY(trace.snapshots[0].size() == 1 && trace.snapshots[0][0] == &b.source);
+  LOKA_VERIFY(trace.snapshots[1].size() == 1 && trace.snapshots[1][0] == &second);
+  b.tracker.removeState(&second);
 }
 
 void testOperationWriteToUnvisitedLedgerSettlesSameRound()

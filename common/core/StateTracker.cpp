@@ -456,9 +456,14 @@ namespace loka
     PushStateTracker::StepResult PushStateTracker::step(OperationBudget &budget)
     {
       // Rotate on entry only: the completed snapshot of the previous step
-      // stays readable until the next step or the next begin().
+      // stays readable until the next step or the next begin(). A step that
+      // starts on work already in current (a write from another ledger of the
+      // clock) opens a fresh snapshot too, so the invalidate callback sees only
+      // this commit's identities.
       if (!this->transaction_.current.hasWork() && this->transaction_.next.hasWork())
         this->transaction_.advance();
+      else
+        this->transaction_.beginCommit();
       this->phase_ = TRACKER_PRECOMMIT;
       if (!this->settleCurrentTransaction(budget.stateIterations))
         return STEP_STATE_BUDGET;
@@ -635,6 +640,11 @@ namespace loka
       current.clear();
       current.swap(next);
       next.clear();
+      this->beginCommit();
+    }
+
+    void PushStateTracker::TrackerTransaction::beginCommit()
+    {
       committedDirtyStates.clear();
       committedIdentitiesErased = false;
     }

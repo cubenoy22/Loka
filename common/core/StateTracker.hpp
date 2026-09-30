@@ -219,6 +219,8 @@ namespace loka
         void begin();
         TransactionIntake &intake(TrackerPhase phase);
         void advance();
+        /** Opens a fresh commit snapshot without touching either intake. */
+        void beginCommit();
         void removeState(StateBase *state);
 
         TransactionIntake current;
