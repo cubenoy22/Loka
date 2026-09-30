@@ -467,6 +467,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxInputDoorTests)
   set_target_properties(LokaToolboxInputDoorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxInputDoorTests COMMAND LokaToolboxInputDoorTests)
+  add_test(NAME testToolboxPopupSelectionWriteUsesOwnerTracker
+    COMMAND LokaToolboxInputDoorTests popup-owner-tracker)
+  add_test(NAME testToolboxScrollBarWriteUsesOwnerTracker
+    COMMAND LokaToolboxInputDoorTests scroll-owner-tracker)
 
   add_executable(LokaToolboxCellPaintTests tests/toolbox/host/ToolboxCellPaintHostTests.cpp
     apple/toolbox/src/debug/ToolboxSceneDebugStats.cpp

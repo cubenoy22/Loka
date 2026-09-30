@@ -413,6 +413,104 @@ namespace
       LOKA_VERIFY(!findField(root(), facts.kind));
     }
   };
+  class TrackerOwner;
+  typedef BoundaryPropsFor<TrackerOwner> TrackerOwnerProps;
+  class TrackerOwner : public StdCompositionBoundaryNodeBase<TrackerOwnerProps>
+  {
+    struct DoubleValue : DerivedState<int>::EvalFn
+    {
+      const NodeState<int> &source;
+      explicit DoubleValue(const NodeState<int> &value) : source(value) {}
+      virtual int operator()() { return this->source.get() * 2; }
+    };
+
+  public:
+    NodeState<int> value;
+    DerivedNodeState<int> doubled;
+    explicit TrackerOwner(const TrackerOwnerProps &props)
+        : StdCompositionBoundaryNodeBase<TrackerOwnerProps>(props)
+    {
+      this->state(this->value, 0);
+      this->derived(this->doubled, this->value, new DoubleValue(this->value));
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      const char *items[] = {"zero", "one", "two", "three"};
+      composition.declare(Column()
+          << PopupMenu(PopupMenuProps().items(items, 4).selectedIndex(this->value))
+          << ScrollBar(ScrollBarProps().value(this->value).range(0, 10)));
+    }
+  };
+
+  void controlWriteUsesOwnerTracker(InputKind kind)
+  {
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    Scene scene((Boundary<TrackerOwner>(TrackerOwnerProps())));
+    scene.mount(&controller);
+    typedef loka::dsl::testing::SceneTestAccess Access;
+    Access::updateAttached(scene, true);
+    TrackerOwner *owner = static_cast<TrackerOwner *>(Access::rootBoundary(scene));
+    controller.rootNode_ = owner;
+    LOKA_VERIFY(owner->tracker() != 0);
+    LOKA_VERIFY(window.getTracker() != 0);
+    LOKA_VERIFY(owner->tracker() != window.getTracker());
+    LOKA_VERIFY(owner->tracker()->phase() == TRACKER_IDLE);
+    LOKA_VERIFY(owner->value.get() == 0);
+    LOKA_VERIFY(owner->doubled.get() == 0);
+    Node *node = findField(owner, kind);
+    LOKA_VERIFY(node != 0);
+    const Rect rect = {0, 0, 40, 120};
+    const Point point = {5, 5};
+    HostControl control = {0};
+    const short previousPopupItem = toolbox_host::popupItem;
+    const short previousTrackedValue = toolbox_host::trackedValue;
+    if (kind == POPUP_INPUT)
+    {
+      const PopupMenuProps &props = node->asPopupMenuNode()->props;
+      LOKA_VERIFY(props.selectedIndex_.usesTracker(owner->tracker()));
+      ToolboxPopupMenuContext *context = new ToolboxPopupMenuContext();
+      context->setOwner(node);
+      node->setContext(context);
+      context->rect_ = rect;
+      context->items_ = props.items_;
+      context->selectedIndex_ = props.selectedIndex_.state();
+      context->selectedIndexSeat_ = props.selectedIndex_;
+      context->boundary_ = owner;
+      ToolboxHitLedger::PopupHit hit;
+      hit.rect = rect; hit.context = context; hit.enabled = 0;
+      controller.installHit(hit);
+      toolbox_host::popupItem = 4; // Toolbox menu items are one-based.
+    }
+    else
+    {
+      const ScrollBarProps &props = node->asScrollBarNode()->props;
+      LOKA_VERIFY(props.value_.usesTracker(owner->tracker()));
+      ToolboxScenePlatformController::ScrollBarControlBinding row =
+          ToolboxScenePlatformController::ScrollBarControlBinding();
+      row.control = &control;
+      row.resourceId = 1;
+      row.value = props.value_.state();
+      row.valueSeat = props.value_;
+      row.active = true;
+      row.rect = rect;
+      controller.installScroll(row);
+      toolbox_host::hitControl = &control;
+      toolbox_host::trackedValue = 3;
+    }
+    ToolboxInputDoor::mouseDown(controller, point);
+    // No flush/update between native input and these observations (#366).
+    std::printf("[pin] %s owner tracker: source=%d derived=%d\n",
+        kind == POPUP_INPUT ? "popup" : "scroll", owner->value.get(), owner->doubled.get());
+    std::fflush(stdout);
+    LOKA_VERIFY(owner->value.get() == 3);
+    LOKA_VERIFY(owner->doubled.get() == 6);
+    LOKA_VERIFY(owner->tracker()->phase() == TRACKER_IDLE);
+    toolbox_host::hitControl = 0;
+    toolbox_host::trackedValue = previousTrackedValue;
+    toolbox_host::popupItem = previousPopupItem;
+    Access::unmount(scene);
+  }
   void lifetime(InputKind kind, bool parentOnly)
   {
     for (int parent = parentOnly ? 1 : 0; parent != 2; ++parent)
@@ -461,6 +559,10 @@ namespace
 }
 int main(int argc, char **argv)
 {
+  if (argc == 1 || std::strcmp(argv[1], "popup-owner-tracker") == 0)
+    controlWriteUsesOwnerTracker(POPUP_INPUT);
+  if (argc == 1 || std::strcmp(argv[1], "scroll-owner-tracker") == 0)
+    controlWriteUsesOwnerTracker(SCROLL_INPUT);
   const char *names[] = {"edit", "popup", "cell", "scroll", "button"};
   for (int i = 0; i < 5; ++i)
     if (argc == 1 || std::strcmp(argv[1], names[i]) == 0)
