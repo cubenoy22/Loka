@@ -2680,18 +2680,21 @@ namespace loka
         }
       };
 
-      /** Disabled Button clicks retain their historical no-op unless explicitly strict. */
+      /** Disabled Button clicks fail by default. Opt in to CLICK_DISABLED_IS_NOOP
+          only when deliberately clicking a disabled Button to verify nothing happens. */
       enum ClickPolicy
       {
         CLICK_DISABLED_IS_NOOP,
         CLICK_DISABLED_FAILS
       };
 
+      const ClickPolicy DEFAULT_CLICK_POLICY = CLICK_DISABLED_FAILS;
+
       template <class NodeT>
       static StepRunStatus EmitNodeClick(::loka::app::scene::Scene *scene,
                                          const scene_test_detail::NodeTarget<NodeT> &target,
                                          FlowError &error,
-                                         ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                         ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         NodeT *node = 0;
         StepRunStatus lookupStatus = target.resolve(scene, node, error);
@@ -2734,14 +2737,14 @@ namespace loka
         typedef ::loka::app::scene::Scene *In;
         typedef ::loka::app::scene::Scene *Out;
 
-        explicit ClickButtonByIdAdapter(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+        explicit ClickButtonByIdAdapter(const char *testId, ClickPolicy policy = DEFAULT_CLICK_POLICY)
             : target_(testId),
               policy_(policy)
         {
         }
 
         explicit ClickButtonByIdAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector,
-                                        ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                        ClickPolicy policy = DEFAULT_CLICK_POLICY)
             : target_(selector),
               policy_(policy)
         {
@@ -2764,13 +2767,13 @@ namespace loka
         ClickPolicy policy_;
       };
 
-      inline ClickButtonByIdAdapter ClickButtonById(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+      inline ClickButtonByIdAdapter ClickButtonById(const char *testId, ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAdapter(testId, policy);
       }
 
       inline ClickButtonByIdAdapter ClickButtonById(const NodeSelector< ::loka::app::ButtonNode> &selector,
-                                                    ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                                    ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAdapter(selector, policy);
       }
@@ -2781,14 +2784,14 @@ namespace loka
         typedef ::loka::app::scene::Scene *In;
         typedef ::loka::app::scene::Scene *Out;
 
-        explicit ClickButtonByIdAndFlushAdapter(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+        explicit ClickButtonByIdAndFlushAdapter(const char *testId, ClickPolicy policy = DEFAULT_CLICK_POLICY)
             : target_(testId),
               policy_(policy)
         {
         }
 
         explicit ClickButtonByIdAndFlushAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector,
-                                                ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                                ClickPolicy policy = DEFAULT_CLICK_POLICY)
             : target_(selector),
               policy_(policy)
         {
@@ -2811,27 +2814,27 @@ namespace loka
       };
 
       inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId,
-                                                                    ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                                                    ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAndFlushAdapter(testId, policy);
       }
 
       inline ClickButtonByIdAndFlushAdapter
       ClickButtonByIdAndFlush(const NodeSelector< ::loka::app::ButtonNode> &selector,
-                              ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                              ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAndFlushAdapter(selector, policy);
       }
 
       /** Scenario-facing button action. A click includes the resulting Scene
           flush so the following action observes the completed projection. */
-      inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+      inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId, ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAndFlush(testId, policy);
       }
 
       inline ClickButtonByIdAndFlushAdapter ClickButton(const NodeSelector< ::loka::app::ButtonNode> &selector,
-                                                        ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+                                                        ClickPolicy policy = DEFAULT_CLICK_POLICY)
       {
         return ClickButtonByIdAndFlush(selector, policy);
       }

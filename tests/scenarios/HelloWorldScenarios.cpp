@@ -47,7 +47,9 @@ namespace loka
                 | AtTick(disabledTick,
                          CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: no / clicks: 1"))
                       .named("verify-disabled-action-summary")
-                | AtTick(disabledTick, ClickButton("HelloWorld.LeftPanel.ProbeButton")).named("probe-disabled-action")
+                // Deliberately click the disabled probe to verify that its action is ignored.
+                | AtTick(disabledTick, ClickButton("HelloWorld.LeftPanel.ProbeButton", CLICK_DISABLED_IS_NOOP))
+                      .named("probe-disabled-action")
                 | AtTick(finalTick, CheckText("HelloWorld.LeftPanel.ActionSummary", "Button enabled: no / clicks: 1"))
                       .named("verify-disabled-probe-was-ignored")
                 | AtTick(finalTick,
