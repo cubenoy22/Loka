@@ -2,6 +2,7 @@
 #define LOKA_PLATFORM_FILE_FILEIO_HPP
 
 #include <cstdio>
+#include <vector>
 
 #include "core/String.hpp"
 #include "platform/file/FileHandle.hpp"
@@ -30,6 +31,47 @@ namespace loka
        * @return An open read-only handle, or NULL if the file cannot be opened.
        */
       std::FILE *OpenRead(const loka::core::String &path);
+
+      /** Result of a synchronous whole-file read. Native and stdio failures
+          stay distinct so callers can preserve their own error vocabulary. */
+      enum ReadResult
+      {
+        READ_OK,
+        READ_NO_NATIVE_SPEC,
+        READ_NATIVE_OPEN_FAILED,
+        READ_NATIVE_SIZE_FAILED,
+        READ_NATIVE_READ_FAILED,
+        READ_STDIO_OPEN_FAILED,
+        READ_STDIO_SEEK_FAILED,
+        READ_STDIO_READ_FAILED,
+        READ_CAPACITY_REFUSED,
+        READ_SIZE_OVERFLOW
+      };
+
+      /** Borrowed admission policy, called synchronously before initial byte
+          allocation and each chunk growth. It is never retained by a reader. */
+      class ReadCapacity
+      {
+      public:
+        virtual bool allows(std::size_t requiredBytes) const = 0;
+
+      protected:
+        ~ReadCapacity() {}
+      };
+
+      /** Reads a resolved file into caller-owned bytes, preserving native
+          location data (Classic uses the FSSpec data fork). Clears out first;
+          a failure leaves it empty. A null capacity policy imposes no limit.
+          The reader closes its native/stdio handle on every exit. No fallback
+          is implicit: callers choose whether to retry using a logical path. */
+      ReadResult ReadBytes(const FileHandle &file, std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity = 0);
+
+      /** Reads through OpenRead using the platform's native path encoding.
+          Same byte ownership and capacity contract as the resolved overload;
+          also serves callers explicitly retrying a resolved read via stdio. */
+      ReadResult ReadBytes(const loka::core::String &path, std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity = 0);
 
       /** Opens an already platform-resolved file destination for binary
           write. This preserves native location data such as a Classic FSSpec. */

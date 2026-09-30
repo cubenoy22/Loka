@@ -29,6 +29,13 @@ namespace loka
         return _wfopen(wide.c_str(), L"rb");
       }
 
+      ReadResult ReadBytes(const FileHandle &file,
+                           std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity)
+      {
+        return ReadBytes(file.displayPath, out, capacity);
+      }
+
       std::FILE *OpenWriteTruncate(const FileHandle &file)
       {
         std::wstring wide;

@@ -8734,3 +8734,170 @@ void testSceneRunOnceAuditOwnsEscapedBoundedMessage()
                                  "step id=3 due_tick=0 tick=0 status=failed error_kind=71 error_code=93 name=empty\n";
   LOKA_VERIFY(content == expected);
 }
+
+namespace
+{
+  struct SimpleViewerReadContext : FlowTestPlatformContext
+  {
+    SimpleViewerReadContext(const char *path, std::size_t limit, int refuseAfter = 0)
+        : path_(path), limit_(limit), refuseAfter_(refuseAfter), queries_(0) {}
+    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &out) const
+    {
+      out.displayPath = loka::core::String::Literal(this->path_);
+      return true;
+    }
+    virtual bool queryLargestContiguousAllocation(std::size_t &out) const
+    {
+      ++this->queries_;
+      out = this->refuseAfter_ && this->queries_ > this->refuseAfter_ ? 0 : this->limit_;
+      return true;
+    }
+    const char *path_;
+    std::size_t limit_;
+    int refuseAfter_;
+    mutable int queries_;
+  };
+}
+
+void testSimpleViewerReadFailuresAndFallback()
+{
+  const char *path = "_loka_read_characterization.bin";
+  FILE *file = std::fopen(path, "wb");
+  assert(file != 0);
+  LOKA_VERIFY(std::fwrite("abcd", 1, 4, file) == 4);
+  LOKA_VERIFY(std::fclose(file) == 0);
+  simpleviewer::ChooserProjection projection;
+  projection.request.setFilePath(loka::core::String::Literal(path));
+  projection.hasFileItem = true;
+  projection.fileItem = loka::file::File::FromPath(loka::core::String::Literal(path));
+  loka::core::resource::Blob output;
+  loka::dsl::FlowError error;
+  SimpleViewerReadContext missing("_loka_missing_read_file_", 4);
+  simpleviewer::ProjectionToBlobAdapter fallback(&missing);
+  LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  assert(output.size() == 4 && output.bytes()[3] == 'd' && output.isCompleted());
+  assert(missing.queries_ == 1);
+
+  SimpleViewerReadContext small(path, 3);
+  simpleviewer::ProjectionToBlobAdapter limited(&small);
+  LOKA_VERIFY(limited.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+  assert(error.code == 1014 && output.size() == 0);
+  assert(small.queries_ == 1 && "capacity refusal must not retry through stdio");
+
+  SimpleViewerReadContext exact(path, 4);
+  simpleviewer::ProjectionToBlobAdapter accepted(&exact);
+  LOKA_VERIFY(accepted.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  assert(output.size() == 4 && exact.queries_ == 1);
+  projection.request.setFilePath(loka::core::String::Literal("_loka_missing_read_file_"));
+  LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+  assert(error.code == 1011 && output.size() == 0);
+  LOKA_VERIFY(std::remove(path) == 0);
+
+
+}
+
+#if defined(LOKA_FILE_READ_FAULT_PINS)
+namespace
+{
+  enum ReadFault { READ_FAULT_NONE, READ_FAULT_SEEK, READ_FAULT_READ,
+                   READ_FAULT_CHUNK, READ_FAULT_CHUNK_READ, READ_FAULT_CHUNK_SEEK,
+                   READ_FAULT_END_SEEK, READ_FAULT_SHORT };
+  ReadFault readFault = READ_FAULT_NONE;
+  struct ReadFaultScope
+  {
+    explicit ReadFaultScope(ReadFault fault) { readFault = fault; }
+    ~ReadFaultScope() { readFault = READ_FAULT_NONE; }
+  };
+}
+extern "C" int __real_fseek(FILE *, long, int);
+extern "C" long __real_ftell(FILE *);
+extern "C" std::size_t __real_fread(void *, std::size_t, std::size_t, FILE *);
+extern "C" int __real_ferror(FILE *);
+extern "C" int __wrap_fseek(FILE *file, long offset, int origin)
+{
+  if ((readFault == READ_FAULT_SEEK || readFault == READ_FAULT_CHUNK_SEEK) && origin == SEEK_SET) return -1;
+  if (readFault == READ_FAULT_END_SEEK && origin == SEEK_END) return -1;
+  return __real_fseek(file, offset, origin);
+}
+extern "C" long __wrap_ftell(FILE *file)
+{
+  if (readFault == READ_FAULT_CHUNK || readFault == READ_FAULT_CHUNK_READ || readFault == READ_FAULT_CHUNK_SEEK) return -1;
+  return __real_ftell(file);
+}
+extern "C" std::size_t __wrap_fread(void *out, std::size_t size, std::size_t count, FILE *file)
+{
+  if (readFault == READ_FAULT_READ || readFault == READ_FAULT_CHUNK_READ) return 0;
+  if (readFault == READ_FAULT_SHORT) count /= 2;
+  return __real_fread(out, size, count, file);
+}
+extern "C" int __wrap_ferror(FILE *file)
+{
+  if (readFault == READ_FAULT_READ || readFault == READ_FAULT_CHUNK_READ) return 1;
+  return __real_ferror(file);
+}
+#endif
+
+void testSimpleViewerReadStdioFaults()
+{
+#if defined(LOKA_FILE_READ_FAULT_PINS)
+  const char *path = "_loka_stdio_faults.bin";
+  FILE *file = std::fopen(path, "wb");
+  assert(file != 0);
+  unsigned char data[8193];
+  std::memset(data, 0x5a, sizeof(data));
+  LOKA_VERIFY(std::fwrite(data, 1, sizeof(data), file) == sizeof(data));
+  LOKA_VERIFY(std::fclose(file) == 0);
+  simpleviewer::ChooserProjection projection;
+  projection.request.setFilePath(loka::core::String::Literal(path));
+  loka::core::resource::Blob output;
+  loka::dsl::FlowError error;
+  simpleviewer::ProjectionToBlobAdapter adapter;
+  {
+    ReadFaultScope fault(READ_FAULT_SEEK);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+    assert(error.code == 1012 && output.size() == 0);
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_CHUNK_SEEK);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+    assert(error.code == 1012 && output.size() == 0);
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_END_SEEK);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(output.size() == sizeof(data) && output.bytes()[8192] == 0x5a);
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_SHORT);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(output.size() == sizeof(data) / 2 && output.isCompleted());
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_READ);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+    assert(error.code == 1013 && output.size() == 0);
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_CHUNK_READ);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+    assert(error.code == 1013 && output.size() == 0);
+  }
+  {
+    ReadFaultScope fault(READ_FAULT_CHUNK);
+    LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+    assert(output.size() == sizeof(data) && output.bytes()[8192] == 0x5a);
+    SimpleViewerReadContext context(path, static_cast<std::size_t>(-1), 1);
+    simpleviewer::ProjectionToBlobAdapter limited(&context);
+    LOKA_VERIFY(limited.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
+    assert(error.code == 1014 && output.size() == 0 && context.queries_ == 2);
+  }
+  file = std::fopen(path, "wb");
+  assert(file != 0);
+  LOKA_VERIFY(std::fclose(file) == 0);
+  LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  assert(output.size() == 0 && output.isCompleted());
+  LOKA_VERIFY(std::remove(path) == 0);
+#else
+  std::puts("[skip] stdio fault injection requires Linux linker wrapping");
+#endif
+}

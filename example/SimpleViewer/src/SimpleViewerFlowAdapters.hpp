@@ -12,9 +12,6 @@
 #include "core/String.hpp"
 #include "platform/file/FileHandle.hpp"
 #include "platform/file/FileIO.hpp"
-#if defined(LOKA_RETRO68)
-#include <Files.h>
-#endif
 
 namespace simpleviewer
 {
@@ -133,7 +130,7 @@ namespace simpleviewer
     }
   };
 
-  struct ProjectionToBlobAdapter
+  struct ProjectionToBlobAdapter : private loka::platform::file::ReadCapacity
   {
     typedef ChooserProjection In;
     typedef loka::core::resource::Blob Out;
@@ -185,176 +182,51 @@ namespace simpleviewer
     }
 
   private:
-    bool hasCapacityFor(std::size_t requiredBytes, int &detailCodeOut) const
+    virtual bool allows(std::size_t requiredBytes) const
     {
       std::size_t largestAllocation = 0;
-      if (this->ctx_ && this->ctx_->queryLargestContiguousAllocation(largestAllocation) &&
-          requiredBytes > largestAllocation)
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE;
-        return false;
-      }
-      return true;
+      return !this->ctx_ || !this->ctx_->queryLargestContiguousAllocation(largestAllocation) ||
+             requiredBytes <= largestAllocation;
     }
 
-    // Takes the logical path, not bytes: on Win32 the narrow open decodes its
-    // argument in the ANSI code page, so flattening here would lose a
-    // full-width path (#15). loka::platform::file::OpenRead owns that choice.
+    static bool mapReadResult(loka::platform::file::ReadResult result, int &detailCodeOut)
+    {
+      using namespace loka::platform::file;
+      switch (result)
+      {
+      case READ_OK: return true;
+      case READ_NO_NATIVE_SPEC: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC; break;
+      case READ_NATIVE_OPEN_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED; break;
+      case READ_NATIVE_SIZE_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED; break;
+      case READ_NATIVE_READ_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED; break;
+      case READ_STDIO_OPEN_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED; break;
+      case READ_STDIO_SEEK_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED; break;
+      case READ_STDIO_READ_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED; break;
+      case READ_CAPACITY_REFUSED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE; break;
+      case READ_SIZE_OVERFLOW: break; // The original overflow path retained the preceding detail.
+      }
+      return false;
+    }
+
     bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut) const
     {
-      out.clear();
-      FILE *file = loka::platform::file::OpenRead(path);
-      if (!file)
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_OPEN_FAILED;
-        return false;
-      }
-
-      if (std::fseek(file, 0, SEEK_END) == 0)
-      {
-        long length = std::ftell(file);
-        if (length >= 0)
-        {
-          if (!this->hasCapacityFor(static_cast<std::size_t>(length), detailCodeOut))
-          {
-            std::fclose(file);
-            return false;
-          }
-          out.resize(static_cast<std::size_t>(length));
-          if (std::fseek(file, 0, SEEK_SET) != 0)
-          {
-            std::fclose(file);
-            out.clear();
-            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED;
-            return false;
-          }
-          if (!out.empty())
-          {
-            std::size_t readBytes = std::fread(&out[0], 1, out.size(), file);
-            if (readBytes != out.size())
-            {
-              if (std::ferror(file))
-              {
-                std::fclose(file);
-                out.clear();
-                detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED;
-                return false;
-              }
-              out.resize(readBytes);
-            }
-          }
-          std::fclose(file);
-          return true;
-        }
-      }
-
-      if (std::fseek(file, 0, SEEK_SET) != 0)
-      {
-        std::fclose(file);
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED;
-        return false;
-      }
-      const std::size_t kBufferSize = 4096;
-      unsigned char buffer[kBufferSize];
-      for (;;)
-      {
-        std::size_t readBytes = std::fread(buffer, 1, kBufferSize, file);
-        if (readBytes > 0)
-        {
-          std::size_t oldSize = out.size();
-          if (readBytes > static_cast<std::size_t>(-1) - oldSize ||
-              !this->hasCapacityFor(oldSize + readBytes, detailCodeOut))
-          {
-            std::fclose(file);
-            out.clear();
-            return false;
-          }
-          out.resize(oldSize + readBytes);
-          for (std::size_t i = 0; i < readBytes; ++i)
-          {
-            out[oldSize + i] = buffer[i];
-          }
-        }
-        if (readBytes < kBufferSize)
-        {
-          if (std::ferror(file))
-          {
-            std::fclose(file);
-            out.clear();
-            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED;
-            return false;
-          }
-          break;
-        }
-      }
-
-      std::fclose(file);
-      return true;
+      return mapReadResult(loka::platform::file::ReadBytes(path, out, this), detailCodeOut);
     }
 
     bool readBytesViaPlatform(const In &projection, std::vector<unsigned char> &out, int &detailCodeOut) const
     {
       out.clear();
-      if (!ctx_ || !projection.hasFileItem)
+      if (!this->ctx_ || !projection.hasFileItem)
       {
         return false;
       }
       loka::platform::file::FileHandle handle;
-      if (!ctx_->openFile(projection.fileItem, handle))
+      if (!this->ctx_->openFile(projection.fileItem, handle))
       {
         detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED;
         return false;
       }
-#if defined(LOKA_RETRO68)
-      if (!handle.hasSpec)
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_NO_FSSPEC;
-        return false;
-      }
-      if (handle.hasSpec)
-      {
-        short refNum = 0;
-        OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
-        if (err != noErr)
-        {
-          detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_OPEN_DF_FAILED;
-          return false;
-        }
-        long fileSize = 0;
-        err = GetEOF(refNum, &fileSize);
-        if (err != noErr || fileSize < 0)
-        {
-          FSClose(refNum);
-          detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_GETEOF_FAILED;
-          return false;
-        }
-        if (!this->hasCapacityFor(static_cast<std::size_t>(fileSize), detailCodeOut))
-        {
-          FSClose(refNum);
-          return false;
-        }
-        out.resize(static_cast<std::size_t>(fileSize));
-        if (fileSize > 0)
-        {
-          long count = fileSize;
-          err = FSRead(refNum, &count, &out[0]);
-          if (err != noErr && err != eofErr)
-          {
-            FSClose(refNum);
-            out.clear();
-            detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_CLASSIC_READ_FAILED;
-            return false;
-          }
-          if (count < fileSize)
-          {
-            out.resize(static_cast<std::size_t>(count < 0 ? 0 : count));
-          }
-        }
-        FSClose(refNum);
-        return true;
-      }
-#endif
-      return readFileBytes(handle.displayPath, out, detailCodeOut);
+      return mapReadResult(loka::platform::file::ReadBytes(handle, out, this), detailCodeOut);
     }
 
     PlatformContext *ctx_;
