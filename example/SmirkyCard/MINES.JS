@@ -19,9 +19,10 @@ function neighbors(index) {
 card('first', class {
   constructor(c) {
     this.c = c;
+    const next = c.test ? () => Math.floor(c.test.random() * 64) : nextIndex;
     this.mines = Array(64).fill(false);
     for (let placed = 0; placed < 10;) {
-      const index = nextIndex();
+      const index = next();
       if (!this.mines[index]) {
         this.mines[index] = true;
         ++placed;

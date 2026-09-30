@@ -183,11 +183,13 @@ namespace smirkycard
 
 #ifdef TEST_BUILD
     unsigned int retiredEngineCount() const;
-    /** Call before loading sources or creating cards. Services outlive all cards. */
+    /** Call before loading sources or creating cards. Services outlive all cards.
+        Optional nonempty baked text replaces companion file reads, including reload/open. */
     bool enableRunner(loka::dsl::testing::ScenarioAuditSink *sink,
                       loka::dsl::testing::ScenarioClock *clock,
                       unsigned long seed,
-                      const char *companion);
+                      const char *companion,
+                      const char *bakedCompanion = 0);
     bool runnerEnabled() const
     {
       return this->runner_ != 0;
@@ -205,11 +207,13 @@ namespace smirkycard
       Runner(loka::dsl::testing::ScenarioAuditSink *s,
              loka::dsl::testing::ScenarioClock *c,
              unsigned long value,
-             const char *name)
+             const char *name,
+             const char *source)
           : sink(s),
             clock(c),
             seed(value),
             companion(name),
+            bakedCompanion(source ? source : ""),
             registering(0)
       {
       }
@@ -217,6 +221,7 @@ namespace smirkycard
       loka::dsl::testing::ScenarioClock *const clock;
       const unsigned long seed;
       const std::string companion;
+      const std::string bakedCompanion;
       JsEngine *registering;
     };
     Runner *runner_;
