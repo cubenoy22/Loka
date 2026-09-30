@@ -183,6 +183,11 @@ namespace smirkycard
     this->card_.error_.set(error);
     const loka::core::StringBuffer bytes = error.bufferWithEncoding(loka::core::StringEncodingUtf8);
     output = JS_NewStringLen(this->context_, static_cast<const char *>(bytes.data()), bytes.length());
+    if (JS_IsException(output))
+    {
+      JS_FreeValue(this->context_, JS_GetException(this->context_));
+      output = JS_UNDEFINED;
+    }
     return Threw;
   }
 
@@ -223,7 +228,14 @@ namespace smirkycard
     if (!watching && this->seat_)
       step = step->next;
     CallResult result = Returned;
-    for (; step; step = step->next)
+    if (JS_IsException(value))
+    {
+      JS_FreeValue(this->context_, JS_GetException(this->context_));
+      value = JS_UNDEFINED;
+      this->card_.error_.set(loka::core::String::Literal("Flow input could not be read (out of memory)"));
+      result = Threw;
+    }
+    for (; result == Returned && step; step = step->next)
     {
       JSValue output = JS_UNDEFINED;
       result = this->invoke(step->fn, value, output);

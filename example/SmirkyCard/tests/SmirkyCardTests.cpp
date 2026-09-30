@@ -47,6 +47,12 @@ namespace smirkycard
         JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
         card->detachNode(card->composition());
       }
+      static void writeString(const loka::core::String &value)
+      {
+        JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+        loka::core::StateTrackerGuard transaction(card->tracker());
+        card->seats_.head()->string.set(value);
+      }
       static JSValue projection(JSContext *ctx, JSValueConst, int, JSValueConst *)
       {
         JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
@@ -2916,8 +2922,87 @@ namespace
     expectJs(runtime, "refused", "true");
   }
 
+  JSValue failFlowDiagnostic(JSContext *ctx, JSValueConst, int, JSValueConst *argv)
+  {
+    // Refuse allocation during exception capture and diagnostic argument creation.
+    JS_SetMemoryLimit(JS_GetRuntime(ctx), 1);
+    return JS_Throw(ctx, JS_DupValue(ctx, argv[0]));
+  }
+
+  void checkProductionFlowDiagnosticAllocationFailure()
+  {
+    std::fprintf(stderr, "[pin] production Flow diagnostic allocation failure\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var c0,f,diagnostic='x'.repeat(100),failures=0,failureUndefined=false;card('first',c=>{c0=c;"
+        "f=c.flow(Flow().step(()=>failDiagnostic(diagnostic)).onFailure(e=>{failures++;failureUndefined=e===undefined}));"
+        "return {compose(){return Text('flow')}}});", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    JSContext *ctx = runtime.context();
+    JSValue global = JS_GetGlobalObject(ctx);
+    LOKA_VERIFY(JS_SetPropertyStr(ctx, global, "failDiagnostic",
+                                 JS_NewCFunction(ctx, failFlowDiagnostic, "failDiagnostic", 0)) >= 0);
+    JSValue run = JS_Eval(ctx, "()=>f.run()", 10, "<pin>", JS_EVAL_TYPE_GLOBAL);
+    LOKA_VERIFY(!JS_IsException(run));
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(JS_GetRuntime(ctx), &usage);
+    JSValue result = JS_Call(ctx, run, JS_UNDEFINED, 0, 0);
+    const bool pending = JS_HasException(ctx);
+    JS_SetMemoryLimit(JS_GetRuntime(ctx), static_cast<size_t>(usage.malloc_limit));
+    LOKA_VERIFY(JS_IsBool(result) && JS_ToBool(ctx, result));
+    LOKA_VERIFY(!pending);
+    JS_FreeValue(ctx, result);
+    JS_FreeValue(ctx, run);
+    JS_FreeValue(ctx, global);
+    expectJs(runtime, "failures+':'+failureUndefined", "1:true");
+  }
+
+  void checkProductionFlowInputAllocationFailure()
+  {
+    std::fprintf(stderr, "[pin] production Flow input allocation failure\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var c0,f,steps=0,successes=0,failures=0,failureUndefined=false,again;"
+        "card('first',c=>{c0=c;let s=c.state('');"
+        "f=c.flow(Flow().watch(s,v=>{steps++;return v}).step(v=>{steps++;return v})"
+        ".onSuccess(v=>successes++).onFailure(e=>{failures++;failureUndefined=e===undefined;again=f.run()}));"
+        "return {compose(){return Text('flow')}}});", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    smirkycard::testing::CardFlowAccess::scene = window.scene();
+    JSRuntime *rt = runtime.currentEngine()->jsRuntime();
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(rt, &usage);
+    const std::string longInput(1024 * 1024, 'x');
+    // Leave room for the failure callback, but not the one-megabyte seat read.
+    JS_SetMemoryLimit(rt, static_cast<size_t>(usage.malloc_size) + 4096);
+    smirkycard::testing::CardFlowAccess::writeString(loka::core::String::Literal(longInput.c_str()));
+    const bool pending = JS_HasException(runtime.context());
+    JS_SetMemoryLimit(rt, static_cast<size_t>(usage.malloc_limit));
+    expectJs(runtime, "steps", "0");
+    expectJs(runtime, "successes", "0");
+    expectJs(runtime, "failures+':'+failureUndefined+':'+again", "1:true:false");
+    LOKA_VERIFY(!pending);
+    expectJs(runtime, "c0.error.get()", "Flow input could not be read (out of memory)");
+  }
+
   void checkProductionFlowEdges()
   {
+    checkProductionFlowInputAllocationFailure();
+    checkProductionFlowDiagnosticAllocationFailure();
     checkProductionFlowNesting();
     checkProductionFlowForeignSeat();
     checkProductionFlowCase(
