@@ -499,6 +499,8 @@ namespace smirkycard
       return jsText(ctx, node->asTextNode()->props.text_->get());
     if (node->asButtonNode())
       return jsText(ctx, node->asButtonNode()->props.text_->get());
+    if (node->asCellNode())
+      return jsText(ctx, node->asCellNode()->props.text_->get());
     if (node->asEditTextNode())
       return jsText(ctx, node->asEditTextNode()->props.text_.state()->get());
     if (node->asAttributedTextNode())
@@ -509,7 +511,7 @@ namespace smirkycard
         flat = flat + value.segment(i).text;
       return jsText(ctx, flat);
     }
-    return JS_ThrowTypeError(ctx, "text requires Text, Markup, Button or EditText");
+    return JS_ThrowTypeError(ctx, "text requires Text, Markup, Button, Cell or EditText");
   }
 } // namespace smirkycard
 #endif

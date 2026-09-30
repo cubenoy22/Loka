@@ -515,7 +515,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxPartialPaintTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxPartialPaintTests)
   set_target_properties(LokaToolboxPartialPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_partial_paint_case cell text text-repaint button button-repaint popup popup-repaint attributed)
+  foreach(_partial_paint_case cell text text-repaint button button-repaint popup popup-repaint attributed edit edit-refused)
     add_test(NAME testToolboxPartialPaint_${_partial_paint_case} COMMAND LokaToolboxPartialPaintTests ${_partial_paint_case})
   endforeach()
 

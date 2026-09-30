@@ -191,9 +191,11 @@ never accesses the borrowed handler.
 
 ## Card scenarios (TEST_BUILD, stage 1)
 
-A runner calls `ScriptRuntime::enableRunner(sink, clock, seed, companionName)`
+A runner calls `ScriptRuntime::enableRunner(sink, clock, seed, companionName, bakedText)`
 before loading sources or creating cards. It owns the sink and clock until all
-cards are gone. Without this opt-in, `Flow`, `scenario`, `c.run`, and `c.test`
+cards are gone. The optional nonempty baked text replaces companion file reads,
+including reload/open; omitting it retains the file-based runner. Without this
+opt-in, `Flow`, `scenario`, `c.run`, and `c.test`
 are absent. Their implementation and storage are excluded from non-TEST_BUILD
 builds.
 
@@ -227,7 +229,7 @@ The immediate test operations are:
 
 - `c.test.click(id)`: Button or Cell, with a flush; a disabled Button fails.
 - `c.test.enabled(id)`: Button enabled state; Cells return true.
-- `c.test.text(id)`: Text, Markup's concatenated text segments, Button label, or
+- `c.test.text(id)`: Text, Markup's concatenated text segments, Button/Cell label, or
   EditText contents. IDs must identify exactly one node of the requested kind.
 - `c.test.log(text)`: one percent-escaped audit record (`log text=...`).
 - `c.test.random()`: a masked 32-bit LCG, with an integer-constructed binary64
@@ -235,6 +237,23 @@ The immediate test operations are:
   seed, before its factory executes; `go` also creates a fresh random stream.
 
 The host runner harness is in [SmirkyCardTests.cpp](tests/SmirkyCardTests.cpp);
-`LokaSmirkyCardTests --scenarios` runs these mechanism checks. Standalone runner
-apps, LOG.TXT wiring, and the MineSweeper companion belong to the next slice of
-[#1033](https://github.com/cubenoy22/Loka/issues/1033#issuecomment-5892997936).
+`LokaSmirkyCardTests --scenarios` runs these mechanism checks. The generic Classic
+standalone runner bakes both sources through
+`smirkycard_add_scenario_runner` in [CMakeLists.txt](CMakeLists.txt). Add content
+with another call specifying CARD, FLOW, SCENARIO, APP_NAME and SEED; no C++
+changes are needed. In any Classic build with `LOKA_BUILD_SMIRKYCARD` enabled,
+the first call registers `LokaSmirkyCardStandaloneFlow68K_APPL` or
+`LokaSmirkyCardStandaloneFlowPPC_APPL` (excluded from ALL); the VS Code task
+"Build: Retro68 68K SmirkyCard" builds it together with the app. It uses SmirkyCard's SIZE resource, writes
+LOG.TXT beside the application, logs the seed, advances the clock once per 0.1 s
+idle callback, and quits after the terminal audit record.
+
+[MINES.FLOW.JS](MINES.FLOW.JS) plays one board: flags a cell, returns to reveal
+mode and checks a zero-cell flood. MINES.JS uses `c.test.random` only under the
+runner; its ordinary module-level generator and New Game behavior are unchanged.
+`LokaSmirkyCardTests --mines-scenario` checks the real files and the baked app
+configuration, including the [expected audit](tests/MINES.audit).
+The standalone audit is not registered in `scenarios.txt`: that file also controls
+the approved MAME golden cells. Until its registration policy is decided, compare
+LOG.TXT directly with the expected audit (`cmp`), rather than using
+`verify-standalone-audit.sh`.
