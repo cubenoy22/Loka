@@ -3,6 +3,10 @@
 #include "CardNodes.hpp"
 #include "CardFlowDescription.hpp"
 #include "JsNativeClass.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#ifdef LOKA_RETRO68
+#include "ToolboxPlatformContext.hpp"
+#endif
 #include "app/nodes/AttributedText.hpp"
 #include <new>
 #include <stdint.h>
@@ -21,7 +25,8 @@ namespace smirkycard
       Enabled,
       Text,
       Log,
-      Random
+      Random,
+      DeliverChosenFile
     };
     std::string utf8(const loka::core::String &value)
     {
@@ -69,9 +74,9 @@ namespace smirkycard
     if (JS_SetPropertyStr(ctx, context, "run", JS_NewCFunctionData(ctx, method, 1, Run, 1, &capability)) < 0)
       return false;
     JSValue test = JS_NewObject(ctx);
-    const char *names[] = {"click", "enabled", "text", "log", "random"};
+    const char *names[] = {"click", "enabled", "text", "log", "random", "deliverChosenFile"};
     bool ok = !JS_IsException(test);
-    for (int i = 0; ok && i < 5; ++i)
+    for (int i = 0; ok && i < 6; ++i)
       ok = JS_SetPropertyStr(
                ctx, test, names[i], JS_NewCFunctionData(ctx, method, i == 4 ? 0 : 1, Click + i, 1, &capability))
            >= 0;
@@ -286,6 +291,66 @@ namespace smirkycard
       return argc == 1 ? this->accept(ctx, argv[0]) : JS_ThrowTypeError(ctx, "c.run requires one Flow");
     if (op == Random)
       return argc == 0 ? JS_NewFloat64(ctx, this->random()) : JS_ThrowTypeError(ctx, "random takes no arguments");
+    if (op == DeliverChosenFile)
+    {
+      if (argc != 2 || !this->canAdvance() || !this->input_
+          || this->card_.flowAdmission_.hasExecution())
+        return JS_ThrowTypeError(ctx, "deliverChosenFile requires a Live card outside CardFlow");
+      JSValue value = JS_DupValue(ctx, argv[0]);
+      if (JS_IsString(argv[0]))
+      {
+        JSAtom name = JS_ValueToAtom(ctx, argv[0]);
+        if (name == JS_ATOM_NULL)
+        {
+          JS_FreeValue(ctx, value);
+          return JS_EXCEPTION;
+        }
+        JSPropertyDescriptor property;
+        const int found = JS_GetOwnProperty(ctx, &property, this->card_.instance_, name);
+        JS_FreeAtom(ctx, name);
+        JS_FreeValue(ctx, value);
+        if (found < 0)
+          return JS_EXCEPTION;
+        value = found ? property.value : JS_UNDEFINED;
+        if (found)
+        {
+          JS_FreeValue(ctx, property.getter);
+          JS_FreeValue(ctx, property.setter);
+        }
+      }
+      JsSeatRecord *seat = this->card_.findSeat(ctx, value);
+      JS_FreeValue(ctx, value);
+      if (!seat || seat->kind != JsSeatRecord::FILE_RESULT || !seat->isMaterialized())
+        return JS_ThrowTypeError(ctx, "deliverChosenFile requires an own FILE seat");
+      loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
+      if (!JS_IsNull(argv[1]))
+      {
+        if (!JS_IsString(argv[1]))
+          return JS_ThrowTypeError(ctx, "deliverChosenFile requires a flat filename or null");
+        size_t length = 0;
+        const char *bytes = JS_ToCStringLen(ctx, &length, argv[1]);
+        if (!bytes)
+          return JS_EXCEPTION;
+        const std::string name(bytes, length);
+        JS_FreeCString(ctx, bytes);
+        if (name.empty() || name == "." || name == ".."
+            || name.find_first_of("/\\:") != std::string::npos || name.find('\0') != std::string::npos)
+          return JS_ThrowTypeError(ctx, "deliverChosenFile requires a flat filename");
+        const loka::file::File chosen(loka::core::String::Utf8(name.data(), name.size()));
+#ifdef LOKA_RETRO68
+        PlatformContext *platform = this->runtime_.nativeContext();
+        loka::platform::file::FileHandle handle;
+        if (!platform || !platform->openFile(loka::file::File::Application() << chosen, handle) || !handle.hasSpec)
+          return JS_ThrowTypeError(ctx, "deliverChosenFile could not resolve file");
+        // Match SimpleViewerScenarioDriver's stand-in for the dialog rail.
+        ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
+#endif
+        result = loka::app::FileChooserResult::File(chosen);
+      }
+      loka::core::StateTrackerGuard transaction(this->card_.tracker());
+      seat->file.set(result, true);
+      return JS_UNDEFINED;
+    }
     if (argc != 1 || !JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "test operation requires a string");
     size_t length = 0;

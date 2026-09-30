@@ -74,6 +74,12 @@ namespace smirkycard
           if (s->kind == JsSeatRecord::IMAGE) return s->image.state();
         return 0;
       }
+      static loka::core::State<loka::app::FileChooserResult> *fileState()
+      {
+        for (JsSeatRecord *s = card()->seats_.head(); s; s = s->next)
+          if (s->kind == JsSeatRecord::FILE_RESULT) return s->file.state();
+        return 0;
+      }
       static int notifications;
       static ScriptRuntime *settlementRuntime;
       static bool settledStale;
@@ -2830,6 +2836,47 @@ namespace
     }
   }
 
+  void verifyChosenTransaction(void *data)
+  {
+    loka::core::StateTracker *tracker = static_cast<loka::core::StateTracker *>(data);
+    LOKA_VERIFY(tracker->phase() == loka::core::TRACKER_PRECOMMIT);
+  }
+
+  void checkChosenFileDelivery()
+  {
+    CardRunnerHarness h(
+      "var own,wrong,run,ctx,n=0;card('first',c=>{ctx=c;own=c.state.file();wrong=c.state(false);"
+      "c.flow(Flow().watch(own,r=>{n++;return Flow.SKIP}));"
+      "run=c.flow(Flow().step(()=>c.test.deliverChosenFile(own,null)));"
+      "return {chosen:own,wrong,compose(){return Text('delivery')}}});"
+      "card('second',c=>{ctx=c;return {compose(){return Text('second')}}});",
+      "scenario('first',c=>{c.run(Flow().step(()=>{"
+      "for(const seat of [wrong,{},null,'wrong','missing']){let refused=false;"
+      "try{c.test.deliverChosenFile(seat,null)}catch(e){refused=e instanceof TypeError}"
+      "if(!refused)throw Error('seat refusal')}"
+      "c.test.deliverChosenFile('chosen',null);c.test.deliverChosenFile(own,null);"
+      "if(n!==2)throw Error('forced cancellation notification');"
+      "c.test.deliverChosenFile(own,'Sun.pict');c.test.deliverChosenFile(own,'Sun.pict');"
+      "if(n!==4)throw Error('forced file notification');"
+      "run.run();if(n!==4)throw Error('CardFlow delivery admitted');"
+      "c.test.log('delivery ok')}));});");
+    h.mount();
+    smirkycard::testing::CardFlowAccess::scene = h.window->scene();
+    loka::core::State<loka::app::FileChooserResult> *file = smirkycard::testing::CardFlowAccess::fileState();
+    LOKA_VERIFY(file);
+    file->bind(verifyChosenTransaction, smirkycard::testing::CardFlowAccess::card()->tracker(),
+               false, false, loka::core::STATE_PRIORITY_HIGH);
+    h.ticks(20);
+    file->unbind(verifyChosenTransaction, smirkycard::testing::CardFlowAccess::card()->tracker());
+    LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+    LOKA_VERIFY(h.logs.size() == 1 && h.logs[0] == "delivery ok");
+    expectJs(h.runtime, "ctx.go('second');'ok'", "ok");
+    h.admission->flush();
+    expectJs(h.runtime,
+      "let refused=false;try{ctx.test.deliverChosenFile(own,null)}catch(e){refused=e instanceof TypeError}refused",
+      "true");
+  }
+
   void checkMinesScenario()
   {
     // Pin that the runner ignores the production seed, using checkMines' known stream.
@@ -3679,6 +3726,7 @@ int main(int argc, char **argv)
   if (argc == 2 && !std::strcmp(argv[1], "--mines-scenario"))
   {
     checkBakedCompanionReplacement();
+    checkChosenFileDelivery();
     checkMinesScenario();
     checkStandaloneScenario();
     return 0;
@@ -3755,6 +3803,7 @@ int main(int argc, char **argv)
     checkScenarioEngineReplacement();
     checkScenarioOff();
     checkBakedCompanionReplacement();
+    checkChosenFileDelivery();
     checkMinesScenario();
     checkStandaloneScenario();
     return 0;
@@ -3772,6 +3821,7 @@ int main(int argc, char **argv)
   checkScenarioEngineReplacement();
   checkScenarioOff();
   checkBakedCompanionReplacement();
+  checkChosenFileDelivery();
   checkMinesScenario();
   checkStandaloneScenario();
   checkCarry();

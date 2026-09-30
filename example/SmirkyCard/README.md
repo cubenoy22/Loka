@@ -304,3 +304,18 @@ The standalone audit is not registered in `scenarios.txt`: that file also contro
 the approved MAME golden cells. Until its registration policy is decided, compare
 LOG.TXT directly with the expected audit (`cmp`), rather than using
 `verify-standalone-audit.sh`.
+
+## SimpleViewer.JS card
+
+[VIEWER.JS](VIEWER.JS) composes an Open button, a conditional OpenFileDialog,
+and an ImageView. Its card-owned Flow consumes the FILE result, loads the image
+through `c.native.loadImage`, and writes the IMAGE seat. Cancellation keeps the
+previous picture. To launch it directly, copy VIEWER.JS beside the application
+as MAIN.JS. The card needs no application-specific C++ code.
+
+Under an enabled runner, `c.test.deliverChosenFile('chosen', 'Sun.pict')`
+delivers a file result into the current card's own FILE seat; passing `null`
+instead of a filename delivers cancellation. A seat handle is also accepted.
+The operation runs outside production CardFlow execution and forces notification
+inside a tracker transaction. Classic resolves the file beside the application
+and registers its FSSpec through the same seam used by the native dialog.
