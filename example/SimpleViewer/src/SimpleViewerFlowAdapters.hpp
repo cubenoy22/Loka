@@ -5,6 +5,7 @@
 
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
+#include "app/PlatformReadCapacity.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/BlobLoader.hpp"
 #include "core/resource/Image.hpp"
@@ -130,7 +131,7 @@ namespace simpleviewer
     }
   };
 
-  struct ProjectionToBlobAdapter : private loka::platform::file::ReadCapacity
+  struct ProjectionToBlobAdapter
   {
     typedef ChooserProjection In;
     typedef loka::core::resource::Blob Out;
@@ -182,13 +183,6 @@ namespace simpleviewer
     }
 
   private:
-    virtual bool allows(std::size_t requiredBytes) const
-    {
-      std::size_t largestAllocation = 0;
-      return !this->ctx_ || !this->ctx_->queryLargestContiguousAllocation(largestAllocation) ||
-             requiredBytes <= largestAllocation;
-    }
-
     static bool mapReadResult(loka::platform::file::ReadResult result, int &detailCodeOut)
     {
       using namespace loka::platform::file;
@@ -210,7 +204,8 @@ namespace simpleviewer
 
     bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut) const
     {
-      return mapReadResult(loka::platform::file::ReadBytes(path, out, this), detailCodeOut);
+      const loka::app::PlatformReadCapacity capacity(this->ctx_);
+      return mapReadResult(loka::platform::file::ReadBytes(path, out, &capacity), detailCodeOut);
     }
 
     bool readBytesViaPlatform(const In &projection, std::vector<unsigned char> &out, int &detailCodeOut) const
@@ -226,7 +221,8 @@ namespace simpleviewer
         detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED;
         return false;
       }
-      return mapReadResult(loka::platform::file::ReadBytes(handle, out, this), detailCodeOut);
+      const loka::app::PlatformReadCapacity capacity(this->ctx_);
+      return mapReadResult(loka::platform::file::ReadBytes(handle, out, &capacity), detailCodeOut);
     }
 
     PlatformContext *ctx_;

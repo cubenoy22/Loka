@@ -76,46 +76,42 @@ namespace loka
         {
           return READ_NO_NATIVE_SPEC;
         }
-        if (handle.hasSpec)
+        short refNum = 0;
+        OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
+        if (err != noErr)
         {
-          short refNum = 0;
-          OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
-          if (err != noErr)
-          {
-            return READ_NATIVE_OPEN_FAILED;
-          }
-          long fileSize = 0;
-          err = GetEOF(refNum, &fileSize);
-          if (err != noErr || fileSize < 0)
-          {
-            FSClose(refNum);
-            return READ_NATIVE_SIZE_FAILED;
-          }
-          if (capacity && !capacity->allows(static_cast<std::size_t>(fileSize)))
-          {
-            FSClose(refNum);
-            return READ_CAPACITY_REFUSED;
-          }
-          out.resize(static_cast<std::size_t>(fileSize));
-          if (fileSize > 0)
-          {
-            long count = fileSize;
-            err = FSRead(refNum, &count, &out[0]);
-            if (err != noErr && err != eofErr)
-            {
-              FSClose(refNum);
-              out.clear();
-              return READ_NATIVE_READ_FAILED;
-            }
-            if (count < fileSize)
-            {
-              out.resize(static_cast<std::size_t>(count < 0 ? 0 : count));
-            }
-          }
-          FSClose(refNum);
-          return READ_OK;
+          return READ_NATIVE_OPEN_FAILED;
         }
-        return READ_NO_NATIVE_SPEC;
+        long fileSize = 0;
+        err = GetEOF(refNum, &fileSize);
+        if (err != noErr || fileSize < 0)
+        {
+          FSClose(refNum);
+          return READ_NATIVE_SIZE_FAILED;
+        }
+        if (capacity && !capacity->allows(static_cast<std::size_t>(fileSize)))
+        {
+          FSClose(refNum);
+          return READ_CAPACITY_REFUSED;
+        }
+        out.resize(static_cast<std::size_t>(fileSize));
+        if (fileSize > 0)
+        {
+          long count = fileSize;
+          err = FSRead(refNum, &count, &out[0]);
+          if (err != noErr && err != eofErr)
+          {
+            FSClose(refNum);
+            out.clear();
+            return READ_NATIVE_READ_FAILED;
+          }
+          if (count < fileSize)
+          {
+            out.resize(static_cast<std::size_t>(count < 0 ? 0 : count));
+          }
+        }
+        FSClose(refNum);
+        return READ_OK;
       }
 
       std::FILE *OpenWriteTruncate(const FileHandle &file)
