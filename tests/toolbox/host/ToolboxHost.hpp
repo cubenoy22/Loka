@@ -97,13 +97,16 @@ namespace toolbox_host { extern GrafPtr frontWindow; extern int textHits; }
 inline GrafPtr FrontWindow() { return toolbox_host::frontWindow; }
 class ToolboxWindow
 {
+  loka::core::PushStateTracker tracker_;
+  loka::core::MutableState<bool> visible_;
 public:
   struct WindowPort : GrafPort { Rect portRect; } port;
   ToolboxWindowContext context_;
   void (*onFlush)(void *);
   void *flushData;
-  ToolboxWindow() : onFlush(0), flushData(0)
+  ToolboxWindow() : visible_(true), onFlush(0), flushData(0)
   {
+    this->tracker_.addState(&this->visible_);
     toolbox_host::frontWindow = &port;
     port.txFont = 3;
     port.txSize = 12;
@@ -113,7 +116,7 @@ public:
   void requestInvalidate() { ++toolbox_host::invalidations; }
   void requestInvalidateWithReason(const char *) { ++toolbox_host::invalidations; }
   void flushInvalidate() { if (this->onFlush) this->onFlush(this->flushData); }
-  loka::core::StateTracker *getTracker() { return 0; }
+  loka::core::StateTracker *getTracker() { return &this->tracker_; }
   void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
   WindowPort *window()
   {

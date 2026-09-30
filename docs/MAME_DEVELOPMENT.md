@@ -123,7 +123,7 @@ The TEST-only `LokaHelloStandaloneFlow68K_APPL` target presents the same typed
 `toggle-action-probe` used by the machine-verdict rail without requiring
 `LokaTest.cfg` or a host scenario controller. It presses the enabled probe,
 disables it through the rendered toggle action, verifies that a disabled probe
-is ignored, and then holds the final `Button enabled: no / clicks: 1` scene
+is ignored, and then holds the final `Enabled: no / clicks: 1` scene
 until the user quits. Terminal step results are written to the application-side
 `LOG.TXT` audit file; no Snap artifact or completion marker is published.
 

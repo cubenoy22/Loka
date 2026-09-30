@@ -363,6 +363,7 @@ namespace toolbox_host
 {
   ControlRef hitControl = 0;
   short trackedValue = 1;
+  short popupItem = 2;
   unsigned tracks = 0;
 }
 namespace
@@ -375,7 +376,7 @@ namespace
   void AppendMenu(MenuHandle, const unsigned char *) {}
   void InsertMenu(MenuHandle, short) {}
   void LocalToGlobal(Point *) {}
-  long PopUpMenuSelect(MenuHandle, short, short, short) { return 2; }
+  long PopUpMenuSelect(MenuHandle, short, short, short) { return toolbox_host::popupItem; }
   void DeleteMenu(short) {}
   void DisposeMenu(MenuHandle menu) { delete menu; }
 #endif
