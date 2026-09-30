@@ -17,7 +17,8 @@ function neighbors(index) {
 }
 
 card('first', class {
-  constructor() {
+  constructor(c) {
+    this.c = c;
     this.mines = Array(64).fill(false);
     for (let placed = 0; placed < 10;) {
       const index = nextIndex();
@@ -26,9 +27,9 @@ card('first', class {
         ++placed;
       }
     }
-    this.cells = Array.from({length: 64}, () => state('.'));
-    this.mode = state('Flag mode: off');
-    this.status = state('Mines left: 10');
+    this.cells = Array.from({length: 64}, () => c.state('.'));
+    this.mode = c.state('Flag mode: off');
+    this.status = c.state('Mines left: 10');
   }
 
   click(index) {
@@ -62,11 +63,11 @@ card('first', class {
   compose() {
     return VStack(
       Text(this.status).TEST_ID('Mines.Status'),
-      Text(this.error).TEST_ID('SmirkyCard.Status'),
+      Text(this.c.error).TEST_ID('SmirkyCard.Status'),
       Row(Button(this.mode, () => this.mode.set(this.mode.get() === 'Flag mode: off'
         ? 'Flag mode: on' : 'Flag mode: off')).TEST_ID('Mines.Flag'),
-        Button('New Game', () => go('first')).TEST_ID('Mines.NewGame'),
-        Button('./MAIN.JS', () => open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain')),
+        Button('New Game', () => this.c.go('first')).TEST_ID('Mines.NewGame'),
+        Button('./MAIN.JS', () => this.c.open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain')),
       Grid(8, 8, this.cells.map((seat, i) => Cell(seat, () => this.click(i)).TEST_ID('Mines.Cell.' + i))).TEST_ID('Mines.Board')
     ).TEST_ID('Mines.Content');
   }
