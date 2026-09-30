@@ -4,6 +4,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "support/TestVerify.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "platform/String.hpp"
 #include <cstdio>
 #include <cstring>
 
@@ -29,6 +30,7 @@ namespace
     {
       c.declare(Column() << Cell(this->text.state()).TEST_ID("cell")
           << Text(this->text.state()).TEST_ID("text")
+          << EditText(this->text).TEST_ID("edit")
           << Button(this->text.state()).enabled(this->enabled.state()).TEST_ID("button")
           << PopupMenu().selectedIndex(this->selection).enabled(this->enabled.state()).TEST_ID("popup")
           << AttributedText(this->attributed.state()).TEST_ID("attributed"));
@@ -37,6 +39,15 @@ namespace
     NodeState<bool> enabled;
     NodeState<int> selection;
     NodeState<AttributedString> attributed;
+  };
+  class RefusingUtf8 : public loka::platform::String
+  {
+  public:
+    virtual bool appendUtf8(std::string &out) const
+    {
+      out.append("par");
+      return false;
+    }
   };
   LayoutState Seat()
   {
@@ -87,6 +98,7 @@ int main(int argc, char **argv)
   if (id == "button") context = new ToolboxButtonContext(node->asButtonNode(), &controller);
   if (id == "popup") context = new ToolboxPopupMenuContext(node->asPopupMenuNode(), &controller);
   if (id == "attributed") context = new ToolboxAttributedTextContext(node->asAttributedTextNode(), &controller);
+  if (id == "edit") context = new ToolboxEditTextContext(node->asEditTextNode(), &controller);
   LOKA_VERIFY(context);
   node->setContext(context);
   toolbox_host::reset();
@@ -97,6 +109,49 @@ int main(int argc, char **argv)
   const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
   Draw(*context, controller, mode, control, installedLabel);
   ExactEmpty(*context, query);
+  if (std::strcmp(mode, "edit-refused") == 0)
+  {
+    LOKA_VERIFY(controller.editControls_.size() == 1);
+    TEHandle te = controller.editControls_[0].te;
+    LOKA_VERIFY((**te).text == "V");
+    {
+      StateTrackerGuard guard(root.tracker());
+      root.text.set(String::FromPlatform(Managed<loka::platform::String>::Wrap(new RefusingUtf8())));
+    }
+    Draw(*context, controller, mode, control, installedLabel);
+    const PaintAnswer refused = context->queryPaintDamage(query);
+    std::printf("refused conversion: TE=%s lastText=%s answer=%d reason=%d damage=%dx%d\n",
+        (**te).text.c_str(), controller.editControls_[0].lastText.c_str(),
+        refused.kind, refused.reason, refused.damage.width, refused.damage.height);
+    std::fflush(stdout);
+    LOKA_VERIFY((**te).text == "V" && controller.editControls_[0].lastText == "V");
+    LOKA_VERIFY(refused.kind == PAINT_ANSWER_REFUSED && refused.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+    // Replay also must not certify a logical value that the TE never installed.
+    static_cast<ToolboxEditTextContext *>(context)->repaint(te);
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("W")); }
+    Draw(*context, controller, mode, control, installedLabel);
+    LOKA_VERIFY((**te).text == "W");
+    ExactEmpty(*context, query);
+    // A successful conversion alone is not proof: replay may precede sync.
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("X")); }
+    static_cast<ToolboxEditTextContext *>(context)->repaint(te);
+    LOKA_VERIFY((**te).text == "W");
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+    // Concatenation exercises the non-borrowing conversion path, then empty
+    // text exercises the no-platform-handle representation.
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Concat(String::Literal("V"), String::Literal("W"))); }
+    Draw(*context, controller, mode, control, installedLabel);
+    LOKA_VERIFY((**te).text == "VW");
+    ExactEmpty(*context, query);
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String()); }
+    Draw(*context, controller, mode, control, installedLabel);
+    LOKA_VERIFY((**te).text.empty());
+    ExactEmpty(*context, query);
+    Access::unmount(scene);
+    std::puts("Refused conversion paint pin passed");
+    return 0;
+  }
   const Rect partial = {40, 10, 45, 30};
   std::printf("%s unchanged partial\n", mode); std::fflush(stdout);
   { ToolboxPaintClip clip(partial); Draw(*context, controller, mode, control, installedLabel); }
