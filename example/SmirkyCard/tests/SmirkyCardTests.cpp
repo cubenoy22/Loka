@@ -2415,8 +2415,10 @@ namespace
   class CardRunnerHarness : public loka::dsl::testing::ScenarioAuditSink
   {
   public:
-    CardRunnerHarness(const char *source, const char *companion, unsigned long seed = 7, bool baked = false)
+    CardRunnerHarness(const char *source, const char *companion, unsigned long seed = 7, bool baked = false,
+                      PlatformContext *nativeContext = 0)
         : audit(scenarioAuditDestination(), "card"),
+          runtime(nativeContext),
           window(0),
           admission(0),
           actionScene(0),
@@ -2877,6 +2879,91 @@ namespace
       "true");
   }
 
+  void checkChosenFileLookupNavigation()
+  {
+    CardRunnerHarness h(
+      "var saved;card('first',c=>{saved=c;const chosen=c.state.file();"
+      "return new Proxy({chosen,compose(){return Text('proxy')}},{"
+      "getOwnPropertyDescriptor(t,k){if(k==='chosen')c.go('second');"
+      "return Reflect.getOwnPropertyDescriptor(t,k)}})});"
+      "card('second',c=>({compose(){return Text('second')}}));",
+      "scenario('first',c=>c.run(Flow().step(()=>{})));");
+    h.mount();
+    smirkycard::testing::CardFlowAccess::scene = h.window->scene();
+    loka::core::State<loka::app::FileChooserResult> *file = smirkycard::testing::CardFlowAccess::fileState();
+    LOKA_VERIFY(file);
+    const loka::app::FileChooserResult before = file->get();
+    expectJs(h.runtime,
+      "let refused=false;try{saved.test.deliverChosenFile('chosen','Sun.pict')}"
+      "catch(e){refused=e instanceof TypeError}refused", "true");
+    LOKA_VERIFY(!(file->get() != before));
+    h.admission->flush();
+  }
+
+  void checkImageFacts()
+  {
+    CardRunnerHarness h(
+      "var a,b,picture,other,run,activeRefused=false;"
+      "card('first',c=>{a=c;picture=c.state.image();const chosen=c.state.file(),flag=c.state(false);"
+      "run=c.flow(Flow().step(()=>{try{c.test.imageFacts(picture)}"
+      "catch(e){activeRefused=e instanceof TypeError}}));"
+      "return {picture,chosen,flag,compose(){return Text('first')}}});"
+      "card('second',c=>{b=c;other=c.state.image();return {picture:other,compose(){return Text('second')}}});",
+      "scenario('first',c=>c.run(Flow().step(()=>{})));");
+    h.mount();
+    expectJs(h.runtime,
+      "let facts=a.test.imageFacts('picture');"
+      "[Object.getPrototypeOf(facts)===Object.prototype,Object.isFrozen(facts),"
+      "Object.keys(facts).sort().join(','),facts.empty,facts.width,facts.height].join(':')",
+      "true:true:empty,height,width:true:0:0");
+    expectJs(h.runtime, "JSON.stringify(a.test.imageFacts(picture))===JSON.stringify(facts)", "true");
+    expectJs(h.runtime,
+      "let setterCalls=0;for(const key of ['empty','width','height'])"
+      "Object.defineProperty(Object.prototype,key,{set(){setterCalls++},configurable:true});"
+      "let sealed=a.test.imageFacts(picture);"
+      "for(const key of ['empty','width','height'])delete Object.prototype[key];"
+      "[setterCalls,Object.isFrozen(sealed),Object.keys(sealed).sort().join(','),"
+      "sealed.empty,sealed.width,sealed.height].join(':')", "0:true:empty,height,width:true:0:0");
+    expectJs(h.runtime,
+      "['chosen','flag','missing',{},null].every(v=>{try{a.test.imageFacts(v);return false}"
+      "catch(e){return e instanceof TypeError}})", "true");
+    expectJs(h.runtime, "run.run();activeRefused", "true");
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_SECOND, h.runtime));
+      NullWindow window(&h.context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      admission.flush();
+      // Both owners are Live; equal empty facts must not mask foreign authority.
+      expectJs(h.runtime,
+        "[[a,other],[b,picture]].every(([c,s])=>{try{c.test.imageFacts(s);return false}"
+        "catch(e){return e instanceof TypeError}})", "true");
+    }
+    expectJs(h.runtime, "a.go('second');'ok'", "ok");
+    h.admission->flush();
+    expectJs(h.runtime,
+      "let refused=false;try{a.test.imageFacts(picture)}catch(e){refused=e instanceof TypeError}refused",
+      "true");
+  }
+
+  void checkImageFactsLookupNavigation()
+  {
+    CardRunnerHarness h(
+      "var saved;card('first',c=>{saved=c;const picture=c.state.image();"
+      "return new Proxy({picture,compose(){return Text('proxy')}},{"
+      "getOwnPropertyDescriptor(t,k){if(k==='picture')c.go('second');"
+      "return Reflect.getOwnPropertyDescriptor(t,k)}})});"
+      "card('second',c=>({compose(){return Text('second')}}));",
+      "scenario('first',c=>c.run(Flow().step(()=>{})));");
+    h.mount();
+    expectJs(h.runtime,
+      "let refused=false;try{saved.test.imageFacts('picture')}"
+      "catch(e){refused=e instanceof TypeError}refused", "true");
+    h.admission->flush();
+  }
+
   void checkMinesScenario()
   {
     // Pin that the runner ignores the production seed, using checkMines' known stream.
@@ -3310,6 +3397,54 @@ namespace
     mutable int opens, decodes, capacityCalls, releases;
   };
 
+  class ViewerPlatform : public HandlePlatform
+  {
+  public:
+    ViewerPlatform() : HandlePlatform(Success) {}
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, std::size_t offset,
+                                    std::size_t length, loka::core::resource::Image &out) const
+    {
+      ++this->decodes;
+      LOKA_VERIFY(offset == 0 && length == 3 && blob.bytes().size() == 3);
+      out = loka::core::resource::Image::FromNative(const_cast<ViewerPlatform *>(this), 256, 256,
+                                                   release, const_cast<ViewerPlatform *>(this));
+      return true;
+    }
+  };
+
+  void checkViewerScenario()
+  {
+    writeMain("_handle_image.bin", "img");
+    ViewerPlatform context;
+    const std::string source = readCardSource("VIEWER.JS");
+    const std::string companion = readCardSource("VIEWER.FLOW.JS");
+    {
+      CardRunnerHarness h(source.c_str(), companion.c_str(), 7, true, &context);
+      h.mount();
+      h.ticks(20);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+      const char *logs[] = {"image.load ok", "image.width 256", "image.height 256", "cancel.picture.facts unchanged"};
+      LOKA_VERIFY(h.logs.size() == 4);
+      for (size_t i = 0; i < 4; ++i)
+        LOKA_VERIFY(h.logs[i] == logs[i]);
+      const char *names[] = {"initial-empty", "deliver-sun", "image-loaded", "deliver-cancel", "cancel-unchanged"};
+      LOKA_VERIFY(h.steps.size() == 10);
+      for (size_t i = 0; i < 5; ++i)
+        LOKA_VERIFY(h.steps[2 * i].name() == names[i]);
+      LOKA_VERIFY(context.opens == 1 && context.decodes == 1 && context.releases == 0);
+      smirkycard::testing::CardFlowAccess::scene = h.window->scene();
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::imageState()->getRef().nativeHandle() == &context);
+      const std::string audit = readScenarioAudit();
+      LOKA_VERIFY(audit.find("log text=image.load%20ok\n") != std::string::npos);
+      LOKA_VERIFY(audit.find("log text=image.width%20256\n") != std::string::npos);
+      LOKA_VERIFY(audit.find("log text=image.height%20256\n") != std::string::npos);
+      LOKA_VERIFY(audit.find("log text=cancel.picture.facts%20unchanged\n") != std::string::npos);
+      LOKA_VERIFY(audit.find("terminal status=succeeded\n") != std::string::npos);
+    }
+    LOKA_VERIFY(context.releases == 1);
+    LOKA_VERIFY(std::remove("_handle_image.bin") == 0);
+  }
+
   void checkHandleCase(const char *name, const char *declaration, const char *operation, const char *expected,
                        HandlePlatform::Mode mode = HandlePlatform::Success, bool contextMissing = false,
                        bool exhaust = false, bool details = false)
@@ -3694,6 +3829,16 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--viewer-scenario"))
+  {
+    checkChosenFileDelivery();
+    checkChosenFileLookupNavigation();
+    checkImageFacts();
+    checkImageFactsLookupNavigation();
+    checkViewerScenario();
+    checkScenarioOff();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--lowerings"))
   {
     checkMinimumLowerings();
@@ -3727,6 +3872,10 @@ int main(int argc, char **argv)
   {
     checkBakedCompanionReplacement();
     checkChosenFileDelivery();
+    checkChosenFileLookupNavigation();
+    checkImageFacts();
+    checkImageFactsLookupNavigation();
+    checkViewerScenario();
     checkMinesScenario();
     checkStandaloneScenario();
     return 0;
@@ -3804,6 +3953,10 @@ int main(int argc, char **argv)
     checkScenarioOff();
     checkBakedCompanionReplacement();
     checkChosenFileDelivery();
+    checkChosenFileLookupNavigation();
+    checkImageFacts();
+    checkImageFactsLookupNavigation();
+    checkViewerScenario();
     checkMinesScenario();
     checkStandaloneScenario();
     return 0;
@@ -3822,6 +3975,10 @@ int main(int argc, char **argv)
   checkScenarioOff();
   checkBakedCompanionReplacement();
   checkChosenFileDelivery();
+  checkChosenFileLookupNavigation();
+  checkImageFacts();
+  checkImageFactsLookupNavigation();
+  checkViewerScenario();
   checkMinesScenario();
   checkStandaloneScenario();
   checkCarry();

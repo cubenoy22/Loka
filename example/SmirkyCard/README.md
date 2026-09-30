@@ -319,3 +319,41 @@ instead of a filename delivers cancellation. A seat handle is also accepted.
 The operation runs outside production CardFlow execution and forces notification
 inside a tracker transaction. Classic resolves the file beside the application
 and registers its FSSpec through the same seam used by the native dialog.
+
+`c.test.imageFacts('picture')` (or an own IMAGE seat handle) returns the frozen
+plain object `{ empty, width, height }`, with zero dimensions when empty. It
+borrows the current image to copy facts only; it exposes no native handle and
+retains no image. Both seat operations refuse foreign seats, revoked cards,
+and calls made inside a production CardFlow. Named lookup rechecks admission
+if a Proxy property trap navigates.
+
+[VIEWER.FLOW.JS](VIEWER.FLOW.JS) checks the initially empty picture, delivers
+Sun.pict without opening a modal dialog, checks the image after the runner's
+automatic settlement, delivers cancellation, and checks unchanged picture
+facts. Loading is synchronous, so the first check after settlement is the
+bounded success/failure check; there is no retry loop. The facts comparison
+checks dimensions and emptiness, not image identity. Existing text/control
+inspection cannot observe OpenFileDialog or the `shown` seat, so the JS audit
+makes no claim about `shown` after cancellation.
+
+Build and run the host coverage with `LokaSmirkyCardTests --viewer-scenario`.
+For Classic, enable SmirkyCard and build
+`LokaSmirkyViewerStandaloneFlow68K_APPL` or
+`LokaSmirkyViewerStandaloneFlowPPC_APPL`. Stage the resulting `.bin` and
+`Sun.pict` beside it on the dev disk; the picture comes from the boot template's
+`:Desktop Folder:Images:` folder. Launch the runner application. Both JS sources
+are baked in; it needs no MAIN.JS, VIEWER.JS, VIEWER.FLOW.JS, or LokaTest.cfg
+sidecar. It writes LOG.TXT beside itself and quits on the terminal record.
+For the Sun fixture, the result records are:
+
+```text
+log text=image.load%20ok
+log text=image.width%20256
+log text=image.height%20256
+log text=cancel.picture.facts%20unchanged
+terminal status=succeeded
+```
+
+These are expected results for the runner, not a Classic runtime-verification
+claim. The host decoder double supplies a 256 by 256 image and checks these
+records through the same runner and audit writer.
