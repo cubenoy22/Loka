@@ -1662,6 +1662,263 @@ namespace
     expectJs(runtime, "attached", "true");
   }
 
+  void checkCarryGo(const char *expression, const char *predicate)
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var source,received,firstContext,nextContext;"
+        "card('first',c=>{firstContext=c;return {compose(){return Text('first').TEST_ID('First')}}});"
+        "card('second',c=>{nextContext=c;received=c.carry;return {compose(){return "
+        "Text('second').TEST_ID('Second')}}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    expectJs(runtime, "firstContext.carry === undefined", "true");
+    const std::string call = std::string("source=(") + expression + ");firstContext.go('second',source);'queued'";
+    expectJs(runtime, call.c_str(), "queued");
+    LOKA_VERIFY(windowNode(window, "First"));
+    expectJs(runtime, "received === undefined", "true");
+    // Mutation is after the call but before admission: a deferred source-value copy loses here.
+    expectJs(runtime,
+             "if(source && typeof source==='object'){source.n=99;if(source.nested)source.nested.x=88;}'mutated'",
+             "mutated");
+    admission.flush();
+    LOKA_VERIFY(windowNode(window, "Second"));
+    expectJs(runtime, predicate, "true");
+    expectJs(runtime, "nextContext.go('first');'queued'", "queued");
+    admission.flush();
+    LOKA_VERIFY(windowNode(window, "First"));
+    expectJs(runtime, "firstContext.carry === undefined", "true");
+    admission.flush();
+  }
+
+  void checkCarryRefusals(int selected = -1)
+  {
+    const char *bad[] = {
+        "function(){}",
+        "Symbol('v')",
+        "{[Symbol('key')]:1}",
+        "{x:undefined}",
+        "[undefined]",
+        "[,,]",
+        "Object.assign([1],{extra:2})",
+        "Object.defineProperty([], 'x', {value:1})",
+        "{get x(){++getterCalls;return 1}}",
+        "Object.defineProperty({},'x',{set(v){++getterCalls},enumerable:true})",
+        "Object.defineProperty({},'x',{value:1})",
+        "new Date()",
+        "/x/",
+        "new Map()",
+        "new Set()",
+        "new Uint8Array(2)",
+        "new ArrayBuffer(2)",
+        "new DataView(new ArrayBuffer(2))",
+        "new Proxy({}, {ownKeys(){++getterCalls;return []},getPrototypeOf(){++getterCalls;return null}})",
+        "Proxy.revocable({},{}).proxy",
+        "(()=>{var p=Proxy.revocable({},{});p.revoke();return p.proxy})()",
+        "new (class X{})",
+        "Object.create({x:1})",
+        "1n",
+        "NaN",
+        "Infinity",
+        "-Infinity",
+        "{x:()=>1}",
+        "{toJSON(){++getterCalls;return 1}}",
+        "new Number(2)",
+        "new String('s')",
+        "new Boolean(true)",
+        "(()=>{var x={};x.self=x;return x})()",
+        "(()=>{var x=[];x[0]=x;return x})()",
+        "Object.defineProperty([1],'0',{get(){++getterCalls;return 1}})",
+        "new (class X extends Array{})(1,2)"};
+    const char *oversized[] = {"'x'.repeat(16383)",
+                               "'é'.repeat(8192)",
+                               "'\\n'.repeat(2731)",
+                               "(()=>{var x=0;for(var i=0;i<33;i++)x=[x];return x})()",
+                               "Array(1025).fill(0)",
+                               "({a:Array(512).fill(0),b:Array(511).fill(0)})",
+                               "(()=>{var x={};for(var i=0;i<1025;i++)x[i]=0;return x})()",
+                               // Refused by length before its keys are listed (#1037 review).
+                               "(()=>{var a=[];a.length=1000000;return a})()"};
+    const char *doors[] = {"firstContext.go('second',", "firstContext.open('NEXT.JS',", "firstContext.reload("};
+    for (unsigned d = 0; d < 3; ++d)
+    {
+      smirkycard::ScriptRuntime runtime;
+      loka::core::String error;
+      LOKA_VERIFY(runtime.loadBuiltin("var getterCalls=0,firstContext;card('first',c=>{firstContext=c;return "
+                                      "{compose(){return Text('live').TEST_ID('Live')}}});"
+                                      "card('second',c=>({compose(){return Text('wrong').TEST_ID('Wrong')}}));",
+                                      error));
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      loka::app::scene::Scene *before = window.scene();
+      smirkycard::JsEngine *engine = runtime.currentEngine();
+      for (unsigned group = 0; group < 2; ++group)
+      {
+        const unsigned count = group ? sizeof(oversized) / sizeof(oversized[0]) : sizeof(bad) / sizeof(bad[0]);
+        for (unsigned i = 0; i < count; ++i)
+        {
+          if (selected >= 0 && static_cast<unsigned>(selected) != i + (group ? sizeof(bad) / sizeof(bad[0]) : 0))
+            continue;
+          const std::string call =
+              std::string("try{") + doors[d] + (group ? oversized[i] : bad[i]) + ");'accepted'}catch(e){e.name}";
+          loka::core::String result, callError;
+          LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Utf8(call.data(), call.size()), result, callError));
+          expectJs(runtime, "getterCalls", "0");
+          LOKA_VERIFY(result.compare(loka::core::String::Literal(group ? "RangeError" : "TypeError")) == 0);
+          admission.flush();
+          LOKA_VERIFY(window.scene() == before && runtime.currentEngine() == engine);
+          LOKA_VERIFY(windowNode(window, "Live") && !windowNode(window, "Wrong"));
+          expectJs(runtime, "firstContext.error.get()", "");
+        }
+      }
+      // Successful navigation after every refusal proves the card remained Live.
+      expectJs(runtime, "firstContext.go('second');'queued'", "queued");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Wrong"));
+      admission.flush();
+    }
+  }
+
+  void checkCarryAcrossEngines()
+  {
+    const char *directory = "_smirkycard_carry_fixture";
+    const char *mainPath = "_smirkycard_carry_fixture/MAIN.JS";
+    const char *nextPath = "_smirkycard_carry_fixture/NEXT.JS";
+    std::remove(mainPath);
+    std::remove(nextPath);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    const char *source = "var current;card('first',c=>{current=c;return {compose(){return VStack("
+                         "Text(c.carry===undefined?'absent':String(c.carry.n)).TEST_ID('Carry'),"
+                         "Button('open',()=>{var v={n:7};c.open('NEXT.JS',v);v.n=99}).TEST_ID('Open'),"
+                         "Button('reload',()=>{var v={n:8};c.reload(v);v.n=99}).TEST_ID('Reload'))}}});";
+    writeMain(mainPath, source);
+    writeMain(nextPath, source);
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      LOKA_VERIFY(textValue(windowNode(window, "Carry")->asTextNode()) == "absent");
+      const char *buttons[] = {"Open", "Reload"};
+      const char *expected[] = {"7", "8"};
+      for (unsigned i = 0; i < 2; ++i)
+      {
+        smirkycard::JsEngine *old = runtime.currentEngine();
+        clickCardButton(window, buttons[i]);
+        LOKA_VERIFY(runtime.currentEngine() != old);
+        admission.flush();
+        LOKA_VERIFY(textValue(windowNode(window, "Carry")->asTextNode()) == expected[i]);
+        expectJs(runtime, "current.carry.n=42;current.carry.n", "42");
+        admission.flush();
+        LOKA_VERIFY(runtime.retiredEngineCount() == 0);
+      }
+    }
+    std::remove(mainPath);
+    std::remove(nextPath);
+    removeDirectory(directory);
+  }
+
+  void checkCarryAllocationFailure()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var current,started=false;card('first',c=>{current=c;return {compose(){return "
+        "Text('live').TEST_ID('Live')}}});"
+        "card('second',c=>{started=true;return {compose(){return Text('second').TEST_ID('Second')}}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    {
+      // Refuse ownership of an otherwise completed encoding before any Scene is queued.
+      const char *call = "current.go('second',{n:1})";
+      loka::core::testing::failLokaAllocRaw("Managed", "ControlBlock", 1);
+      JSValue result = JS_Eval(runtime.context(), call, std::strlen(call), "<carry allocation>", JS_EVAL_TYPE_GLOBAL);
+      LOKA_VERIFY(JS_IsException(result));
+      JSValue exception = JS_GetException(runtime.context());
+      JS_FreeValue(runtime.context(), exception);
+      JS_FreeValue(runtime.context(), result);
+      LOKA_VERIFY(loka::core::testing::lokaAllocRawAttempts() == 1);
+      LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+      loka::core::testing::allowLokaAllocRaw();
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Live"));
+    }
+    expectJs(runtime, "current.go('second','x'.repeat(16000));'queued'", "queued");
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(runtime.jsRuntime(), &usage);
+    // Context/method allocation fits; the destination's 16KB decoded string does not.
+    JS_SetMemoryLimit(runtime.jsRuntime(), static_cast<size_t>(usage.malloc_size) + 4096);
+    admission.flush();
+    JS_SetMemoryLimit(runtime.jsRuntime(), static_cast<size_t>(-1));
+    loka::app::scene::Node *status = windowNode(window, "SmirkyCard.Status");
+    LOKA_VERIFY(status && status->asTextNode());
+    LOKA_VERIFY(textValue(status->asTextNode()).find("Could not decode carry in the destination card.")
+                != std::string::npos);
+    LOKA_VERIFY(!windowNode(window, "Live") && !windowNode(window, "Second"));
+    expectJs(runtime, "started", "false");
+    admission.flush();
+  }
+
+  void checkCarry()
+  {
+    std::puts("[pin] carry: snapshot, destination mutation, absence, strict refusal, budgets and engine replacement");
+    checkCarryGo("{n:1,list:[1,'a',true,null],nested:{x:2}}",
+                 "received.n===1 && received.list.join(',')==='1,a,true,' && received.nested.x===2 && "
+                 "(received.nested.x=5,source.nested.x===88)");
+    checkCarryGo("(()=>{var shared={x:1};return {a:shared,b:shared}})()",
+                 "received.a!==received.b && (received.a.x=9,received.b.x===1)");
+    checkCarryGo("Object.assign(Object.create(null),{x:1})", "received.x===1");
+    checkCarryGo("{['__proto__']:{x:1}, ['a\\u0000b']:'\\ud800\\udfff\\udc00\\n\\\"\\\\é'}",
+                 "Object.hasOwn(received,'__proto__') && received['a\\u0000b']==='\\ud800\\udfff\\udc00\\n\\\"\\\\é'");
+    checkCarryGo("undefined", "received===undefined && nextContext.carry===undefined");
+    checkCarryGo("null", "received===null");
+    checkCarryGo("[-0,1.7976931348623157e308,5e-324,-1.25]",
+                 "Object.is(received[0],-0) && received[1]===Number.MAX_VALUE && received[2]===Number.MIN_VALUE && "
+                 "received[3]===-1.25");
+    checkCarryGo("'x'.repeat(16381)", "received.length===16381");
+    checkCarryGo("'x'.repeat(16382)", "received.length===16382");
+    checkCarryGo("'é'.repeat(8191)", "received.length===8191");
+    checkCarryGo("(()=>{var x=0;for(var i=0;i<32;i++)x=[x];return x})()",
+                 "(()=>{var x=received,n=0;while(Array.isArray(x)){++n;x=x[0]}return n===32&&x===0})()");
+    checkCarryGo("Array(1024).fill(0)", "received.length===1024");
+    checkCarryGo("({a:Array(511).fill(0),b:Array(511).fill(0)})", "received.a.length+received.b.length===1022");
+    checkCarryGo("(JSON={stringify(){throw Error('replaceable JSON')},parse(){throw Error('replaceable JSON')}},[1])",
+                 "received[0]===1");
+    checkCarryGo("(globalThis.poisonCalls=0,Object.defineProperty(Object.prototype,'carry',"
+                 "{get(){return 'poison'},set(v){++poisonCalls;v.n=9},configurable:true}),{n:1})",
+                 "received.n===1 && poisonCalls===0 && Object.hasOwn(nextContext,'carry')");
+    checkCarryGo("(Object.defineProperty(Object.prototype,'carry',{value:'poison',writable:false}),{n:1})",
+                 "received.n===1 && Object.hasOwn(nextContext,'carry')");
+    checkCarryAllocationFailure();
+    checkCarryRefusals();
+    checkCarryAcrossEngines();
+  }
+
   void checkCardContext()
   {
     std::puts("[pin] card context: class, factory, arrow construction exactly once");
@@ -2010,6 +2267,21 @@ int main(int argc, char **argv)
     checkExceptionContext();
     return 0;
   }
+  if (argc == 3 && !std::strcmp(argv[1], "--carry-refusal"))
+  {
+    checkCarryRefusals(std::atoi(argv[2]));
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--carry-engines"))
+  {
+    checkCarryAcrossEngines();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--carry"))
+  {
+    checkCarry();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--card-context"))
   {
     checkCardContext();
@@ -2038,6 +2310,7 @@ int main(int argc, char **argv)
     checkMines();
     return 0;
   }
+  checkCarry();
   checkMaterializedGetters();
   checkEarlySeatRefusal();
   checkMissingComposeAfterAttach();
