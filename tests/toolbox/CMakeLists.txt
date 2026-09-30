@@ -428,6 +428,24 @@ target_include_directories(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE
 )
 target_compile_definitions(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
 
+function(loka_configure_toolbox_standalone_target
+         target example_include_dir aggregate_target)
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+  target_include_directories(${target} PRIVATE
+    ${CMAKE_SOURCE_DIR}/tests/standalone
+    ${example_include_dir}
+  )
+  target_compile_definitions(${target} PRIVATE
+    TEST_BUILD
+    LOKA_DIAG=1
+  )
+  # The aggregates exist only with LOKA_ENABLE_STANDALONE_TARGETS.
+  if(TARGET ${aggregate_target})
+    add_dependencies(${aggregate_target} ${target}_APPL)
+  endif()
+endfunction()
+
 if(LOKA_ENABLE_STANDALONE_TARGETS)
 set(LOKA_STANDALONE_FLOW_TOOLBOX_TARGET
   # Keep the generated application name within Classic HFS's 31-character limit.
@@ -508,21 +526,6 @@ set(LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET
 )
 add_custom_target(${LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET})
 add_custom_target(${LOKA_STANDALONE_LOOP_TOOLBOX_ALL_TARGET})
-
-function(loka_configure_toolbox_standalone_target
-         target example_include_dir aggregate_target)
-  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
-  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
-  target_include_directories(${target} PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/standalone
-    ${example_include_dir}
-  )
-  target_compile_definitions(${target} PRIVATE
-    TEST_BUILD
-    LOKA_DIAG=1
-  )
-  add_dependencies(${aggregate_target} ${target}_APPL)
-endfunction()
 
 loka_add_toolbox_test_application(
   ${LOKA_STANDALONE_FLOW_TOOLBOX_TARGET}

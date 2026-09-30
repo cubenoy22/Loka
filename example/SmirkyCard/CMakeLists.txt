@@ -121,3 +121,59 @@ if(TARGET LokaCommonTesting)
     SMIRKYCARD_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
   add_test(NAME smirkyCardSceneSwitch COMMAND LokaSmirkyCardTests)
 endif()
+
+# One call plus two JS files adds a scenario; the config and main contain no card names.
+function(smirkycard_add_scenario_runner name)
+  cmake_parse_arguments(SCENARIO "" "CARD;FLOW;SCENARIO;APP_NAME;SEED" "" ${ARGN})
+  set(embed_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}-scenario")
+  file(MAKE_DIRECTORY "${embed_dir}")
+  foreach(kind IN ITEMS Card Flow)
+    if(kind STREQUAL "Card")
+      set(input "${SCENARIO_CARD}")
+    else()
+      set(input "${SCENARIO_FLOW}")
+    endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${input}")
+    execute_process(COMMAND ${CMAKE_COMMAND}
+      "-DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${input}"
+      "-DOUTPUT=${embed_dir}/Scenario${kind}.inc"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedMainJs.cmake"
+      RESULT_VARIABLE result)
+    if(NOT result EQUAL 0)
+      message(FATAL_ERROR "Could not embed ${input}")
+    endif()
+  endforeach()
+  add_library(${name}ScenarioInputs INTERFACE)
+  target_include_directories(${name}ScenarioInputs INTERFACE "${embed_dir}")
+  target_compile_definitions(${name}ScenarioInputs INTERFACE
+    SMIRKYCARD_SCENARIO_SEED=${SCENARIO_SEED}
+    "SMIRKYCARD_SCENARIO_NAME=\"${SCENARIO_SCENARIO}\""
+    "SMIRKYCARD_SCENARIO_APP_NAME=\"${SCENARIO_APP_NAME}\""
+    "SMIRKYCARD_SCENARIO_COMPANION=\"${SCENARIO_FLOW}\"")
+  # Registered whenever SmirkyCard builds for Classic, so the SmirkyCard build
+  # task makes the app and its scenario runner together (EXCLUDE_FROM_ALL).
+  if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
+    set(target "Loka${name}StandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}")
+    loka_add_toolbox_test_application(${target} LokaAppleToolboxTestCore
+      src/StandaloneFlowMain.cpp src/StandaloneFlowAppConfig.cpp Size.r
+      ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+      ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+      ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+      ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp)
+    smirkycard_cpp_target(${target})
+    target_link_libraries(${target} PRIVATE ${name}ScenarioInputs)
+    loka_configure_toolbox_standalone_target(${target}
+      "${CMAKE_CURRENT_SOURCE_DIR}/src" "LokaStandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}All")
+  endif()
+endfunction()
+
+smirkycard_add_scenario_runner(SmirkyCard CARD MINES.JS FLOW MINES.FLOW.JS
+  SCENARIO mines APP_NAME "SmirkyCard Mines" SEED 7)
+if(TARGET LokaSmirkyCardTests)
+  target_link_libraries(LokaSmirkyCardTests PRIVATE SmirkyCardScenarioInputs)
+  target_sources(LokaSmirkyCardTests PRIVATE src/StandaloneFlowAppConfig.cpp
+    ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioReel.cpp
+    ${PROJECT_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp)
+  target_include_directories(LokaSmirkyCardTests PRIVATE ${PROJECT_SOURCE_DIR}/tests/standalone)
+endif()

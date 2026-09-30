@@ -742,7 +742,8 @@
         "--preset",
         "retro68-68k-release",
         "--target",
-        "LokaSmirkyCard68K_APPL"
+        "LokaSmirkyCard68K_APPL",
+        "LokaSmirkyCardStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
         "Configure: Retro68 68K SmirkyCard"

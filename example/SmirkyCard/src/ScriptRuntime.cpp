@@ -601,13 +601,15 @@ namespace smirkycard
   bool ScriptRuntime::enableRunner(loka::dsl::testing::ScenarioAuditSink *sink,
                                    loka::dsl::testing::ScenarioClock *clock,
                                    unsigned long seed,
-                                   const char *companion)
+                                   const char *companion,
+                                   const char *bakedCompanion)
   {
-    if (!sink || !clock || !companion || !*companion || this->runner_ || !this->currentEngine_
+    if (!sink || !clock || !companion || !*companion || (bakedCompanion && !*bakedCompanion)
+        || this->runner_ || !this->currentEngine_
         || this->currentEngine_->cardCount_ || this->currentEngine_->hasConstructor(SMIRKY_CARD_FIRST)
         || this->currentEngine_->hasConstructor(SMIRKY_CARD_SECOND))
       return false;
-    this->runner_ = new (std::nothrow) Runner(sink, clock, seed, companion);
+    this->runner_ = new (std::nothrow) Runner(sink, clock, seed, companion, bakedCompanion);
     return this->runner_ && this->installRunner(*this->currentEngine_);
   }
 
@@ -648,8 +650,8 @@ namespace smirkycard
 
   bool ScriptRuntime::evalCompanion(JsEngine &engine, SmirkyCardId selected, loka::core::String &error)
   {
-    std::string text;
-    if (this->readFile(this->runner_->companion, text, error) != FILE_READ_OK)
+    std::string text = this->runner_->bakedCompanion;
+    if (text.empty() && this->readFile(this->runner_->companion, text, error) != FILE_READ_OK)
       return false;
     this->runner_->registering = &engine;
     const bool ok = this->evalMain(engine, text.data(), text.size(), this->runner_->companion.c_str(), error);

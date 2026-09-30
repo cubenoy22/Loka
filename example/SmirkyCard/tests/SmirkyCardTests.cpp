@@ -1,4 +1,7 @@
 #include "MyAppConfig.hpp"
+#include "StandaloneFlowAppConfig.hpp"
+#include "platform/null/NullApp.hpp"
+#include "testing/app/AppTestAccess.hpp"
 #include "JsCardBindingRegistry.hpp"
 #include "SmirkyMarkup.hpp"
 #include "JsClickNode.hpp"
@@ -2269,7 +2272,7 @@ namespace
   class CardRunnerHarness : public loka::dsl::testing::ScenarioAuditSink
   {
   public:
-    CardRunnerHarness(const char *source, const char *companion, unsigned long seed = 7)
+    CardRunnerHarness(const char *source, const char *companion, unsigned long seed = 7, bool baked = false)
         : audit(scenarioAuditDestination(), "card"),
           window(0),
           admission(0),
@@ -2285,10 +2288,16 @@ namespace
       context.setApplicationDirectory(loka::core::String::Literal("_smirky_scenario"));
       if (source)
         writeMain("_smirky_scenario/MAIN.JS", source);
-      if (companion)
+      if (companion && !baked)
         writeMain("_smirky_scenario/CARD.FLOW.JS", companion);
-      LOKA_VERIFY(runtime.enableRunner(this, &clock, seed, "CARD.FLOW.JS"));
-      runtime.loadMain(&context);
+      LOKA_VERIFY(runtime.enableRunner(this, &clock, seed, "CARD.FLOW.JS", baked ? companion : 0));
+      if (baked)
+      {
+        loka::core::String error;
+        LOKA_VERIFY(runtime.loadBuiltin(source, error));
+      }
+      else
+        runtime.loadMain(&context);
     }
     ~CardRunnerHarness()
     {
@@ -2398,7 +2407,8 @@ namespace
           "if(v!==undefined)throw Error('initial value');c.test.click('change');"
           "if(c.test.text('title')!=='after'||c.test.text('edit')!=='after'||c.test.text('change')!=='change')throw "
           "Error('text');"
-          "if(c.test.text('markup')!=='markup')throw Error('markup');c.test.click('cell');"
+          "if(c.test.text('markup')!=='markup')throw Error('markup');"
+          "if(c.test.text('cell')!=='cell')throw Error('cell text');c.test.click('cell');"
           "if(c.test.text('title')!=='cell')throw Error('cell');return 41;}).named('click')"
           ".step(function(v){if(v!==41)throw Error('value41');return 42;}).named('value')"
           ".step(function(v){c.test.log(String(v));}).named('log')"
@@ -2512,7 +2522,7 @@ namespace
     const char *badOperations[] = {"c.test.click('missing')",
                                    "c.test.click('duplicate')",
                                    "c.test.click('title')",
-                                   "c.test.text('cell')",
+                                   "c.test.text('missing')",
                                    "c.test.enabled('title')"};
     for (unsigned i = 0; (!only || only == 7) && i < sizeof(badOperations) / sizeof(badOperations[0]); ++i)
     {
@@ -2663,6 +2673,72 @@ namespace
     LOKA_VERIFY(sequence == "0.23878083983436227,0.9134932646993548,0.6124916663393378,0.9269814591389149");
   }
 
+  void checkBakedCompanionReplacement()
+  {
+    for (int open = 0; open < 2; ++open)
+    {
+      CardRunnerHarness h(scenarioCard,
+          "scenario('first',function(c){c.run(Flow().step(function(){c.test.log('baked');}).named('baked'));});",
+          7, true);
+      // File entry establishes the platform directory for reload/open.
+      h.runtime.loadMain(&h.context);
+      h.mount();
+      h.tick();
+      writeMain("_smirky_scenario/CARD.FLOW.JS", "throw Error('file companion must not run');");
+      loka::core::String error;
+      smirkycard::JsEngine *candidate = open ? h.runtime.prepareOpen("MAIN.JS", error)
+                                           : h.runtime.prepareReload(SMIRKY_CARD_FIRST, error);
+      LOKA_VERIFY(candidate && error.empty());
+      h.runtime.discardReload(candidate);
+    }
+  }
+
+  void checkMinesScenario()
+  {
+    // Pin that the runner ignores the production seed, using checkMines' known stream.
+    const std::string source = "globalThis.SMIRKY_SEED = 0x13579BDF;\n" + readCardSource("MINES.JS");
+    const std::string companion = readCardSource("MINES.FLOW.JS");
+    CardRunnerHarness h(source.c_str(), companion.c_str(), SMIRKYCARD_SCENARIO_SEED, true);
+    h.mount();
+    h.ticks(20);
+    LOKA_VERIFY(h.terminalCount == 1 && h.terminal == loka::dsl::testing::SCENARIO_AUDIT_SUCCEEDED);
+    const char *names[] = {"initial-status", "flag-cell", "reveal-mode", "flood-fill", "summary"};
+    LOKA_VERIFY(h.steps.size() == 10);
+    for (size_t i = 0; i < 5; ++i)
+      LOKA_VERIFY(h.steps[2 * i].name() == names[i]);
+  }
+
+  class StandaloneCardTestApp : public NullApp
+  {
+  public:
+    explicit StandaloneCardTestApp(AppConfigurable *config) : NullApp(config) {}
+    Window *window() { return this->group_->getComponents()[0]->asWindow(); }
+  };
+
+  void checkStandaloneScenario()
+  {
+    NullPlatformContext context;
+    const loka::platform::file::FileHandle file = scenarioAuditDestination();
+    SmirkyCardStandaloneFlowAppConfig config(&context, &file);
+    LOKA_VERIFY(config.exitCode() == 0);
+    StandaloneCardTestApp app(&config);
+    config.setApp(&app);
+    app.run();
+    app.setActiveWindow(app.window());
+    loka::dsl::testing::SceneTestAccess::updateAttached(*app.window()->scene(), true);
+    loka::app::testing::AppTestAccess::flushWindowInvalidations(app);
+    for (int i = 0; i < 20 && !app.quitRequested(); ++i)
+      app.handleIdle(0.1);
+    LOKA_VERIFY(app.quitRequested() && config.exitCode() == 0);
+    const std::string audit = readScenarioAudit();
+    char seed[40];
+    std::sprintf(seed, "log text=seed%%3D%lu\n", static_cast<unsigned long>(SMIRKYCARD_SCENARIO_SEED));
+    LOKA_VERIFY(audit.find(seed) != std::string::npos);
+    LOKA_VERIFY(audit.find(seed) < audit.find("name=initial-status"));
+    LOKA_VERIFY(audit.find("terminal status=succeeded\n") != std::string::npos);
+    LOKA_VERIFY(audit == readCardSource("tests/MINES.audit"));
+  }
+
   void checkScenarioOff()
   {
     smirkycard::ScriptRuntime runtime;
@@ -2680,6 +2756,13 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--mines-scenario"))
+  {
+    checkBakedCompanionReplacement();
+    checkMinesScenario();
+    checkStandaloneScenario();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--materialized-getters"))
   {
     checkMaterializedGetters();
@@ -2751,6 +2834,9 @@ int main(int argc, char **argv)
     checkScenarioRandom();
     checkScenarioEngineReplacement();
     checkScenarioOff();
+    checkBakedCompanionReplacement();
+    checkMinesScenario();
+    checkStandaloneScenario();
     return 0;
   }
   checkCardScenarios();
@@ -2758,6 +2844,9 @@ int main(int argc, char **argv)
   checkScenarioRandom();
   checkScenarioEngineReplacement();
   checkScenarioOff();
+  checkBakedCompanionReplacement();
+  checkMinesScenario();
+  checkStandaloneScenario();
   checkCarry();
   checkMaterializedGetters();
   checkEarlySeatRefusal();
