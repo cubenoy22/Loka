@@ -32,14 +32,16 @@ namespace loka
             value = 0
           };
         };
+        /** Plain overload test, no expression SFINAE: GCC 4.2 (Xcode 3.2.6) does
+            not treat a sizeof in a template array bound as a constant (#1050).
+            An ambiguous or inaccessible base still fails to compile at the call. */
         template <class T> struct NodeConvertible
         {
-          static char accept(scene::Node *);
-          template <class U> static char test(char (*)[sizeof(accept(static_cast<U *>(0)))]);
-          template <class U> static long test(...);
+          static char test(scene::Node *);
+          static long test(...);
           enum
           {
-            value = sizeof(test<T>(0)) == sizeof(char)
+            value = sizeof(test(static_cast<T *>(0))) == sizeof(char)
           };
         };
         template <class List> struct ListCheck
