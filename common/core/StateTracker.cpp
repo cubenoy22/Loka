@@ -1,11 +1,147 @@
 #include "core/StateTracker.hpp"
 #include "core/State.hpp"
+#include "core/Operation.hpp"
+#include <cassert>
 #include <cstdio>
 
 namespace loka
 {
   namespace core
   {
+
+    namespace
+    {
+      void reportOperationStatus(OperationStatus status)
+      {
+        switch (status)
+        {
+        case OPERATION_SETTLED:
+          break;
+        case OPERATION_REFUSED_STATE_BUDGET:
+          fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
+          break;
+        case OPERATION_REFUSED_CHAIN_LIMIT:
+          fprintf(stderr, "[Loka] StateTracker commit chain did not settle before the iteration limit.\n");
+          break;
+        }
+      }
+    }
+
+    Operation *Operation::active_ = 0;
+
+    Operation::Operation(const OperationBudget &budget)
+        : head_(0), tail_(0), budget_(budget), phase_(OPEN)
+    {
+      assert(!Operation::active_ && "only one Operation may be active");
+      Operation::active_ = this;
+    }
+
+    Operation::~Operation()
+    {
+      if (this->phase_ != CLOSED)
+        this->close();
+    }
+
+    OpenResult Operation::open(StateTracker *tracker)
+    {
+      assert(this->phase_ == OPEN || this->phase_ == DRIVING);
+      assert(tracker);
+      PushStateTracker *ledger = tracker->asPushTracker();
+      if (!ledger)
+        return OPEN_REFUSED_NOT_PUSH;
+      if (ledger->op_ == this)
+        return OPEN_ALREADY_OPEN;
+      if (ledger->phase() != TRACKER_IDLE)
+        return OPEN_REFUSED_BUSY;
+      ledger->begin();
+      ledger->op_ = this;
+      ledger->opNext_ = 0;
+      if (this->tail_)
+        this->tail_->opNext_ = ledger;
+      else
+        this->head_ = ledger;
+      this->tail_ = ledger;
+      return OPEN_OK;
+    }
+
+    bool Operation::hasWork() const
+    {
+      for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+        if (t->hasWork())
+          return true;
+      return false;
+    }
+
+    OperationOutcome Operation::close()
+    {
+      assert(this->phase_ == OPEN && "Operation closes once, outside its callbacks");
+      this->phase_ = DRIVING;
+      OperationStatus status = OPERATION_SETTLED;
+      size_t rounds = 0;
+      while (this->hasWork())
+      {
+        if (this->budget_.rounds == 0)
+        {
+          status = OPERATION_REFUSED_CHAIN_LIMIT;
+          break;
+        }
+        --this->budget_.rounds;
+        PushStateTracker *const frontier = this->tail_;
+        ++rounds;
+        for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+        {
+          if (t->hasWork() && t->step(this->budget_) == PushStateTracker::STEP_STATE_BUDGET)
+          {
+            status = OPERATION_REFUSED_STATE_BUDGET;
+            break;
+          }
+          if (t == frontier)
+            break;
+        }
+        if (status != OPERATION_SETTLED)
+          break;
+      }
+      this->phase_ = CLOSING;
+      for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+        t->removeRoutes();
+      for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+        if (!t->drainDeferred(this->budget_) && status == OPERATION_SETTLED)
+          status = OPERATION_REFUSED_CHAIN_LIMIT;
+      while (this->head_)
+      {
+        PushStateTracker *t = this->head_;
+        t->releaseClockLevel();
+        this->head_ = t->opNext_;
+        t->opNext_ = 0;
+        t->op_ = 0;
+      }
+      this->tail_ = 0;
+      this->phase_ = CLOSED;
+      Operation::active_ = 0;
+      reportOperationStatus(status);
+      return OperationOutcome(status, rounds);
+    }
+
+    void Operation::withdraw(PushStateTracker *tracker)
+    {
+      PushStateTracker *previous = 0;
+      for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+      {
+        if (t == tracker)
+        {
+          if (previous)
+            previous->opNext_ = t->opNext_;
+          else
+            this->head_ = t->opNext_;
+          if (this->tail_ == t)
+            this->tail_ = previous;
+          t->opNext_ = 0;
+          t->op_ = 0;
+          return;
+        }
+        previous = t;
+      }
+    }
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE),
@@ -20,7 +156,9 @@ namespace loka
           statesHead_(0),
           statesTail_(0),
           freeEntries_(&initialEntry_),
-          chunks_(0)
+          chunks_(0),
+          op_(0),
+          opNext_(0)
     {
     }
 
@@ -37,7 +175,9 @@ namespace loka
           statesHead_(0),
           statesTail_(0),
           freeEntries_(&initialEntry_),
-          chunks_(0)
+          chunks_(0),
+          op_(0),
+          opNext_(0)
     {
       for (size_t i = 0; i < states.size(); ++i)
       {
@@ -47,6 +187,11 @@ namespace loka
 
     PushStateTracker::~PushStateTracker()
     {
+      if (this->op_)
+      {
+        assert(!"ledger destroyed while open by an Operation");
+        this->op_->withdraw(this);
+      }
       releaseEntries();
     }
 
@@ -64,7 +209,7 @@ namespace loka
       }
       ++depth_;
       for (StateEntry *e = statesHead_; e; e = e->next)
-        e->state->currentTracker = this;
+        this->installRoute(e->state);
       transaction_.begin();
       phase_ = TRACKER_PRECOMMIT;
     }
@@ -157,7 +302,7 @@ namespace loka
       }
       if (phase_ != TRACKER_IDLE)
       {
-        state->currentTracker = this;
+        this->installRoute(state);
       }
     }
 
@@ -190,7 +335,7 @@ namespace loka
       }
       if (phase_ != TRACKER_IDLE)
       {
-        state->currentTracker = this;
+        this->installRoute(state);
       }
     }
 
@@ -285,50 +430,106 @@ namespace loka
       --depth_;
       if (depth_ > 0)
         return true;
-      size_t stateIterationsRemaining = 1000;
-      size_t commitIterationsRemaining = 1000;
-      bool settled = true;
-      while (commitIterationsRemaining > 0)
+      assert(this->op_ == 0 && "Operation owns the final clock level");
+      OperationBudget budget;
+      OperationStatus status = OPERATION_SETTLED;
+      while (this->hasWork() && budget.rounds > 0)
       {
-        --commitIterationsRemaining;
-        phase_ = TRACKER_PRECOMMIT;
-        if (!settleCurrentTransaction(stateIterationsRemaining))
+        --budget.rounds;
+        if (this->step(budget) == STEP_STATE_BUDGET)
         {
-          settled = false;
-          fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
+          status = OPERATION_REFUSED_STATE_BUDGET;
           break;
         }
+      }
+      if (this->hasWork() && status == OPERATION_SETTLED)
+        status = OPERATION_REFUSED_CHAIN_LIMIT;
+      this->removeRoutes();
+      if (!this->drainDeferred(budget) && status == OPERATION_SETTLED)
+        status = OPERATION_REFUSED_CHAIN_LIMIT;
+      // end() consumed the legacy level above; Operation releases its level
+      // only after the same route-removal and deferred-drain stages.
+      reportOperationStatus(status);
+      return status == OPERATION_SETTLED;
+    }
 
-        phase_ = TRACKER_COMMIT;
-        for (size_t i = 0; i < transaction_.current.deferred.size(); ++i)
-        {
-          transaction_.current.deferred[i].first(
-              transaction_.current.deferred[i].second);
-        }
-        transaction_.current.deferred.clear();
-        if (invalidateFn_ && transaction_.current.dirty)
-        {
-          invalidateFn_(invalidateUserData_);
-        }
-        if (!transaction_.next.hasWork())
-        {
-          break;
-        }
-        if (commitIterationsRemaining == 0)
-        {
-          break;
-        }
-        transaction_.advance();
-      }
-      if (settled && transaction_.next.hasWork())
+    PushStateTracker::StepResult PushStateTracker::step(OperationBudget &budget)
+    {
+      // Rotate on entry only: the completed snapshot of the previous step
+      // stays readable until the next step or the next begin().
+      if (!this->transaction_.current.hasWork() && this->transaction_.next.hasWork())
+        this->transaction_.advance();
+      this->phase_ = TRACKER_PRECOMMIT;
+      if (!this->settleCurrentTransaction(budget.stateIterations))
+        return STEP_STATE_BUDGET;
+      this->phase_ = TRACKER_COMMIT;
+      for (size_t i = 0; i < this->transaction_.current.deferred.size(); ++i)
+        this->transaction_.current.deferred[i].first(
+            this->transaction_.current.deferred[i].second);
+      this->transaction_.current.deferred.clear();
+      if (this->transaction_.current.dirty && this->invalidateFn_)
+        this->invalidateFn_(this->invalidateUserData_);
+      this->transaction_.current.dirty = false;
+      this->phase_ = TRACKER_PRECOMMIT;
+      return STEP_DONE;
+    }
+
+    bool PushStateTracker::hasWork() const
+    {
+      return this->transaction_.current.hasWork() || this->transaction_.next.hasWork();
+    }
+
+    void PushStateTracker::installRoute(StateBase *state)
+    {
+#ifdef LOKA_LIFECYCLE_AUDIT
+      assert(state->currentTracker == 0 || state->currentTracker == this);
+#endif
+      state->currentTracker = this;
+    }
+
+    void PushStateTracker::removeRoutes()
+    {
+      for (StateEntry *e = this->statesHead_; e; e = e->next)
+        if (e->state->currentTracker == this)
+          e->state->currentTracker = 0;
+      this->phase_ = TRACKER_IDLE;
+    }
+
+    bool PushStateTracker::drainDeferred(OperationBudget &budget)
+    {
+      // Keep the empty intakes' capacity on ordinary successful legacy clocks.
+      if (this->transaction_.current.deferred.empty() &&
+          this->transaction_.next.deferred.empty())
+        return true;
+      // The first pass discharges leftover obligations even after refusal has
+      // spent every round. Only callbacks queued again consume retry rounds.
+      for (;;)
       {
-        settled = false;
-        fprintf(stderr, "[Loka] StateTracker commit chain did not settle before the iteration limit.\n");
+        DeferredList current;
+        DeferredList next;
+        current.swap(this->transaction_.current.deferred);
+        next.swap(this->transaction_.next.deferred);
+        for (size_t i = 0; i < current.size(); ++i)
+          current[i].first(current[i].second);
+        for (size_t i = 0; i < next.size(); ++i)
+          next[i].first(next[i].second);
+        if (this->transaction_.current.deferred.empty() &&
+            this->transaction_.next.deferred.empty())
+          return true;
+        if (budget.rounds == 0)
+        {
+          this->transaction_.current.deferred.clear();
+          this->transaction_.next.deferred.clear();
+          return false;
+        }
+        --budget.rounds;
       }
-      phase_ = TRACKER_IDLE;
-      for (StateEntry *e = statesHead_; e; e = e->next)
-        e->state->currentTracker = 0;
-      return settled;
+    }
+
+    void PushStateTracker::releaseClockLevel()
+    {
+      assert(this->depth_ == 1);
+      this->depth_ = 0;
     }
 
     bool PushStateTracker::settleCurrentTransaction(size_t &iterationsRemaining)

@@ -35,6 +35,7 @@
 #include "SmallObjectPoolTests.hpp"
 #include "StateTrackerAllocationTests.hpp"
 #include "StateTrackerCommitTests.hpp"
+#include "OperationTests.hpp"
 #include "BoundaryObservedStateTrackerTests.hpp"
 #include "NodeObservedUsesTests.hpp"
 #include "NullMeasurementReuseTests.hpp"

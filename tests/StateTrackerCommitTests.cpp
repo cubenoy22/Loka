@@ -418,3 +418,96 @@ void testStateTrackerGuardOpenedDuringCommitJoinsTransaction()
   assert(tracker.phase() == loka::core::TRACKER_IDLE);
   printf("==== [testStateTrackerGuardOpenedDuringCommitJoinsTransaction] end ====\n");
 }
+
+namespace
+{
+  struct RefusalDeferredProbe
+  {
+    loka::core::PushStateTracker *tracker;
+    loka::core::MutableState<int> *source;
+    int invalidations;
+    int deferredCalls;
+  };
+
+  void countRefusalDeferred(void *data)
+  {
+    ++static_cast<RefusalDeferredProbe *>(data)->deferredCalls;
+  }
+
+  void deferOnLastCommit(void *data)
+  {
+    RefusalDeferredProbe &probe = *static_cast<RefusalDeferredProbe *>(data);
+    ++probe.invalidations;
+    probe.source->set(probe.source->get() + 1);
+    if (probe.invalidations == 1000)
+      loka::core::testing::PushStateTrackerTestAccess::defer(
+          *probe.tracker, &countRefusalDeferred, &probe);
+  }
+
+  struct UnsettledState : loka::core::StateBase
+  {
+    loka::core::PushStateTracker *tracker;
+    explicit UnsettledState(loka::core::PushStateTracker *t) : tracker(t) {}
+    bool recompute()
+    {
+      this->tracker->markDirty(this);
+      return false;
+    }
+  };
+}
+
+void testStateTrackerRefusalRunsLeftoverDeferred()
+{
+  loka::core::MutableState<int> source(0);
+  loka::core::PushStateTracker tracker;
+  RefusalDeferredProbe probe = { &tracker, &source, 0, 0 };
+  tracker.addState(&source);
+  tracker.setInvalidateCallback(&deferOnLastCommit, &probe);
+  tracker.begin();
+  source.set(1);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(!settled);
+  assert(probe.invalidations == 1000);
+  assert(source.get() == 1001);
+  assert(probe.deferredCalls == 1);
+  tracker.begin();
+  const bool nextSettled = tracker.end();
+  (void)nextSettled;
+  assert(nextSettled);
+  assert(probe.deferredCalls == 1);
+}
+
+void testStateTrackerStateBudgetRunsCurrentDeferred()
+{
+  loka::core::PushStateTracker tracker;
+  UnsettledState source(&tracker);
+  RefusalDeferredProbe probe = { &tracker, 0, 0, 0 };
+  tracker.addState(&source);
+  tracker.begin();
+  tracker.markDirty(&source);
+  loka::core::testing::PushStateTrackerTestAccess::defer(
+      tracker, &countRefusalDeferred, &probe);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(!settled);
+  assert(probe.deferredCalls == 1);
+  assert(tracker.phase() == loka::core::TRACKER_IDLE);
+  assert(source.trackerOwner() == 0);
+}
+
+void testStateTrackerLegacyEndPreservesCompletedSnapshot()
+{
+  loka::core::MutableState<int> source(0);
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&source);
+  tracker.begin();
+  source.set(1);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(settled);
+  assert(tracker.committedDirtyStates().size() == 1);
+  assert(tracker.committedDirtyStates()[0] == &source);
+  assert(tracker.transactionDirty());
+  assert(tracker.peekDirty());
+}

@@ -43,6 +43,14 @@ namespace loka
         {
           return tracker.transaction_.current.dirtyStates.size();
         }
+        static unsigned int depth(const PushStateTracker &tracker)
+        {
+          return tracker.depth_;
+        }
+        static size_t currentDeferredCount(const PushStateTracker &tracker)
+        {
+          return tracker.transaction_.current.deferred.size();
+        }
         static size_t nextDirtyCount(const PushStateTracker &tracker)
         {
           return tracker.transaction_.next.dirtyStates.size();
