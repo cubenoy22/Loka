@@ -241,9 +241,10 @@ The host runner harness is in [SmirkyCardTests.cpp](tests/SmirkyCardTests.cpp);
 standalone runner bakes both sources through
 `smirkycard_add_scenario_runner` in [CMakeLists.txt](CMakeLists.txt). Add content
 with another call specifying CARD, FLOW, SCENARIO, APP_NAME and SEED; no C++
-changes are needed. With `LOKA_BUILD_SMIRKYCARD` and `LOKA_ENABLE_STANDALONE_TARGETS`
-enabled, the first call builds `LokaSmirkyCardStandaloneFlow68K_APPL` or
-`LokaSmirkyCardStandaloneFlowPPC_APPL`. It uses SmirkyCard's SIZE resource, writes
+changes are needed. In any Classic build with `LOKA_BUILD_SMIRKYCARD` enabled,
+the first call registers `LokaSmirkyCardStandaloneFlow68K_APPL` or
+`LokaSmirkyCardStandaloneFlowPPC_APPL` (excluded from ALL); the VS Code task
+"Build: Retro68 68K SmirkyCard" builds it together with the app. It uses SmirkyCard's SIZE resource, writes
 LOG.TXT beside the application, logs the seed, advances the clock once per 0.1 s
 idle callback, and quits after the terminal audit record.
 

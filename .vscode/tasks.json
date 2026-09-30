@@ -2,66 +2,6 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Configure: Retro68 68K SmirkyCard Scenario",
-      "hide": true,
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
-      "args": [
-        "--preset",
-        "retro68-68k-standalone-release",
-        "-DLOKA_BUILD_SMIRKYCARD=ON"
-      ],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Build: Retro68 68K SmirkyCard Scenario",
-      "hide": true,
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
-      "args": [
-        "--build",
-        "--preset",
-        "retro68-68k-standalone-release",
-        "--target",
-        "LokaSmirkyCardStandaloneFlow68K_APPL"
-      ],
-      "dependsOn": [
-        "Configure: Retro68 68K SmirkyCard Scenario"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Configure: Retro68 PPC SmirkyCard Scenario",
-      "hide": true,
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
-      "args": [
-        "--preset",
-        "retro68-ppc-standalone-release",
-        "-DLOKA_BUILD_SMIRKYCARD=ON"
-      ],
-      "problemMatcher": "$gcc"
-    },
-    {
-      "label": "Build: Retro68 PPC SmirkyCard Scenario",
-      "hide": true,
-      "type": "shell",
-      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
-      "args": [
-        "--build",
-        "--preset",
-        "retro68-ppc-standalone-release",
-        "--target",
-        "LokaSmirkyCardStandaloneFlowPPC_APPL"
-      ],
-      "dependsOn": [
-        "Configure: Retro68 PPC SmirkyCard Scenario"
-      ],
-      "group": "build",
-      "problemMatcher": "$gcc"
-    },
-    {
       "label": "Configure: macOS Native",
       "type": "shell",
       "command": "cmake",
@@ -802,7 +742,8 @@
         "--preset",
         "retro68-68k-release",
         "--target",
-        "LokaSmirkyCard68K_APPL"
+        "LokaSmirkyCard68K_APPL",
+        "LokaSmirkyCardStandaloneFlow68K_APPL"
       ],
       "dependsOn": [
         "Configure: Retro68 68K SmirkyCard"

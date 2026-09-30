@@ -150,7 +150,9 @@ function(smirkycard_add_scenario_runner name)
     "SMIRKYCARD_SCENARIO_NAME=\"${SCENARIO_SCENARIO}\""
     "SMIRKYCARD_SCENARIO_APP_NAME=\"${SCENARIO_APP_NAME}\""
     "SMIRKYCARD_SCENARIO_COMPANION=\"${SCENARIO_FLOW}\"")
-  if(LOKA_ENABLE_STANDALONE_TARGETS AND CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
+  # Registered whenever SmirkyCard builds for Classic, so the SmirkyCard build
+  # task makes the app and its scenario runner together (EXCLUDE_FROM_ALL).
+  if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
     set(target "Loka${name}StandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}")
     loka_add_toolbox_test_application(${target} LokaAppleToolboxTestCore
       src/StandaloneFlowMain.cpp src/StandaloneFlowAppConfig.cpp Size.r
