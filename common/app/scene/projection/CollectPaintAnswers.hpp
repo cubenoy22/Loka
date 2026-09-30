@@ -208,15 +208,8 @@ namespace loka
               ++this->exact_;
               if (answer.damage.width > 0 && answer.damage.height > 0
                   && !this->answers_.append(resident, answer.damage))
-              {
-                if (Source::kMergesExactDamage)
-                  this->answers_.mergeExactDamage(resident, answer.damage);
-                else
-                {
-                  this->noteWiden(APPLY_PAINT_WIDEN_CAPACITY, PAINT_REFUSED_UNSUPPORTED_KIND);
-                  ++this->overflow_;
-                }
-              }
+                this->keepOverflowingExact(
+                    resident, answer.damage, OverflowPolicy<Source::kMergesExactDamage != 0>());
               break;
             case PAINT_ANSWER_NATIVE_SCHEDULED:
               ++this->nativeScheduled_;
@@ -234,6 +227,20 @@ namespace loka
           }
 
         private:
+          // The Source's merge policy picks an overload at compile time; a
+          // constant `if` would trip MSVC C4127 under /W4 /WX.
+          template <bool Merges> struct OverflowPolicy
+          {
+          };
+          void keepOverflowingExact(Node *resident, const PaintDamage &damage, OverflowPolicy<true>)
+          {
+            this->answers_.mergeExactDamage(resident, damage);
+          }
+          void keepOverflowingExact(Node *, const PaintDamage &, OverflowPolicy<false>)
+          {
+            this->noteWiden(APPLY_PAINT_WIDEN_CAPACITY, PAINT_REFUSED_UNSUPPORTED_KIND);
+            ++this->overflow_;
+          }
           void noteWiden(ApplyPaintWidenReason reason, PaintRefusalReason refusal)
           {
             if (this->refused_ == 0 && this->overflow_ == 0)
