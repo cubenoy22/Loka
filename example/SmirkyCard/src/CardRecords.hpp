@@ -88,9 +88,21 @@ namespace smirkycard
     }
     ~JsSeatRecord()
     {
-      if (JS_IsObject(this->value))
-        JS_SetOpaque(this->value, 0);
       JS_FreeValue(this->context, this->value);
+    }
+    /** Both JS accessors must wait for lifecycle declaration storage to connect. */
+    bool isMaterialized() const
+    {
+      switch (this->kind)
+      {
+      case STRING:
+        return this->string.isValid();
+      case INTEGER:
+        return this->integer.isValid();
+      case BOOLEAN:
+        return this->boolean.isValid();
+      }
+      return false;
     }
     JsSeatRecord *next;
     JSContext *const context;

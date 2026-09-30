@@ -175,16 +175,18 @@ namespace
 
   std::string reloadCardSource(const char *title)
   {
-    return std::string("card('first',class{constructor(){}compose(){return VStack(Text('") + title
-           + "').TEST_ID('SmirkyCard.Title'),Button('r',()=>reload()).TEST_ID('Reload'),Text(this.error).TEST_ID("
+    return std::string("card('first',class{constructor(c){this.c=c;}compose(){return VStack(Text('") + title
+           + "').TEST_ID('SmirkyCard.Title'),Button('r',()=>this.c.reload()).TEST_ID('Reload'),Text(this.c.error).TEST_"
+             "ID("
              "'SmirkyCard.Status'))}});";
   }
 
   std::string constReloadCardSource(const char *title)
   {
     return std::string("const T='") + title
-           + "';card('first',class{constructor(){}compose(){return VStack(Text(T).TEST_ID('SmirkyCard.Title'),"
-             "Button('r',()=>reload()).TEST_ID('Reload'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});";
+           + "';card('first',class{constructor(c){this.c=c;}compose(){return "
+             "VStack(Text(T).TEST_ID('SmirkyCard.Title'),"
+             "Button('r',()=>this.c.reload()).TEST_ID('Reload'),Text(this.c.error).TEST_ID('SmirkyCard.Status'))}});";
   }
 
   void printCurrentEngineMemory(smirkycard::ScriptRuntime &runtime)
@@ -263,7 +265,7 @@ namespace
     LOKA_VERIFY(loaded.mainSource() == smirkycard::ScriptRuntime::MAIN_SOURCE_FILE);
     LOKA_VERIFY(mountedTitle(loaded, context) == "Loaded First");
 
-    // The native button takes reload() through the active card, admits the
+    // The native button takes c.reload() through its card context, admits the
     // evaluated candidate engine, and then admits a replacement Scene.
     {
       NullScenePlatformController platform;
@@ -312,7 +314,7 @@ namespace
 
       // Evaluation alone is not admission: the requested card must exist in
       // the candidate, or both the Scene and current engine stay unchanged.
-      writeMain(path, "card('second',class{constructor(){}compose(){return VStack()}});");
+      writeMain(path, "card('second',class{constructor(c){this.c=c;}compose(){return VStack()}});");
       loka::app::scene::Scene *stable = window.scene();
       smirkycard::JsEngine *stableEngine = loaded.currentEngine();
       reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
@@ -365,7 +367,7 @@ namespace
       // A registered card may still refuse while being constructed. Its
       // refusal tree retains a native reload door so editing the file recovers.
       writeMain(path,
-                "card('first',class{constructor(){throw new Error('constructor broken')}compose(){return "
+                "card('first',class{constructor(c){this.c=c;throw new Error('constructor broken')}compose(){return "
                 "VStack()}});");
       reload = find(loka::dsl::testing::SceneTestAccess::rootNode(*stable), "Reload");
       reload->asButtonNode()->props.getOnClick()->emit();
@@ -421,7 +423,8 @@ namespace
     // A script that poisons a global before throwing must not reach the
     // fallback cards: the context is rebuilt before the built-in text runs.
     writeMain(path,
-              "globalThis.Text = null; card('first', class { compose() { return VStack(); } }); throw new "
+              "globalThis.Text = null; card('first', class{constructor(c){this.c=c;} compose() { return VStack(); } "
+              "}); throw new "
               "Error('poison');");
     smirkycard::ScriptRuntime poisoned;
     poisoned.loadMain(&context);
@@ -441,10 +444,10 @@ namespace
 
   std::string siblingCardSource(const char *title, const char *target)
   {
-    return std::string("card('first',class{compose(){return VStack(Text('") + title
-           + "').TEST_ID('SmirkyCard.Title'),Button('open',()=>open('" + target
-           + "')).TEST_ID('Open'),Button('reload',()=>reload()).TEST_ID('Reload'),"
-             "Text(this.error).TEST_ID('SmirkyCard.Status'))}});";
+    return std::string("card('first',class{constructor(c){this.c=c;}compose(){return VStack(Text('") + title
+           + "').TEST_ID('SmirkyCard.Title'),Button('open',()=>this.c.open('" + target
+           + "')).TEST_ID('Open'),Button('reload',()=>this.c.reload()).TEST_ID('Reload'),"
+             "Text(this.c.error).TEST_ID('SmirkyCard.Status'))}});";
   }
 
   loka::app::scene::Node *windowNode(NullWindow &window, const char *id)
@@ -736,7 +739,8 @@ namespace
       admission.flush();
       admission.flush();
 
-      const std::string failures[] = {"(", "card('second',class{});", "for(;;){}", std::string(64u * 1024u + 1u, 'x')};
+      const std::string failures[] = {
+          "(", "card('second',class{constructor(c){this.c=c;}});", "for(;;){}", std::string(64u * 1024u + 1u, 'x')};
       const char *reasons[] = {"SyntaxError", "'first'", "interrupted", "64 KiB"};
       for (size_t i = 0; i <= sizeof(failures) / sizeof(failures[0]); ++i)
       {
@@ -802,10 +806,11 @@ namespace
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.count=state(0)}compose(){return "
-                                    "VStack(Button('+1',()=>{this.count.set(this.count.get()+1)}).TEST_ID('Counter."
-                                    "Increment'),Text(this.count).TEST_ID('Counter.Count'))}});",
-                                    error));
+    LOKA_VERIFY(
+        runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;this.count=this.c.state(0)}compose(){return "
+                            "VStack(Button('+1',()=>{this.count.set(this.count.get()+1)}).TEST_ID('Counter."
+                            "Increment'),Text(this.count).TEST_ID('Counter.Count'))}});",
+                            error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -837,8 +842,9 @@ namespace
     loka::core::String error;
     char length[16];
     std::sprintf(length, "%d", count);
-    const std::string source = std::string("card('first',class{constructor(){this.s=Array.from({length:") + length
-                               + "},(_,i)=>state('seat'+i))}"
+    const std::string source = std::string("card('first',class{constructor(c){this.c=c;this.s=Array.from({length:")
+                               + length
+                               + "},(_,i)=>this.c.state('seat'+i))}"
                                  "compose(){return VStack(Array.from({length:Math.ceil(this.s.length/10)},(_,r)=>Row("
                                  "this.s.slice(r*10,r*10+10).map((s,j)=>"
                                + kind + "(s,()=>s.set('clicked'+(r*10+j))).TEST_ID('Click'+(r*10+j))))))}});";
@@ -882,11 +888,12 @@ namespace
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error, result;
-    LOKA_VERIFY(runtime.loadBuiltin("globalThis.clicks=0;card('first',class{compose(){return VStack("
-                                    "Button('go',()=>{++clicks;go('second')}).TEST_ID('Go'),"
-                                    "Cell('stay',()=>{++clicks}).TEST_ID('Stay'))}});"
-                                    "card('second',class{compose(){return Text('second').TEST_ID('Second')}});",
-                                    error));
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "globalThis.clicks=0;card('first',class{constructor(c){this.c=c;}compose(){return VStack("
+        "Button('go',()=>{++clicks;this.c.go('second')}).TEST_ID('Go'),"
+        "Cell('stay',()=>{++clicks}).TEST_ID('Stay'))}});"
+        "card('second',class{constructor(c){this.c=c;}compose(){return Text('second').TEST_ID('Second')}});",
+        error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -929,11 +936,12 @@ namespace
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.on=state(true)}compose(){return "
-                                    "VStack(Button('flip',()=>this.on.set(!this.on.get())).TEST_ID('Flip'),Button('"
-                                    "target',()=>{}).TEST_ID('Target').enabled(this.on),"
-                                    "Button('reverse',()=>{}).enabled(this.on).TEST_ID('Reverse'))}});",
-                                    error));
+    LOKA_VERIFY(
+        runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;this.on=this.c.state(true)}compose(){return "
+                            "VStack(Button('flip',()=>this.on.set(!this.on.get())).TEST_ID('Flip'),Button('"
+                            "target',()=>{}).TEST_ID('Target').enabled(this.on),"
+                            "Button('reverse',()=>{}).enabled(this.on).TEST_ID('Reverse'))}});",
+                            error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -958,7 +966,7 @@ namespace
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){}compose(){return "
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;}compose(){return "
                                     "VStack(['one','two','three'].map(v=>Text(v))).TEST_ID('Mapped')}});",
                                     error));
     NullPlatformContext context;
@@ -1016,15 +1024,16 @@ namespace
     using namespace loka::app;
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(){this.text=state('live')}compose(){return VStack("
-                                    "Text('a',{size:24,weight:'bold',italic:true}).TEST_ID('Styled'),"
-                                    "Text('a',{size:13}).TEST_ID('Snap13'),Text('a',{size:16}).TEST_ID('Snap16'),"
-                                    "Text('a',{size:21}).TEST_ID('Snap21'),Text('a',{size:18}).TEST_ID('Exact18'),"
-                                    "Text('a',{size:24}).TEST_ID('Chained'),"
-                                    "Text('a',{weight:'normal',italic:false}).TEST_ID('Normal'),"
-                                    "Text('a').TEST_ID('Plain'),Text(this.text,{size:18}).TEST_ID('Live'),"
-                                    "Text(this.error,{italic:true}).TEST_ID('Error'))}});",
-                                    error));
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "card('first',class{constructor(c){this.c=c;this.text=this.c.state('live')}compose(){return VStack("
+        "Text('a',{size:24,weight:'bold',italic:true}).TEST_ID('Styled'),"
+        "Text('a',{size:13}).TEST_ID('Snap13'),Text('a',{size:16}).TEST_ID('Snap16'),"
+        "Text('a',{size:21}).TEST_ID('Snap21'),Text('a',{size:18}).TEST_ID('Exact18'),"
+        "Text('a',{size:24}).TEST_ID('Chained'),"
+        "Text('a',{weight:'normal',italic:false}).TEST_ID('Normal'),"
+        "Text('a').TEST_ID('Plain'),Text(this.text,{size:18}).TEST_ID('Live'),"
+        "Text(this.c.error,{italic:true}).TEST_ID('Error'))}});",
+        error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -1061,12 +1070,13 @@ namespace
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error, result;
-    LOKA_VERIFY(runtime.loadBuiltin(
-        "card('first',class{constructor(){this.value=state('new')}onAttach(){this.value.set('attached')}onDetach(){"
-        "this.value.set('detached');globalThis.detached=this.value.get()}compose(){return "
-        "VStack(Text(this.value).TEST_ID('HookValue'),Button('next',()=>go('second')).TEST_ID('HookNext'))}});card('"
-        "second',class{constructor(){}compose(){return VStack()}});",
-        error));
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;this.value=this.c.state('new')}"
+                                    "onAttach(){this.value.set('attached')}onDetach(){"
+                                    "this.value.set('detached');globalThis.detached=this.value.get()}compose(){return "
+                                    "VStack(Text(this.value).TEST_ID('HookValue'),Button('next',()=>this.c.go('second')"
+                                    ").TEST_ID('HookNext'))}});card('"
+                                    "second',class{constructor(c){this.c=c;}compose(){return VStack()}});",
+                                    error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -1082,9 +1092,10 @@ namespace
     LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("detached"), result, error));
     LOKA_VERIFY(result.compare(loka::core::String::Literal("detached")) == 0);
     smirkycard::ScriptRuntime throwing;
-    LOKA_VERIFY(throwing.loadBuiltin("card('first',class{onAttach(){throw new Error('attach boom')}compose(){return "
-                                     "VStack(Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
-                                     error));
+    LOKA_VERIFY(throwing.loadBuiltin(
+        "card('first',class{constructor(c){this.c=c;}onAttach(){throw new Error('attach boom')}compose(){return "
+        "VStack(Text(this.c.error).TEST_ID('SmirkyCard.Status'))}});",
+        error));
     WindowProps throwingProps;
     throwingProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, throwing));
     NullWindow throwingWindow(&context, throwingProps, &platform);
@@ -1128,11 +1139,12 @@ namespace
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
     char prefix[128];
-    std::sprintf(prefix,
-                 "card('first',class{compose(){return Grid(%d,%d,Array.from({length:%d},(_,i)=>",
-                 rows,
-                 cols,
-                 rows * cols);
+    std::sprintf(
+        prefix,
+        "card('first',class{constructor(c){this.c=c;}compose(){return Grid(%d,%d,Array.from({length:%d},(_,i)=>",
+        rows,
+        cols,
+        rows * cols);
     const std::string source = std::string(prefix) + (clickable ? "Cell(String(i),()=>{})" : "Text(String(i))")
                                + ".TEST_ID(String(i)))).TEST_ID('Board')}});";
     LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
@@ -1183,37 +1195,42 @@ namespace
     const char *stacks[] = {"Row", "VStack"};
     for (size_t i = 0; i < sizeof(stacks) / sizeof(stacks[0]); ++i)
     {
-      const std::string source = std::string("card('first',class{compose(){return ") + stacks[i]
-                                 + "(Array.from({length:17},()=>Text('x')))}});";
+      const std::string source = std::string("card('first',class{constructor(c){this.c=c;}compose(){return ")
+                                 + stacks[i] + "(Array.from({length:17},()=>Text('x')))}});";
       checkComposeRefusal(source.c_str(), "accepts at most 16 children");
     }
     const char *badCounts[] = {"63", "65"};
     for (size_t i = 0; i < sizeof(badCounts) / sizeof(badCounts[0]); ++i)
     {
-      const std::string source = std::string("card('first',class{compose(){return Grid(8,8,Array.from({length:")
-                                 + badCounts[i] + "},()=>Text('x')))}});";
+      const std::string source =
+          std::string("card('first',class{constructor(c){this.c=c;}compose(){return Grid(8,8,Array.from({length:")
+          + badCounts[i] + "},()=>Text('x')))}});";
       checkComposeRefusal(source.c_str(), "Grid requires exactly rows * cols children (64)");
     }
     const char *badDimensions[] = {"0", "17", "-1", "1.5", "NaN", "Infinity", "'8'", "null"};
     for (size_t i = 0; i < sizeof(badDimensions) / sizeof(badDimensions[0]); ++i)
       for (int axis = 0; axis < 2; ++axis)
       {
-        const std::string source = std::string("card('first',class{compose(){return Grid(")
+        const std::string source = std::string("card('first',class{constructor(c){this.c=c;}compose(){return Grid(")
                                    + (axis == 0 ? badDimensions[i] : "8") + "," + (axis == 1 ? badDimensions[i] : "8")
                                    + ",[])}});";
         checkComposeRefusal(source.c_str(), "Grid rows and cols must be integers in 1..16");
       }
-    checkComposeRefusal("card('first',class{compose(){return Grid(1,1,[[Text('x')]])}});", "nested arrays");
-    checkComposeRefusal("card('first',class{compose(){return Grid(1,1)}});", "Grid(rows, cols, children)");
-    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Grid(1,1,[[Text('x')]])}});",
+                        "nested arrays");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Grid(1,1)}});",
+                        "Grid(rows, cols, children)");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){const g=Grid(1,1,Text('x'));"
                         "g.children.pop();return g}});",
                         "Grid requires exactly rows * cols children");
-    checkComposeRefusal("card('first',class{compose(){const g=Grid(1,1,Text('x'));"
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){const g=Grid(1,1,Text('x'));"
                         "g.children.push(Text('y'));return g}});",
                         "Grid requires exactly rows * cols children");
-    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{rows:0})}});",
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return "
+                        "Object.assign({},Grid(1,1,Text('x')),{rows:0})}});",
                         "Grid rows and cols must be integers in 1..16");
-    checkComposeRefusal("card('first',class{compose(){return Object.assign({},Grid(1,1,Text('x')),{cols:17})}});",
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return "
+                        "Object.assign({},Grid(1,1,Text('x')),{cols:17})}});",
                         "Grid rows and cols must be integers in 1..16");
   }
 
@@ -1238,7 +1255,8 @@ namespace
                             "{weight:'bold\\u0000'}"};
     for (size_t i = 0; i < sizeof(styles) / sizeof(styles[0]); ++i)
     {
-      const std::string source = std::string("card('first',class{compose(){return Text('a',") + styles[i] + ")}});";
+      const std::string source =
+          std::string("card('first',class{constructor(c){this.c=c;}compose(){return Text('a',") + styles[i] + ")}});";
       checkComposeRefusal(source.c_str(), "TypeError");
     }
   }
@@ -1246,10 +1264,10 @@ namespace
   void checkChangedTextStyleRefusal()
   {
     // The tree owns a reference to the dictionary, so lowering must revalidate it.
-    checkComposeRefusal("card('first',class{compose(){const s={size:24};const t=Text('a',s);"
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){const s={size:24};const t=Text('a',s);"
                         "s.colour=1;return t}});",
                         "TypeError");
-    checkComposeRefusal("card('first',class{compose(){return Text('a',{get size(){"
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Text('a',{get size(){"
                         "throw new Error('style getter')}})}});",
                         "style getter");
   }
@@ -1330,7 +1348,7 @@ namespace
         value,
         error));
     LOKA_VERIFY(value.compare(loka::core::String::Literal("true")) == 0);
-    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{compose(){return VStack("
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;}compose(){return VStack("
                                     "Markup('<b>Hi</b> there',{size:24}).TEST_ID('M'),"
                                     "Text('<b>plain</b>').TEST_ID('P'))}});",
                                     error));
@@ -1347,11 +1365,13 @@ namespace
     LOKA_VERIFY(node->asAttributedTextNode()->props.text_->get()
                 == Styled("Hi", FontSize<24>() + Bold) + Styled(" there", FontSize<24>()));
     LOKA_VERIFY(textValue(find(root, "P")->asTextNode()) == "<b>plain</b>");
-    checkComposeRefusal("card('first',class{constructor(){this.s=state('x')}compose(){return Markup(this.s)}});",
-                        "state seats are not supported");
-    checkComposeRefusal("card('first',class{compose(){return Markup('<b>x')}});", "TypeError");
-    checkComposeRefusal("card('first',class{compose(){return Markup('x',{colour:1})}});", "TypeError");
-    checkComposeRefusal("card('first',class{compose(){const s={size:24};const t=Markup('x',s);"
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;this.s=this.c.state('x')}compose(){return Markup(this.s)}});",
+        "state seats are not supported");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Markup('<b>x')}});", "TypeError");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Markup('x',{colour:1})}});",
+                        "TypeError");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){const s={size:24};const t=Markup('x',s);"
                         "s.colour=1;return t}});",
                         "Markup",
                         true);
@@ -1362,15 +1382,15 @@ namespace
     using namespace loka::app;
     smirkycard::ScriptRuntime runtime;
     loka::core::String error, value;
-    LOKA_VERIFY(runtime.loadBuiltin(
-        "card('first',class{constructor(){this.s=state('s');this.n=state(1)}compose(){return VStack("
-        "Text('a',undefined,{align:'center'}).TEST_ID('T').TEST_ID('T'),"
-        "Markup('<b>x</b>',{size:18},{align:'right',wrap:'word'}).TEST_ID('M'),"
-        "Text(this.s,undefined,{wrap:'char',truncation:'clip'}).TEST_ID('S'),"
-        "Text(this.n,undefined,{align:'left',truncation:'ellipsis'}).TEST_ID('N'),"
-        "Text(this.error,undefined,{wrap:'none',truncation:'none'}).TEST_ID('E'),"
-        "Text('default',undefined,undefined).TEST_ID('D'))}});",
-        error));
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;this.s=this.c.state('s');this.n=this.c."
+                                    "state(1)}compose(){return VStack("
+                                    "Text('a',undefined,{align:'center'}).TEST_ID('T').TEST_ID('T'),"
+                                    "Markup('<b>x</b>',{size:18},{align:'right',wrap:'word'}).TEST_ID('M'),"
+                                    "Text(this.s,undefined,{wrap:'char',truncation:'clip'}).TEST_ID('S'),"
+                                    "Text(this.n,undefined,{align:'left',truncation:'ellipsis'}).TEST_ID('N'),"
+                                    "Text(this.c.error,undefined,{wrap:'none',truncation:'none'}).TEST_ID('E'),"
+                                    "Text('default',undefined,undefined).TEST_ID('D'))}});",
+                                    error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -1419,17 +1439,18 @@ namespace
       for (size_t i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
       {
         const std::string call = std::string(kinds[k]) + "('a',undefined," + bad[i] + ")";
-        const std::string source = "card('first',class{compose(){return " + call + "}});";
+        const std::string source = "card('first',class{constructor(c){this.c=c;}compose(){return " + call + "}});";
         checkComposeRefusal(source.c_str(), "TypeError");
         const std::string caught = "(()=>{try{" + call + "}catch(e){return e instanceof TypeError}return false})()";
         LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Utf8(caught.data(), caught.size()), value, error));
         LOKA_VERIFY(value.compare(loka::core::String::Literal("true")) == 0);
       }
-      const std::string changed = std::string("card('first',class{compose(){const b={align:'center'};const t=")
-                                  + kinds[k] + "('a',undefined,b).TEST_ID('M');b.gap=4;return t}});";
+      const std::string changed =
+          std::string("card('first',class{constructor(c){this.c=c;}compose(){const b={align:'center'};const t=")
+          + kinds[k] + "('a',undefined,b).TEST_ID('M');b.gap=4;return t}});";
       checkComposeRefusal(changed.c_str(), k == 0 ? "TypeError" : "Markup", true);
-      const std::string throwing = std::string("card('first',class{compose(){return ") + kinds[k]
-                                   + "('a',undefined,{get align(){throw new Error('block getter')}})}});";
+      const std::string throwing = std::string("card('first',class{constructor(c){this.c=c;}compose(){return ")
+                                   + kinds[k] + "('a',undefined,{get align(){throw new Error('block getter')}})}});";
       checkComposeRefusal(throwing.c_str(), "block getter");
     }
     // Inherited properties are not dictionary entries, even on Object.prototype.
@@ -1450,10 +1471,11 @@ namespace
     for (int failure = 1; failure <= 4; ++failure)
     {
       failLokaAllocRaw("AttributedString", "Segments", failure);
-      checkComposeRefusal("card('first',class{compose(){return VStack(Text('prefix').TEST_ID('Prefix'),"
-                          "Markup('a<b>b</b>c<i>d</i>e').TEST_ID('M'))}});",
-                          failure <= 2 ? "TypeError" : "Markup",
-                          true);
+      checkComposeRefusal(
+          "card('first',class{constructor(c){this.c=c;}compose(){return VStack(Text('prefix').TEST_ID('Prefix'),"
+          "Markup('a<b>b</b>c<i>d</i>e').TEST_ID('M'))}});",
+          failure <= 2 ? "TypeError" : "Markup",
+          true);
       LOKA_VERIFY(lokaAllocRawLive() == 0);
       allowLokaAllocRaw();
     }
@@ -1483,7 +1505,7 @@ namespace
     for (unsigned i = 0; i < sizeof(types) / sizeof(types[0]); ++i)
     {
       failLokaAllocRaw("JsCardNode", types[i], 1);
-      checkComposeRefusal("card('first',class{constructor(){this.s=state('s')}compose(){return "
+      checkComposeRefusal("card('first',class{constructor(c){this.c=c;this.s=this.c.state('s')}compose(){return "
                           "Button(this.s,()=>{})}});",
                           "Could not allocate");
       LOKA_VERIFY(lokaAllocRawLive() == 0);
@@ -1493,34 +1515,42 @@ namespace
 
   void checkRequiredRefusals()
   {
-    checkComposeRefusal("card('first',class{constructor(){}compose(){state('late');return VStack()}});", "constructor");
-    checkComposeRefusal("card('first',class{constructor(){state(1.5)}compose(){return VStack()}});",
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;}compose(){this.c.state('late');return VStack()}});",
+        "constructor");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;this.c.state(1.5)}compose(){return VStack()}});",
                         "state(number) requires an integer");
-    checkComposeRefusal("card('first',class{constructor(){}get compose(){for(;;){}}});", "interrupted");
-    checkComposeRefusal("card('first',class{constructor(){for(let i=0;i<129;++i)state(0)}compose(){return VStack()}});",
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}get compose(){for(;;){}}});", "interrupted");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;for(let "
+                        "i=0;i<129;++i)this.c.state(0)}compose(){return VStack()}});",
                         "kCardSeatBudget");
-    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
-                        "Array.from({length:r==8?1:16},()=>Button('x',()=>{})))))}});",
-                        "kCardClickableBudget");
-    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
-                        "Array.from({length:r==8?1:16},()=>Cell('x',()=>{})))))}});",
-                        "kCardClickableBudget");
-    checkComposeRefusal("card('first',class{constructor(){}compose(){return {kind:99}}});", "unknown kind");
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;}compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+        "Array.from({length:r==8?1:16},()=>Button('x',()=>{})))))}});",
+        "kCardClickableBudget");
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;}compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+        "Array.from({length:r==8?1:16},()=>Cell('x',()=>{})))))}});",
+        "kCardClickableBudget");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return {kind:99}}});", "unknown kind");
 
-    checkComposeRefusal("card('first',class{compose(){return VStack(Array.from({length:9},(_,r)=>Row("
-                        "Array.from({length:r==8?1:16},()=>r%2?Cell('x',()=>{}):Button('x',()=>{})))))}});",
-                        "kCardClickableBudget");
-    checkComposeRefusal("card('first',class{constructor(){this.s=state(1)}compose(){return Cell(this.s,()=>{})}});",
-                        "String state seat");
-    checkComposeRefusal("card('first',class{compose(){return Cell('x',42)}});", "function");
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;}compose(){return VStack(Array.from({length:9},(_,r)=>Row("
+        "Array.from({length:r==8?1:16},()=>r%2?Cell('x',()=>{}):Button('x',()=>{})))))}});",
+        "kCardClickableBudget");
+    checkComposeRefusal(
+        "card('first',class{constructor(c){this.c=c;this.s=this.c.state(1)}compose(){return Cell(this.s,()=>{})}});",
+        "String state seat");
+    checkComposeRefusal("card('first',class{constructor(c){this.c=c;}compose(){return Cell('x',42)}});", "function");
 
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin(
-        "card('first',class{constructor(){}compose(){return VStack(Button('Throw',()=>{throw new Error('handler "
-        "boom')}).TEST_ID('Throw'),Button('Loop',()=>{for(;;){}}).TEST_ID('Loop'),Text(this.error).TEST_ID('SmirkyCard."
-        "Status'))}});",
-        error));
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;}compose(){return "
+                                    "VStack(Button('Throw',()=>{throw new Error('handler "
+                                    "boom')}).TEST_ID('Throw'),Button('Loop',()=>{for(;;){}}).TEST_ID('Loop'),Text("
+                                    "this.c.error).TEST_ID('SmirkyCard."
+                                    "Status'))}});",
+                                    error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -1537,10 +1567,11 @@ namespace
 
     smirkycard::ScriptRuntime exceptionRuntime;
     LOKA_VERIFY(exceptionRuntime.loadBuiltin(
-        "card('first',class{constructor(){this.value=state('ready')}compose(){return VStack(Button('Throw "
+        "card('first',class{constructor(c){this.c=c;this.value=this.c.state('ready')}compose(){return "
+        "VStack(Button('Throw "
         "object',()=>{throw "
         "{toString(){for(;;){}}}}).TEST_ID('ObjectThrow'),Button('Recover',()=>this.value.set('working')).TEST_ID('"
-        "Recover'),Text(this.value).TEST_ID('Value'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
+        "Recover'),Text(this.value).TEST_ID('Value'),Text(this.c.error).TEST_ID('SmirkyCard.Status'))}});",
         error));
     NullPlatformContext exceptionContext;
     NullScenePlatformController exceptionPlatform;
@@ -1557,16 +1588,237 @@ namespace
     LOKA_VERIFY(textValue(find(exceptionRoot, "Value")->asTextNode()) == "working");
   }
 
+  void expectJs(smirkycard::ScriptRuntime &runtime, const char *source, const char *expected)
+  {
+    loka::core::String result, error;
+    LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal(source), result, error));
+    LOKA_VERIFY(result.compare(loka::core::String::Literal(expected)) == 0);
+  }
+
+  void checkMaterializedGetters()
+  {
+    std::puts("[pin] card getters read materialized seats");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var reads=[],detached='';card('first',class{constructor(c){this.s=c.state('ready');this.c=c;}"
+        "get onAttach(){reads.push('attach:'+this.s.get());return ()=>reads.push('attached')}"
+        "get onDetach(){reads.push('detach:'+this.s.get());const s=this.s;return "
+        "()=>{s.set('detached');detached=s.get()}}"
+        "get compose(){reads.push('compose:'+this.s.get());const v=this.s.get();"
+        "if(this.c.error.get()!=='')throw Error('unexpected error');return ()=>Text(v).TEST_ID('Getter.Value')}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *value = windowNode(window, "Getter.Value");
+    LOKA_VERIFY(value && value->asTextNode());
+    LOKA_VERIFY(textValue(value->asTextNode()) == "ready");
+    expectJs(runtime, "reads.join(',')", "attach:ready,detach:ready,attached,compose:ready");
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), false);
+    expectJs(runtime, "detached", "detached");
+    expectJs(runtime, "reads.length", "4");
+  }
+
+  void checkEarlySeatRefusal()
+  {
+    std::puts("[pin] unmaterialized seats throw TypeError instead of entering native state access");
+    const char *operations[] = {"c.state('s').get()",
+                                "c.state(1).get()",
+                                "c.state(true).get()",
+                                "c.state('s').set('new')",
+                                "c.state(1).set(2)",
+                                "c.state(true).set(false)",
+                                "c.error.get()"};
+    for (unsigned i = 0; i < sizeof(operations) / sizeof(operations[0]); ++i)
+    {
+      const std::string source =
+          std::string("card('first',class{constructor(c){") + operations[i] + "}compose(){return VStack()}});";
+      checkComposeRefusal(source.c_str(), "TypeError: state seat is not materialized", true);
+    }
+  }
+
+  void checkMissingComposeAfterAttach()
+  {
+    std::puts("[pin] missing compose is refused after attach");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("var attached=false;card('first',c=>({onAttach(){attached=true}}));", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    loka::app::scene::Node *status = windowNode(window, "SmirkyCard.Status");
+    LOKA_VERIFY(status && status->asTextNode());
+    LOKA_VERIFY(textValue(status->asTextNode()).find("card(name, F): F(c) must return an object with compose()")
+                != std::string::npos);
+    expectJs(runtime, "attached", "true");
+  }
+
+  void checkCardContext()
+  {
+    std::puts("[pin] card context: class, factory, arrow construction exactly once");
+    const char *factories[] = {"class {constructor(c){++calls;this.s=c.state('class');this.c=c;globalThis.context=c;}"
+                               "compose(d){globalThis.delegate=d;return Text(this.s).TEST_ID('Value')}}",
+                               "function(c){++calls;globalThis.context=c;var s=c.state('factory');return {"
+                               "compose(d){globalThis.delegate=d;return Text(s).TEST_ID('Value')}}}",
+                               "(c)=>{++calls;globalThis.context=c;var s=c.state('arrow');return {"
+                               "compose(d){globalThis.delegate=d;return Text(s).TEST_ID('Value')}}}"};
+    const char *values[] = {"class", "factory", "arrow"};
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      smirkycard::ScriptRuntime runtime;
+      loka::core::String error;
+      const std::string source = std::string("var calls=0;card('first',") + factories[i] + ");";
+      LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      loka::app::scene::Node *valueNode = windowNode(window, "Value");
+      LOKA_VERIFY(valueNode && valueNode->asTextNode());
+      LOKA_VERIFY(textValue(valueNode->asTextNode()) == values[i]);
+      expectJs(runtime, "calls", "1");
+      expectJs(runtime,
+               "[typeof state,typeof go,typeof open,typeof reload].join(',')",
+               "undefined,undefined,undefined,undefined");
+      expectJs(runtime, "try{delegate.declare(VStack());'accepted'}catch(e){String(e).includes('only valid')}", "true");
+      expectJs(runtime, "context.state('late')", "undefined");
+      expectJs(runtime, "context.error.get().includes('constructor')", "true");
+    }
+    {
+      smirkycard::ScriptRuntime runtime;
+      loka::core::String error;
+      LOKA_VERIFY(runtime.loadBuiltin("var reads=0;card('first',c=>({get compose(){++reads;return d=>{"
+                                      "globalThis.failedDeclare=d.declare;throw Error('compose threw')}},"
+                                      "get onAttach(){++reads;return ()=>{}},get onDetach(){++reads;return ()=>{}}}));",
+                                      error));
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      LOKA_VERIFY(textValue(windowNode(window, "SmirkyCard.Status")->asTextNode()).find("compose threw")
+                  != std::string::npos);
+      expectJs(runtime, "reads", "3");
+      expectJs(runtime, "try{failedDeclare(VStack());'accepted'}catch(e){String(e).includes('only valid')}", "true");
+    }
+    std::puts("[pin] card context: malformed results and throwing property reads");
+    const char *bad[] = {
+        "function(c){return {}}", "function(c){return 1}", "function(c){}", "c=>1", "c=>undefined", "c=>({compose:1})"};
+    for (unsigned i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
+    {
+      const std::string source = std::string("card('first',") + bad[i] + ");";
+      checkComposeRefusal(source.c_str(), "card(name, F): F(c) must return an object with compose()");
+    }
+    checkComposeRefusal("card('first',c=>({get compose(){throw Error('compose read')}}));", "compose read");
+    checkComposeRefusal("card('first',c=>({compose(){return VStack()},get onAttach(){throw Error('attach read')}}));",
+                        "attach read");
+    checkComposeRefusal("card('first',c=>({compose(){return VStack()},get onDetach(){throw Error('detach read')}}));",
+                        "detach read");
+  }
+
+  void checkExceptionContext()
+  {
+    std::puts("[pin] card context: exception stringification cannot reenter closed windows");
+    const char *factories[] = {
+        "c=>{throw {toString(){globalThis.late=String(c.state(1));return 'constructor throw'}}}",
+        "c=>({compose(d){throw {toString(){try{d.declare(Text('late'));globalThis.late='accepted'}"
+        "catch(e){globalThis.late='refused'}return 'compose throw'}}}})",
+        "c=>{var s=c.state('live');return {compose(){return VStack()},onDetach(){throw {toString(){"
+        "try{s.get();globalThis.late='accepted'}catch(e){globalThis.late='refused'}return 'detach throw'}}}}}"};
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      smirkycard::ScriptRuntime runtime;
+      loka::core::String error;
+      const std::string source = std::string("var late='unset';card('first',") + factories[i] + ");";
+      LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      if (i == 2)
+        loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), false);
+      expectJs(runtime, "late", i == 0 ? "undefined" : "refused");
+    }
+  }
+
+  void checkContextRevocation()
+  {
+    std::puts("[pin] card context: TransitionPending, synchronous revocation, compose scope");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var secondRefused=false,detachValue='',detachGo=false,clicks=0;"
+        "card('first',function(c){var seat=c.state('live');"
+        "globalThis.saved=seat;globalThis.savedError=c.error;globalThis.savedContext=c;"
+        "globalThis.savedGo=c.go;globalThis.savedState=c.state;"
+        "return {compose(d){globalThis.savedDeclare=d.declare;return VStack("
+        "Button('next',()=>{++clicks;c.go('second');try{c.go('first')}catch(e){secondRefused=true}}).TEST_ID('Next'),"
+        "Text(c.error).TEST_ID('Error'))},"
+        "onDetach(){seat.set('detaching');detachValue=seat.get();"
+        "try{c.go('first')}catch(e){detachGo=true}throw Error('detach hook threw')}}});"
+        "card('second',c=>({compose(){return Text('second').TEST_ID('Second')}}));",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    expectJs(runtime, "savedError.get()", "");
+    expectJs(runtime, "try{savedDeclare(VStack());'accepted'}catch(e){String(e).includes('only valid')}", "true");
+    windowNode(window, "Next")->asButtonNode()->props.getOnClick()->emit();
+    expectJs(runtime, "secondRefused", "true");
+    // Detach without reclaim: the capability must close on this line, even if the hook throws.
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), false);
+    expectJs(runtime, "detachValue+','+detachGo", "detaching,true");
+    const char *retained[] = {"savedGo('first')",
+                              "savedState(1)",
+                              "saved.get()",
+                              "saved.set('bad')",
+                              "savedError.get()",
+                              "savedContext.reload()",
+                              "savedContext.open('MAIN.JS')",
+                              "savedDeclare(VStack())"};
+    for (unsigned i = 0; i < sizeof(retained) / sizeof(retained[0]); ++i)
+    {
+      const std::string probe = std::string("try{") + retained[i] + ";'accepted'}catch(e){'refused'}";
+      expectJs(runtime, probe.c_str(), "refused");
+    }
+    admission.flush();
+    admission.flush();
+    LOKA_VERIFY(windowNode(window, "Second") != 0);
+    expectJs(runtime, "try{saved.get();'accepted'}catch(e){'refused'}", "refused");
+  }
+
   void checkRetiredSeatAndIntegerRefusal()
   {
     smirkycard::ScriptRuntime runtime;
     loka::core::String error;
-    LOKA_VERIFY(runtime.loadBuiltin(
-        "card('first',class{constructor(){this.count=state(0);globalThis.saved=this.count}compose(){return "
-        "VStack(Button('Next',()=>go('second')).TEST_ID('Next'))}});card('second',class{constructor(){}compose(){"
-        "return "
-        "VStack()}});",
-        error));
+    LOKA_VERIFY(runtime.loadBuiltin("card('first',class{constructor(c){this.c=c;this.count=this.c.state(0);globalThis."
+                                    "saved=this.count}compose(){return "
+                                    "VStack(Button('Next',()=>this.c.go('second')).TEST_ID('Next'))}});card('second',"
+                                    "class{constructor(c){this.c=c;}compose(){"
+                                    "return "
+                                    "VStack()}});",
+                                    error));
     NullPlatformContext context;
     NullScenePlatformController platform;
     WindowProps props;
@@ -1581,17 +1833,17 @@ namespace
     admission.flush();
     admission.flush();
     loka::core::String result;
-    LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal("saved.get()"), result, error));
-    LOKA_VERIFY(result.compare(loka::core::String::Literal("undefined")) == 0);
+    LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("saved.get()"), result, error));
     LOKA_VERIFY(!runtime.evaluateToString(loka::core::String::Literal("saved.set(1)"), result, error));
     const loka::core::StringBuffer retiredError = error.bufferWithEncoding(loka::core::StringEncodingUtf8);
-    LOKA_VERIFY(std::string(static_cast<const char *>(retiredError.data()), retiredError.length()).find("retired card")
+    LOKA_VERIFY(std::string(static_cast<const char *>(retiredError.data()), retiredError.length()).find("revoked card")
                 != std::string::npos);
 
     smirkycard::ScriptRuntime integerRuntime;
     LOKA_VERIFY(integerRuntime.loadBuiltin(
-        "card('first',class{constructor(){this.count=state(1);globalThis.numberSeat=this.count}compose(){return "
-        "VStack(Text(this.count).TEST_ID('Number.Count'),Text(this.error).TEST_ID('SmirkyCard.Status'))}});",
+        "card('first',class{constructor(c){this.c=c;this.count=this.c.state(1);globalThis.numberSeat=this.count}"
+        "compose(){return "
+        "VStack(Text(this.count).TEST_ID('Number.Count'),Text(this.c.error).TEST_ID('SmirkyCard.Status'))}});",
         error));
     NullPlatformContext integerContext;
     NullScenePlatformController integerPlatform;
@@ -1629,8 +1881,14 @@ namespace
     LOKA_VERIFY(script && run && result && script->props.text_.isValid() && run->props.getOnClick());
 
     loka::app::scene::BoundaryNode *owner = loka::dsl::testing::SceneTestAccess::rootBoundary(*window.scene());
-    const char *sources[] = {"1+1", "['a','b'][1].toUpperCase()", "throw new Error('x')", "for(;;){}", "1+1"};
-    const char *expected[] = {"2", "B", 0, 0, "2"};
+    const char *sources[] = {"1+1",
+                             "['a','b'][1].toUpperCase()",
+                             "throw new Error('x')",
+                             "for(;;){}",
+                             "1+1",
+                             "this === globalThis",
+                             "typeof this.script"};
+    const char *expected[] = {"2", "B", 0, 0, "2", "true", "undefined"};
     for (size_t i = 0; i < sizeof(sources) / sizeof(sources[0]); ++i)
     {
       {
@@ -1736,6 +1994,29 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--materialized-getters"))
+  {
+    checkMaterializedGetters();
+    checkMissingComposeAfterAttach();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--early-seats"))
+  {
+    checkEarlySeatRefusal();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--exception-context"))
+  {
+    checkExceptionContext();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--card-context"))
+  {
+    checkCardContext();
+    checkContextRevocation();
+    checkExceptionContext();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--clickable-lifetime"))
   {
     checkClickableLifetime();
@@ -1757,6 +2038,12 @@ int main(int argc, char **argv)
     checkMines();
     return 0;
   }
+  checkMaterializedGetters();
+  checkEarlySeatRefusal();
+  checkMissingComposeAfterAttach();
+  checkCardContext();
+  checkContextRevocation();
+  checkExceptionContext();
   checkGrid();
   checkMines();
   testScriptAllocatorAlignsTwoByteAlignedBase();
