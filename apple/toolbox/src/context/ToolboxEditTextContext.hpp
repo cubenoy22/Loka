@@ -77,7 +77,7 @@ private:
   friend class ToolboxScenePlatformController;
   /** Native retirement revokes the proof even if this context stays attached. */
   void invalidateNativePresentation() { this->presented_.invalidate(); }
-  /** Known only after full TE presentation, and while its binding is installed. */
+  /** Known after full TE presentation; unchanged partial replay preserves it. */
   loka::app::scene::PaintFact<loka::core::String> presented_;
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
