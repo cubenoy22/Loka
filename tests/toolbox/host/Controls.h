@@ -10,6 +10,7 @@ namespace toolbox_host
 {
   extern ControlRef hitControl;
   extern short trackedValue;
+  extern short popupItem;
   extern unsigned tracks;
   Rect currentClip();
   struct ControlCalls
