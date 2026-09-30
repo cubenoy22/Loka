@@ -154,6 +154,11 @@ function(smirkycard_add_scenario_runner name)
   # task makes the app and its scenario runner together (EXCLUDE_FROM_ALL).
   if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
     set(target "Loka${name}StandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}")
+    # The APPL keeps the target name on the HFS dev disk, whose names stop at 31 characters.
+    string(LENGTH "${target}" target_length)
+    if(target_length GREATER 31)
+      message(FATAL_ERROR "${target} is ${target_length} characters; HFS file names allow 31. Shorten the runner name '${name}'.")
+    endif()
     loka_add_toolbox_test_application(${target} LokaAppleToolboxTestCore
       src/StandaloneFlowMain.cpp src/StandaloneFlowAppConfig.cpp Size.r
       ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
@@ -169,7 +174,7 @@ endfunction()
 
 smirkycard_add_scenario_runner(SmirkyCard CARD MINES.JS FLOW MINES.FLOW.JS
   SCENARIO mines APP_NAME "SmirkyCard Mines" SEED 7)
-smirkycard_add_scenario_runner(SmirkyViewer CARD VIEWER.JS FLOW VIEWER.FLOW.JS SCENARIO viewer APP_NAME "SmirkyCard Viewer" SEED 7)
+smirkycard_add_scenario_runner(SmirkyView CARD VIEWER.JS FLOW VIEWER.FLOW.JS SCENARIO viewer APP_NAME "SmirkyCard Viewer" SEED 7)
 if(TARGET LokaSmirkyCardTests)
   target_link_libraries(LokaSmirkyCardTests PRIVATE SmirkyCardScenarioInputs)
   target_sources(LokaSmirkyCardTests PRIVATE src/StandaloneFlowAppConfig.cpp

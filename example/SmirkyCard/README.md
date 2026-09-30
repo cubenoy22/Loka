@@ -338,8 +338,8 @@ makes no claim about `shown` after cancellation.
 
 Build and run the host coverage with `LokaSmirkyCardTests --viewer-scenario`.
 For Classic, enable SmirkyCard and build
-`LokaSmirkyViewerStandaloneFlow68K_APPL` or
-`LokaSmirkyViewerStandaloneFlowPPC_APPL`. Stage the resulting `.bin` and
+`LokaSmirkyViewStandaloneFlow68K_APPL` or
+`LokaSmirkyViewStandaloneFlowPPC_APPL`. Stage the resulting `.bin` and
 `Sun.pict` beside it on the dev disk; the picture comes from the boot template's
 `:Desktop Folder:Images:` folder. Launch the runner application. Both JS sources
 are baked in; it needs no MAIN.JS, VIEWER.JS, VIEWER.FLOW.JS, or LokaTest.cfg
@@ -354,6 +354,9 @@ log text=cancel.picture.facts%20unchanged
 terminal status=succeeded
 ```
 
-These are expected results for the runner, not a Classic runtime-verification
-claim. The host decoder double supplies a 256 by 256 image and checks these
-records through the same runner and audit writer.
+The whole LOG.TXT for this configuration is the [expected audit](tests/VIEWER.audit)
+(runtime-verified on the maciix rig, 68K runner, 2026-10-01; two runs byte-identical).
+The host decoder double supplies a 256 by 256 image and checks the same records
+through the same runner and audit writer. Runner names must keep the Classic
+target name within HFS's 31-character limit; `smirkycard_add_scenario_runner`
+refuses a longer one at configure time.
