@@ -338,7 +338,9 @@ namespace loka
         FLOW_ERROR_SCENE_TEST_ASSERTION_FAILED = 8,
         FLOW_ERROR_SCENE_TEST_EXPECTED_APPLY = 9,
         FLOW_ERROR_SCENE_TEST_INVALID_ORDINAL = 10,
-        FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE = 11
+        FLOW_ERROR_SCENE_TEST_ORDINAL_OUT_OF_RANGE = 11,
+        FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED = 12,
+        FLOW_ERROR_SCENE_TEST_CONTROLLER_UNAVAILABLE = 13
       };
 
       /** Owner-updated monotonic clock borrowed by scheduled scenario steps. */
@@ -448,6 +450,38 @@ namespace loka
 
       /** Runs one Scene action to completion, then keeps its output pending until that
           action's requested projection has crossed the selected milestone. */
+      namespace scenario_step_detail
+      {
+        template <class AdapterT> class HasDiagnostic
+        {
+          template <class T>
+          static char test(char (*)[sizeof(static_cast<const char *>(static_cast<const T *>(0)->diagnostic()))]);
+          template <class T> static long test(...);
+
+        public:
+          enum
+          {
+            value = sizeof(test<AdapterT>(0)) == sizeof(char)
+          };
+        };
+
+        template <class AdapterT, bool Has = HasDiagnostic<AdapterT>::value> struct Diagnostic
+        {
+          static const char *get(const AdapterT &)
+          {
+            return 0;
+          }
+        };
+
+        template <class AdapterT> struct Diagnostic<AdapterT, true>
+        {
+          static const char *get(const AdapterT &adapter)
+          {
+            return adapter.diagnostic();
+          }
+        };
+      } // namespace scenario_step_detail
+
       template <class AdapterT> class ProjectionWaitAdapter
       {
       public:
@@ -465,6 +499,12 @@ namespace loka
               appliedGenerationBeforeAction_(0),
               completedOut_()
         {
+        }
+
+        /** Forwards the wrapped action's failure diagnostic, so message= survives waitUntil. */
+        const char *diagnostic() const
+        {
+          return scenario_step_detail::Diagnostic<AdapterT>::get(this->adapter_);
         }
 
         StepRunStatus run(const In &in, Out &out, FlowError &error) const
@@ -582,6 +622,121 @@ namespace loka
         };
       } // namespace scenario_projection_wait_detail
 
+
+      /** Caches the first terminal outcome of an owned adapter, including failure.
+          Construct a fresh wrapper for a new execution; copies carry the current
+          snapshot. Pending is polled again, so pending adapters must be idempotent
+          across polls. Recursive entry returns pending without invoking the adapter.
+          An optional public const char *diagnostic() const is copied on failure;
+          the owned copy is limited to 256 bytes including a "..." truncation marker.
+          Use Then(RunOnce(adapter)).named(name) or AtTick(tick, RunOnce(adapter)). */
+      template <class AdapterT> class RunOnceAdapter
+      {
+      public:
+        typedef typename AdapterT::In In;
+        typedef typename AdapterT::Out Out;
+
+        explicit RunOnceAdapter(const AdapterT &adapter)
+            : adapter_(adapter),
+              phase_(READY),
+              output_(),
+              error_(),
+              message_()
+        {
+        }
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          if (this->phase_ == SUCCEEDED)
+          {
+            out = this->output_;
+            return FLOW_STEP_SUCCEEDED;
+          }
+          if (this->phase_ == FAILED)
+          {
+            error = this->error_;
+            return FLOW_STEP_FAILED;
+          }
+          if (this->phase_ == ENTERED)
+          {
+            return FLOW_STEP_PENDING;
+          }
+          this->phase_ = ENTERED;
+          const StepRunStatus status = this->adapter_.run(in, out, error);
+          switch (status)
+          {
+          case FLOW_STEP_PENDING:
+            this->phase_ = READY;
+            break;
+          case FLOW_STEP_SUCCEEDED:
+            this->output_ = out;
+            this->phase_ = SUCCEEDED;
+            break;
+          case FLOW_STEP_FAILED:
+            this->error_ = error;
+            this->message_ =
+                scenario_audit_detail::CopyDiagnostic(scenario_step_detail::Diagnostic<AdapterT>::get(this->adapter_));
+            this->phase_ = FAILED;
+            break;
+          }
+          return status;
+        }
+
+        const char *diagnostic() const
+        {
+          return this->message_.c_str();
+        }
+
+      private:
+        enum Phase
+        {
+          READY,
+          ENTERED,
+          SUCCEEDED,
+          FAILED
+        };
+        AdapterT adapter_;
+        mutable Phase phase_;
+        mutable Out output_;
+        mutable FlowError error_;
+        mutable std::string message_;
+      };
+
+      template <class AdapterT> inline RunOnceAdapter<AdapterT> RunOnce(const AdapterT &adapter)
+      {
+        return RunOnceAdapter<AdapterT>(adapter);
+      }
+
+      /** Polls for empty Scene invalidation and mounted-controller work queues.
+          This promises work queues empty, not pixels presented (Classic sync does
+          not track paint). Never flushes or spins; an idle Scene succeeds immediately.
+          The caller owns Scene lifetime and any separate transition/liveness gate. */
+      class Settle
+      {
+      public:
+        typedef ::loka::app::scene::Scene *In;
+        typedef ::loka::app::scene::Scene *Out;
+
+        StepRunStatus run(const In &in, Out &out, FlowError &error) const
+        {
+          out = in;
+          if (!in)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
+            return FLOW_STEP_FAILED;
+          }
+          ::loka::app::scene::IPlatformController *controller = SceneTestAccess::platformController(*in);
+          if (!controller)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_CONTROLLER_UNAVAILABLE;
+            return FLOW_STEP_FAILED;
+          }
+          return in->hasPendingInvalidation() || controller->hasPendingSync() ? FLOW_STEP_PENDING : FLOW_STEP_SUCCEEDED;
+        }
+      };
+
       /** Schedules one typed Flow action at or after a scenario tick. The
           completed output is replayed on later chain runs without repeating
           the action. The clock owner must outlive this adapter. */
@@ -620,7 +775,11 @@ namespace loka
           }
           const StepRunStatus status = this->adapter_.run(in, out, error);
           if (status != FLOW_STEP_PENDING
-              && !this->audit_.emit(this->clock_->currentTick(), status, error))
+              && !this->audit_.emit(
+                  this->clock_->currentTick(),
+                  status,
+                  error,
+                  status == FLOW_STEP_FAILED ? scenario_step_detail::Diagnostic<AdapterT>::get(this->adapter_) : 0))
           {
             return FLOW_STEP_FAILED;
           }
@@ -2521,10 +2680,18 @@ namespace loka
         }
       };
 
+      /** Disabled Button clicks retain their historical no-op unless explicitly strict. */
+      enum ClickPolicy
+      {
+        CLICK_DISABLED_IS_NOOP,
+        CLICK_DISABLED_FAILS
+      };
+
       template <class NodeT>
       static StepRunStatus EmitNodeClick(::loka::app::scene::Scene *scene,
                                          const scene_test_detail::NodeTarget<NodeT> &target,
-                                         FlowError &error)
+                                         FlowError &error,
+                                         ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
         NodeT *node = 0;
         StepRunStatus lookupStatus = target.resolve(scene, node, error);
@@ -2541,6 +2708,12 @@ namespace loka
         }
         if (!SceneClickTraits<NodeT>::enabled(node))
         {
+          if (policy == CLICK_DISABLED_FAILS)
+          {
+            error.kind = FLOW_ERROR_KIND_SCENE_SCENARIO;
+            error.code = FLOW_ERROR_SCENE_TEST_BUTTON_DISABLED;
+            return FLOW_STEP_FAILED;
+          }
           return FLOW_STEP_SUCCEEDED;
         }
         ::loka::core::EmitterState *emitter = SceneClickTraits<NodeT>::emitter(node);
@@ -2561,13 +2734,16 @@ namespace loka
         typedef ::loka::app::scene::Scene *In;
         typedef ::loka::app::scene::Scene *Out;
 
-        explicit ClickButtonByIdAdapter(const char *testId)
-            : target_(testId)
+        explicit ClickButtonByIdAdapter(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+            : target_(testId),
+              policy_(policy)
         {
         }
 
-        explicit ClickButtonByIdAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector)
-            : target_(selector)
+        explicit ClickButtonByIdAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector,
+                                        ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+            : target_(selector),
+              policy_(policy)
         {
         }
 
@@ -2580,21 +2756,23 @@ namespace loka
             error.code = FLOW_ERROR_SCENE_TEST_NULL_SCENE;
             return FLOW_STEP_FAILED;
           }
-          return EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error);
+          return EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error, this->policy_);
         }
 
       private:
         scene_test_detail::NodeTarget< ::loka::app::ButtonNode> target_;
+        ClickPolicy policy_;
       };
 
-      inline ClickButtonByIdAdapter ClickButtonById(const char *testId)
+      inline ClickButtonByIdAdapter ClickButtonById(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAdapter(testId);
+        return ClickButtonByIdAdapter(testId, policy);
       }
 
-      inline ClickButtonByIdAdapter ClickButtonById(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      inline ClickButtonByIdAdapter ClickButtonById(const NodeSelector< ::loka::app::ButtonNode> &selector,
+                                                    ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAdapter(selector);
+        return ClickButtonByIdAdapter(selector, policy);
       }
 
       class ClickButtonByIdAndFlushAdapter
@@ -2603,20 +2781,23 @@ namespace loka
         typedef ::loka::app::scene::Scene *In;
         typedef ::loka::app::scene::Scene *Out;
 
-        explicit ClickButtonByIdAndFlushAdapter(const char *testId)
-            : target_(testId)
+        explicit ClickButtonByIdAndFlushAdapter(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+            : target_(testId),
+              policy_(policy)
         {
         }
 
-        explicit ClickButtonByIdAndFlushAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector)
-            : target_(selector)
+        explicit ClickButtonByIdAndFlushAdapter(const NodeSelector< ::loka::app::ButtonNode> &selector,
+                                                ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
+            : target_(selector),
+              policy_(policy)
         {
         }
 
         StepRunStatus run(In const &in, Out &out, FlowError &error) const
         {
           out = in;
-          StepRunStatus clickStatus = EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error);
+          StepRunStatus clickStatus = EmitNodeClick< ::loka::app::ButtonNode>(in, target_, error, this->policy_);
           if (clickStatus != FLOW_STEP_SUCCEEDED)
           {
             return clickStatus;
@@ -2626,29 +2807,33 @@ namespace loka
 
       private:
         scene_test_detail::NodeTarget< ::loka::app::ButtonNode> target_;
+        ClickPolicy policy_;
       };
 
-      inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId)
+      inline ClickButtonByIdAndFlushAdapter ClickButtonByIdAndFlush(const char *testId,
+                                                                    ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAndFlushAdapter(testId);
+        return ClickButtonByIdAndFlushAdapter(testId, policy);
       }
 
       inline ClickButtonByIdAndFlushAdapter
-      ClickButtonByIdAndFlush(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      ClickButtonByIdAndFlush(const NodeSelector< ::loka::app::ButtonNode> &selector,
+                              ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAndFlushAdapter(selector);
+        return ClickButtonByIdAndFlushAdapter(selector, policy);
       }
 
       /** Scenario-facing button action. A click includes the resulting Scene
           flush so the following action observes the completed projection. */
-      inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId)
+      inline ClickButtonByIdAndFlushAdapter ClickButton(const char *testId, ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAndFlush(testId);
+        return ClickButtonByIdAndFlush(testId, policy);
       }
 
-      inline ClickButtonByIdAndFlushAdapter ClickButton(const NodeSelector< ::loka::app::ButtonNode> &selector)
+      inline ClickButtonByIdAndFlushAdapter ClickButton(const NodeSelector< ::loka::app::ButtonNode> &selector,
+                                                        ClickPolicy policy = CLICK_DISABLED_IS_NOOP)
       {
-        return ClickButtonByIdAndFlush(selector);
+        return ClickButtonByIdAndFlush(selector, policy);
       }
 
       class ClickCellByIdAndFlushAdapter
