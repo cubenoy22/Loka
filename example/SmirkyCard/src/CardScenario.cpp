@@ -1,6 +1,7 @@
 #include "CardScenario.hpp"
 #ifdef TEST_BUILD
 #include "CardNodes.hpp"
+#include "CardFlowDescription.hpp"
 #include "JsNativeClass.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include <new>
@@ -13,14 +14,6 @@ namespace smirkycard
   using namespace loka::dsl::testing;
   namespace
   {
-    JSClassID builderClass = 0;
-    enum BuilderMethod
-    {
-      Step,
-      Named,
-      Success,
-      Failure
-    };
     enum TestMethod
     {
       Run,
@@ -41,164 +34,6 @@ namespace smirkycard
       return JS_NewStringLen(ctx, text.data(), text.size());
     }
   } // namespace
-
-  /** QuickJS-owned mutable description; acceptance closes its only mutation door.
-      The GC marker accounts for functions that close over their own builder. */
-  class JsFlowDescription
-  {
-  public:
-    struct StepRecord
-    {
-      StepRecord(JSContext *ctx, JSValueConst value)
-          : fn(JS_DupValue(ctx, value)),
-            next(0)
-      {
-      }
-      JSValue fn;
-      std::string name;
-      StepRecord *next;
-    };
-    explicit JsFlowDescription(JSRuntime *runtime)
-        : runtime_(runtime),
-          head_(0),
-          tail_(0),
-          success_(JS_UNDEFINED),
-          failure_(JS_UNDEFINED),
-          consumed_(false)
-    {
-    }
-    ~JsFlowDescription()
-    {
-      while (this->head_)
-      {
-        StepRecord *step = this->head_;
-        this->head_ = step->next;
-        JS_FreeValueRT(this->runtime_, step->fn);
-        delete step;
-      }
-      JS_FreeValueRT(this->runtime_, this->success_);
-      JS_FreeValueRT(this->runtime_, this->failure_);
-    }
-    const StepRecord *steps() const
-    {
-      return this->consumed_ ? 0 : this->head_;
-    }
-    JSValue callback(bool success) const
-    {
-      return success ? this->success_ : this->failure_;
-    }
-    void consume()
-    {
-      this->consumed_ = true;
-    }
-    static void finalize(JSRuntime *, JSValue value)
-    {
-      delete static_cast<JsFlowDescription *>(JS_GetOpaque(value, builderClass));
-    }
-    static void mark(JSRuntime *rt, JSValueConst value, JS_MarkFunc *fn)
-    {
-      JsFlowDescription *self = static_cast<JsFlowDescription *>(JS_GetOpaque(value, builderClass));
-      if (!self)
-        return;
-      for (StepRecord *s = self->head_; s; s = s->next)
-        JS_MarkValue(rt, s->fn, fn);
-      JS_MarkValue(rt, self->success_, fn);
-      JS_MarkValue(rt, self->failure_, fn);
-    }
-    static JSValue build(JSContext *ctx, JSValueConst, int, JSValueConst *)
-    {
-      JSValue object = JS_NewObjectClass(ctx, builderClass);
-      if (JS_IsException(object))
-        return object;
-      JsFlowDescription *self = new (std::nothrow) JsFlowDescription(JS_GetRuntime(ctx));
-      if (!self)
-      {
-        JS_FreeValue(ctx, object);
-        return JS_ThrowOutOfMemory(ctx);
-      }
-      JS_SetOpaque(object, self);
-      const char *names[] = {"step", "named", "onSuccess", "onFailure"};
-      for (int i = 0; i < 4; ++i)
-        if (JS_SetPropertyStr(
-                ctx, object, names[i], JS_NewCFunctionMagic(ctx, method, names[i], 1, JS_CFUNC_generic_magic, i))
-            < 0)
-        {
-          JS_FreeValue(ctx, object);
-          return JS_EXCEPTION;
-        }
-      // The native mutation door changes the description, never object properties.
-      if (JS_FreezeObject(ctx, object) < 0)
-      {
-        JS_FreeValue(ctx, object);
-        return JS_EXCEPTION;
-      }
-      return object;
-    }
-    static JSValue method(JSContext *ctx, JSValueConst receiver, int argc, JSValueConst *argv, int op)
-    {
-      JsFlowDescription *self = static_cast<JsFlowDescription *>(JS_GetOpaque(receiver, builderClass));
-      if (!self || self->consumed_)
-        return JS_ThrowTypeError(ctx, "Flow description is consumed or invalid");
-      if (argc != 1 || (op == Named ? !JS_IsString(argv[0]) : !JS_IsFunction(ctx, argv[0])))
-        return JS_ThrowTypeError(ctx, "Flow method requires a function (named requires a string)");
-      if (op == Step)
-      {
-        StepRecord *s = new (std::nothrow) StepRecord(ctx, argv[0]);
-        if (!s)
-          return JS_ThrowOutOfMemory(ctx);
-        if (self->tail_)
-          self->tail_->next = s;
-        else
-          self->head_ = s;
-        self->tail_ = s;
-      }
-      else if (op == Named)
-      {
-        if (!self->tail_)
-          return JS_ThrowTypeError(ctx, "named requires a preceding step");
-        size_t n = 0;
-        const char *name = JS_ToCStringLen(ctx, &n, argv[0]);
-        if (!name)
-          return JS_EXCEPTION;
-        self->tail_->name.assign(name, n);
-        JS_FreeCString(ctx, name);
-      }
-      else
-      {
-        JSValue &slot = op == Success ? self->success_ : self->failure_;
-        JS_FreeValue(ctx, slot);
-        slot = JS_DupValue(ctx, argv[0]);
-      }
-      return JS_DupValue(ctx, receiver);
-    }
-
-  private:
-    JSRuntime *runtime_;
-    StepRecord *head_, *tail_;
-    JSValue success_, failure_;
-    bool consumed_;
-  };
-
-  bool CardScenario::installBuilder(JSContext *ctx)
-  {
-    JSRuntime *rt = JS_GetRuntime(ctx);
-    // Reserve the capability first even though the card factory runs later.
-    // Every engine uses this same installation order, including runner-off cards.
-    if (!JsCardNode::installScenarioCapability(rt))
-      return false;
-    JSClassDef def;
-    memset(&def, 0, sizeof(def));
-    def.class_name = "SmirkyFlowDescription";
-    def.finalizer = JsFlowDescription::finalize;
-    def.gc_mark = JsFlowDescription::mark;
-    if (!RegisterJsNativeClass(rt, builderClass, def))
-      return false;
-    JSValue global = JS_GetGlobalObject(ctx);
-    const bool ok =
-        JS_SetPropertyStr(ctx, global, "Flow", JS_NewCFunction(ctx, JsFlowDescription::build, "Flow", 0)) >= 0;
-    JS_FreeValue(ctx, global);
-    return ok;
-  }
 
   CardScenario::CardScenario(JsCardNode &card, JSValueConst context)
       : card_(card),
@@ -320,8 +155,8 @@ namespace smirkycard
   {
     if (this->phase_ != Invoking || this->chain_ || !this->canAdvance())
       return JS_ThrowTypeError(ctx, "c.run is only accepted once synchronously inside this card's scenario invocation");
-    JsFlowDescription *description = static_cast<JsFlowDescription *>(JS_GetOpaque(value, builderClass));
-    if (!description || !description->steps())
+    JsFlowDescription *description = JsFlowDescription::get(value);
+    if (!description || !description->steps() || description->hasWatch())
       return JS_ThrowTypeError(ctx, "c.run requires an unconsumed Flow with at least one step");
     const JsFlowDescription::StepRecord *s = description->steps();
     ScenarioFlowChain<ScenePtr, ScenePtr> flow = ScenarioFlow(this->clock_, &this->input_).auditTo(&this->sink_)
@@ -399,7 +234,7 @@ namespace smirkycard
     this->phase_ = Completing;
     if (result != FLOW_RUN_CANCELED && this->canAdvance() && !JS_IsUndefined(this->description_))
     {
-      JsFlowDescription *desc = static_cast<JsFlowDescription *>(JS_GetOpaque(this->description_, builderClass));
+      JsFlowDescription *desc = JsFlowDescription::get(this->description_);
       JSValue fn = desc->callback(result == FLOW_RUN_SUCCEEDED);
       if (JS_IsFunction(this->engine_.context(), fn))
       {

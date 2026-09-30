@@ -1,6 +1,7 @@
 #include "ScriptRuntime.hpp"
 #include "JsOwnProperties.hpp"
 #include "CardNodes.hpp"
+#include "CardFlowDescription.hpp"
 #include "app/PlatformContext.hpp"
 #include "core/io/File.hpp"
 #include "platform/file/FileHandle.hpp"
@@ -70,7 +71,7 @@ namespace smirkycard
       return;
     JS_SetContextOpaque(this->context(), &runtime);
     JS_SetRuntimeOpaque(this->jsRuntime(), this);
-    if (!registry.install(this->context())
+    if (!registry.install(this->context()) || !JsFlowDescription::install(this->context())
 #ifdef TEST_BUILD
         || (runtime.runnerEnabled() && !runtime.installRunner(*this))
 #endif
@@ -274,6 +275,11 @@ namespace smirkycard
     if (window.installed_)
       JS_SetInterruptHandler(window.engine_.jsRuntime(), 0, 0);
     this->interrupts_.top = window.previous_;
+  }
+
+  JSValue ScriptRuntime::rawCall(JsEngine &engine, JSValueConst fn, int argc, JSValueConst *argv)
+  {
+    return JS_Call(engine.context(), fn, JS_UNDEFINED, argc, argv);
   }
 
   bool ScriptRuntime::captureException(JsEngine &engine, loka::core::String &error)
@@ -617,8 +623,7 @@ namespace smirkycard
   {
     JSContext *ctx = engine.context();
     JSValue global = JS_GetGlobalObject(ctx);
-    const bool ok = JS_SetPropertyStr(ctx, global, "scenario", JS_NewCFunction(ctx, scenario, "scenario", 2)) >= 0
-                    && CardScenario::installBuilder(ctx);
+    const bool ok = JS_SetPropertyStr(ctx, global, "scenario", JS_NewCFunction(ctx, scenario, "scenario", 2)) >= 0;
     JS_FreeValue(ctx, global);
     return ok;
   }
@@ -672,7 +677,7 @@ namespace smirkycard
       JsEngine &engine, JSValueConst fn, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error)
   {
     InterruptWindow interrupt(*this, engine);
-    result = JS_Call(engine.context(), fn, JS_UNDEFINED, argc, argv);
+    result = this->rawCall(engine, fn, argc, argv);
     if (JS_IsException(result))
       return this->captureException(engine, error);
     error = loka::core::String();

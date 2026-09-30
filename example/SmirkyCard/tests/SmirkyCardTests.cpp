@@ -10,6 +10,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "support/LokaAllocFailure.hpp"
+#include "support/LifecycleFactTestAccess.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "platform/file/FileIO.hpp"
@@ -28,7 +29,50 @@
 #else
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
 #endif
+
+namespace smirkycard
+{
+  namespace testing
+  {
+    /** Test-only view of subscription ownership, without a shipped query API. */
+    class CardFlowAccess
+    {
+    public:
+      static loka::app::scene::Scene *scene;
+      static void detachEntrance()
+      {
+        JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+        card->detachNode(card->composition());
+      }
+      static void writeString(const loka::core::String &value)
+      {
+        JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+        loka::core::StateTrackerGuard transaction(card->tracker());
+        card->seats_.head()->string.set(value);
+      }
+      static JSValue projection(JSContext *ctx, JSValueConst, int, JSValueConst *)
+      {
+        JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+        const loka::core::String value = card->seats_.head()->formatted.get();
+        const loka::core::StringBuffer bytes = value.bufferWithEncoding(loka::core::StringEncodingUtf8);
+        return JS_NewStringLen(ctx, static_cast<const char *>(bytes.data()), bytes.length());
+      }
+      static JSValue watchCount(JSContext *ctx, JSValueConst, int, JSValueConst *)
+      {
+        JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+        int count = 0;
+        for (CardFlow *flow = card->flows_.head(); flow; flow = flow->next)
+          if (flow->subscription_)
+            ++count;
+        return JS_NewInt32(ctx, count);
+      }
+    };
+    loka::app::scene::Scene *CardFlowAccess::scene = 0;
+  } // namespace testing
+} // namespace smirkycard
 
 namespace
 {
@@ -1595,6 +1639,16 @@ namespace
   {
     loka::core::String result, error;
     LOKA_VERIFY(runtime.evaluateToString(loka::core::String::Literal(source), result, error));
+    if (result.compare(loka::core::String::Literal(expected)) != 0)
+    {
+      const loka::core::StringBuffer bytes = result.bufferWithEncoding(loka::core::StringEncodingUtf8);
+      std::fprintf(stderr,
+                   "JS pin: %s; expected %s; got %.*s\n",
+                   source,
+                   expected,
+                   static_cast<int>(bytes.length()),
+                   bytes.data() ? static_cast<const char *>(bytes.data()) : "");
+    }
     LOKA_VERIFY(result.compare(loka::core::String::Literal(expected)) == 0);
   }
 
@@ -2739,6 +2793,380 @@ namespace
     LOKA_VERIFY(audit == readCardSource("tests/MINES.audit"));
   }
 
+  void checkProductionFlowCase(const char *name,
+                               const char *declaration,
+                               const char *operation,
+                               const char *expected,
+                               int detach = 0,
+                               int activationFailure = 0)
+  {
+    std::fprintf(stderr, "[pin] production Flow %s\n", name);
+    if (activationFailure)
+      loka::core::testing::failLokaAllocRaw("CardFlow", "Subscription", activationFailure);
+    {
+      smirkycard::ScriptRuntime runtime;
+      loka::core::String error;
+      std::string source = "var c0,s,f,g,log=[],n=0,result;card('first',c=>{c0=c;s=c.state(0);";
+      source += declaration;
+      source += ";return {compose(){return Text('flow')},onDetach(){if(typeof "
+                "watchCount==='function')result=watchCount();s.set(9);log.push('detached')}}});"
+                "card('second',c=>({compose(){return Text('second')}}));";
+      LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+      NullPlatformContext context;
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      smirkycard::testing::CardFlowAccess::scene = window.scene();
+      JSValue globals = JS_GetGlobalObject(runtime.context());
+      LOKA_VERIFY(
+          JS_SetPropertyStr(
+              runtime.context(),
+              globals,
+              "projection",
+              JS_NewCFunction(runtime.context(), smirkycard::testing::CardFlowAccess::projection, "projection", 0))
+          >= 0);
+      JS_FreeValue(runtime.context(), globals);
+      if (detach)
+      {
+        smirkycard::testing::CardFlowAccess::scene = window.scene();
+        JSValue global = JS_GetGlobalObject(runtime.context());
+        LOKA_VERIFY(
+            JS_SetPropertyStr(
+                runtime.context(),
+                global,
+                "watchCount",
+                JS_NewCFunction(runtime.context(), smirkycard::testing::CardFlowAccess::watchCount, "watchCount", 0))
+            >= 0);
+        JS_FreeValue(runtime.context(), global);
+        expectJs(runtime, "watchCount()", "1");
+        // Isolate the entrance: the normal traversal also withdraws callbacks in
+        // beginComposition, which otherwise masks a missing entrance withdrawal.
+        if (detach == 1)
+        {
+          smirkycard::testing::CardFlowAccess::detachEntrance();
+          expectJs(runtime, "result", "0");
+        }
+        else
+          loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(
+              loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()));
+      }
+      expectJs(runtime, operation, expected);
+      LOKA_VERIFY(!JS_HasException(runtime.context()));
+    }
+    if (activationFailure)
+      loka::core::testing::allowLokaAllocRaw();
+  }
+
+  void checkProductionFlowNesting()
+  {
+    checkProductionFlowCase("other Flow run is refused",
+                            "g=c.flow(Flow().step(v=>n++));f=c.flow(Flow().step(v=>{result=g.run(v);return v}))",
+                            "f.run(1);[result,n].join(':')",
+                            "false:0");
+#if !defined(_WIN32)
+    // The debug contract must abort, after emitting its diagnostic. Release
+    // executes the same pin and proves the dropped completion never replays.
+    FILE *diagnostic = std::tmpfile();
+    LOKA_VERIFY(diagnostic);
+    std::fflush(0);
+    const pid_t child = fork();
+    LOKA_VERIFY(child >= 0);
+    if (!child)
+    {
+      LOKA_VERIFY(dup2(fileno(diagnostic), STDERR_FILENO) >= 0);
+      checkProductionFlowCase(
+          "nested completion refuses before adapter",
+          "g=c.flow(Flow().watch(s,v=>{n++;return v}));f=c.flow(Flow().step(v=>{s.set(v);return v}))",
+          "f.run(1);n",
+          "0");
+      _exit(0);
+    }
+    int status = 0;
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
+#ifndef NDEBUG
+    LOKA_VERIFY(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+#else
+    LOKA_VERIFY(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+#endif
+    std::rewind(diagnostic);
+    char bytes[4096];
+    const size_t length = std::fread(bytes, 1, sizeof(bytes), diagnostic);
+    std::fclose(diagnostic);
+    LOKA_VERIFY(std::string(bytes, length).find("CardFlow: nested watch firing dropped (stage 2a)")
+                != std::string::npos);
+#endif
+  }
+
+  void checkProductionFlowForeignSeat()
+  {
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var foreign,refused=false;card('first',c=>{foreign=c.state(1);return {compose(){return Text('first')}}});"
+        "card('second',c=>{try{c.flow(Flow().watch(foreign,v=>v))}catch(e){refused=e instanceof TypeError}"
+        "return {compose(){return Text('second')}}});",
+        error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps firstProps;
+    firstProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow first(&context, firstProps, &platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*first.scene(), true);
+    WindowProps secondProps;
+    secondProps.scene(smirkycard::CreateCard(SMIRKY_CARD_SECOND, runtime));
+    NullWindow second(&context, secondProps, &platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*second.scene(), true);
+    expectJs(runtime, "refused", "true");
+  }
+
+  JSValue failFlowDiagnostic(JSContext *ctx, JSValueConst, int, JSValueConst *argv)
+  {
+    // Refuse allocation during exception capture and diagnostic argument creation.
+    JS_SetMemoryLimit(JS_GetRuntime(ctx), 1);
+    return JS_Throw(ctx, JS_DupValue(ctx, argv[0]));
+  }
+
+  void checkProductionFlowDiagnosticAllocationFailure()
+  {
+    std::fprintf(stderr, "[pin] production Flow diagnostic allocation failure\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var c0,f,diagnostic='x'.repeat(100),failures=0,failureUndefined=false;card('first',c=>{c0=c;"
+        "f=c.flow(Flow().step(()=>failDiagnostic(diagnostic)).onFailure(e=>{failures++;failureUndefined=e===undefined}));"
+        "return {compose(){return Text('flow')}}});", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    JSContext *ctx = runtime.context();
+    JSValue global = JS_GetGlobalObject(ctx);
+    LOKA_VERIFY(JS_SetPropertyStr(ctx, global, "failDiagnostic",
+                                 JS_NewCFunction(ctx, failFlowDiagnostic, "failDiagnostic", 0)) >= 0);
+    JSValue run = JS_Eval(ctx, "()=>f.run()", 10, "<pin>", JS_EVAL_TYPE_GLOBAL);
+    LOKA_VERIFY(!JS_IsException(run));
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(JS_GetRuntime(ctx), &usage);
+    JSValue result = JS_Call(ctx, run, JS_UNDEFINED, 0, 0);
+    const bool pending = JS_HasException(ctx);
+    JS_SetMemoryLimit(JS_GetRuntime(ctx), static_cast<size_t>(usage.malloc_limit));
+    LOKA_VERIFY(JS_IsBool(result) && JS_ToBool(ctx, result));
+    LOKA_VERIFY(!pending);
+    JS_FreeValue(ctx, result);
+    JS_FreeValue(ctx, run);
+    JS_FreeValue(ctx, global);
+    expectJs(runtime, "failures+':'+failureUndefined", "1:true");
+  }
+
+  void checkProductionFlowInputAllocationFailure()
+  {
+    std::fprintf(stderr, "[pin] production Flow input allocation failure\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var c0,f,steps=0,successes=0,failures=0,failureUndefined=false,again;"
+        "card('first',c=>{c0=c;let s=c.state('');"
+        "f=c.flow(Flow().watch(s,v=>{steps++;return v}).step(v=>{steps++;return v})"
+        ".onSuccess(v=>successes++).onFailure(e=>{failures++;failureUndefined=e===undefined;again=f.run()}));"
+        "return {compose(){return Text('flow')}}});", error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    smirkycard::testing::CardFlowAccess::scene = window.scene();
+    JSRuntime *rt = runtime.currentEngine()->jsRuntime();
+    JSMemoryUsage usage;
+    JS_ComputeMemoryUsage(rt, &usage);
+    const std::string longInput(1024 * 1024, 'x');
+    // Leave room for the failure callback, but not the one-megabyte seat read.
+    JS_SetMemoryLimit(rt, static_cast<size_t>(usage.malloc_size) + 4096);
+    smirkycard::testing::CardFlowAccess::writeString(loka::core::String::Literal(longInput.c_str()));
+    const bool pending = JS_HasException(runtime.context());
+    JS_SetMemoryLimit(rt, static_cast<size_t>(usage.malloc_limit));
+    expectJs(runtime, "steps", "0");
+    expectJs(runtime, "successes", "0");
+    expectJs(runtime, "failures+':'+failureUndefined+':'+again", "1:true:false");
+    LOKA_VERIFY(!pending);
+    expectJs(runtime, "c0.error.get()", "Flow input could not be read (out of memory)");
+  }
+
+  void checkProductionFlowWithoutWindow()
+  {
+    std::fprintf(stderr, "[pin] production Flow watch/run without Window\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var s,result,f,constructing;card('first',c=>{s=c.state(0);result=c.state(0);"
+        "f=c.flow(Flow().watch(s,v=>v+1).step(v=>v*2).onSuccess(v=>result.set(v)));"
+        "constructing=f.run(7);return {compose(){return Text('flow')}}});",
+        error));
+    NullScenePlatformController platform;
+    smirkycard::CardScene *scene = smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime);
+    LOKA_VERIFY(scene != 0);
+    LOKA_VERIFY(scene->mount(&platform));
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
+    expectJs(runtime, "constructing", "false");
+    expectJs(runtime, "result.get()", "0");
+    expectJs(runtime, "s.set(3);result.get()", "8");
+    expectJs(runtime, "f.run(5)", "true");
+    expectJs(runtime, "result.get()", "10");
+    delete scene;
+    expectJs(runtime, "f.run(9)", "false");
+  }
+
+  void checkProductionFlowBeforeComposition()
+  {
+    std::fprintf(stderr, "[pin] production Flow constructor exception formatter refuses run\n");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin(
+        "var f,admitted,n=0;card('first',c=>{f=c.flow(Flow().step(v=>n++));"
+        "throw {toString(){admitted=f.run(7);return 'constructor failed'}}});",
+        error));
+    NullScenePlatformController platform;
+    smirkycard::CardScene *scene = smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime);
+    LOKA_VERIFY(scene != 0);
+    LOKA_VERIFY(scene->mount(&platform));
+    loka::dsl::testing::SceneTestAccess::updateAttached(*scene, true);
+    expectJs(runtime, "admitted", "false");
+    expectJs(runtime, "n", "0");
+    delete scene;
+  }
+
+  void checkProductionFlowEdges()
+  {
+    checkProductionFlowWithoutWindow();
+    checkProductionFlowBeforeComposition();
+    checkProductionFlowInputAllocationFailure();
+    checkProductionFlowDiagnosticAllocationFailure();
+    checkProductionFlowNesting();
+    checkProductionFlowForeignSeat();
+    checkProductionFlowCase(
+        "one transaction includes terminal notification",
+        "f=c.flow(Flow().step(v=>{s.set(v);log.push(projection());return v}).onSuccess(v=>log.push(projection())))",
+        "f.run(7);log.push(projection());log.join(',')",
+        "0,0,7");
+    checkProductionFlowCase(
+        "own watch is dropped",
+        "f=c.flow(Flow().watch(s,v=>{n++;return v}).step(v=>{s.set(v+1);return v}).onSuccess(v=>log.push(v)))",
+        "s.set(2);[n,s.get(),log.join(',')].join(':')",
+        "1:3:2");
+    checkProductionFlowCase(
+        "watch throws and failure runs once",
+        "f=c.flow(Flow().watch(s,v=>{throw 'adapter'}).step(v=>log.push('bad')).onFailure(e=>{n++;result=f.run(8)}))",
+        "s.set(1);[n,result,log.length].join(':')",
+        "1:false:0");
+    checkProductionFlowCase(
+        "failure throws without reentry",
+        "f=c.flow(Flow().step(v=>{throw 'step'}).onFailure(e=>{n++;result=f.run(8);throw 'terminal'}))",
+        "f.run(1);[n,result,c0.error.get().includes('terminal')].join(':')",
+        "1:false:true");
+    checkProductionFlowCase("exception formatter throws without leaving an exception",
+                            "f=c.flow(Flow().step(v=>{throw {toString(){throw 'format'}}}).onFailure(e=>n++))",
+                            "f.run(1);n",
+                            "1");
+    checkProductionFlowCase(
+        "failure door reopens after unwind",
+        "f=c.flow(Flow().step(v=>{if(v<0)throw 'bad';return v}).onFailure(e=>n++).onSuccess(v=>log.push(v)))",
+        "[f.run(-1),f.run(4),n,log[0]].join(':')",
+        "true:true:1:4");
+    checkProductionFlowCase("run-only and undefined value",
+                            "f=c.flow(Flow().step(v=>typeof v).onSuccess(v=>log.push(v)))",
+                            "[f.run(),log[0],Object.keys(f).join(','),typeof f.idle].join(':')",
+                            "true:undefined:run:undefined");
+    checkProductionFlowCase("last step navigation cancels success",
+                            "f=c.flow(Flow().step(v=>{c.go('second');return 1}).onSuccess(v=>n++).onFailure(e=>n++))",
+                            "f.run(0);n",
+                            "0");
+    checkProductionFlowCase("middle navigation cancels remaining steps",
+                            "f=c.flow(Flow().step(v=>c.go('second')).step(v=>n++).onSuccess(v=>n++))",
+                            "f.run(0);n",
+                            "0");
+    checkProductionFlowCase(
+        "post-call gate precedes exception formatting",
+        "f=c.flow(Flow().step(v=>{c.go('second');throw {toString(){n++;return 'bad'}}}).onFailure(e=>n++))",
+        "f.run(0);n",
+        "0");
+    checkProductionFlowCase("Detaching withdraws before hook and revokes run",
+                            "f=c.flow(Flow().watch(s,v=>{n++;return v}).onSuccess(v=>n++))",
+                            "[n,log.join(','),f.run(1)].join(':')",
+                            "0:detached:false",
+                            true);
+    checkProductionFlowCase("retirement-only withdrawal backstop",
+                            "f=c.flow(Flow().watch(s,v=>{n++;return v}))",
+                            "[watchCount(),f.run(1),n].join(':')",
+                            "0:false:0",
+                            2);
+    checkProductionFlowCase("non-seat identity rejected",
+                            "for (const v of [{},undefined,null,c.error]) "
+                            "{try{c.flow(Flow().watch(v,x=>x))}catch(e){if(e instanceof TypeError)n++}}",
+                            "n",
+                            "4");
+    checkProductionFlowCase(
+        "frozen unique SKIP and builder",
+        "f=c.flow(Flow().watch(s,v=>Flow.SKIP).onSuccess(v=>n++).onFailure(e=>n++))",
+        "s.set(1);[n,Object.isFrozen(Flow),Object.isFrozen(Flow.SKIP),Flow.SKIP===Flow.SKIP].join(':')",
+        "0:true:true:true");
+    checkProductionFlowCase("consumed description refuses reuse and mutation",
+                            "let d=Flow().step(v=>v);f=c.flow(d);try{c.flow(d)}catch(e){if(e instanceof TypeError)n++}"
+                            "try{d.step(v=>v)}catch(e){if(e instanceof TypeError)n++}",
+                            "n",
+                            "2");
+    checkProductionFlowCase("activation allocation failure refuses the card",
+                            "f=c.flow(Flow().watch(s,v=>{n++;return v}));g=c.flow(Flow().watch(s,v=>{n++;return v}))",
+                            "[c0.error.get().includes('activate'),f.run(1),g.run(1),n].join(':')",
+                            "true:false:false:0",
+                            false,
+                            2);
+    checkProductionFlowCase(
+        "per-card flow budget",
+        "for(let i=0;i<33;i++){try{c.flow(Flow().step(v=>v))}catch(e){if(e instanceof RangeError)n++}}",
+        "n",
+        "1");
+    checkProductionFlowCase(
+        "per-flow step budget",
+        "let d=Flow();for(let i=0;i<129;i++)d.step(v=>v);try{c.flow(d)}catch(e){if(e instanceof RangeError)n++}",
+        "n",
+        "1");
+  }
+
+  void checkProductionFlow()
+  {
+    std::puts("[pin] production Flow watch/run, SKIP, failure and constructor doors");
+    smirkycard::ScriptRuntime runtime;
+    loka::core::String error;
+    LOKA_VERIFY(runtime.loadBuiltin("var c0,s,f,log=[],again,failures=0;"
+                                    "card('first',c=>{c0=c;s=c.state(0);"
+                                    "f=c.flow(Flow().watch(s,v=>v<0?Flow.SKIP:v+1)"
+                                    ".step(v=>{again=f.run(99);return v*2})"
+                                    ".onSuccess(v=>log.push(v)).onFailure(e=>failures++));"
+                                    "return {compose(){return Text('flow')}}});",
+                                    error));
+    NullPlatformContext context;
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    expectJs(runtime, "c0.error.get()", "");
+    expectJs(runtime, "log.length", "0");
+    expectJs(runtime, "s.set(3);log.join(',')", "8");
+    expectJs(runtime, "f.run(5);log.join(',')", "8,10");
+    expectJs(runtime, "again", "false");
+    expectJs(runtime, "s.set(-1);log.join(',')+':'+failures", "8,10:0");
+    expectJs(runtime, "try{c0.flow(Flow().step(v=>v));'bad'}catch(e){e instanceof TypeError}", "true");
+  }
+
   void checkScenarioOff()
   {
     smirkycard::ScriptRuntime runtime;
@@ -2749,13 +3177,20 @@ namespace
                             error));
     NullPlatformContext context;
     mountedTitle(runtime, context);
-    expectJs(runtime, "off", "undefined,undefined,undefined,undefined");
+    expectJs(runtime, "off", "function,undefined,undefined,undefined");
     std::remove("_smirky_scenario.audit");
   }
 } // namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--production-flow"))
+  {
+    checkProductionFlow();
+    checkProductionFlowEdges();
+    checkScenarioOff();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--mines-scenario"))
   {
     checkBakedCompanionReplacement();
@@ -2839,6 +3274,8 @@ int main(int argc, char **argv)
     checkStandaloneScenario();
     return 0;
   }
+  checkProductionFlow();
+  checkProductionFlowEdges();
   checkCardScenarios();
   checkScenarioSetup();
   checkScenarioRandom();

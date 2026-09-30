@@ -232,6 +232,7 @@ namespace smirkycard
 
   private:
     friend class JsCardNode;
+    friend class CardFlow;
     friend class JsEngine;
     friend class JsEngineRef;
     friend class JsCardBindingRegistry;
@@ -242,6 +243,8 @@ namespace smirkycard
     void openInterruptWindow(InterruptWindow &window);
     void closeInterruptWindow(InterruptWindow &window);
     static int interrupt(JSRuntime *, void *opaque);
+    /** Raw entry: callers gate before formatting a possible exception. */
+    JSValue rawCall(JsEngine &engine, JSValueConst fn, int argc, JSValueConst *argv);
     bool captureException(JsEngine &engine, loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     /** MISSING: the file cannot be opened. FAILED: it opened, but its size or

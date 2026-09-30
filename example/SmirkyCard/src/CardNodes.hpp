@@ -3,6 +3,7 @@
 
 #include "ScriptRuntime.hpp"
 #include "CardRecords.hpp"
+#include "CardFlow.hpp"
 #include "CardCarry.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -82,11 +83,21 @@ namespace smirkycard
     friend struct IJsNodeLowering;
     friend class ScriptRuntime;
     friend class JsClickNode;
+    friend class CardFlow;
+#ifdef TEST_BUILD
+    friend class testing::CardFlowAccess;
+#endif
+    friend class JsFlowDescription;
+    static bool installCapability(JSRuntime *);
+    JSValue declareFlow(JSContext *, JSValueConst);
+    static JSValue runFlow(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
+    void withdrawFlows();
+    virtual void onLifecycleFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                        loka::app::scene::NodeLifecycleFact next);
 #ifdef TEST_BUILD
     friend class CardScenario;
     friend class CardScene;
     CardScenario *scenario_;
-    static bool installScenarioCapability(JSRuntime *);
     static JSValue testMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
 #endif
     void fail(const loka::core::String &message);
@@ -119,6 +130,8 @@ namespace smirkycard
     loka::core::EmitterState reloadEmitter_;
     CardRecords<JsSeatRecord> seats_;
     CardRecords<JsHandlerRecord> handlers_;
+    CardRecords<CardFlow> flows_;
+    CardFlow::Admission flowAdmission_;
     JSValue errorSeat_, tree_, onAttach_, onDetach_;
     loka::app::scene::NodeState<loka::core::String> error_;
   };
