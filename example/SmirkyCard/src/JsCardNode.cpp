@@ -6,6 +6,10 @@
 #include "app/nodes/controls/EditText.hpp"
 #include "app/nodes/Text.hpp"
 #include "core/util/OwnedDef.hpp"
+#include "JsNativeClass.hpp"
+#ifdef TEST_BUILD
+#include "CardScenario.hpp"
+#endif
 #include <new>
 #include <string>
 
@@ -33,10 +37,7 @@ namespace smirkycard
       JSClassDef def;
       memset(&def, 0, sizeof(def));
       def.class_name = "SmirkyCardCapability";
-      if (!capabilityClassId)
-        JS_NewClassID(runtime, &capabilityClassId);
-      // IDs are process-global; registration belongs to each QuickJS runtime.
-      return JS_IsRegisteredClass(runtime, capabilityClassId) || JS_NewClass(runtime, capabilityClassId, &def) == 0;
+      return RegisterJsNativeClass(runtime, capabilityClassId, def);
     }
     bool installFunction(JSContext *context, JSValueConst object, const char *name, JSValue function)
     {
@@ -175,6 +176,9 @@ namespace smirkycard
   }
   JsCardNode::JsCardNode(const JsCardProps &p)
       : loka::app::scene::StdCompositionBoundaryNodeBase<JsCardProps>(p),
+#ifdef TEST_BUILD
+        scenario_(0),
+#endif
         engine_(p.runtime ? p.runtime->currentEngine() : 0),
         engineRef_(this->engine_),
         phase_(Live),
@@ -241,6 +245,13 @@ namespace smirkycard
       }
       ok = JS_DefinePropertyValueStr(ctx, context, "carry", carry, JS_PROP_C_W_E) >= 0;
     }
+#ifdef TEST_BUILD
+    if (ok && p.runtime->runnerEnabled())
+    {
+      this->scenario_ = new (std::nothrow) CardScenario(*this, context);
+      ok = this->scenario_ && this->scenario_->installContext(ctx, context, this->capability_, testMethod);
+    }
+#endif
     if (ok)
       ok = JS_FreezeObject(ctx, context) >= 0;
     if (!ok)
@@ -305,6 +316,20 @@ namespace smirkycard
     JS_FreeCString(ctx, name);
     return JS_UNDEFINED;
   }
+#ifdef TEST_BUILD
+  bool JsCardNode::installScenarioCapability(JSRuntime *runtime)
+  {
+    return ensureCapabilityClass(runtime) != 0;
+  }
+
+  JSValue JsCardNode::testMethod(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int op, JSValue *data)
+  {
+    JsCardNode *node = capabilityNode(data[0]);
+    if (!node || !node->scenario_ || node->phase_ == Detaching || node->phase_ == Revoked)
+      return JS_ThrowTypeError(ctx, "scenario operation belongs to a revoked card");
+    return node->scenario_->operation(ctx, argc, argv, op);
+  }
+#endif
   void JsCardNode::revoke()
   {
     this->phase_ = Revoked;
@@ -315,6 +340,9 @@ namespace smirkycard
   JsCardNode::~JsCardNode()
   {
     this->revoke();
+#ifdef TEST_BUILD
+    delete this->scenario_;
+#endif
     if (this->engine_)
     {
       JSContext *ctx = this->engine_->context();
@@ -585,6 +613,10 @@ namespace smirkycard
   void JsCardNode::attachNode(loka::app::scene::NodeComposition &composition)
   {
     StdCompositionBoundaryNodeBase<JsCardProps>::attachNode(composition);
+#ifdef TEST_BUILD
+    if (this->scenario_)
+      this->scenario_->attach(static_cast<CardScene *>(this->scene()));
+#endif
     if (!this->failed_ && this->phase_ == Live && this->engine_ && this->engine_->context())
     {
       ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
@@ -612,6 +644,10 @@ namespace smirkycard
   {
     // Before the base drops the owner slots, so the hook can still write seats.
     this->phase_ = Detaching;
+#ifdef TEST_BUILD
+    if (this->scenario_)
+      this->scenario_->cancel();
+#endif
     if (this->engine_ && this->engine_->context())
     {
       ScriptRuntime::InterruptWindow interrupt(*props.runtime, *this->engine_);
@@ -623,6 +659,10 @@ namespace smirkycard
     else
       this->revoke();
     StdCompositionBoundaryNodeBase<JsCardProps>::detachNode(composition);
+#ifdef TEST_BUILD
+    if (this->scenario_)
+      this->scenario_->finishDetach();
+#endif
   }
   void JsCardNode::composeNode(loka::app::scene::NodeComposition &c)
   {

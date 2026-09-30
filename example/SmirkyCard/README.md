@@ -188,3 +188,53 @@ small child Component that owns its emitter and binds in its own declaration
 window. Detach withdraws that binding synchronously; the card releases records
 only during its destruction after its subtree is detached. Child destruction
 never accesses the borrowed handler.
+
+## Card scenarios (TEST_BUILD, stage 1)
+
+A runner calls `ScriptRuntime::enableRunner(sink, clock, seed, companionName)`
+before loading sources or creating cards. It owns the sink and clock until all
+cards are gone. Without this opt-in, `Flow`, `scenario`, `c.run`, and `c.test`
+are absent. Their implementation and storage are excluded from non-TEST_BUILD
+builds.
+
+The companion file registers `scenario('first', function(c) { c.run(chain); })`.
+Both sources are evaluated in one candidate engine before commit; registration
+and file errors are setup failures. `loadMain` reports them through
+`mainErrorFor`, and `prepareReload`/`prepareOpen` return a null candidate with an
+error. A missing main source may select the built-in source, but its companion
+must still load and register successfully. An invalid main source never silently
+falls back under the runner.
+
+`Flow().step(fn).named(name).onSuccess(fn).onFailure(fn)` describes a chain.
+`c.run` accepts it once, only during that card's scenario invocation, and closes
+its mutation door. Each function receives the preceding return value (initially
+`undefined`). Each authored action uses `RunOnce`, with an automatic `Settle`
+afterward; all C++ edges remain `Scene*`. JavaScript values and functions remain
+rooted in their originating engine. `waitUntil`, `options`, retry, and resume are
+not part of stage 1.
+
+After mounting, the runner advances its clock and calls
+`CardScene::tickScenario()` once per tick. This typed door reaches the root card
+without a tree search. The scenario is invoked on the first safe tick, after
+children exist, never during attach. It runs once per candidate engine's initial
+Scene: reattaching or navigating with `go` does not invoke it again. Reload/open
+validate fresh sources and provide a fresh scenario invocation. Scene admission
+and reclamation happen outside the tick; synchronous detach cancels work already
+on the stack, whose step outcome and canceled terminal are recorded on unwind.
+No JavaScript terminal callback runs after Detaching.
+
+The immediate test operations are:
+
+- `c.test.click(id)`: Button or Cell, with a flush; a disabled Button fails.
+- `c.test.enabled(id)`: Button enabled state; Cells return true.
+- `c.test.text(id)`: Text, Markup's concatenated text segments, Button label, or
+  EditText contents. IDs must identify exactly one node of the requested kind.
+- `c.test.log(text)`: one percent-escaped audit record (`log text=...`).
+- `c.test.random()`: a masked 32-bit LCG, with an integer-constructed binary64
+  result exactly equal to `state / 2^32`. Every card Scene starts from the runner
+  seed, before its factory executes; `go` also creates a fresh random stream.
+
+The host runner harness is in [SmirkyCardTests.cpp](tests/SmirkyCardTests.cpp);
+`LokaSmirkyCardTests --scenarios` runs these mechanism checks. Standalone runner
+apps, LOG.TXT wiring, and the MineSweeper companion belong to the next slice of
+[#1033](https://github.com/cubenoy22/Loka/issues/1033#issuecomment-5892997936).

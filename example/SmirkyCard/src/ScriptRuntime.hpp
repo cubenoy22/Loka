@@ -11,10 +11,27 @@
 
 class PlatformContext;
 
+#ifdef TEST_BUILD
+namespace loka
+{
+  namespace dsl
+  {
+    namespace testing
+    {
+      class ScenarioAuditSink;
+      class ScenarioClock;
+    } // namespace testing
+  } // namespace dsl
+} // namespace loka
+#endif
+
 namespace smirkycard
 {
   class JsCardNode;
   class ScriptRuntime;
+#ifdef TEST_BUILD
+  class CardScenario;
+#endif
 
   /** One independently evaluated QuickJS generation. Cards retain the engine
       they were born in; reload overlap lasts at most the admission cycle in
@@ -26,6 +43,10 @@ namespace smirkycard
     JSRuntime *jsRuntime() const;
     JSValue constructorFor(SmirkyCardId id) const;
     bool hasConstructor(SmirkyCardId id) const;
+#ifdef TEST_BUILD
+    /** Transfers the selected scenario once; navigation cannot mint another ticket. */
+    JSValue takeScenario();
+#endif
 
   private:
     friend class JsEngineRef;
@@ -39,6 +60,9 @@ namespace smirkycard
     SmirkyScript *script_;
     JSValue first_;
     JSValue second_;
+#ifdef TEST_BUILD
+    JSValue scenarioFirst_, scenarioSecond_, scenarioLaunch_;
+#endif
     unsigned int cardCount_;
     JsEngine *nextRetired_;
     JsEngine(const JsEngine &);
@@ -159,6 +183,46 @@ namespace smirkycard
 
 #ifdef TEST_BUILD
     unsigned int retiredEngineCount() const;
+    /** Call before loading sources or creating cards. Services outlive all cards. */
+    bool enableRunner(loka::dsl::testing::ScenarioAuditSink *sink,
+                      loka::dsl::testing::ScenarioClock *clock,
+                      unsigned long seed,
+                      const char *companion);
+    bool runnerEnabled() const
+    {
+      return this->runner_ != 0;
+    }
+    /** Bounded call in the originating engine, including exception formatting. */
+    bool
+    call(JsEngine &engine, JSValueConst fn, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error);
+#endif
+
+#ifdef TEST_BUILD
+  private:
+    friend class CardScenario;
+    struct Runner
+    {
+      Runner(loka::dsl::testing::ScenarioAuditSink *s,
+             loka::dsl::testing::ScenarioClock *c,
+             unsigned long value,
+             const char *name)
+          : sink(s),
+            clock(c),
+            seed(value),
+            companion(name),
+            registering(0)
+      {
+      }
+      loka::dsl::testing::ScenarioAuditSink *const sink;
+      loka::dsl::testing::ScenarioClock *const clock;
+      const unsigned long seed;
+      const std::string companion;
+      JsEngine *registering;
+    };
+    Runner *runner_;
+    bool installRunner(JsEngine &engine);
+    bool evalCompanion(JsEngine &engine, SmirkyCardId selected, loka::core::String &error);
+    static JSValue scenario(JSContext *, JSValueConst, int, JSValueConst *);
 #endif
 
   private:

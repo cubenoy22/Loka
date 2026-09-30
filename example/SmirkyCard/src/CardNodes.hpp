@@ -11,14 +11,27 @@
 
 namespace smirkycard
 {
+  class JsCardNode;
   class CardScene : public loka::app::scene::Scene
   {
   public:
     explicit CardScene(loka::app::scene::NodeDefinitionBase *root)
         : Scene(root)
+#ifdef TEST_BUILD
+          ,
+          runnerCard_(0)
+#endif
     {
     }
     void replaceWith(CardScene *next);
+#ifdef TEST_BUILD
+    /** Runner calls once per tick after mount; no execution discovery walk. */
+    void tickScenario();
+
+  private:
+    friend class CardScenario;
+    JsCardNode *runnerCard_;
+#endif
   };
 
   class JsCardNode;
@@ -69,6 +82,13 @@ namespace smirkycard
     friend struct IJsNodeLowering;
     friend class ScriptRuntime;
     friend class JsClickNode;
+#ifdef TEST_BUILD
+    friend class CardScenario;
+    friend class CardScene;
+    CardScenario *scenario_;
+    static bool installScenarioCapability(JSRuntime *);
+    static JSValue testMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
+#endif
     void fail(const loka::core::String &message);
     loka::app::scene::NodeDefinitionBase *lower(JSContext *context, JSValueConst tree, int depth);
     JsSeatRecord *findSeat(JSContext *context, JSValueConst value) const;

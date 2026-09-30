@@ -540,6 +540,14 @@ namespace loka
         return this->finishRecord(written);
       }
 
+      bool ScenarioAuditFile::recordLog(const std::string &text)
+      {
+        if (!this->isValid())
+          return false;
+        return this->finishRecord(std::fputs("log text=", this->file_) >= 0 && this->writeEscaped(text)
+                                  && std::fputc('\n', this->file_) != EOF);
+      }
+
       bool ScenarioAuditFile::recordVerdict(const SnapRecord &record)
       {
         if (!this->isValid())

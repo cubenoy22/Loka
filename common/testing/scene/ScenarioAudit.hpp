@@ -120,6 +120,11 @@ namespace loka
         virtual bool recordSubstep(const ScenarioSubstepTerminal &record) = 0;
         virtual bool recordVerdict(const SnapRecord &record) = 0;
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status) = 0;
+        /** Optional immediate scenario log; unsupported sinks explicitly refuse. */
+        virtual bool recordLog(const std::string &)
+        {
+          return false;
+        }
       };
 
       namespace scenario_audit_detail
@@ -244,6 +249,7 @@ namespace loka
         virtual bool recordSubstep(const ScenarioSubstepTerminal &record);
         virtual bool recordVerdict(const SnapRecord &record);
         virtual bool recordTerminal(ScenarioAuditTerminalStatus status);
+        virtual bool recordLog(const std::string &text);
 
       private:
         bool writeEscaped(const std::string &value);
