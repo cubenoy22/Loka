@@ -35,6 +35,32 @@ namespace loka
       struct PushStateTrackerTestAccess;
     }
 
+    /** Equality-only transaction identity, scoped to one PushStateTracker lifetime.
+        Zero precedes the first begin. TERMINAL denotes exhaustion, is unequal
+        to every live generation, and remains TERMINAL on further advances. */
+    class TrackerGeneration
+    {
+    public:
+      TrackerGeneration() : value_(0) {}
+      bool operator==(const TrackerGeneration &other) const
+      {
+        return this->value_ == other.value_;
+      }
+      bool operator!=(const TrackerGeneration &other) const
+      {
+        return !(*this == other);
+      }
+      /** Returns the reserved TERMINAL value, including before main. */
+      static TrackerGeneration terminal();
+
+    private:
+      friend class PushStateTracker;
+      friend struct testing::PushStateTrackerTestAccess;
+      explicit TrackerGeneration(unsigned long value) : value_(value) {}
+      void advance();
+      unsigned long value_;
+    };
+
     /** Permission for the lifetime-validated Boundary deferred callback path.
         Copies carry no ownership or lifetime extension. */
     class TrackerDeferKey
@@ -89,6 +115,12 @@ namespace loka
           Deferred callbacks have separate, unreserved storage. */
       void reserveStates(size_t count);
       bool end();
+      /** Current identity (retained after end); nested/reentrant begin keeps it.
+          Each outer begin and successful next-intake transfer advances it. */
+      TrackerGeneration generation() const
+      {
+        return this->transaction_.generation;
+      }
       /** Returns whether the current (or just-ended) transaction marked any state dirty. */
       bool transactionDirty() const
       {
@@ -206,7 +238,8 @@ namespace loka
       struct TrackerTransaction
       {
         TrackerTransaction()
-            : current(),
+            : generation(),
+              current(),
               next(),
               committedDirtyStates(),
               committedIdentitiesErased(false),
@@ -219,6 +252,7 @@ namespace loka
         void advance();
         void removeState(StateBase *state);
 
+        TrackerGeneration generation;
         TransactionIntake current;
         TransactionIntake next;
         StateList committedDirtyStates;

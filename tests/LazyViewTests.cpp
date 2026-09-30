@@ -587,12 +587,14 @@ void allocpin::RunLazyViewPageFlipAllocPin()
     EndCapture();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
     // Measured ceilings for the host pool simulation, including the reclaim clock.
+    // B1 adds one tracker generation value (8 host bytes) per replaced runtime root;
+    // allocation counts are unchanged. Both audit configurations are measured.
 #ifdef LOKA_LIFECYCLE_AUDIT
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, capture == 0 ? 10768 : 9768);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, capture == 0 ? 10776 : 9776);
 #else
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, capture == 0 ? 10352 : 9392);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, capture == 0 ? 10360 : 9400);
 #endif
 #endif
     rows(f, f.view.get().y == 0 ? 9 : 10);

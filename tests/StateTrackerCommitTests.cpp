@@ -3,6 +3,7 @@
 #include "StateTrackerCommitTests.hpp"
 #include <cassert>
 #include <cstdio>
+#include <climits>
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -417,4 +418,213 @@ void testStateTrackerGuardOpenedDuringCommitJoinsTransaction()
   assert(probe.invalidations == 1);
   assert(tracker.phase() == loka::core::TRACKER_IDLE);
   printf("==== [testStateTrackerGuardOpenedDuringCommitJoinsTransaction] end ====\n");
+}
+
+namespace
+{
+  using loka::core::PushStateTracker;
+  using loka::core::TrackerGeneration;
+  using loka::core::testing::PushStateTrackerTestAccess;
+
+  const TrackerGeneration staticTerminal = TrackerGeneration::terminal();
+
+  struct GenerationChainProbe
+  {
+    GenerationChainProbe(PushStateTracker &owner, loka::core::MutableState<int> &value,
+                         int rounds, const TrackerGeneration *tokens)
+        : tracker(owner), state(value), stopAfter(rounds), expected(tokens), calls(0)
+    {
+    }
+
+    PushStateTracker &tracker;
+    loka::core::MutableState<int> &state;
+    const int stopAfter;
+    const TrackerGeneration *const expected;
+    int calls;
+
+    static void invalidate(void *data)
+    {
+      GenerationChainProbe &self = *static_cast<GenerationChainProbe *>(data);
+      if (self.expected)
+        assert(self.tracker.generation() == self.expected[self.calls]);
+      ++self.calls;
+      if (self.calls < self.stopAfter)
+        self.state.set(self.state.get() + 1);
+    }
+  };
+
+  void checkGenerationInReentrantGuard(void *data)
+  {
+    PushStateTracker &tracker = *static_cast<PushStateTracker *>(data);
+    const TrackerGeneration before = tracker.generation();
+    (void)before;
+    assert(tracker.phase() != loka::core::TRACKER_IDLE);
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      assert(tracker.generation() == before);
+    }
+    assert(tracker.generation() == before);
+  }
+
+  void runGenerationLimitChain(PushStateTracker &tracker,
+                               loka::core::MutableState<int> &state)
+  {
+    GenerationChainProbe probe(tracker, state, 1001, 0);
+    tracker.addState(&state);
+    tracker.setInvalidateCallback(&GenerationChainProbe::invalidate, &probe);
+    tracker.begin();
+    state.set(1);
+    const bool settled = tracker.end();
+    (void)settled;
+    assert(!settled);
+    assert(probe.calls == 1000);
+    assert(state.get() == 1001);
+    assert(tracker.phase() == loka::core::TRACKER_IDLE);
+    assert(PushStateTrackerTestAccess::nextDirtyCount(tracker) == 1);
+    tracker.setInvalidateCallback(0, 0);
+  }
+}
+
+void testB1GenerationFreshBegin()
+{
+  // Rule: each outermost begin advances exactly once.
+  PushStateTracker tracker;
+  tracker.begin();
+  const TrackerGeneration first = tracker.generation();
+  (void)first;
+  assert(first == PushStateTrackerTestAccess::generationValue(1));
+  assert(first != TrackerGeneration::terminal());
+  tracker.end();
+  assert(tracker.generation() == first);
+  tracker.begin();
+  assert(tracker.generation() != first);
+  assert(tracker.generation() == PushStateTrackerTestAccess::generationValue(2));
+  assert(tracker.generation() != TrackerGeneration::terminal());
+  tracker.end();
+}
+
+void testB1GenerationNestedBegin()
+{
+  // Rule: nested begin returns without advancing.
+  PushStateTracker tracker;
+  tracker.begin();
+  const TrackerGeneration outer = tracker.generation();
+  (void)outer;
+  tracker.begin();
+  assert(tracker.generation() == outer);
+  tracker.end();
+  assert(tracker.generation() == outer);
+  tracker.end();
+  assert(tracker.generation() == outer);
+}
+
+void testB1GenerationReentrantBegin()
+{
+  // Rule: a guard joining settlement returns without advancing.
+  loka::core::MutableState<int> source(0);
+  loka::core::DerivedState<int> derived(&source, new IncrementedStateEval(&source));
+  PushStateTracker tracker;
+  tracker.addState(&source);
+  tracker.addState(&derived);
+  derived.bind(&checkGenerationInReentrantGuard, &tracker, false);
+  tracker.begin();
+  const TrackerGeneration outer = tracker.generation();
+  (void)outer;
+  source.set(1);
+  PushStateTrackerTestAccess::defer(tracker, &checkGenerationInReentrantGuard, &tracker);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(settled);
+  assert(derived.get() == 2);
+  assert(tracker.generation() == outer);
+}
+
+void testB1GenerationNextIntake()
+{
+  // Rule: each successful next-to-current transfer advances exactly once.
+  loka::core::MutableState<int> state(0);
+  PushStateTracker tracker;
+  const TrackerGeneration expected[] = {
+      PushStateTrackerTestAccess::generationValue(1),
+      PushStateTrackerTestAccess::generationValue(2),
+      PushStateTrackerTestAccess::generationValue(3)};
+  GenerationChainProbe probe(tracker, state, 3, expected);
+  tracker.addState(&state);
+  tracker.setInvalidateCallback(&GenerationChainProbe::invalidate, &probe);
+  tracker.begin();
+  state.set(1);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(settled);
+  assert(probe.calls == 3);
+  assert(tracker.generation() == expected[2]);
+}
+
+void testB1GenerationLimitExit()
+{
+  // Rule: the failed final COMMIT round does not transfer or advance.
+  loka::core::MutableState<int> state(0);
+  PushStateTracker tracker;
+  runGenerationLimitChain(tracker, state);
+  assert(tracker.generation() == PushStateTrackerTestAccess::generationValue(1000));
+  tracker.begin();
+  assert(tracker.generation() == PushStateTrackerTestAccess::generationValue(1001));
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(settled);
+}
+
+void testB1GenerationLimitBeginNoDoubleAdvance()
+{
+  // Rule: clearing abandoned next work does not add another begin advance.
+  loka::core::MutableState<int> state(0);
+  PushStateTracker tracker;
+  runGenerationLimitChain(tracker, state);
+  tracker.begin();
+  assert(PushStateTrackerTestAccess::nextDirtyCount(tracker) == 0);
+  assert(tracker.generation() == PushStateTrackerTestAccess::generationValue(1001));
+  tracker.end();
+}
+
+void testB1GenerationTerminalBegin()
+{
+  // Rule: begin uses the guarded advance, including while already TERMINAL.
+  PushStateTracker tracker;
+  PushStateTrackerTestAccess::seedGeneration(tracker, ULONG_MAX - 1);
+  assert(tracker.generation() != TrackerGeneration::terminal());
+  tracker.begin();
+  assert(tracker.generation() == TrackerGeneration::terminal());
+  tracker.end();
+  tracker.begin();
+  assert(tracker.generation() == TrackerGeneration::terminal());
+  tracker.end();
+}
+
+void testB1GenerationTerminalAdvance()
+{
+  // Rule: next intake uses the same saturating procedure as outer begin.
+  loka::core::MutableState<int> state(0);
+  PushStateTracker tracker;
+  PushStateTrackerTestAccess::seedGeneration(tracker, ULONG_MAX - 3);
+  const TrackerGeneration expected[] = {
+      PushStateTrackerTestAccess::generationValue(ULONG_MAX - 2),
+      PushStateTrackerTestAccess::generationValue(ULONG_MAX - 1),
+      TrackerGeneration::terminal(), TrackerGeneration::terminal()};
+  GenerationChainProbe probe(tracker, state, 4, expected);
+  tracker.addState(&state);
+  tracker.setInvalidateCallback(&GenerationChainProbe::invalidate, &probe);
+  tracker.begin();
+  state.set(1);
+  const bool settled = tracker.end();
+  (void)settled;
+  assert(settled);
+  assert(probe.calls == 4);
+  assert(tracker.generation() == TrackerGeneration::terminal());
+}
+
+void testB1GenerationTerminalStaticInitialization()
+{
+  // Rule: an exhaustion value copied before main must already be TERMINAL.
+  assert(staticTerminal == TrackerGeneration::terminal());
+  assert(staticTerminal != PushStateTrackerTestAccess::generationValue(0));
 }

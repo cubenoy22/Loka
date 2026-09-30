@@ -1,11 +1,23 @@
 #include "core/StateTracker.hpp"
 #include "core/State.hpp"
 #include <cstdio>
+#include <climits>
 
 namespace loka
 {
   namespace core
   {
+
+    TrackerGeneration TrackerGeneration::terminal()
+    {
+      return TrackerGeneration(ULONG_MAX);
+    }
+
+    void TrackerGeneration::advance()
+    {
+      if (this->value_ != ULONG_MAX)
+        ++this->value_;
+    }
 
     PushStateTracker::PushStateTracker()
         : phase_(TRACKER_IDLE),
@@ -65,6 +77,7 @@ namespace loka
       ++depth_;
       for (StateEntry *e = statesHead_; e; e = e->next)
         e->state->currentTracker = this;
+      this->transaction_.generation.advance();
       transaction_.begin();
       phase_ = TRACKER_PRECOMMIT;
     }
@@ -431,6 +444,7 @@ namespace loka
 
     void PushStateTracker::TrackerTransaction::advance()
     {
+      this->generation.advance();
       current.clear();
       current.swap(next);
       next.clear();

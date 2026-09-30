@@ -51,6 +51,14 @@ namespace loka
         {
           return tracker.transaction_.next.deferred.size();
         }
+        static TrackerGeneration generationValue(unsigned long value)
+        {
+          return TrackerGeneration(value);
+        }
+        static void seedGeneration(PushStateTracker &tracker, unsigned long value)
+        {
+          tracker.transaction_.generation = TrackerGeneration(value);
+        }
         static void seedVisitPass(PushStateTracker &tracker, unsigned long value)
         {
           tracker.visitPass_ = value;
