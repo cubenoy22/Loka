@@ -5,8 +5,11 @@ description: Coordinate parallel sessions on this machine using local issue and 
 
 Use `.claude/skills/claim/claim.sh` from the repository root.
 At session start, run `claim.sh list` using that path.
-Choose a short owner slug such as `opus-0929a` and keep it for the session's
-lifetime; different sessions must use different slugs.
+Use as the owner slug the name the owner calls this session, lowercased
+(for example `opus2` for "Opus2号"); ask if you do not know it. Keep it for the
+session's lifetime; different sessions must use different slugs. The Loka
+Board shows this slug, so it is how people tell sessions apart (every session
+posts as the same GitHub account).
 
 Before investigating an issue, take `issue-<n>`. For PR follow-up, use `pr-<n>`;
 keep the issue claim too if the work continues that issue. Before touching a
