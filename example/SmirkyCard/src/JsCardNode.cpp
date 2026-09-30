@@ -20,6 +20,7 @@ namespace smirkycard
     enum ContextOperation
     {
       ContextState,
+      ContextFlow,
       ContextGo,
       ContextOpen,
       ContextReload,
@@ -187,6 +188,7 @@ namespace smirkycard
         instance_(JS_UNDEFINED),
         seats_("Seat"),
         handlers_("Handler"),
+        flows_("Flow"),
         errorSeat_(JS_UNDEFINED),
         tree_(JS_UNDEFINED),
         onAttach_(JS_UNDEFINED),
@@ -225,7 +227,7 @@ namespace smirkycard
                ctx, this->errorSeat_, "get", JS_NewCFunctionData(ctx, seatNative, 0, ErrorGet, 1, &this->capability_))
            && JS_FreezeObject(ctx, this->errorSeat_) >= 0
            && JS_SetPropertyStr(ctx, context, "error", JS_DupValue(ctx, this->errorSeat_)) >= 0;
-    const char *names[] = {"state", "go", "open", "reload"};
+    const char *names[] = {"state", "flow", "go", "open", "reload"};
     for (int i = 0; ok && i < ContextOperation_COUNT; ++i)
       ok = installFunction(
           ctx,
@@ -285,6 +287,8 @@ namespace smirkycard
     JsCardNode *node = capabilityNode(data[0]);
     if (!node)
       return JS_ThrowTypeError(ctx, "context belongs to a revoked card");
+    if (operation == ContextFlow)
+      return argc == 1 ? node->declareFlow(ctx, argv[0]) : JS_ThrowTypeError(ctx, "c.flow requires one description");
     if (operation == ContextState)
     {
       if (argc != 1)
@@ -316,12 +320,12 @@ namespace smirkycard
     JS_FreeCString(ctx, name);
     return JS_UNDEFINED;
   }
-#ifdef TEST_BUILD
-  bool JsCardNode::installScenarioCapability(JSRuntime *runtime)
+  bool JsCardNode::installCapability(JSRuntime *runtime)
   {
     return ensureCapabilityClass(runtime) != 0;
   }
 
+#ifdef TEST_BUILD
   JSValue JsCardNode::testMethod(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int op, JSValue *data)
   {
     JsCardNode *node = capabilityNode(data[0]);
@@ -330,6 +334,71 @@ namespace smirkycard
     return node->scenario_->operation(ctx, argc, argv, op);
   }
 #endif
+  JSValue JsCardNode::declareFlow(JSContext *ctx, JSValueConst value)
+  {
+    if (this->phase_ != Constructing)
+      return JS_ThrowTypeError(ctx, "c.flow is only valid in a card constructor");
+    JsFlowDescription *description = JsFlowDescription::get(value);
+    if (!description || !description->steps())
+      return JS_ThrowTypeError(ctx, "c.flow requires an unconsumed nonempty Flow");
+    unsigned steps = 0;
+    for (const JsFlowDescription::StepRecord *step = description->steps(); step; step = step->next)
+      if (++steps > kCardFlowStepBudget)
+        return JS_ThrowRangeError(ctx, "Card Flow step budget exceeded (128)");
+    JsSeatRecord *seat = 0;
+    if (description->hasWatch())
+    {
+      seat = this->findSeat(ctx, description->watched());
+      if (!seat)
+        return JS_ThrowTypeError(ctx, "Flow watch requires this card's own state seat");
+    }
+    if (this->flows_.count() >= kCardFlowBudget)
+      return JS_ThrowRangeError(ctx, "Card Flow budget exceeded (32)");
+    JSValue handle = JS_NewObject(ctx);
+    if (JS_IsException(handle))
+      return handle;
+    JSValue data[] = {this->capability_, handle};
+    if (!installFunction(ctx, handle, "run", JS_NewCFunctionData(ctx, runFlow, 1, 0, 2, data))
+        || JS_FreezeObject(ctx, handle) < 0)
+    {
+      JS_FreeValue(ctx, handle);
+      return JS_EXCEPTION;
+    }
+    if (!this->flows_.add(CardFlow::Initial(*this, ctx, value, handle, seat)))
+    {
+      JS_FreeValue(ctx, handle);
+      return JS_ThrowOutOfMemory(ctx);
+    }
+    description->consume();
+    return handle;
+  }
+  JSValue JsCardNode::runFlow(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int, JSValue *data)
+  {
+    JsCardNode *card = capabilityNode(data[0]);
+    if (!card)
+      return JS_FALSE;
+    for (CardFlow *flow = card->flows_.head(); flow; flow = flow->next)
+      if (flow->matches(data[1]))
+        return JS_NewBool(ctx, flow->run(argc ? argv[0] : JS_UNDEFINED));
+    return JS_FALSE;
+  }
+  void JsCardNode::withdrawFlows()
+  {
+    for (CardFlow *flow = this->flows_.head(); flow; flow = flow->next)
+      flow->withdraw();
+  }
+
+  void JsCardNode::onLifecycleFactChanged(loka::app::scene::NodeLifecycleFact previous,
+                                          loka::app::scene::NodeLifecycleFact next)
+  {
+    StdCompositionBoundaryNodeBase<JsCardProps>::onLifecycleFactChanged(previous, next);
+    if (next == loka::app::scene::NODE_FACT_RETIRED)
+    {
+      this->phase_ = Detaching;
+      this->withdrawFlows();
+    }
+  }
+
   void JsCardNode::revoke()
   {
     this->phase_ = Revoked;
@@ -589,6 +658,11 @@ namespace smirkycard
   void JsCardNode::declareBindings(loka::app::scene::BindingToken &t)
   {
     t.action(reloadEmitter_, this, &JsCardNode::requestReload);
+    for (CardFlow *flow = this->flows_.head(); !this->failed_ && flow; flow = flow->next)
+      if (!flow->activate(t))
+        this->fail("Could not activate card Flow.");
+    if (this->failed_)
+      this->withdrawFlows();
   }
   // The card hooks ride the root boundary's own attach/detach doors
   // (ComponentNode::composeWithContext -> attachNode/detachNode), which every
@@ -644,6 +718,7 @@ namespace smirkycard
   {
     // Before the base drops the owner slots, so the hook can still write seats.
     this->phase_ = Detaching;
+    this->withdrawFlows();
 #ifdef TEST_BUILD
     if (this->scenario_)
       this->scenario_->cancel();

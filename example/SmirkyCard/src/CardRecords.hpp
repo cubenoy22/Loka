@@ -10,7 +10,9 @@ namespace smirkycard
   enum
   {
     kCardSeatBudget = 128,
-    kCardClickableBudget = 128
+    kCardClickableBudget = 128,
+    kCardFlowBudget = 32,
+    kCardFlowStepBudget = 128
   };
 
   /** Card-owned intrusive storage. Records never move; no cached length. */

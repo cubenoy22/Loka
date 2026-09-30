@@ -189,15 +189,62 @@ window. Detach withdraws that binding synchronously; the card releases records
 only during its destruction after its subtree is detached. Child destruction
 never accesses the borrowed handler.
 
+## Production card Flows (stage 2a)
+
+`Flow` is installed in every engine. Declare a card-owned Flow with `c.flow(chain)`
+inside the card constructor; the returned frozen handle has only `run(value)`.
+The description is consumed once and its functions remain rooted until the card
+is reclaimed. A card admits up to 32 Flows, each with up to 128 steps.
+
+```js
+card('first', c => {
+  const input = c.state(0);
+  const output = c.state('');
+  const update = c.flow(Flow()
+    .watch(input, value => value < 0 ? Flow.SKIP : value)
+    .step(value => value * 2)
+    .onSuccess(value => output.set(String(value)))
+    .onFailure(message => output.set(message)));
+  return { compose() { return VStack(Text(output), Button('Run', () => update.run(4))); } };
+});
+```
+
+Only the declaring card's constructor-created `c.state` seats may be watched.
+The optional first `watch(seat, adapter)` subscribes after state materialization,
+without an initial fire. Its adapter passes its return value to the next step;
+returning the frozen unique `Flow.SKIP` quietly ignores that firing. An adapter
+exception fails the execution. `run(value)` bypasses the watching adapter and
+passes the supplied value to the next step. Without a watch, only `run` starts
+an execution. There is no polling, waiting, retry, or public status.
+
+All steps and the terminal callback execute synchronously in one card-tracker
+transaction. Derived values and projected text read mid-Flow may be stale until
+settlement. Steps pass return values to the next function. Success receives the
+final value; failure receives the diagnostic string once and does not recover.
+A terminal callback that throws records a diagnostic without another callback.
+
+The admission door stays held through terminal notification, value release, and
+transaction unwind. Reentrant `run` returns false; own-watch firings are dropped
+without calling the adapter. Another Flow's synchronous watch firing is dropped
+with a diagnostic and a debug assertion. Completion states must therefore be
+written outside a running Flow, including completion from modal native work.
+Append steps to one Flow to express a synchronous sequence.
+
+Navigation via `c.go` cancels the execution even in the last step: later steps
+and success do not run. Each call checks the card's lifecycle before entry and
+immediately on return, before formatting exceptions. Detaching withdraws watches
+before `onDetach`; retained handles return false after revocation. Reclamation
+releases roots silently. Waiting and nested execution belong to stage 2b.
+
 ## Card scenarios (TEST_BUILD, stage 1)
 
 A runner calls `ScriptRuntime::enableRunner(sink, clock, seed, companionName, bakedText)`
 before loading sources or creating cards. It owns the sink and clock until all
 cards are gone. The optional nonempty baked text replaces companion file reads,
 including reload/open; omitting it retains the file-based runner. Without this
-opt-in, `Flow`, `scenario`, `c.run`, and `c.test`
-are absent. Their implementation and storage are excluded from non-TEST_BUILD
-builds.
+opt-in, `scenario`, `c.run`, and `c.test` are absent. Scenario execution and
+storage are excluded from non-TEST_BUILD builds; the `Flow` description builder
+is shared with production. Stage-1 `c.run` does not accept a watching step.
 
 The companion file registers `scenario('first', function(c) { c.run(chain); })`.
 Both sources are evaluated in one candidate engine before commit; registration
