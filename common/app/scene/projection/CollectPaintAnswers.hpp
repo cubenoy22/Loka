@@ -69,7 +69,7 @@ namespace loka
               candidate.height = static_cast<int>((bottomA > bottomB ? bottomA : bottomB) - candidate.y);
               // Growth over the larger rectangle: never negative, and a 16-bit
               // coordinate span squared fits unsigned long without floating point
-              // (68k Classic targets have no FPU).
+              // (Retro68 68k builds use software floating point).
               const unsigned long areaA = static_cast<unsigned long>(a.width) * static_cast<unsigned long>(a.height);
               const unsigned long areaB = static_cast<unsigned long>(b.width) * static_cast<unsigned long>(b.height);
               const unsigned long cost = static_cast<unsigned long>(candidate.width)

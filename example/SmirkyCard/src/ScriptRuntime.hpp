@@ -97,11 +97,6 @@ namespace smirkycard
     }
     JSContext *context() const;
     JSRuntime *jsRuntime() const;
-    void setActive(JsCardNode *node)
-    {
-      this->active_ = node;
-    }
-    JsCardNode *active(JSContext *context) const;
     bool loadBuiltin(const char *source, loka::core::String &error);
     /** Selects MAIN.JS once through the application's portable file door. */
     void loadMain(PlatformContext *context);
@@ -123,22 +118,11 @@ namespace smirkycard
     /** A startup MAIN.JS failure belongs on the first card, or every card
         when the file reached QuickJS but could not evaluate. */
     loka::core::String mainErrorFor(SmirkyCardId card) const;
-    /** Every JS invocation passes through one of these doors. Success values
-        are transferred to the caller, which must either own or free them. */
-    bool callConstructor(JsEngine &engine, JSValueConst ctor, JSValue &result, loka::core::String &error);
-    bool call(JsEngine &engine,
-              JSValueConst fn,
-              JSValueConst receiver,
-              int argc,
-              JSValueConst *argv,
-              JSValue &result,
-              loka::core::String &error);
     bool
     evalMain(JsEngine &engine, const char *source, std::size_t length, const char *name, loka::core::String &error);
     /* Helper callback is public only so the local tree factory can install it. */
     static JSValue testId(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     static JSValue enabled(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue declare(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
 
     SmirkyCardId evaluate(const char *source, char *error, size_t capacity)
     {
@@ -191,10 +175,6 @@ namespace smirkycard
     static int interrupt(JSRuntime *, void *opaque);
     bool captureException(JsEngine &engine, loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue state(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue go(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue reload(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    static JSValue open(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
     bool readFile(const std::string &name, std::string &text, loka::core::String &error) const;
     JsEngine *prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error);
     enum MainErrorScope
@@ -206,7 +186,6 @@ namespace smirkycard
     JsCardBindingRegistry registry_;
     JsEngine *currentEngine_;
     JsEngine *retiredEngines_;
-    JsCardNode *active_;
     MainSource mainSource_;
     PlatformContext *mainContext_;
     loka::core::String mainError_;

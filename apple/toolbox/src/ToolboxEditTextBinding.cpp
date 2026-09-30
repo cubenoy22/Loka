@@ -142,8 +142,10 @@ void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBindin
     return;
   }
   std::string utf8;
-  if (binding.text)
-    loka::platform::CollectUtf8(binding.text->get(), utf8);
+  // A refused conversion leaves partial bytes: keep the installed text and
+  // lastText so the next sync retries instead of recording them (#1026).
+  if (binding.text && !loka::platform::CollectUtf8(binding.text->get(), utf8))
+    return;
   if (binding.lastText == utf8)
   {
     return;

@@ -3,6 +3,7 @@
 
 #include "ScriptRuntime.hpp"
 #include "CardRecords.hpp"
+#include "CardCarry.hpp"
 #include "app/core/Window.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/state/NodeState.hpp"
@@ -27,9 +28,13 @@ namespace smirkycard
     typedef JsCardNode NodeType;
     ScriptRuntime *runtime;
     SmirkyCardId card;
-    JsCardProps(ScriptRuntime *value = 0, SmirkyCardId id = SMIRKY_CARD_FIRST)
+    CardCarry carry;
+    JsCardProps(ScriptRuntime *value = 0,
+                SmirkyCardId id = SMIRKY_CARD_FIRST,
+                const CardCarry &valueCarry = CardCarry())
         : runtime(value),
-          card(id)
+          card(id),
+          carry(valueCarry)
     {
     }
     bool operator<(const loka::app::scene::PropsBase &rhs) const;
@@ -41,15 +46,14 @@ namespace smirkycard
   public:
     explicit JsCardNode(const JsCardProps &props);
     virtual ~JsCardNode();
-    bool constructing() const;
     JSValue mintState(JSContext *context, JSValueConst initial);
     JSValue seatGet(JSContext *context, JSValueConst seat);
     JSValue seatSet(JSContext *context, JSValueConst seat, JSValueConst value);
     JSValue errorSeatGet(JSContext *context);
-    void requestGo(const char *name, size_t length);
-    void requestGo(SmirkyCardId card);
+    void requestGo(const char *name, size_t length, const CardCarry &carry);
+    void requestGo(SmirkyCardId card, const CardCarry &carry);
     void requestReload();
-    void requestOpen(const char *name, size_t length);
+    void requestOpen(const char *name, size_t length, const CardCarry &carry);
     bool setComposeTree(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);
@@ -70,11 +74,25 @@ namespace smirkycard
     JsSeatRecord *findSeat(JSContext *context, JSValueConst value) const;
     JsHandlerRecord *addHandler(JSContext *context, JSValueConst handler);
     void fire(const JsHandlerRecord &handler);
-    void callHook(JSValueConst hook);
+    JSValue callHook(JSValueConst hook);
+    void finishCall(JSValue result);
     void declareRefusal(loka::app::scene::NodeComposition &composition);
     JsEngine *engine_;
     JsEngineRef engineRef_;
-    bool constructing_;
+    enum Phase
+    {
+      Constructing,
+      Live,
+      TransitionPending,
+      Detaching,
+      Revoked
+    };
+    Phase phase_;
+    /** QuickJS owns the shared revocable capability captured by native methods. */
+    JSValue capability_;
+    static JSValue contextMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
+    void revoke();
+    void reloadWithCarry(const CardCarry &carry);
     bool failed_;
     JSValue instance_;
     loka::core::String failure_;
@@ -84,6 +102,6 @@ namespace smirkycard
     JSValue errorSeat_, tree_, onAttach_, onDetach_;
     loka::app::scene::NodeState<loka::core::String> error_;
   };
-  CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime);
+  CardScene *CreateCard(SmirkyCardId card, ScriptRuntime &runtime, const CardCarry &carry = CardCarry());
 } // namespace smirkycard
 #endif

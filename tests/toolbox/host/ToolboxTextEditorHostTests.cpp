@@ -1067,6 +1067,52 @@ int main(int argc, char **argv)
   }
   pin("default/desire-stay: editor disposes only at clock drain; cross-kind handles and font metrics stay isolated");
   {
+    // #1026: an ordinary EditText whose value refuses UTF-8 conversion keeps
+    // the text it already installed, and retries once a value converts.
+    struct RefusingUtf8 : public loka::platform::String
+    {
+      virtual bool appendUtf8(std::string &out) const
+      {
+        out.append("par");
+        return false;
+      }
+    };
+    Fixture f;
+    ToolboxEditTextContext ordinary;
+    MutableState<String> text(String("ordinary"));
+    const Rect rect = {20, 10, 40, 210};
+    GrafPtr previous;
+    GetPort(&previous);
+    SetPort(f.window.window());
+    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT);
+    LOKA_VERIFY(edit && (**edit).text == "ordinary");
+    {
+      StateTrackerGuard guard(&f.tracker);
+      text.set(String::FromPlatform(Managed<loka::platform::String>::Wrap(new RefusingUtf8())));
+    }
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    std::printf("refused conversion installs \"%s\"\n", (**edit).text.c_str());
+    std::fflush(stdout);
+    LOKA_VERIFY((**edit).text == "ordinary" && (**edit).teLength == 8);
+    {
+      StateTrackerGuard guard(&f.tracker);
+      text.set(String("next"));
+    }
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    LOKA_VERIFY((**edit).text == "next");
+    // The refused pass left the installed record untouched, so the original
+    // value converts again and is installed (not skipped as already present).
+    {
+      StateTrackerGuard guard(&f.tracker);
+      text.set(String("ordinary"));
+    }
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    LOKA_VERIFY((**edit).text == "ordinary");
+    SetPort(previous);
+    f.controller.retireEditTextControl(&ordinary, NATIVE_HINT_DEFAULT);
+  }
+  pin("#1026: a refused UTF-8 conversion keeps the installed EditText text");
+  {
     GrafPtr previous;
     GetPort(&previous);
     const short font = previous->txFont, size = previous->txSize;
