@@ -6,6 +6,8 @@
 #include "ToolboxLayoutMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "platform/StringUTF8.hpp"
+#include "platform/String.hpp"
+#include "core/StringAccess.hpp"
 #include <cstring>
 #include <string>
 
@@ -32,6 +34,29 @@ namespace
   };
 
   ToolboxEditTextNodeHandler gToolboxEditTextNodeHandler;
+
+  /** Certify the installed bytes, not a logical value whose sync may refuse. */
+  bool InstalledTextMatches(TEHandle te, const loka::core::String &value)
+  {
+    loka::platform::Utf8View bytes = {0, 0};
+    std::string scratch;
+    const loka::core::Managed<loka::platform::String> &handle = loka::core::StringAccess::handle(value);
+    if (handle.isValid() && !handle->queryUtf8(bytes))
+    {
+      if (!loka::platform::CollectUtf8(value, scratch))
+        return false;
+      bytes.bytes = scratch.data();
+      bytes.length = scratch.size();
+    }
+    if ((**te).teLength < 0 || static_cast<std::size_t>((**te).teLength) != bytes.length)
+      return false;
+    if (!bytes.length)
+      return true;
+    // Conversion is complete before borrowing the relocatable native bytes.
+    // No allocating or Toolbox call intervenes before the comparison.
+    CharsHandle installed = TEGetText(te);
+    return installed && *installed && std::memcmp(*installed, bytes.bytes, bytes.length) == 0;
+  }
 
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
@@ -128,13 +153,15 @@ void ToolboxEditTextContext::repaint(TEHandle te)
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
+  const bool completes = ToolboxPaintCompletes(clip, this->paintRect_, this->presented_,
+      this->presented_.isKnown() && this->text_ && this->text_->get().equals(this->presented_.value()));
   this->presented_.invalidate();
   if (!te || !*te || !this->text_)
     return;
   const Rect view = (**te).viewRect;
   TEUpdate(&view, te);
   FrameRect(&this->rect_);
-  if (clip.covers(this->paintRect_))
+  if (completes && InstalledTextMatches(te, this->text_->get()))
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
 }
 
