@@ -61,6 +61,9 @@ namespace smirkycard
     explicit JsCardNode(const JsCardProps &props);
     virtual ~JsCardNode();
     JSValue mintState(JSContext *context, JSValueConst initial);
+    JSValue mintTypedState(JSContext *, JsSeatRecord::Kind);
+    bool flowLive() const;
+    JSValue loadImage(JSContext *, JSValueConst);
     JSValue seatGet(JSContext *context, JSValueConst seat);
     JSValue seatSet(JSContext *context, JSValueConst seat, JSValueConst value);
     JSValue errorSeatGet(JSContext *context);
@@ -123,6 +126,9 @@ namespace smirkycard
     JSValue capability_;
     static JSValue contextMethod(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
     void revoke();
+    JSValue finishSeat(JSContext *, JsSeatRecord *);
+    static JSValue typedFactory(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
+    static JSValue nativeLoadImage(JSContext *, JSValueConst, int, JSValueConst *, int, JSValue *);
     void reloadWithCarry(const CardCarry &carry);
     bool failed_;
     JSValue instance_;

@@ -7,6 +7,121 @@
 
 namespace smirkycard
 {
+  namespace
+  {
+    JSClassID handleClassId = 0;
+    /** Non-owning integer identity; QuickJS collection never releases payloads. */
+    struct HandleIdentity
+    {
+      uint32_t serial;
+      unsigned slot;
+      JsSeatRecord::Kind kind;
+    };
+    void finalizeHandle(JSRuntime *runtime, JSValue value)
+    {
+      js_free_rt(runtime, JS_GetOpaque(value, handleClassId));
+    }
+  }
+  bool CardFlow::Admission::installHandles(JSRuntime *runtime)
+  {
+    JSClassDef def;
+    memset(&def, 0, sizeof(def));
+    def.class_name = "SmirkyExecutionHandle";
+    def.finalizer = finalizeHandle;
+    return RegisterJsNativeClass(runtime, handleClassId, def) != 0;
+  }
+  bool CardFlow::Admission::capacity(JSContext *ctx) const
+  {
+    if (!this->active_)
+    {
+      JS_ThrowTypeError(ctx, "native handle requires an active CardFlow execution");
+      return false;
+    }
+    return this->active_->capacity(ctx);
+  }
+  bool CardFlow::Admission::Execution::capacity(JSContext *ctx) const
+  {
+    if (this->occupied_ == 4)
+    {
+      JS_ThrowRangeError(ctx, "CardFlow handle slot capacity exceeded (4)");
+      return false;
+    }
+    return true;
+  }
+  JSValue CardFlow::Admission::publish(JSContext *ctx, JsSeatRecord::Kind kind,
+                                     const loka::core::resource::Image &image, const loka::file::File &file)
+  {
+    if (!this->capacity(ctx))
+      return JS_EXCEPTION;
+    return this->active_->publish(ctx, kind, image, file);
+  }
+  JSValue CardFlow::Admission::Execution::publish(JSContext *ctx, JsSeatRecord::Kind kind,
+                                                const loka::core::resource::Image &image, const loka::file::File &file)
+  {
+    JSValue value = JS_NewObjectClass(ctx, handleClassId);
+    if (JS_IsException(value))
+      return value;
+    HandleIdentity *identity = static_cast<HandleIdentity *>(js_malloc(ctx, sizeof(HandleIdentity)));
+    if (!identity)
+    {
+      JS_FreeValue(ctx, value);
+      return JS_EXCEPTION;
+    }
+    identity->serial = this->serial_;
+    identity->slot = this->occupied_;
+    identity->kind = kind;
+    JS_SetOpaque(value, identity);
+    if (JS_FreezeObject(ctx, value) < 0)
+    {
+      JS_FreeValue(ctx, value);
+      return JS_EXCEPTION;
+    }
+    Execution::Slot &slot = this->slots_[this->occupied_++];
+    slot.kind = kind;
+    slot.image = image;
+    slot.file = file;
+    return value;
+  }
+  JSValue CardFlow::Admission::project(JSContext *ctx, const loka::core::resource::Image &image)
+  {
+    return this->publish(ctx, JsSeatRecord::IMAGE, image, loka::file::File());
+  }
+  JSValue CardFlow::Admission::project(JSContext *ctx, const loka::file::File &file)
+  {
+    return this->publish(ctx, JsSeatRecord::FILE_RESULT, loka::core::resource::Image::Empty(), file);
+  }
+  bool CardFlow::Admission::resolve(JSContext *ctx, const JsCardNode &card, JSValueConst value, JsSeatRecord::Kind kind,
+                                   loka::core::resource::Image &image, loka::file::File &file)
+  {
+    if (!card.flowLive())
+    {
+      JS_ThrowTypeError(ctx, "native handle requires a Live mounted card");
+      return false;
+    }
+    if (!this->active_)
+    {
+      JS_ThrowTypeError(ctx, "native handle requires an active CardFlow execution");
+      return false;
+    }
+    return this->active_->resolve(ctx, value, kind, image, file);
+  }
+  bool CardFlow::Admission::Execution::resolve(JSContext *ctx, JSValueConst value, JsSeatRecord::Kind kind,
+                                              loka::core::resource::Image &image, loka::file::File &file)
+  {
+    const HandleIdentity *identity = static_cast<HandleIdentity *>(JS_GetOpaque(value, handleClassId));
+    if (!identity
+        || identity->serial != this->serial_ || identity->slot >= this->occupied_
+        || identity->kind != kind || this->slots_[identity->slot].kind != kind)
+    {
+      JS_ThrowTypeError(ctx, "native handle is stale, foreign, or has the wrong kind");
+      return false;
+    }
+    const Execution::Slot &slot = this->slots_[identity->slot];
+    image = slot.image;
+    file = slot.file;
+    return true;
+  }
+
   JSClassID JsFlowDescription::classId_ = 0;
   JSClassID JsFlowDescription::skipClassId_ = 0;
 
@@ -132,6 +247,12 @@ namespace smirkycard
     case JsSeatRecord::BOOLEAN:
       state = this->seat_->boolean.state();
       break;
+    case JsSeatRecord::FILE_RESULT:
+      state = this->seat_->file.state();
+      break;
+    case JsSeatRecord::IMAGE:
+      state = this->seat_->image.state();
+      break;
     }
     if (!state)
       return;
@@ -149,7 +270,7 @@ namespace smirkycard
   }
   bool CardFlow::live() const
   {
-    return this->card_.phase_ == JsCardNode::Live && !this->card_.failed_ && this->card_.scene();
+    return this->card_.flowLive();
   }
   void CardFlow::fire()
   {
@@ -192,19 +313,27 @@ namespace smirkycard
   }
 
   CardFlow::Admission::Execution::Execution(Admission &door, CardFlow &flow, bool watching)
-      : door_(0)
+      : door_(0), flow_(flow),
+        serial_(door.active_ ? 0 : flow.card_.props.runtime->executionSerial_.issue()), occupied_(0)
   {
     if (door.active_)
     {
-      if (watching && door.active_ != &flow)
+      if (watching && &door.active_->flow_ != &flow)
       {
         std::fputs("CardFlow: nested watch firing dropped (stage 2a)\n", stderr);
         assert(false && "CardFlow: nested watch firing dropped (stage 2a)");
       }
       return;
     }
+    if (!this->serial_)
+    {
+      std::fputs("CardFlow: execution serial exhausted; admission refused\n", stderr);
+      loka::core::StateTrackerGuard transaction(flow.card_.tracker());
+      flow.card_.error_.set(loka::core::String::Literal("CardFlow execution serial exhausted"));
+      return;
+    }
     this->door_ = &door;
-    this->door_->active_ = &flow;
+    this->door_->active_ = this;
   }
   CardFlow::Admission::Execution::~Execution()
   {

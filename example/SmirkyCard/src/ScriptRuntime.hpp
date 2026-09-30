@@ -2,6 +2,7 @@
 #define SMIRKYCARD_SCRIPT_RUNTIME_HPP
 
 #include "ScriptEngine.h"
+#include "ExecutionSerial.hpp"
 #include "JsCardBindingRegistry.hpp"
 #include "quickjs.h"
 #include "core/String.hpp"
@@ -119,6 +120,7 @@ namespace smirkycard
     {
       return this->currentEngine_;
     }
+    PlatformContext *nativeContext() const { return this->mainContext_; }
     JSContext *context() const;
     JSRuntime *jsRuntime() const;
     bool loadBuiltin(const char *source, loka::core::String &error);
@@ -231,6 +233,7 @@ namespace smirkycard
 #endif
 
   private:
+    friend class testing::ExecutionSerialAccess;
     friend class JsCardNode;
     friend class CardFlow;
     friend class JsEngine;
@@ -268,6 +271,7 @@ namespace smirkycard
     JsEngine *retiredEngines_;
     MainSource mainSource_;
     PlatformContext *mainContext_;
+    ExecutionSerial executionSerial_;
     loka::core::String mainError_;
     MainErrorScope mainErrorScope_;
     struct InterruptState

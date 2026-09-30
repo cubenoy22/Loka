@@ -45,13 +45,40 @@ namespace smirkycard
         }
 
       private:
+        friend class Admission;
+        bool capacity(JSContext *) const;
+        JSValue publish(JSContext *, JsSeatRecord::Kind,
+                        const loka::core::resource::Image &, const loka::file::File &);
+        bool resolve(JSContext *, JSValueConst, JsSeatRecord::Kind,
+                     loka::core::resource::Image &, loka::file::File &);
+        struct Slot
+        {
+          Slot() : kind(JsSeatRecord::IMAGE), image(), file() {}
+          JsSeatRecord::Kind kind;
+          loka::core::resource::Image image;
+          loka::file::File file;
+        };
         Admission *door_;
+        CardFlow &flow_;
+        const uint32_t serial_;
+        unsigned occupied_;
+        Slot slots_[4];
         Execution(const Execution &);
         Execution &operator=(const Execution &);
       };
 
+      /** Synchronous value projection; callers have checked the bound card. */
+      JSValue project(JSContext *, const loka::core::resource::Image &);
+      JSValue project(JSContext *, const loka::file::File &);
+      bool resolve(JSContext *, const JsCardNode &, JSValueConst, JsSeatRecord::Kind,
+                   loka::core::resource::Image &, loka::file::File &);
+      bool hasExecution() const { return this->active_ != 0; }
+      bool capacity(JSContext *) const;
+      static bool installHandles(JSRuntime *);
     private:
-      CardFlow *active_;
+      JSValue publish(JSContext *, JsSeatRecord::Kind,
+                      const loka::core::resource::Image &, const loka::file::File &);
+      Execution *active_;
       Admission(const Admission &);
       Admission &operator=(const Admission &);
     };

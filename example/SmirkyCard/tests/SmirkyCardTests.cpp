@@ -1,3 +1,5 @@
+#include "core/resource/Blob.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "MyAppConfig.hpp"
 #include "StandaloneFlowAppConfig.hpp"
 #include "platform/null/NullApp.hpp"
@@ -37,11 +39,80 @@ namespace smirkycard
 {
   namespace testing
   {
+    /** Test-only setup of the runtime issuer; production never calls into this TU. */
+    class ExecutionSerialAccess
+    {
+    public:
+      static void seed(ScriptRuntime &runtime, uint32_t value)
+      {
+        runtime.executionSerial_.last_ = value;
+      }
+    };
+
     /** Test-only view of subscription ownership, without a shipped query API. */
     class CardFlowAccess
     {
     public:
       static loka::app::scene::Scene *scene;
+      static JsCardNode *card()
+      {
+        return static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
+      }
+      static bool active() { return card()->flowAdmission_.hasExecution(); }
+      static loka::core::resource::Image image()
+      {
+        for (JsSeatRecord *s = card()->seats_.head(); s; s=s->next)
+          if (s->kind == JsSeatRecord::IMAGE) return s->image.get();
+        return loka::core::resource::Image::Empty();
+      }
+      static int notifications;
+      static ScriptRuntime *settlementRuntime;
+      static bool settledStale;
+      static void notified(void *)
+      {
+        ++notifications;
+        if (settlementRuntime)
+        {
+          loka::core::String result, error;
+          const bool ok = settlementRuntime->evaluateToString(loka::core::String::Literal(
+            "refuses(()=>im.set(saved))"), result, error);
+          settledStale = ok && result.compare(loka::core::String::Literal("true")) == 0;
+        }
+      }
+      static void observeImage()
+      {
+        notifications = 0;
+        for (JsSeatRecord *s = card()->seats_.head(); s; s=s->next)
+          if (s->kind == JsSeatRecord::IMAGE) s->image.state()->bind(notified, 0, false);
+      }
+      static void observeSettlement(ScriptRuntime &runtime)
+      {
+        settlementRuntime = &runtime;
+        settledStale = false;
+        loka::core::testing::PushStateTrackerTestAccess::defer(*card()->tracker(), notified, 0);
+      }
+      static void unobserveImage()
+      {
+        for (JsSeatRecord *s = card()->seats_.head(); s; s=s->next)
+          if (s->kind == JsSeatRecord::IMAGE)
+          {
+            s->image.state()->unbind(notified, 0);
+            s->image.state()->deferUnbind(notified, 0);
+          }
+        settlementRuntime = 0;
+      }
+      static JSValue detachCall(JSContext *, JSValueConst, int, JSValueConst *)
+      {
+        detachEntrance();
+        return JS_UNDEFINED;
+      }
+      static void navigate() { card()->requestGo(SMIRKY_CARD_SECOND, CardCarry()); }
+      static void writeFile(const loka::app::FileChooserResult &value)
+      {
+        loka::core::StateTrackerGuard transaction(card()->tracker());
+        for (JsSeatRecord *s = card()->seats_.head(); s; s=s->next)
+          if (s->kind == JsSeatRecord::FILE_RESULT) s->file.set(value, true);
+      }
       static void detachEntrance()
       {
         JsCardNode *card = static_cast<JsCardNode *>(loka::dsl::testing::SceneTestAccess::rootBoundary(*scene));
@@ -70,6 +141,9 @@ namespace smirkycard
         return JS_NewInt32(ctx, count);
       }
     };
+    int CardFlowAccess::notifications = 0;
+    ScriptRuntime *CardFlowAccess::settlementRuntime = 0;
+    bool CardFlowAccess::settledStale = false;
     loka::app::scene::Scene *CardFlowAccess::scene = 0;
   } // namespace testing
 } // namespace smirkycard
@@ -3139,6 +3213,231 @@ namespace
         "1");
   }
 
+  class HandlePlatform : public NullPlatformContext
+  {
+  public:
+    enum Mode { Success, ReadFailure, DecodeFailure, CapacityFailure, Navigate, ReleaseProbe, NoNativeWork };
+    explicit HandlePlatform(Mode m) : mode(m), opens(0), decodes(0), capacityCalls(0), releases(0) {}
+    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &out) const
+    {
+      ++opens;
+      out.displayPath = loka::core::String::Literal(mode == ReadFailure ? "_missing_handle_file" : "_handle_image.bin");
+      return true;
+    }
+    virtual bool queryLargestContiguousAllocation(std::size_t &out) const
+    {
+      ++capacityCalls;
+      out = mode == CapacityFailure ? 0 : 1024;
+      return true;
+    }
+    static void release(void *, void *data)
+    {
+      HandlePlatform *self = static_cast<HandlePlatform *>(data);
+      ++self->releases;
+      if (self->mode == ReleaseProbe)
+        LOKA_VERIFY(!smirkycard::testing::CardFlowAccess::active());
+    }
+    virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, std::size_t offset,
+                                    std::size_t length, loka::core::resource::Image &out) const
+    {
+      ++decodes;
+      LOKA_VERIFY(offset == 0 && length == 3 && blob.bytes().size() == 3);
+      if (mode == DecodeFailure)
+        return false;
+      out = loka::core::resource::Image::FromNative(const_cast<HandlePlatform *>(this), 2, 3, release,
+                                                   const_cast<HandlePlatform *>(this));
+      if (mode == Navigate)
+        smirkycard::testing::CardFlowAccess::navigate();
+      return true;
+    }
+    Mode mode;
+    mutable int opens, decodes, capacityCalls, releases;
+  };
+
+  void checkHandleCase(const char *name, const char *declaration, const char *operation, const char *expected,
+                       HandlePlatform::Mode mode = HandlePlatform::Success, bool contextMissing = false,
+                       bool exhaust = false, bool details = false)
+  {
+    std::fprintf(stderr, "[pin] handles %s\n", name);
+    FILE *file = std::fopen("_handle_image.bin", "wb");
+    LOKA_VERIFY(file);
+    LOKA_VERIFY(std::fwrite("img", 1, 3, file) == 3);
+    LOKA_VERIFY(std::fclose(file) == 0);
+    HandlePlatform context(mode);
+    smirkycard::ScriptRuntime runtime;
+    if (exhaust)
+      smirkycard::testing::ExecutionSerialAccess::seed(runtime, UINT32_MAX - 1);
+    if (!contextMissing)
+      runtime.loadMain(&context);
+    context.opens = context.decodes = context.capacityCalls = 0;
+    loka::core::String error;
+    std::string source = "var c0,fs,im,f,g,saved,log=[],work=v=>v;"
+        "function refuses(fn){try{fn();return false}catch(e){return e instanceof TypeError}}"
+        "card('first',c=>{c0=c;fs=c.state.file();im=c.state.image();";
+    source += declaration;
+    source += ";return {compose(){return Text('handles')},onDetach(){log.push(refuses(()=>c.native.loadImage(saved)))}}});"
+              "card('second',c=>({compose(){return Text('second')}}));";
+    LOKA_VERIFY(runtime.loadBuiltin(source.c_str(), error));
+    NullScenePlatformController platform;
+    WindowProps props;
+    props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp admission(window);
+    loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+    smirkycard::testing::CardFlowAccess::scene = window.scene();
+    smirkycard::testing::CardFlowAccess::writeFile(loka::app::FileChooserResult::File(loka::file::File::FromPath("_missing_handle_file")));
+    expectJs(runtime, operation, expected);
+    if (mode == HandlePlatform::NoNativeWork)
+      LOKA_VERIFY(context.opens == 0 && context.decodes == 0);
+    if (mode == HandlePlatform::CapacityFailure)
+    {
+      LOKA_VERIFY(context.capacityCalls == 1 && context.decodes == 0);
+    }
+    if (mode == HandlePlatform::ReleaseProbe || mode == HandlePlatform::Navigate)
+      LOKA_VERIFY(context.releases == 1);
+    if (details)
+    {
+      using loka::app::FileChooserResult;
+      const FileChooserResult kinds[] = {FileChooserResult(),
+        FileChooserResult::File(loka::file::File::FromPath("_handle_image.bin")),
+        FileChooserResult::Folder(loka::file::File::FromPath("folder")),
+        FileChooserResult::Canceled(), FileChooserResult::Error(17)};
+      const char *facts[] = {"0:false:false:false:true", "1:true:false:false:true",
+                            "2:false:false:false:true", "3:false:true:false:true", "4:false:false:true:true"};
+      for (unsigned i=0; i<5; ++i)
+      {
+        smirkycard::testing::CardFlowAccess::writeFile(kinds[i]);
+        expectJs(runtime, "(()=>{let r=fs.get();return [r.kind,r.isFile,r.isCanceled,r.isError,r.file===null].join(':')})()", facts[i]);
+      }
+      smirkycard::testing::CardFlowAccess::writeFile(kinds[1]);
+      expectJs(runtime, "work=()=>{saved=c0.native.loadImage(fs.get().file);im.set(saved)};f.run();'ok'", "ok");
+      const loka::core::resource::Image prior = smirkycard::testing::CardFlowAccess::image();
+      expectJs(runtime, "work=()=>log.push(refuses(()=>im.set(fs.get().file)));f.run();log.pop()", "true");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image() == prior);
+      context.mode = HandlePlatform::ReadFailure;
+      expectJs(runtime, "work=()=>log.push(refuses(()=>im.set(c0.native.loadImage(fs.get().file))));f.run();log.pop()", "true");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image() == prior);
+      context.mode = HandlePlatform::DecodeFailure;
+      expectJs(runtime, "f.run();log.pop()", "true");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image() == prior);
+      context.mode = HandlePlatform::Success;
+      const int opens = context.opens;
+      expectJs(runtime, "work=()=>{saved=fs.get().file;fs.get();fs.get();fs.get();try{c0.native.loadImage(saved)}catch(e){log.push(e instanceof RangeError)}};f.run();log.pop()", "true");
+      LOKA_VERIFY(context.opens == opens);
+      smirkycard::testing::CardFlowAccess::observeImage();
+      expectJs(runtime, "work=()=>{saved=im.get();im.set(saved);im.set(saved)};f.run();'ok'", "ok");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::notifications == 2);
+      expectJs(runtime, "im.set(null);im.set(null);'ok'", "ok");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::notifications == 4);
+      smirkycard::testing::CardFlowAccess::unobserveImage();
+      // An enclosing transaction settles only after the Flow's stack owner ends.
+      {
+        loka::core::StateTrackerGuard outer(smirkycard::testing::CardFlowAccess::card()->tracker());
+        smirkycard::testing::CardFlowAccess::observeSettlement(runtime);
+        expectJs(runtime, "work=()=>{saved=c0.native.loadImage(fs.get().file);im.set(saved)};f.run();'ok'", "ok");
+      }
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::settledStale);
+      smirkycard::testing::CardFlowAccess::unobserveImage();
+      expectJs(runtime, "globalThis.a={c:c0,fs,im,f};'ok'", "ok");
+      WindowProps otherProps;
+      otherProps.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow other(&context, otherProps, &platform);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*other.scene(), true);
+      expectJs(runtime,
+        "log=[];work=()=>{saved=a.c.native.loadImage(a.fs.get().file);"
+        "log.push(refuses(()=>a.im.set.call(im,saved)));"
+        "work=v=>log.push(refuses(()=>im.set(v)));f.run(saved)};a.f.run();log.join(':')", "true:true");
+      // Detach while an execution still owns a File handle; capability is still bound.
+      JSValue global = JS_GetGlobalObject(runtime.context());
+      LOKA_VERIFY(JS_SetPropertyStr(runtime.context(), global, "detachNow", JS_NewCFunction(runtime.context(),
+        smirkycard::testing::CardFlowAccess::detachCall, "detachNow", 0)) >= 0);
+      JS_FreeValue(runtime.context(), global);
+      const int beforeDetach = context.opens;
+      expectJs(runtime, "log=[];work=()=>{saved=a.fs.get().file;detachNow()};a.f.run();log.join(':')", "true");
+      LOKA_VERIFY(context.opens == beforeDetach);
+    }
+    std::remove("_handle_image.bin");
+  }
+
+  void checkExecutionSerial()
+  {
+    std::fputs("[pin] execution serial constructor seed and permanent exhaustion\n", stderr);
+    smirkycard::ExecutionSerial serial(UINT32_MAX - 1);
+    LOKA_VERIFY(serial.issue() == UINT32_MAX);
+    for (unsigned i = 0; i < 3; ++i)
+      LOKA_VERIFY(serial.issue() == 0);
+  }
+
+  void checkExecutionAdmissionExhaustion()
+  {
+    checkHandleCase("issuer last serial admitted once then refuses forever",
+      "f=c.flow(Flow().step(()=>log.push('ran')))",
+      "[f.run(),f.run(),f.run(),log.join(':')].join(':')", "true:false:false:ran", HandlePlatform::Success, false, true);
+  }
+
+  void checkHandles()
+  {
+    checkHandleCase("extended typed ownership and settlement",
+      "f=c.flow(Flow().step(v=>work(v)))", "'ready'", "ready", HandlePlatform::Success, false, false, true);
+    checkHandleCase("image watch forced null notifications",
+      "f=c.flow(Flow().watch(im,v=>{log.push(v===null);return v}))",
+      "im.set(null);im.set(null);log.join(':')", "true:true");
+    checkHandleCase("same execution, stale later, run input, wrong kind, imitation",
+      "f=c.flow(Flow().step(v=>work(v)).onSuccess(v=>log.push('ok')).onFailure(v=>log.push('fail')))",
+      "work=()=>{saved=c0.native.loadImage(fs.get().file);im.set(saved);"
+      "log.push(refuses(()=>im.set(fs.get().file)),refuses(()=>im.set({serial:1,slot:0,kind:1})));};f.run();"
+      "work=v=>{im.get();im.get();log.push(refuses(()=>im.set(saved)),refuses(()=>im.set(v)));im.set(im.get())};f.run(saved);log.join(':')",
+      "true:true:ok:true:true:ok");
+    checkHandleCase("five slots failure preserves writes",
+      "f=c.flow(Flow().step(()=>{saved=fs.get().file;im.set(null);for(let i=0;i<4;i++)fs.get()})"
+      ".onSuccess(()=>log.push('bad')).onFailure(()=>log.push('failed')))",
+      "f.run();log.join(':')", "failed");
+    checkHandleCase("caught capacity exception succeeds",
+      "f=c.flow(Flow().step(()=>{for(let i=0;i<4;i++)fs.get();try{fs.get()}catch(e){log.push(e instanceof RangeError)}})"
+      ".onSuccess(()=>log.push('ok')))", "f.run();log.join(':')", "true:ok");
+    checkHandleCase("constructors, read-only file, clearing, outside reads",
+      "f=c.flow(Flow().step(()=>{im.set(c.native.loadImage(fs.get().file));im.set(null);log.push(im.get()===null)}))",
+      "log.push(refuses(()=>c0.state.file()),refuses(()=>c0.state.image()),refuses(()=>fs.set(null)),"
+      "refuses(()=>fs.set(1)),refuses(()=>im.get()),fs.get().file===null,Object.isFrozen(fs.get()));"
+      "f.run();im.set(null);log.join(':')", "true:true:true:true:true:true:true:true");
+    checkHandleCase("typed watch projects facts and a handle",
+      "f=c.flow(Flow().watch(fs,v=>{log.push(v.kind,v.isFile,v.isCanceled,v.isError,Object.isFrozen(v));return v.file})"
+      ".step(h=>im.set(c.native.loadImage(h))).onSuccess(()=>log.push('ok')))",
+      "log.join(':')", "1:true:false:false:true:ok");
+    checkHandleCase("read error", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('READ_STDIO_OPEN_FAILED'))))",
+      "f.run();log.join(':')", "true", HandlePlatform::ReadFailure);
+    checkHandleCase("decode error", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('decode failure'))))",
+      "f.run();log.join(':')", "true", HandlePlatform::DecodeFailure);
+    checkHandleCase("capacity has no stdio retry", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('READ_CAPACITY_REFUSED'))))",
+      "f.run();log.join(':')", "true", HandlePlatform::CapacityFailure);
+    checkHandleCase("missing runtime context", "f=c.flow(Flow().step(()=>log.push(refuses(()=>c.native.loadImage(fs.get().file)))))",
+      "f.run();log.join(':')", "true", HandlePlatform::Success, true);
+    checkHandleCase("post-native navigation refuses publication and cancels terminal",
+      "f=c.flow(Flow().step(()=>log.push(refuses(()=>c.native.loadImage(fs.get().file))))"
+      ".onSuccess(()=>log.push('bad')).onFailure(()=>log.push('bad')))",
+      "f.run();log.join(':')", "true", HandlePlatform::Navigate);
+    checkHandleCase("resolver refuses TransitionPending",
+      "f=c.flow(Flow().step(()=>{saved=fs.get().file;c.go('second');log.push(refuses(()=>c.native.loadImage(saved)))}))",
+      "f.run();log.join(':')", "true", HandlePlatform::NoNativeWork);
+    checkHandleCase("release observes cleared execution",
+      "f=c.flow(Flow().step(()=>{saved=c.native.loadImage(fs.get().file)}))",
+      "f.run();'done'", "done", HandlePlatform::ReleaseProbe);
+    checkExecutionAdmissionExhaustion();
+  }
+
+  void checkTypedSeats()
+  {
+    checkProductionFlowCase("typed and scalar seats share one budget",
+      "for(let i=0;i<126;i++)c.state(0);c.state.file();try{c.state.image()}catch(e){n=e instanceof RangeError?1:0}",
+      "n", "1");
+    checkProductionFlowCase("typed seats constructor and empty access",
+      "globalThis.fs=c.state.file();globalThis.im=c.state.image();"
+      "f=c.flow(Flow().step(()=>im.get()).onSuccess(v=>log.push(v===null)))",
+      "f.run();[Object.isFrozen(c0.state),Object.isFrozen(c0.native),fs.get().kind,"
+      "fs.get().file===null,log[0],(()=>{try{im.get();return false}catch(e){return e instanceof TypeError}})()].join(':')",
+      "true:true:0:true:true:true");
+  }
+
   void checkProductionFlow()
   {
     std::puts("[pin] production Flow watch/run, SKIP, failure and constructor doors");
@@ -3184,6 +3483,22 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc == 2 && !std::strcmp(argv[1], "--execution-serial"))
+  {
+    checkExecutionSerial();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--execution-exhaustion"))
+  {
+    checkExecutionAdmissionExhaustion();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--typed-seats"))
+  {
+    checkTypedSeats();
+    checkHandles();
+    return 0;
+  }
   if (argc == 2 && !std::strcmp(argv[1], "--production-flow"))
   {
     checkProductionFlow();
@@ -3274,6 +3589,9 @@ int main(int argc, char **argv)
     checkStandaloneScenario();
     return 0;
   }
+  checkExecutionSerial();
+  checkTypedSeats();
+  checkHandles();
   checkProductionFlow();
   checkProductionFlowEdges();
   checkCardScenarios();

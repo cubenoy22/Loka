@@ -7,6 +7,8 @@
 #include "app/nodes/Text.hpp"
 #include "core/util/OwnedDef.hpp"
 #include "JsNativeClass.hpp"
+#include "app/FileImageSource.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #ifdef TEST_BUILD
 #include "CardScenario.hpp"
 #endif
@@ -204,7 +206,8 @@ namespace smirkycard
       return;
     }
     ScriptRuntime::InterruptWindow interrupt(*p.runtime, *this->engine_);
-    if (!ensureCapabilityClass(this->engine_->jsRuntime()))
+    if (!ensureCapabilityClass(this->engine_->jsRuntime())
+        || !CardFlow::Admission::installHandles(this->engine_->jsRuntime()))
     {
       JS_FreeValue(ctx, ctor);
       fail("Could not create card context.");
@@ -234,6 +237,23 @@ namespace smirkycard
           context,
           names[i],
           JS_NewCFunctionData(ctx, contextMethod, i == ContextReload ? 0 : 1, i, 1, &this->capability_));
+    if (ok)
+    {
+      JSValue state = JS_GetPropertyStr(ctx, context, "state");
+      JSValue native = JS_NewObject(ctx);
+      ok = !JS_IsException(state) && !JS_IsException(native)
+           && installFunction(ctx, state, "file", JS_NewCFunctionData(ctx, typedFactory, 0,
+                               JsSeatRecord::FILE_RESULT, 1, &this->capability_))
+           && installFunction(ctx, state, "image", JS_NewCFunctionData(ctx, typedFactory, 0,
+                               JsSeatRecord::IMAGE, 1, &this->capability_))
+           && JS_FreezeObject(ctx, state) >= 0
+           && installFunction(ctx, native, "loadImage", JS_NewCFunctionData(ctx, nativeLoadImage, 1,
+                               0, 1, &this->capability_))
+           && JS_FreezeObject(ctx, native) >= 0
+           && JS_SetPropertyStr(ctx, context, "native", JS_DupValue(ctx, native)) >= 0;
+      JS_FreeValue(ctx, state);
+      JS_FreeValue(ctx, native);
+    }
     if (ok)
     {
       JSValue carry = p.carry.decode(ctx);
@@ -423,6 +443,67 @@ namespace smirkycard
       JS_FreeValue(ctx, errorSeat_);
     }
   }
+  bool JsCardNode::flowLive() const
+  {
+    return this->phase_ == Live && !this->failed_ && this->scene();
+  }
+  JSValue JsCardNode::typedFactory(JSContext *ctx, JSValueConst, int argc, JSValueConst *, int kind, JSValue *data)
+  {
+    JsCardNode *card = capabilityNode(data[0]);
+    if (!card || argc)
+      return JS_ThrowTypeError(ctx, "typed state factory requires a card constructor and no arguments");
+    return card->mintTypedState(ctx, static_cast<JsSeatRecord::Kind>(kind));
+  }
+  JSValue JsCardNode::mintTypedState(JSContext *ctx, JsSeatRecord::Kind kind)
+  {
+    if (this->phase_ != Constructing)
+      return JS_ThrowTypeError(ctx, "typed state is only valid in a card constructor");
+    if (this->seats_.count() >= kCardSeatBudget)
+      return JS_ThrowRangeError(ctx, "kCardSeatBudget exceeded (128 seats)");
+    JsSeatRecord *record = this->seats_.add(JsSeatRecord::Initial(ctx, kind));
+    if (!record)
+      return JS_ThrowOutOfMemory(ctx);
+    if (kind == JsSeatRecord::FILE_RESULT)
+      this->state(record->file, loka::app::FileChooserResult());
+    else
+      this->state(record->image, loka::core::resource::Image::Empty());
+    return this->finishSeat(ctx, record);
+  }
+  JSValue JsCardNode::nativeLoadImage(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv, int, JSValue *data)
+  {
+    JsCardNode *card = capabilityNode(data[0]);
+    if (!card || argc != 1)
+      return JS_ThrowTypeError(ctx, "loadImage requires a bound card and one File handle");
+    return card->loadImage(ctx, argv[0]);
+  }
+  JSValue JsCardNode::loadImage(JSContext *ctx, JSValueConst value)
+  {
+    loka::core::resource::Image unused;
+    loka::file::File file;
+    if (!this->flowAdmission_.resolve(ctx, *this, value, JsSeatRecord::FILE_RESULT, unused, file)
+        || !this->flowAdmission_.capacity(ctx))
+      return JS_EXCEPTION;
+    PlatformContext *platform = this->props.runtime->nativeContext();
+    if (!platform)
+      return JS_ThrowTypeError(ctx, "loadImage requires ScriptRuntime PlatformContext");
+    loka::core::resource::Blob blob;
+    loka::platform::file::FileHandle handle;
+    const bool opened = platform->openFile(file, handle);
+    const loka::platform::file::ReadResult read = loka::app::ReadFileImageBlob(
+        platform, opened ? &handle : 0, opened ? handle.displayPath : file.toString(), blob);
+    loka::core::resource::Image image;
+    const bool decoded = read == loka::platform::file::READ_OK
+                         && loka::app::DecodeFileImageBlob(platform, blob, image);
+    // Gate before creating a JS result or exception, including native failure.
+    if (capabilityNode(this->capability_) != this || !this->flowLive())
+      return JS_ThrowTypeError(ctx, "loadImage card is no longer Live");
+    if (read != loka::platform::file::READ_OK)
+      return JS_ThrowTypeError(ctx, "loadImage: %s", loka::app::FileImageReadResultName(read));
+    if (!decoded)
+      return JS_ThrowTypeError(ctx, "loadImage: image decode failure");
+    return this->flowAdmission_.project(ctx, image);
+  }
+
   JSValue JsCardNode::mintState(JSContext *ctx, JSValueConst initial)
   {
     if (this->phase_ != Constructing)
@@ -482,6 +563,10 @@ namespace smirkycard
       fail("state() initial value is unsupported.");
       return JS_UNDEFINED;
     }
+    return this->finishSeat(ctx, record);
+  }
+  JSValue JsCardNode::finishSeat(JSContext *ctx, JsSeatRecord *record)
+  {
     JSValue seat = JS_NewObject(ctx);
     if (JS_IsException(seat))
       return seat;
@@ -510,7 +595,41 @@ namespace smirkycard
         return jsString(ctx, record->string.get());
       if (record->kind == JsSeatRecord::INTEGER)
         return JS_NewInt32(ctx, record->integer.get());
-      return JS_NewBool(ctx, record->boolean.get());
+      if (record->kind == JsSeatRecord::BOOLEAN)
+        return JS_NewBool(ctx, record->boolean.get());
+      if (!this->flowLive())
+        return JS_ThrowTypeError(ctx, "typed seat requires a Live mounted card");
+      if (record->kind == JsSeatRecord::IMAGE)
+      {
+        if (!this->flowAdmission_.hasExecution())
+          return JS_ThrowTypeError(ctx, "image.get requires a CardFlow execution");
+        const loka::core::resource::Image image = record->image.get();
+        return image.isValid() ? this->flowAdmission_.project(ctx, image) : JS_NULL;
+      }
+      const loka::app::FileChooserResult result = record->file.get();
+      JSValue file = result.kind == loka::app::FileChooserResult::RESULT_FILE
+                             && this->flowAdmission_.hasExecution()
+                         ? this->flowAdmission_.project(ctx, result.item) : JS_NULL;
+      if (JS_IsException(file))
+        return file;
+      JSValue facts = JS_NewObject(ctx);
+      if (JS_IsException(facts))
+      {
+        JS_FreeValue(ctx, file);
+        return facts;
+      }
+      bool ok = JS_SetPropertyStr(ctx, facts, "file", file) >= 0
+                && JS_SetPropertyStr(ctx, facts, "kind", JS_NewInt32(ctx, result.kind)) >= 0
+                && JS_SetPropertyStr(ctx, facts, "isFile", JS_NewBool(ctx, result.kind == loka::app::FileChooserResult::RESULT_FILE)) >= 0
+                && JS_SetPropertyStr(ctx, facts, "isCanceled", JS_NewBool(ctx, result.kind == loka::app::FileChooserResult::RESULT_CANCELED)) >= 0
+                && JS_SetPropertyStr(ctx, facts, "isError", JS_NewBool(ctx, result.kind == loka::app::FileChooserResult::RESULT_ERROR)) >= 0
+                && JS_FreezeObject(ctx, facts) >= 0;
+      if (!ok)
+      {
+        JS_FreeValue(ctx, facts);
+        return JS_EXCEPTION;
+      }
+      return facts;
     }
     return JS_ThrowTypeError(ctx, "unknown state seat");
   }
@@ -521,6 +640,20 @@ namespace smirkycard
       return JS_ThrowTypeError(ctx, "state seat is not materialized");
     if (record)
     {
+      if (record->kind == JsSeatRecord::FILE_RESULT)
+        return JS_ThrowTypeError(ctx, "file seat is rail-written only");
+      if (record->kind == JsSeatRecord::IMAGE)
+      {
+        if (!this->flowLive())
+          return JS_ThrowTypeError(ctx, "image.set requires a Live mounted card");
+        loka::core::resource::Image image;
+        loka::file::File file;
+        if (!JS_IsNull(value) && !this->flowAdmission_.resolve(ctx, *this, value, JsSeatRecord::IMAGE, image, file))
+          return JS_EXCEPTION;
+        loka::core::StateTrackerGuard transaction(this->tracker());
+        record->image.set(image, true);
+        return JS_UNDEFINED;
+      }
       if (record->kind == JsSeatRecord::STRING && JS_IsString(value))
       {
         size_t n = 0;
@@ -1085,7 +1218,8 @@ namespace smirkycard
     loka::app::scene::NodeDefinitionBase *out = 0;
     if (JS_IsStrictEqual(ctx, value, errorSeat_))
       out = new (std::nothrow) TextDefinitionWithAttr(Text(error_.state()) + style + block);
-    else if (seat)
+    else if (seat && (seat->kind == JsSeatRecord::STRING || seat->kind == JsSeatRecord::INTEGER
+                      || seat->kind == JsSeatRecord::BOOLEAN))
       out = new (std::nothrow) TextDefinitionWithAttr(
           Text(seat->kind == JsSeatRecord::STRING ? seat->string.state() : seat->formatted.state()) + style + block);
     if (!out && JS_IsString(value))
