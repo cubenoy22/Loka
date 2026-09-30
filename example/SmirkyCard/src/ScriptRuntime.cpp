@@ -427,20 +427,25 @@ namespace smirkycard
     {
       std::string text;
       loka::core::String error;
-      const bool file = this->readFile("MAIN.JS", text, error);
-      JsEngine *candidate = this->createEngine(file ? "MAIN.JS" : "");
-      if (!candidate)
-        error = loka::core::String::Literal("Could not allocate scenario engine");
-      else if (this->evalMain(*candidate,
-                              file ? text.data() : BuiltinMainJs(),
-                              file ? text.size() : strlen(BuiltinMainJs()),
-                              file ? "MAIN.JS" : "BuiltinCards.js",
-                              error)
-               && this->evalCompanion(*candidate, SMIRKY_CARD_FIRST, error))
+      const FileReadResult readResult = this->readFile("MAIN.JS", text, error);
+      JsEngine *candidate = 0;
+      if (readResult != FILE_READ_FAILED)
       {
-        this->replaceCurrentEngine(candidate);
-        this->mainSource_ = file ? MAIN_SOURCE_FILE : MAIN_SOURCE_BUILTIN;
-        return;
+        const bool file = readResult == FILE_READ_OK;
+        candidate = this->createEngine(file ? "MAIN.JS" : "");
+        if (!candidate)
+          error = loka::core::String::Literal("Could not allocate scenario engine");
+        else if (this->evalMain(*candidate,
+                                file ? text.data() : BuiltinMainJs(),
+                                file ? text.size() : strlen(BuiltinMainJs()),
+                                file ? "MAIN.JS" : "BuiltinCards.js",
+                                error)
+                 && this->evalCompanion(*candidate, SMIRKY_CARD_FIRST, error))
+        {
+          this->replaceCurrentEngine(candidate);
+          this->mainSource_ = file ? MAIN_SOURCE_FILE : MAIN_SOURCE_BUILTIN;
+          return;
+        }
       }
       delete candidate;
       this->mainError_ = loka::core::String::Literal("Runner setup failed: ") + error;
@@ -450,7 +455,7 @@ namespace smirkycard
 #endif
     std::string text;
     loka::core::String error;
-    if (this->readFile("MAIN.JS", text, error))
+    if (this->readFile("MAIN.JS", text, error) == FILE_READ_OK)
     {
       JsEngine *candidate = this->createEngine("MAIN.JS");
       if (!candidate)
@@ -476,7 +481,8 @@ namespace smirkycard
     this->loadBuiltin(BuiltinMainJs(), ignored);
   }
 
-  bool ScriptRuntime::readFile(const std::string &name, std::string &text, loka::core::String &error) const
+  ScriptRuntime::FileReadResult
+  ScriptRuntime::readFile(const std::string &name, std::string &text, loka::core::String &error) const
   {
     const loka::core::String fileName = loka::core::String::Utf8(name.data(), name.size());
     const loka::file::File item = loka::file::File::Application() << loka::file::File(fileName);
@@ -484,7 +490,7 @@ namespace smirkycard
     if (!this->mainContext_ || !this->mainContext_->openFile(item, handle))
     {
       error = fileName + loka::core::String::Literal(": file is missing");
-      return false;
+      return FILE_READ_MISSING;
     }
 #if defined(LOKA_RETRO68)
     loka::toolbox::ToolboxByteSource source;
@@ -494,19 +500,21 @@ namespace smirkycard
     if (handle.displayPath.empty() || !source.open(handle.displayPath))
 #endif
     {
+      // Some platform contexts resolve a path without checking it exists, so a
+      // file that cannot be opened counts as missing; only content refusals fail.
       error = fileName + loka::core::String::Literal(": file is missing or could not read");
-      return false;
+      return FILE_READ_MISSING;
     }
     std::size_t length = 0;
     if (!source.size(length))
     {
       error = fileName + loka::core::String::Literal(": could not read");
-      return false;
+      return FILE_READ_FAILED;
     }
     else if (length > 64u * 1024u)
     {
       error = fileName + loka::core::String::Literal(": exceeds 64 KiB");
-      return false;
+      return FILE_READ_FAILED;
     }
     else
     {
@@ -514,10 +522,10 @@ namespace smirkycard
       if (!source.readAt(0, length ? reinterpret_cast<unsigned char *>(&text[0]) : 0, length))
       {
         error = fileName + loka::core::String::Literal(": could not read");
-        return false;
+        return FILE_READ_FAILED;
       }
       error = loka::core::String();
-      return true;
+      return FILE_READ_OK;
     }
   }
 
@@ -536,7 +544,7 @@ namespace smirkycard
   JsEngine *ScriptRuntime::prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error)
   {
     std::string text;
-    if (!this->readFile(name, text, error))
+    if (this->readFile(name, text, error) != FILE_READ_OK)
       return 0;
     const loka::core::String prefix =
         loka::core::String::Utf8(name.data(), name.size()) + loka::core::String::Literal(": ");
@@ -641,7 +649,7 @@ namespace smirkycard
   bool ScriptRuntime::evalCompanion(JsEngine &engine, SmirkyCardId selected, loka::core::String &error)
   {
     std::string text;
-    if (!this->readFile(this->runner_->companion, text, error))
+    if (this->readFile(this->runner_->companion, text, error) != FILE_READ_OK)
       return false;
     this->runner_->registering = &engine;
     const bool ok = this->evalMain(engine, text.data(), text.size(), this->runner_->companion.c_str(), error);

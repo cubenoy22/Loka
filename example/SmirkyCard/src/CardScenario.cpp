@@ -284,7 +284,6 @@ namespace smirkycard
   }
   bool CardScenario::invoke(JSValueConst fn, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error)
   {
-    loka::core::StateTrackerGuard guard(this->card_.tracker());
     return this->runtime_.call(this->engine_, fn, argc, argv, result, error);
   }
   StepRunStatus CardScenario::JsStepAdapter::run(const In &in, Out &out, FlowError &error) const

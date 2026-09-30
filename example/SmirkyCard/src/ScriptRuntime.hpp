@@ -239,7 +239,15 @@ namespace smirkycard
     static int interrupt(JSRuntime *, void *opaque);
     bool captureException(JsEngine &engine, loka::core::String &error);
     static JSValue card(JSContext *ctx, JSValueConst, int argc, JSValueConst *argv);
-    bool readFile(const std::string &name, std::string &text, loka::core::String &error) const;
+    /** MISSING: the file cannot be opened. FAILED: it opened, but its size or
+        content was refused (unreadable, over 64 KiB). */
+    enum FileReadResult
+    {
+      FILE_READ_OK,
+      FILE_READ_MISSING,
+      FILE_READ_FAILED
+    };
+    FileReadResult readFile(const std::string &name, std::string &text, loka::core::String &error) const;
     JsEngine *prepareFile(const std::string &name, SmirkyCardId card, loka::core::String &error);
     enum MainErrorScope
     {

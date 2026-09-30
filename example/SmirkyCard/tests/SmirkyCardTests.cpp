@@ -2523,6 +2523,19 @@ namespace
       h.tick();
       LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_FAILED);
     }
+    if (!only || only == 8)
+    {
+      std::puts("[pin] runner click settles formatted integer text within one JS step");
+      CardRunnerHarness h(
+          "card('first',function(c){var n=c.state(0);return {compose:function(){return VStack("
+          "Button('inc',function(){n.set(n.get()+1);}).TEST_ID('inc'),Text(n).TEST_ID('count'));}};});",
+          "scenario('first',function(c){c.run(Flow().step(function(){c.test.click('inc');"
+          "if(c.test.text('count')!=='1')throw Error('first count: '+c.test.text('count'));"
+          "c.test.click('inc');if(c.test.text('count')!=='2')throw Error('second count: '+c.test.text('count'));}));});");
+      h.mount();
+      h.ticks(10);
+      LOKA_VERIFY(h.terminalCount == 1 && h.terminal == SCENARIO_AUDIT_SUCCEEDED);
+    }
   }
 
   void checkScenarioSetup()
@@ -2574,6 +2587,16 @@ namespace
       h.runtime.discardReload(candidate);
       h.ticks(10);
       LOKA_VERIFY(h.terminalCount == 1 && h.logs.empty());
+    }
+    {
+      std::puts("[pin] runner refuses MAIN.JS exceeding 64 KiB");
+      const std::string source(64u * 1024u + 1u, ' ');
+      CardRunnerHarness h(source.c_str(), "scenario('first',function(c){c.run(Flow().step(function(){}));});");
+      const loka::core::StringBuffer b =
+          h.runtime.mainErrorFor(SMIRKY_CARD_FIRST).bufferWithEncoding(loka::core::StringEncodingUtf8);
+      LOKA_VERIFY(std::string(static_cast<const char *>(b.data()), b.length()).find("exceeds 64 KiB")
+                  != std::string::npos);
+      LOKA_VERIFY(!h.runtime.currentEngine()->hasConstructor(SMIRKY_CARD_FIRST));
     }
     {
       CardRunnerHarness h(0, "scenario('first',function(c){c.run(Flow().step(function(){c.test.log('builtin');}));});");
