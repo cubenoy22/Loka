@@ -26,4 +26,8 @@ void testOperationReleaseWithdrawalAndRouteReplacement();
 
 void testOperationClockContracts();
 
+void testNestedOperationJoinsOuterClock();
+void testSettleLeavesLedgersOpenWithRoutes();
+void testSettleThenCloseShareOneBudgetAndKeepFirstRefusal();
+
 #endif

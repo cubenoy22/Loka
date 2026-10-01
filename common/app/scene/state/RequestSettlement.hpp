@@ -131,13 +131,13 @@ namespace loka
         SettleOwnerBase(IPlatformController &controller, Node *node, const NodeContext *identity)
             : scope_(controller), node_(node), identity_(identity) {}
 #ifdef TEST_BUILD
-        SettleOwnerBase(OperationPhase &phase, Node *node, const NodeContext *identity)
+        SettleOwnerBase(BorrowPhase &phase, Node *node, const NodeContext *identity)
             : scope_(phase), node_(node), identity_(identity) {}
 #endif
       private:
         SettleOwnerBase(const SettleOwnerBase &);
         SettleOwnerBase &operator=(const SettleOwnerBase &);
-        OperationScope scope_;
+        BorrowScope scope_;
         Node *const node_;
         const NodeContext *const identity_;
       };
@@ -148,7 +148,7 @@ namespace loka
         SettleOwner(IPlatformController &controller, Node *node, const NodeContext *identity)
             : SettleOwnerBase(controller, node, identity) {}
 #ifdef TEST_BUILD
-        SettleOwner(OperationPhase &phase, Node *node, const NodeContext *identity)
+        SettleOwner(BorrowPhase &phase, Node *node, const NodeContext *identity)
             : SettleOwnerBase(phase, node, identity) {}
 #endif
         virtual ~SettleOwner() {}
@@ -164,7 +164,7 @@ namespace loka
         RailOperation(IPlatformController &controller, Node *node, const NodeContext *identity)
             : SettleOwner<T>(controller, node, identity) {}
 #ifdef TEST_BUILD
-        RailOperation(OperationPhase &phase, Node *node, const NodeContext *identity)
+        RailOperation(BorrowPhase &phase, Node *node, const NodeContext *identity)
             : SettleOwner<T>(phase, node, identity) {}
 #endif
         virtual ~RailOperation() {}

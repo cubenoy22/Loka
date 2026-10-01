@@ -140,19 +140,31 @@ publication, and unmount
 primitives are private to the seat, concrete Window teardown, and fixture access;
 the initial mount/attach seed remains synchronous.
 
-Only `App::flushWindowInvalidations` admits seat work, through private Window
-members. The public Window flush runs current Scene/platform work and cannot
-apply or reclaim replacements. App snapshots its admitted Window rows, applies
-all selected seats, then runs their Scene flushes and native/Scene drains. Thus
-an adoption during X's Scene run waits for the next App admission even on Y.
-The existing App window-work guard refuses nested admission and close reclamation;
-queued closes keep removed snapshot Windows alive until the following close drain.
-Before applying each row, App excludes identities queued for terminal close by an
-earlier callback, so their missing native presence cannot trigger recreation.
-A direct `Scene::invalidate()` run can be active outside that App guard. App
-excludes its Window from admission and Scene reclamation using the Scene's
-tracker-derived `isRunInProgress()` capability; desired work waits until an
-admission after the run returns.
+Only the App completion tail admits seat work, through private Window members,
+and it has two doors (#1057, PR B0): `App::admitAndApplyWindows()` and
+`App::reclaimWindows()`. `App::flushWindowInvalidations()` is the convenience
+tail that calls the two in order for a caller with nothing in between; the rail
+tails (Toolbox `present`, Win32 `flushIterationTail`, macOS
+`flushInvalidationsTick`) call the doors separately around their render, relayout
+and focus work, so a later clock can close between apply and reclaim. The public
+Window flush runs current Scene/platform work and cannot apply or reclaim
+replacements. Admission snapshots the Window rows, applies all selected seats,
+then runs their Scene flushes. Thus an adoption during X's Scene run waits for
+the next App admission even on Y. The first admission of a tail captures the
+window closes pending at its entry and each row's retirement snapshot into an
+App-owned batch; a second admission in the same tail (Win32) reuses the batch
+with the latest snapshot per Window. Reclaim deletes exactly the captured closes
+and drains the captured retirements once per tail; a close requested during
+apply, delivery or focus waits for the next tail. The App window-work guard
+refuses nested admission and nested reclamation; a standalone close drain refuses
+while a tail's batch is open. Before applying each row, App excludes identities
+queued for terminal close by an earlier callback, so their missing native
+presence cannot trigger recreation. A direct `Scene::invalidate()` run, focus
+publication or a controller borrow can be active outside that App guard: App
+excludes such a Window from admission and reclamation through `Scene::isBusy()`,
+and the pre-wait progress query `hasPendingWindowAdmission()` uses the same
+per-Window predicate as admission, so pending Scene invalidation, native
+visibility or platform sync wakes an idle-none loop.
 Native command handlers request work; macOS's timer tick is its App clock.
 Each Window captures its own retirement suffix before seat apply. Only that
 suffix is reclaimed after its flush; newer retirements wait for the next one.

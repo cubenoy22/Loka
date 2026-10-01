@@ -1445,7 +1445,7 @@ random write to a widely shared object. It should have:
 ## 16. Platform Projection
 
 The rail completion lifetime contract is documented in
-[Platform operation interval](RequestDeliveryDesign.md#platform-operation-interval-968):
+[Controller borrow interval](RequestDeliveryDesign.md#platform-operation-interval-968):
 completion owners borrow their nodes under the Window-owned controller's scope.
 
 The logical UI is the truth. Platform code projects it into native objects.

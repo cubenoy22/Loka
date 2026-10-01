@@ -313,7 +313,7 @@ namespace
       ++self.calls;
       if (self.nested)
       {
-        LOKA_VERIFY(self.fixture.controller.operationPhase().open());
+        LOKA_VERIFY(self.fixture.controller.borrowPhase().open());
         self.nested = false;
         if (self.deferred)
           loka::core::testing::PushStateTrackerTestAccess::defer(self.fixture.tracker, &reenter, &self);
@@ -344,7 +344,7 @@ namespace
       ++self.calls;
       if (self.nested)
       {
-        LOKA_VERIFY(self.fixture.controller.operationPhase().open());
+        LOKA_VERIFY(self.fixture.controller.borrowPhase().open());
         self.nested = false;
         [self.fixture.view setSelectedRange:NSMakeRange(8, 0)];
         [[self.fixture.view delegate]
@@ -1536,7 +1536,7 @@ void testMacTextEditorNestedInput()
     observer.nested = true;
     observer.deferred = deferred != 0;
     f.edit(@"abxcd\nabcd\nabcd", 3);
-    LOKA_VERIFY(!f.controller.operationPhase().open());
+    LOKA_VERIFY(!f.controller.borrowPhase().open());
     LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
     LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 3));
     f.restored(1);

@@ -180,7 +180,7 @@ void testNullInputDoorLifetime()
     LOKA_VERIFY(ledger.destroyed == 0);
     LOKA_VERIFY(ledger.emitted != 0 && ledger.returned > ledger.emitted);
     LOKA_VERIFY(ledger.applies == 0);
-    LOKA_VERIFY(!platform.operationPhase().open());
+    LOKA_VERIFY(!platform.borrowPhase().open());
     // Returning through the door never pumps: even the final false waits.
     LOKA_VERIFY(input977Find(loka::dsl::testing::SceneTestAccess::rootBoundary(scene)) == node);
     app.flush();

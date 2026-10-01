@@ -18,50 +18,52 @@ namespace loka
       struct PlatformApplyPlan;
 
       class IPlatformController;
-      class OperationScope;
-      class OperationPhase;
+      class BorrowScope;
+      class BorrowPhase;
     }
 #ifdef TEST_BUILD
     namespace testing
     {
-      scene::OperationPhase &controllerlessOperationPhase();
+      scene::BorrowPhase &controllerlessBorrowPhase();
     }
 #endif
     namespace scene
     {
-      /** Controller-owned operation state, independent of Scene run/focus phases. */
-      class OperationPhase
+      /** Controller-owned borrow phase, independent of Scene run/focus phases.
+          This is the controller's native-input borrow interval, distinct from
+          core::Operation, the transaction clock. */
+      class BorrowPhase
       {
         friend class IPlatformController;
-        friend class OperationScope;
+        friend class BorrowScope;
 #ifdef TEST_BUILD
-        friend OperationPhase &loka::app::testing::controllerlessOperationPhase();
+        friend BorrowPhase &loka::app::testing::controllerlessBorrowPhase();
 #endif
       public:
         bool open() const { return this->open_; }
       private:
-        OperationPhase() : open_(false) {}
-        OperationPhase(const OperationPhase &);
-        OperationPhase &operator=(const OperationPhase &);
+        BorrowPhase() : open_(false) {}
+        BorrowPhase(const BorrowPhase &);
+        BorrowPhase &operator=(const BorrowPhase &);
         bool open_;
       };
       /** Stack borrow interval. Only this writer opens/restores the phase. */
-      class OperationScope
+      class BorrowScope
       {
       public:
-        explicit OperationScope(IPlatformController &controller);
+        explicit BorrowScope(IPlatformController &controller);
 #ifdef TEST_BUILD
-        explicit OperationScope(OperationPhase &phase)
+        explicit BorrowScope(BorrowPhase &phase)
             : phase_(phase), previous_(phase.open_)
         {
           this->phase_.open_ = true;
         }
 #endif
-        ~OperationScope() { this->phase_.open_ = this->previous_; }
+        ~BorrowScope() { this->phase_.open_ = this->previous_; }
       private:
-        OperationScope(const OperationScope &);
-        OperationScope &operator=(const OperationScope &);
-        OperationPhase &phase_;
+        BorrowScope(const BorrowScope &);
+        BorrowScope &operator=(const BorrowScope &);
+        BorrowPhase &phase_;
         const bool previous_;
       };
 
@@ -69,11 +71,11 @@ namespace loka
       {
         /** One scope-owning implementation for all typed arities. The temporary
             encloses the whole call expression, including the body's continuation. */
-        class InputInvocation : private OperationScope
+        class InputInvocation : private BorrowScope
         {
         public:
           explicit InputInvocation(loka::app::scene::IPlatformController &controller)
-              : OperationScope(controller) {}
+              : BorrowScope(controller) {}
 
           template<class C, class R>
           R operator()(C &c, R (C::*body)()) const
@@ -96,14 +98,14 @@ namespace loka
        */
       class IPlatformController
       {
-        friend class OperationScope;
-        OperationPhase operationPhase_;
+        friend class BorrowScope;
+        BorrowPhase borrowPhase_;
         IPlatformController(const IPlatformController &);
         IPlatformController &operator=(const IPlatformController &);
       public:
         IPlatformController() {}
-        virtual ~IPlatformController() { assert(!this->operationPhase_.open()); }
-        const OperationPhase &operationPhase() const { return this->operationPhase_; }
+        virtual ~IPlatformController() { assert(!this->borrowPhase_.open()); }
+        const BorrowPhase &borrowPhase() const { return this->borrowPhase_; }
 
         /** Refusal-only: O(1) input restoration and dispatch, no rows walked
             here. Include this attempt's inputs and request an after-flush layout;
@@ -165,7 +167,7 @@ namespace loka
         virtual void drainNativeRetirements()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
-          assert(!this->operationPhase().open());
+          assert(!this->borrowPhase().open());
 #endif
         }
 
@@ -180,7 +182,7 @@ namespace loka
         virtual void releaseNodeContexts(Node *node)
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
-          assert(!this->operationPhase().open());
+          assert(!this->borrowPhase().open());
 #endif
           if (!node)
           {
@@ -222,8 +224,8 @@ namespace loka
         static void requestSceneRelayout(Node *rootNode);
       };
 
-      inline OperationScope::OperationScope(IPlatformController &controller)
-          : phase_(controller.operationPhase_), previous_(this->phase_.open_)
+      inline BorrowScope::BorrowScope(IPlatformController &controller)
+          : phase_(controller.borrowPhase_), previous_(this->phase_.open_)
       {
         this->phase_.open_ = true;
       }
@@ -232,9 +234,9 @@ namespace loka
     namespace testing
     {
       /** Scene-less fixtures only; no controller or Scene consumes this phase. */
-      inline scene::OperationPhase &controllerlessOperationPhase()
+      inline scene::BorrowPhase &controllerlessBorrowPhase()
       {
-        static scene::OperationPhase phase;
+        static scene::BorrowPhase phase;
         return phase;
       }
     }

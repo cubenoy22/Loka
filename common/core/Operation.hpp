@@ -7,6 +7,7 @@ namespace loka
 {
   namespace core
   {
+    namespace testing { struct OperationTestAccess; }
     class StateTracker;
     class PushStateTracker;
 
@@ -22,6 +23,7 @@ namespace loka
     enum OperationStatus
     {
       OPERATION_SETTLED,
+      OPERATION_JOINED,
       OPERATION_REFUSED_CHAIN_LIMIT,
       OPERATION_REFUSED_STATE_BUDGET
     };
@@ -43,13 +45,13 @@ namespace loka
       OPEN_REFUSED_NOT_PUSH
     };
 
-    /** Main-thread stack clock borrowing ledgers until close. At most one clock
-        is active. Ledgers and their registered States must outlive the clock;
-        a window destroys its ledger outside any Operation. Nested tracker
-        guards join the clock's level and must end before close.
-        Fair rounds visit the ledgers present at each round's start. All routes
-        are removed before any refusal cleanup runs. No production entry opens
-        this clock yet. */
+    /** Main-thread stack clock borrowing ledgers until close. Nested clocks join
+        the outermost clock, which alone settles and closes all ledgers. Ledgers
+        and their registered States must outlive that close. Nested tracker guards
+        must end before settlement. Completion turns collect, settle, apply, close,
+        then reclaim; collection turns only collect, settle and close. Fair rounds
+        visit the ledgers present at each round's start. Production turns do not
+        yet open ledgers. */
     class Operation
     {
     public:
@@ -58,6 +60,15 @@ namespace loka
       /** Opens an idle ledger, or recognizes a ledger already in this clock.
           May be called during work rounds, never during cleanup or after close. */
       OpenResult open(StateTracker *tracker);
+      /** Checkpoint with routes and ledger levels retained. The shared budget,
+          first refusal and work-round count survive every checkpoint. */
+      OperationOutcome settle();
+      /** True only while the outermost clock drives or cleans up ledgers. */
+      static bool isSettling();
+      /** True while any clock is active on the main thread. Rails assert the
+          absence of a clock before blocking in the OS; tests observe identity
+          through the testing access layer instead. */
+      static bool hasActive();
       /** Drives and closes once. The destructor closes if this was not called.
           The first refusal wins; cleanup never invalidates a ledger. */
       OperationOutcome close();
@@ -66,13 +77,17 @@ namespace loka
       Operation(const Operation &);
       Operation &operator=(const Operation &);
       friend class PushStateTracker;
+      friend struct testing::OperationTestAccess;
 
       enum Phase { OPEN, DRIVING, CLOSING, CLOSED };
       static Operation *active_;
+      Operation *const outer_;
       PushStateTracker *head_;
       PushStateTracker *tail_;
       OperationBudget budget_;
       Phase phase_;
+      OperationStatus status_;
+      size_t rounds_;
 
       bool hasWork() const;
       /** Release-build emergency only: unlink without touching State routes.

@@ -709,7 +709,7 @@ bool Win32Window::handleCommand(WPARAM wParam, LPARAM lParam)
 void Win32Window::handleNativeSize(WPARAM wParam, LPARAM lParam)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->scenePlatformController_ && this->scenePlatformController_->operationPhase().open());
+  assert(this->scenePlatformController_ && this->scenePlatformController_->borrowPhase().open());
 #endif
   if (this->scenePlatformController_)
   {
@@ -726,7 +726,7 @@ void Win32Window::handleNativeSize(WPARAM wParam, LPARAM lParam)
 void Win32Window::handleNativeDpi(WPARAM wParam, LPARAM lParam)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->borrowPhase().open());
 #endif
   const loka::win32::Win32DisplayScale nextScale(LOWORD(wParam));
   if (this->scenePlatformController_)

@@ -1,5 +1,6 @@
 #include "ToolboxInputDoor.hpp"
 #include "support/TestVerify.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/Headless.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/WindowAdmissionTestApp.hpp"
@@ -37,7 +38,7 @@ public:
       : WindowAdmissionTestApp(window)
   {
   }
-  void present(ActivationPhase phase);
+  void present(ActivationPhase phase, loka::core::Operation &turn);
 };
 #include "ToolboxPresent.cpp"
 namespace
@@ -157,7 +158,13 @@ namespace
       NodeContext *out = 0;
       LOKA_VERIFY(controller.readNativeFocus(out));
       LOKA_VERIFY(out == (node ? node->getContext() : 0));
-      app.present(ACTIVATION_FOREGROUND);
+      {
+        loka::core::Operation turn;
+        app.present(ACTIVATION_FOREGROUND, turn);
+        LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      }
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      LOKA_VERIFY(!loka::core::Operation::isSettling());
       const Focused<FieldKey> value = focus.state()->get();
       LOKA_VERIFY(!(value != (node ? Focused<FieldKey>(node == &first ? FIRST : SECOND) : Focused<FieldKey>::none())));
     }
@@ -186,7 +193,13 @@ namespace
     GrafPort ambient = {7, 12, 0};
     SetPort(&ambient);
     f.focus.post(SECOND);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(!(**oldTE).active && (**target).active);
     LOKA_VERIFY(f.controller.editControls_.focused() == &f.controller.editControls_[1]);
     LOKA_VERIFY((**target).selStart == 0 && (**target).selEnd == 1);
@@ -235,7 +248,13 @@ namespace
     const LineCursor before = cursor.state()->get();
     const ListRevision revision = lines.revision().get();
     f.focus.post(SECOND);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(f.focus.state()->get().is(SECOND));
     LOKA_VERIFY((**te).active);
     LOKA_VERIFY((**te).selStart == 8 && (**te).selEnd == 10);
@@ -288,14 +307,26 @@ namespace
     f.expect(&f.first);
     TEHandle native = f.controller.editControls_[0].te;
     f.focus.post(SECOND);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(!(**native).active);
     LOKA_VERIFY(!f.controller.editControls_.focused());
     f.expect(&f.second);
     LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
     LOKA_VERIFY(f.replacement.get().equals(String::Literal("bx")));
     f.focus.post(FIRST);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     f.expect(&f.first);
     f.controller.retireEditTextControlAt(0, NATIVE_HINT_EAGER_RELEASE);
     // Retiring the native destination must not resurrect the old fallback.
@@ -313,12 +344,24 @@ namespace
                                                   f.text.state(), NATIVE_HINT_DEFAULT));
     f.hit(f.second, 80);
     f.focus.post(SECOND);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     f.expect(&f.first);
     // Materializing later cannot replay the refused, consumed request.
     SetRect(&f.controller.projectionClip, 0, 0, 200, 200);
     f.native(f.second, 80);
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     f.expect(&f.first);
   }
   void renderClick(void *data)
@@ -335,9 +378,21 @@ namespace
     f.expect(&f.first);
     f.nativeWindow.onFlush = &renderClick;
     f.nativeWindow.flushData = &f;
-    f.app.present(ACTIVATION_BACKGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_BACKGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(f.focus.state()->get().is(FIRST));
-    f.app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      f.app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(f.focus.state()->get().is(SECOND));
   }
   void endpointDeath()

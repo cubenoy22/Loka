@@ -83,7 +83,7 @@ namespace
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.writes;
-      LOKA_VERIFY(f.controller->operationPhase().open());
+      LOKA_VERIFY(f.controller->borrowPhase().open());
       if (f.closeOnExtent)
       {
         f.app->requestWindowClose(f.closeOnExtent);
@@ -112,13 +112,13 @@ namespace
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.emits;
       LOKA_VERIFY(f.writes == 1 && f.selection.get() == 1);
-      LOKA_VERIFY(f.controller->operationPhase().open() && f.destroyed == 0);
+      LOKA_VERIFY(f.controller->borrowPhase().open() && f.destroyed == 0);
     }
     static void secondPublished(void *data)
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.secondWrites;
-      LOKA_VERIFY(f.writes == 1 && f.controller->operationPhase().open());
+      LOKA_VERIFY(f.writes == 1 && f.controller->borrowPhase().open());
     }
     void bind()
     {
@@ -322,7 +322,7 @@ namespace
     {
       this->facts.returned = ++this->facts.sequence;
       LOKA_VERIFY(this->facts.writes > 0 && this->facts.destroyed == 0);
-      LOKA_VERIFY(!this->facts.controller->operationPhase().open());
+      LOKA_VERIFY(!this->facts.controller->borrowPhase().open());
       this->facts.unbind();
       this->app.flush();
       LOKA_VERIFY(this->facts.destroyed > this->facts.returned);
@@ -392,7 +392,7 @@ void testWin32InputDoorExtentOrdering()
     SendMessageW(fixture.window.hwnd(), WM_SIZE, SIZE_RESTORED, MAKELPARAM(480, 320));
     LOKA_VERIFY(fixture.facts.writes == 1 && fixture.facts.secondWrites == 1);
     LOKA_VERIFY(surfaceCount(fixture.root()) == 2);
-    LOKA_VERIFY(!fixture.facts.controller->operationPhase().open());
+    LOKA_VERIFY(!fixture.facts.controller->borrowPhase().open());
     fixture.facts.unbind();
     fixture.app.flush();
     LOKA_VERIFY(fixture.facts.shown->get() == (cancel != 0));
@@ -436,7 +436,7 @@ void testWin32InputDoorCloseDuringLayout()
   SendMessageW(window->hwnd(), WM_SIZE, SIZE_RESTORED, MAKELPARAM(480, 320));
   facts.returned = ++facts.sequence;
   LOKA_VERIFY(facts.writes == 1 && facts.secondWrites == 1 && facts.destroyed == 0);
-  LOKA_VERIFY(!facts.controller->operationPhase().open());
+  LOKA_VERIFY(!facts.controller->borrowPhase().open());
   facts.unbind();
   app.flush();
   LOKA_VERIFY(facts.destroyed > facts.returned);

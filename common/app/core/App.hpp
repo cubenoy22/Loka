@@ -5,6 +5,7 @@
 #include "app/core/AppComponent.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/MenuController.hpp"
+#include "app/core/DialogResultDelivery.hpp"
 #include "app/Menu.hpp"
 #include <cassert>
 
@@ -15,6 +16,7 @@ namespace loka
 {
   namespace app
   {
+    namespace scene { class Scene; }
     namespace testing
     {
       class AppTestAccess;
@@ -65,7 +67,7 @@ public:
 
 protected:
   /** Drain-internal reclaim step: deletes an already-detached Window. Only
-      flushPendingWindowClosures() and subclass observation hooks may call
+      drainWindowClosures() and subclass observation hooks may call
       this; everything else must go through requestWindowClose(). */
   virtual void windowClosed(Window *window);
   AppComponentGroup *group_;
@@ -86,18 +88,56 @@ protected:
   void clearMenuDiff();
 
   void projectInitialVisibilityChunks();
-  /** App clock admission: applies seats before Scene runs; nested window work is refused. */
+  /** Admits seats before Scene runs. The first admission of a tail captures
+      collect-time closes; closes requested during apply, delivery or focus wait
+      for the next tail, even with multiple admissions. Retirement rows accumulate
+      until reclaim, with the latest snapshot per Window. Nested work is refused. */
+  void admitAndApplyWindows();
+  /** Deletes only the tail's captured closes, then drains captured retirements.
+      Completes the batch; rails call this once after their completion work. */
+  void reclaimWindows();
+  /** Convenience tail with no intervening work: admit/apply, then reclaim.
+      Rails call the two doors separately around their completion work. */
   void flushWindowInvalidations();
   /** Pre-wait progress: close rows or serviceable Window completion work. */
   bool hasPendingWindowAdmission() const;
-  /** Drains one queue snapshot; requests made during the drain wait for the next flush. */
+  /** Drains one queue snapshot outside an open split tail; requests made during
+      the drain wait for the next flush. */
   void flushPendingWindowClosures();
 
 private:
-  struct AdmittedWindow;
+  /** Borrowed rows remain owned by the App group or close queue. */
+  struct AdmittedWindow
+  {
+    AdmittedWindow(Window *value, loka::app::DialogResultDelivery *results,
+                   loka::app::DialogResultDelivery::Retirement *retirements);
+    Window *window;
+    loka::app::scene::Scene *scenes;
+    loka::app::DialogResultDelivery *delivery;
+    loka::app::DialogResultDelivery::Retirement *dialogRetirements;
+  };
+
+  /** One tail's borrowed work. An open batch may have no rows or closes. */
+  class AdmissionBatch
+  {
+  public:
+    AdmissionBatch() : phase_(BETWEEN_TAILS) {}
+    bool isOpen() const { return this->phase_ == OPEN; }
+    void begin(const std::vector<Window *> &pending);
+    void remember(const AdmittedWindow &row);
+    void clear();
+    std::vector<AdmittedWindow> rows;
+    std::vector<Window *> closes;
+  private:
+    enum Phase { BETWEEN_TAILS, OPEN };
+    Phase phase_;
+  };
+  void drainWindowClosures(const std::vector<Window *> &pending);
   bool isWindowClosePending(Window *window) const;
+  bool windowHasAdmissionWork(Window *window) const;
   std::vector<Window *> pendingWindowClosures_;
   bool flushingWindowWork_;
+  AdmissionBatch pendingReclaim_;
 
   static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
 

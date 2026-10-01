@@ -2,6 +2,7 @@
 #define LOKA_WIN32APP_HPP
 
 #include "app/core/App.hpp"
+#include "core/Operation.hpp"
 #include <windows.h>
 #include <vector>
 
@@ -77,7 +78,7 @@ private:
   /** Flushes Scene work produced inside the focus completion's operation in
       the same iteration with the second window flush. The Null model is
       WindowAdmissionTestApp::operationLoop(). */
-  void flushIterationTail();
+  void flushIterationTail(loka::core::Operation &turn);
   void clearMenuBindings();
   static void MenuEnabledChangedThunk(void *userData);
   static void MenuCheckedChangedThunk(void *userData);
