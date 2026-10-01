@@ -2,6 +2,8 @@
 #define SMIRKYCARD_CARD_RECORDS_HPP
 
 #include "ScriptRuntime.hpp"
+#include "app/OpenFileDialog.hpp"
+#include "core/resource/Image.hpp"
 #include "app/scene/state/NodeState.hpp"
 #include "core/LokaAlloc.hpp"
 
@@ -69,7 +71,9 @@ namespace smirkycard
     {
       STRING,
       INTEGER,
-      BOOLEAN
+      BOOLEAN,
+      FILE_RESULT,
+      IMAGE
     };
     struct Initial
     {
@@ -103,6 +107,10 @@ namespace smirkycard
         return this->integer.isValid();
       case BOOLEAN:
         return this->boolean.isValid();
+      case FILE_RESULT:
+        return this->file.isValid();
+      case IMAGE:
+        return this->image.isValid();
       }
       return false;
     }
@@ -113,6 +121,8 @@ namespace smirkycard
     loka::app::scene::NodeState<loka::core::String> string;
     loka::app::scene::NodeState<int> integer;
     loka::app::scene::NodeState<bool> boolean;
+    loka::app::scene::NodeState<loka::app::FileChooserResult> file;
+    loka::app::scene::NodeState<loka::core::resource::Image> image;
     loka::app::scene::DerivedNodeState<loka::core::String> formatted;
   };
 

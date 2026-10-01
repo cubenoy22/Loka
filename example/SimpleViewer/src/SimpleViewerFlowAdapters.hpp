@@ -5,7 +5,7 @@
 
 #include "app/OpenFileDialog.hpp"
 #include "app/PlatformContext.hpp"
-#include "app/PlatformReadCapacity.hpp"
+#include "app/FileImageSource.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/BlobLoader.hpp"
 #include "core/resource/Image.hpp"
@@ -158,22 +158,18 @@ namespace simpleviewer
 
       if (projection.request.source == BLOB_SOURCE_FILE)
       {
-        Blob blob = Blob::Create();
-        std::vector<unsigned char> &bytes = blob.mutableBytes();
+        Blob blob;
         int detailCode = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
-        bool loaded = readBytesViaPlatform(projection, bytes, detailCode);
-        if (!loaded && detailCode != SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE)
-        {
-          loaded = readFileBytes(projection.request.filePath, bytes, detailCode);
-        }
-        if (!loaded)
+        loka::platform::file::FileHandle handle;
+        const bool resolved = this->ctx_ && projection.hasFileItem && this->ctx_->openFile(projection.fileItem, handle);
+        const loka::platform::file::ReadResult result = loka::app::ReadFileImageBlob(
+            this->ctx_, resolved ? &handle : 0, projection.request.filePath, blob);
+        if (!mapReadResult(result, detailCode))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;
           error.code = detailCode;
           return loka::dsl::FLOW_STEP_FAILED;
         }
-
-        blob.sealBytes();
         out = blob;
         return loka::dsl::FLOW_STEP_SUCCEEDED;
       }
@@ -197,32 +193,9 @@ namespace simpleviewer
       case READ_STDIO_SEEK_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_SEEK_FAILED; break;
       case READ_STDIO_READ_FAILED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_STDIO_READ_FAILED; break;
       case READ_CAPACITY_REFUSED: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE; break;
-      case READ_SIZE_OVERFLOW: break; // The original overflow path retained the preceding detail.
+      case READ_SIZE_OVERFLOW: detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED; break;
       }
       return false;
-    }
-
-    bool readFileBytes(const loka::core::String &path, std::vector<unsigned char> &out, int &detailCodeOut) const
-    {
-      const loka::app::PlatformReadCapacity capacity(this->ctx_);
-      return mapReadResult(loka::platform::file::ReadBytes(path, out, &capacity), detailCodeOut);
-    }
-
-    bool readBytesViaPlatform(const In &projection, std::vector<unsigned char> &out, int &detailCodeOut) const
-    {
-      out.clear();
-      if (!this->ctx_ || !projection.hasFileItem)
-      {
-        return false;
-      }
-      loka::platform::file::FileHandle handle;
-      if (!this->ctx_->openFile(projection.fileItem, handle))
-      {
-        detailCodeOut = SIMPLE_VIEWER_FLOW_ERROR_CODE_PLATFORM_OPENFILE_FAILED;
-        return false;
-      }
-      const loka::app::PlatformReadCapacity capacity(this->ctx_);
-      return mapReadResult(loka::platform::file::ReadBytes(handle, out, &capacity), detailCodeOut);
     }
 
     PlatformContext *ctx_;
@@ -261,7 +234,7 @@ namespace simpleviewer
       }
 
       // The whole blob is this file's one picture, so the range is all of it.
-      if (this->ctx_->createImageFromBlob(blob, 0, blob.bytes().size(), attempt.image))
+      if (loka::app::DecodeFileImageBlob(this->ctx_, blob, attempt.image))
       {
         attempt.decoded = true;
         return loka::dsl::FLOW_STEP_SUCCEEDED;
