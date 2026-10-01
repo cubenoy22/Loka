@@ -75,6 +75,9 @@ namespace smirkycard
     loka::app::scene::NodeDefinitionBase *lowerText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerEditText(JSContext *context, JSValueConst tree);
     loka::app::scene::NodeDefinitionBase *lowerClickable(JSContext *context, JSValueConst tree, bool cell);
+    loka::app::scene::NodeDefinitionBase *lowerShow(JSContext *context, JSValueConst tree, int depth);
+    loka::app::scene::NodeDefinitionBase *lowerOpenFileDialog(JSContext *context, JSValueConst tree);
+    loka::app::scene::NodeDefinitionBase *lowerImageView(JSContext *context, JSValueConst tree);
     void fail(const char *message);
     loka::app::scene::NodeDefinitionBase *lowerChild(JSContext *context, JSValueConst tree, int depth);
     virtual void declareBindings(loka::app::scene::BindingToken &token);

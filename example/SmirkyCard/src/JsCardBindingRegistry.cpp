@@ -469,6 +469,83 @@ namespace smirkycard
         return node.lowerEditText(ctx, tree);
       }
     };
+    JSValue seatTree(JSContext *ctx, int kind, JSValueConst seat, JSValueConst child = JS_UNDEFINED)
+    {
+      JSValue tree = newTree(ctx, kind);
+      if (JS_IsException(tree))
+        return tree;
+      if (JS_SetPropertyStr(ctx, tree, "seat", JS_DupValue(ctx, seat)) < 0
+          || (!JS_IsUndefined(child) && JS_SetPropertyStr(ctx, tree, "child", JS_DupValue(ctx, child)) < 0)
+          || JS_FreezeObject(ctx, tree) < 0)
+      {
+        JS_FreeValue(ctx, tree);
+        return JS_EXCEPTION;
+      }
+      return tree;
+    }
+    class ShowLowering : public IJsNodeLowering
+    {
+    public:
+      ShowLowering()
+      {
+        this->name = "Show";
+        this->kind = 0;
+      }
+      virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
+      {
+        if (argc != 2 || !JS_IsObject(argv[1]) || JS_IsArray(argv[1]))
+          return JS_ThrowTypeError(ctx, "Show(boolSeat, child) requires a seat and one tree");
+        JSValue childKind = JS_GetPropertyStr(ctx, argv[1], "kind");
+        const bool valid = JS_IsNumber(childKind);
+        JS_FreeValue(ctx, childKind);
+        if (!valid)
+          return JS_ThrowTypeError(ctx, "Show child must be a tree");
+        return seatTree(ctx, this->kind, argv[0], argv[1]);
+      }
+      virtual loka::app::scene::NodeDefinitionBase *
+      lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int depth)
+      {
+        return node.lowerShow(ctx, tree, depth);
+      }
+    };
+    class OpenFileDialogLowering : public IJsNodeLowering
+    {
+    public:
+      OpenFileDialogLowering()
+      {
+        this->name = "OpenFileDialog";
+        this->kind = 0;
+      }
+      virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
+      {
+        if (argc != 1)
+          return JS_ThrowTypeError(ctx, "OpenFileDialog(fileSeat) requires one seat");
+        return seatTree(ctx, this->kind, argv[0]);
+      }
+      virtual loka::app::scene::NodeDefinitionBase *lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int)
+      {
+        return node.lowerOpenFileDialog(ctx, tree);
+      }
+    };
+    class ImageViewLowering : public IJsNodeLowering
+    {
+    public:
+      ImageViewLowering()
+      {
+        this->name = "ImageView";
+        this->kind = 0;
+      }
+      virtual JSValue build(JSContext *ctx, int argc, JSValueConst *argv)
+      {
+        if (argc != 1)
+          return JS_ThrowTypeError(ctx, "ImageView(imageSeat) requires one seat");
+        return seatTree(ctx, this->kind, argv[0]);
+      }
+      virtual loka::app::scene::NodeDefinitionBase *lower(JsCardNode &node, JSContext *ctx, JSValueConst tree, int)
+      {
+        return node.lowerImageView(ctx, tree);
+      }
+    };
     class ClickableLowering : public IJsNodeLowering
     {
     public:
@@ -509,6 +586,9 @@ namespace smirkycard
            && registry.registerLowering(new (std::nothrow) StackLowering("Row", true))
            && registry.registerLowering(new (std::nothrow) MarkupLowering())
            && registry.registerLowering(new (std::nothrow) ClickableLowering(true))
-           && registry.registerLowering(new (std::nothrow) GridLowering()) && registry.registerGlobal(card);
+           && registry.registerLowering(new (std::nothrow) GridLowering())
+           && registry.registerLowering(new (std::nothrow) ShowLowering())
+           && registry.registerLowering(new (std::nothrow) OpenFileDialogLowering())
+           && registry.registerLowering(new (std::nothrow) ImageViewLowering()) && registry.registerGlobal(card);
   }
 } // namespace smirkycard
