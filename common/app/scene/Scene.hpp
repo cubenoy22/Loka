@@ -373,7 +373,7 @@ namespace loka
         virtual ~Scene()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
-          assert(!this->isOperationOpen());
+          assert(!this->isBorrowOpen());
 #endif
           director_.detach();
           unmount();
@@ -450,10 +450,10 @@ namespace loka
         bool mount(IPlatformController *platformController)
         {
           assert(platformController && "Scene::mount requires a platform controller");
-          if (this->mounted_ || platformController->operationPhase().open())
+          if (this->mounted_ || platformController->borrowPhase().open())
           {
 #ifdef LOKA_LIFECYCLE_AUDIT
-            assert(false && "Scene mount during an operation or remount");
+            assert(false && "Scene mount during a borrow or remount");
 #endif
             return false;
           }
@@ -471,7 +471,7 @@ namespace loka
         void unmount()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
-          assert(!this->isOperationOpen());
+          assert(!this->isBorrowOpen());
 #endif
           this->detachComposition();
           mounted_ = false;
@@ -511,7 +511,7 @@ namespace loka
 
         bool flushInvalidation()
         {
-          if (this->isOperationOpen() || loka::core::Operation::isSettling())
+          if (this->isBorrowOpen() || loka::core::Operation::isSettling())
             return false;
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }
@@ -527,15 +527,15 @@ namespace loka
         SceneFocus &focus() { return this->focus_; }
 
         /** The controller borrow interval is independent of focus publication. */
-        bool isOperationOpen() const
+        bool isBorrowOpen() const
         {
-          return this->platformController_ && this->platformController_->operationPhase().open();
+          return this->platformController_ && this->platformController_->borrowPhase().open();
         }
 
         /** Admission and close reclamation exclude all active borrow phases. */
         bool isBusy() const
         {
-          return this->isRunInProgress() || this->focus_.isPublishing() || this->isOperationOpen();
+          return this->isRunInProgress() || this->focus_.isPublishing() || this->isBorrowOpen();
         }
 
         bool hasPendingInvalidation() const
@@ -1048,7 +1048,7 @@ namespace loka
         void teardownComposition()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
-          assert(!this->isOperationOpen());
+          assert(!this->isBorrowOpen());
 #endif
           if (!rootNode_)
           {

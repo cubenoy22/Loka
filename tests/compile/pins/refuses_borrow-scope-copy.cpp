@@ -2,4 +2,4 @@
 #include "app/style/LineCursor.hpp"
 using namespace loka::app;
 using namespace loka::app::scene;
-void pin(const OperationPhase &p) { OperationPhase q(p); }
+void pin(IPlatformController &c) { BorrowScope first(c); BorrowScope second(first); }

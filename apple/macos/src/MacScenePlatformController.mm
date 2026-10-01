@@ -254,7 +254,7 @@ void MacScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                           bool fullRebuild)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   rootNode_ = rootNode;
   lastChangeFlags_ = flags;
@@ -330,7 +330,7 @@ void MacScenePlatformController::queueNativeRetirement(void *primary, void *auxi
 void MacScenePlatformController::drainNativeRetirements()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   for (size_t i = 0; i < this->nativeRetirements_.size(); ++i)
   {
@@ -350,7 +350,7 @@ void MacScenePlatformController::drainNativeRetirements()
 void MacScenePlatformController::destroy()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   clearContexts();
   this->drainNativeRetirements();
@@ -411,7 +411,7 @@ void MacScenePlatformController::flushPendingRelayouts()
 void MacScenePlatformController::handlePendingRelayout()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->operationPhase().open());
+  assert(this->borrowPhase().open());
 #endif
   this->relayout(0, 0);
 }
@@ -1162,7 +1162,7 @@ void MacScenePlatformController::restoreFocusedEditField()
 void MacScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   clearNodeContexts(node);
 }

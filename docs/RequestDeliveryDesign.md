@@ -57,7 +57,7 @@ two-seat overload for caret then command (#902).
 Sources: [#898, ruling items 1–3](https://github.com/cubenoy22/Loka/issues/898),
 [#900](https://github.com/cubenoy22/Loka/pull/900), and
 [#904](https://github.com/cubenoy22/Loka/pull/904).
-The non-template `SettleOwnerBase` opens an `OperationScope` on the rail's
+The non-template `SettleOwnerBase` opens a `BorrowScope` on the rail's
 controller before native calls or callback-capable work. It borrows the node
 and stores a comparison-only context identity. Both settle overloads require
 that owner; `hasSameContext()` checks identity at each seat entry, after
@@ -68,9 +68,9 @@ trace. Lifecycle eligibility remains the seat's separate check.
 ### Platform operation interval (#968)
 
 Window owns the controller; Scene and contexts borrow it. The controller owns
-one small noncopyable `OperationPhase`; only `OperationScope` opens it and
-restores the previous value. The policy openers are `SettleOwnerBase` and the
-rail input-operation door described below; the scope constructor remains
+one small noncopyable `BorrowPhase`; only `BorrowScope` (formerly `OperationScope`)
+opens it and restores the previous value. The policy openers are
+`SettleOwnerBase` and the rail input door described below; the scope constructor remains
 public for fixtures. There is no counter, allocation, flush on scope
 exit, or coupling to the focus publication phase. A non-template completion
 owner carries this interval independently of the fact type. A controller-less
@@ -93,7 +93,7 @@ skips that window's whole busy row: native visibility, Scene replacement,
 dialog-result delivery and close reclamation wait too. Other controllers are
 unaffected. Pending work remains on its existing clock until a later flush.
 Focus publication alone still permits a Scene run. Layout reached from native
-callbacks is itself an operation: it publishes node facts (for example,
+callbacks also requires a borrow interval: it publishes node facts (for example,
 `RectSurfaceNode`'s laid-out extent), even when it does not run the Scene.
 This includes Win32 size/DPI layout, macOS resize and deferred relayout, and
 Toolbox update/draw/render layout and extent publication. A pending-layout map
@@ -103,7 +103,7 @@ rationale; production rail routing follows in the #977 rail PRs.
 
 This changes **input completion** to the rule props-apply completion already
 follows: a reply observer that hides the editor does not retire it inside the
-operation. Later takes in that same operation continue; focus facts and #932
+borrow interval. Later takes in that same interval continue; focus facts and #932
 participation remain until the post-scope run. A hide/show pair that cancels
 inside the interval need not retire anything. Outside an interval, ordinary
 immediate writes keep their existing behavior.
@@ -139,8 +139,8 @@ not establish native Classic timing or layout accuracy. Toolbox evidence and
 native verification limits are recorded in the #977 Toolbox PR.
 
 Each rail has one synchronous scope-owning invocation implementation, exposed
-through named typed entries. It opens the existing `OperationScope` on the
-borrowed controller unconditionally and covers the complete operation and its
+through named typed entries. It opens `BorrowScope` (formerly `OperationScope`) on the
+borrowed controller unconditionally and covers the complete borrow interval and its
 continuation: a wheel loop, a Popup write followed by its change emit,
 Toolbox tracking plus commit, a TextEditor saved-procedure call, or a macOS
 Cell emit followed by `super mouseDown:`. Existing `SettleOwner` scopes nest
@@ -184,7 +184,7 @@ Two consequences require pins on each rail that has the corresponding path:
 - During a layout with two RectSurfaces, the first extent observer hiding the
   second no longer cancels the second's pending extent row in that same layout:
   detach waits for the pump, so the second fact may publish before detachment.
-  Pin first-hides-second and hide/show cancellation within one operation.
+  Pin first-hides-second and hide/show cancellation within one borrow interval.
 - During Win32 move/size tracking, structural work requiring held Scene/owner
   pumps may wait until tracking returns and the queued-message drain reaches
   `flushIterationTail`. State observers and direct native bindings remain

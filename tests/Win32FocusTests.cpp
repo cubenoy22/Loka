@@ -474,7 +474,7 @@ namespace
       LOKA_VERIFY(!this->fallbackFired_);
       LOKA_VERIFY(this->replies_ == 1);
       LOKA_VERIFY(!completionTailEditor(&this->root_));
-      LOKA_VERIFY(!this->scene_.isOperationOpen());
+      LOKA_VERIFY(!this->scene_.isBorrowOpen());
       LOKA_VERIFY(!this->scene_.focus().isPublishing());
     }
 
@@ -485,7 +485,7 @@ namespace
       const ItemId line = self.root_.lines.at(0).id;
       if (self.root_.cursor.state()->get() != LineCursor(line, 1))
         return;
-      LOKA_VERIFY(self.scene_.isOperationOpen());
+      LOKA_VERIFY(self.scene_.isBorrowOpen());
       LOKA_VERIFY(self.scene_.focus().isPublishing());
       self.root_.request.set(LineCursor(line, 3));
     }
@@ -496,7 +496,7 @@ namespace
       const Reply<LineCursor> reply = self.root_.request.reply().state()->get();
       LOKA_VERIFY(reply.kind() == Reply<LineCursor>::GRANTED);
       LOKA_VERIFY(reply.applied() == LineCursor(self.root_.lines.at(0).id, 3));
-      LOKA_VERIFY(self.scene_.isOperationOpen());
+      LOKA_VERIFY(self.scene_.isBorrowOpen());
       LOKA_VERIFY(self.scene_.focus().isPublishing());
       self.root_.shown.set(false);
       LOKA_VERIFY(completionTailEditor(&self.root_));

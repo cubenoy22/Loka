@@ -213,7 +213,7 @@ namespace
     {
       DoorSettlementObserver &self = *static_cast<DoorSettlementObserver *>(data);
       ++self.reports;
-      LOKA_VERIFY(self.fixture.controller.operationPhase().open());
+      LOKA_VERIFY(self.fixture.controller.borrowPhase().open());
     }
   };
   struct RequestObserver
@@ -432,7 +432,7 @@ int main(int argc, char **argv)
     f.cursor.state()->unbind(&DoorSettlementObserver::report, &settlement);
     LOKA_VERIFY(observer.count > 0 && observer.result == EDITOR_REENTRANT);
     LOKA_VERIFY(settlement.reports > 0 && f.native() == "abxcd\rowner\rabcd");
-    LOKA_VERIFY(!f.controller.operationPhase().open());
+    LOKA_VERIFY(!f.controller.borrowPhase().open());
     pin("TextEditor RailOperation settles under input door and restores outer phase");
     return 0;
   }
