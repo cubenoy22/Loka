@@ -236,9 +236,10 @@ void Win32App::run()
 void Win32App::flushIterationTail()
 {
   this->flushMenuInvalidation();
-  this->flushWindowInvalidations();
+  this->admitAndApplyWindows();
   this->reconcileFocus();
-  this->flushWindowInvalidations();
+  this->admitAndApplyWindows();
+  this->reclaimWindows();
 }
 
 bool Win32App::handleMenuCommand(int commandId, Window *window)

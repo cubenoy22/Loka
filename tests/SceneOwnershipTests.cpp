@@ -6,6 +6,7 @@
 #include "SceneOwnershipTests.hpp"
 #include "support/TestVerify.hpp"
 #include "support/WindowAdmissionTestApp.hpp"
+#include "support/DialogResultTestAccess.hpp"
 #include <cassert>
 #include <cstdio>
 #include "app/PlatformContext.hpp"
@@ -353,6 +354,9 @@ namespace
   class WindowRetirementTestApp : public App
   {
   public:
+    using App::admitAndApplyWindows;
+    using App::reclaimWindows;
+    using App::flushPendingWindowClosures;
     WindowRetirementTestApp()
         : App(0),
           quitCalls(0),
@@ -2131,4 +2135,230 @@ void testSceneReplacementDetectsControllerLostDuringInstall()
 #else
   std::printf("[skip] Installation rail-loss pin requires Linux without ASan (fork death check).\n");
 #endif
+}
+
+void testPendingSceneInvalidationWakesWindowAdmission()
+{
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  props.scene(new SceneCensusProbe("pending"));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  LOKA_VERIFY(!app.hasPendingWindowAdmission());
+  const unsigned long projections = window.scenePlatformController()->onChangeCallCount();
+  window.scene()->requestInvalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+  LOKA_VERIFY(window.scene()->hasPendingInvalidation());
+  const bool pending = app.hasPendingWindowAdmission();
+  printf("B11: Scene pending=1 App admission pending=%d\n", pending);
+  fflush(stdout);
+  LOKA_VERIFY(pending);
+  app.flush();
+  LOKA_VERIFY(window.scenePlatformController()->onChangeCallCount() > projections);
+  LOKA_VERIFY(!app.hasPendingWindowAdmission());
+}
+
+namespace
+{
+  /** Stack-owned observation; the App owns the probed Windows. */
+  class TailTraceWindow : public NullWindow
+  {
+  public:
+    TailTraceWindow(PlatformContext *context, std::vector<char> &trace, char death)
+        : NullWindow(context, props()), trace_(trace), death_(death), applies(0) {}
+    virtual ~TailTraceWindow() { this->trace_.push_back(this->death_); }
+    virtual void applyNativeVisibility()
+    {
+      ++this->applies;
+      this->trace_.push_back('A');
+    }
+    virtual void drainNativeRetirements()
+    {
+      this->trace_.push_back('P');
+      NullWindow::drainNativeRetirements();
+    }
+    static WindowProps props()
+    {
+      WindowProps value;
+      value.scene(new SceneCensusProbe("tail"));
+      return value;
+    }
+    std::vector<char> &trace_;
+    char death_;
+    int applies;
+  };
+
+  struct CollectCloseHandler
+  {
+    WindowRetirementTestApp &app;
+    Window *window;
+    static void handle(void *data)
+    {
+      CollectCloseHandler *handler = static_cast<CollectCloseHandler *>(data);
+      handler->app.requestWindowClose(handler->window);
+    }
+  };
+
+  std::vector<char> CollectCloseTrace(bool split, bool oldOrder)
+  {
+    WindowCreatingPlatformContext context;
+    std::vector<char> trace;
+    WindowRetirementTestApp app;
+    TailTraceWindow *closing = new TailTraceWindow(&context, trace, 'C');
+    TailTraceWindow *remaining = new TailTraceWindow(&context, trace, 'D');
+    app.install(closing, remaining);
+    app.flush();
+    trace.clear();
+    closing->applies = 0;
+    remaining->applies = 0;
+    CollectCloseHandler handler = {app, closing};
+    CollectCloseHandler::handle(&handler);
+    remaining->scene()->requestInvalidate(loka::app::scene::NODE_DIRTY_LAYOUT);
+    if (oldOrder)
+      app.flushPendingWindowClosures();
+    if (split)
+    {
+      app.admitAndApplyWindows();
+      LOKA_VERIFY(app.reclaimCalls == 0);
+      LOKA_VERIFY(closing->applies == 0);
+      LOKA_VERIFY(remaining->applies == 1);
+      LOKA_VERIFY(trace.size() == 2 && trace[0] == 'A' && trace[1] == 'P');
+      app.reclaimWindows();
+    }
+    else
+      app.flush();
+    LOKA_VERIFY(app.reclaimCalls == 1);
+    LOKA_VERIFY(remaining->applies == 1);
+    // Copy before App teardown appends the remaining Window's death.
+    return std::vector<char>(trace);
+  }
+
+  /** Delivery seam observation also counts reclaim calls with empty snapshots. */
+  class TailCountingDelivery : public loka::app::DialogResultDelivery
+  {
+  public:
+    TailCountingDelivery() : deliveries(0), reclaims(0) {}
+    virtual bool hasRunnableWork() const { return true; }
+    virtual void deliver() { ++this->deliveries; }
+    virtual Retirement *retirementSnapshot() const { return 0; }
+    virtual void reclaim(Retirement *) { ++this->reclaims; }
+    int deliveries;
+    int reclaims;
+  };
+
+  class TailDeliveryWindow : public NullWindow
+  {
+  public:
+    TailDeliveryWindow(PlatformContext *context, TailCountingDelivery &delivery)
+        : NullWindow(context, TailTraceWindow::props()), delivery_(delivery) {}
+    virtual loka::app::DialogResultDelivery *dialogResultDelivery() { return &this->delivery_; }
+  private:
+    TailCountingDelivery &delivery_;
+  };
+}
+
+void testWindowCloseRequestedDuringCollectIsReclaimedAfterApply()
+{
+  const std::vector<char> after = CollectCloseTrace(true, false);
+  const std::vector<char> before = CollectCloseTrace(false, true);
+  LOKA_VERIFY(after.size() == 3 && before.size() == 3);
+  LOKA_VERIFY(after[2] == 'C' && before[0] == 'C');
+  // Explicit old-order control: the two surviving-window projection calls match.
+  LOKA_VERIFY(after[0] == before[1] && after[1] == before[2]);
+  printf("B9: old=CAP split=APC; surviving projection=AP in both\n");
+}
+
+void testFlushWindowInvalidationsIsAdmitApplyThenReclaim()
+{
+  const std::vector<char> split = CollectCloseTrace(true, false);
+  const std::vector<char> convenience = CollectCloseTrace(false, false);
+  LOKA_VERIFY(split == convenience);
+  printf("B12: split=APC convenience=APC\n");
+}
+
+void testWindowAdmissionTestAppOperationLoopReclaimsOncePerTail()
+{
+  WindowCreatingPlatformContext context;
+  TailCountingDelivery delivery;
+  TailDeliveryWindow window(&context, delivery);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  const int reclaims = delivery.reclaims;
+  const int deliveries = delivery.deliveries;
+  const int alive = g_sceneOwnershipScenesAlive;
+  LOKA_VERIFY(window.sceneManager()->commitTransaction(0, new SceneCensusProbe("second")));
+  app.operationLoop();
+  // Second admission captures the Scene retired by the first; one suffix drain.
+  LOKA_VERIFY(delivery.deliveries == deliveries + 2);
+  LOKA_VERIFY(delivery.reclaims == reclaims + 1);
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == alive);
+  LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::retiredSceneCount(*window.sceneManager()) == 0);
+  app.reclaimWindows();
+  LOKA_VERIFY(delivery.reclaims == reclaims + 1);
+  app.operationLoop();
+  LOKA_VERIFY(delivery.reclaims == reclaims + 2);
+  printf("B13: admissions=2 reclaim=1 retiredScenes=0 repeatedReclaim=no-op\n");
+}
+
+void testEmptyFirstAdmissionKeepsLaterCloseForNextTail()
+{
+  WindowCreatingPlatformContext context;
+  std::vector<char> trace;
+  WindowRetirementTestApp app;
+  TailTraceWindow *window = new TailTraceWindow(&context, trace, 'C');
+  app.install(window);
+  app.flush();
+  trace.clear();
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(trace.empty());
+  // Models focus completion after an empty first admission.
+  app.requestWindowClose(window);
+  app.admitAndApplyWindows();
+  app.flushPendingWindowClosures();
+  app.reclaimWindows();
+  LOKA_VERIFY(app.reclaimCalls == 0 && trace.empty());
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(app.reclaimCalls == 0);
+  app.reclaimWindows();
+  LOKA_VERIFY(app.reclaimCalls == 1 && trace.size() == 1 && trace[0] == 'C');
+}
+
+void testWindowReclaimDefersBusyCapturedScene()
+{
+  WindowCreatingPlatformContext context;
+  NullWindow window(&context, TailTraceWindow::props());
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  const int alive = g_sceneOwnershipScenesAlive;
+  LOKA_VERIFY(window.sceneManager()->commitTransaction(0, new SceneCensusProbe("busy")));
+  app.admitAndApplyWindows();
+  app.admitAndApplyWindows();
+  {
+    loka::app::scene::OperationScope borrow(*window.scenePlatformController());
+    app.reclaimWindows();
+    LOKA_VERIFY(g_sceneOwnershipScenesAlive == alive + 1);
+  }
+  app.flush();
+  LOKA_VERIFY(g_sceneOwnershipScenesAlive == alive);
+}
+
+void testTwoAdmissionsReclaimLatestDialogSnapshot()
+{
+  typedef loka::app::DialogResultTransport Transport;
+  WindowCreatingPlatformContext context;
+  NullWindow window(&context, WindowProps());
+  WindowAdmissionTestApp app(window);
+  Transport::Registration *registration = window.dialogResults().reserve(loka::app::OpenFileDialogProps());
+  LOKA_VERIFY(registration);
+  {
+    Transport::ReturnPort port(registration);
+    LOKA_VERIFY(port.seal(loka::app::FileChooserResult::Canceled()) == &window);
+  }
+  LOKA_VERIFY(loka::app::testing::DialogResultTestAccess::census(window.dialogResults()) == 1);
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(loka::app::testing::DialogResultTestAccess::census(window.dialogResults()) == 1);
+  app.admitAndApplyWindows();
+  app.reclaimWindows();
+  LOKA_VERIFY(loka::app::testing::DialogResultTestAccess::census(window.dialogResults()) == 0);
+  delete registration;
 }

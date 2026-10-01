@@ -20,6 +20,8 @@ App::App(AppConfigurable *config)
 
 App::~App()
 {
+  // Shutdown destroys every owner; discard borrowed tail snapshots first.
+  this->pendingReclaim_.clear();
   for (size_t i = 0; i < this->pendingWindowClosures_.size(); ++i)
     this->pendingWindowClosures_[i]->closeDialogResults();
   if (this->group_)
@@ -146,36 +148,56 @@ bool App::hasPendingWindowAdmission() const
   for (size_t i = 0; i < components.size(); ++i)
   {
     Window *window = components[i] ? components[i]->asWindow() : 0;
-    if (window && (!window->scene() || !window->scene()->isRunInProgress()))
-    {
-      loka::app::DialogResultDelivery *delivery = window->dialogResultDelivery();
-      if (delivery && delivery->hasRunnableWork())
-        return true;
-    }
+    if (this->windowHasAdmissionWork(window))
+      return true;
   }
   return false;
 }
 
-/** Borrowed admission rows remain owned by the App group or close queue. */
-struct App::AdmittedWindow
+bool App::windowHasAdmissionWork(Window *window) const
 {
-  // The App takes the retirement snapshot itself (it is the friend of the
-  // delivery); a nested struct's members have no such access in C++98, which
-  // GCC 4.0 enforces.
-  AdmittedWindow(Window *value,
-                 loka::app::DialogResultDelivery *results,
-                 loka::app::DialogResultDelivery::Retirement *retirements)
-      : window(value),
-        scenes(0),
-        delivery(results),
-        dialogRetirements(retirements)
+  if (!window || this->isWindowClosePending(window)
+      || (window->scene() && window->scene()->isBusy()))
+    return false;
+  loka::app::DialogResultDelivery *delivery = window->dialogResultDelivery();
+  return window->hasPendingNativeVisibility() || window->hasPendingSceneInvalidation()
+         || window->hasPendingScenePlatformSync() || (delivery && delivery->hasRunnableWork());
+}
+
+App::AdmittedWindow::AdmittedWindow(
+    Window *value, loka::app::DialogResultDelivery *results,
+    loka::app::DialogResultDelivery::Retirement *retirements)
+    : window(value), scenes(0), delivery(results), dialogRetirements(retirements)
+{
+}
+
+void App::AdmissionBatch::begin(const std::vector<Window *> &pending)
+{
+  if (this->isOpen())
+    return;
+  this->closes = pending;
+  this->phase_ = OPEN;
+}
+
+void App::AdmissionBatch::remember(const AdmittedWindow &row)
+{
+  for (size_t i = 0; i < this->rows.size(); ++i)
   {
+    if (this->rows[i].window == row.window)
+    {
+      this->rows[i] = row;
+      return;
+    }
   }
-  Window *window;
-  loka::app::scene::Scene *scenes;
-  loka::app::DialogResultDelivery *delivery;
-  loka::app::DialogResultDelivery::Retirement *dialogRetirements;
-};
+  this->rows.push_back(row);
+}
+
+void App::AdmissionBatch::clear()
+{
+  this->rows.clear();
+  this->closes.clear();
+  this->phase_ = BETWEEN_TAILS;
+}
 
 bool App::isWindowClosePending(Window *window) const
 {
@@ -185,11 +207,15 @@ bool App::isWindowClosePending(Window *window) const
 
 void App::flushWindowInvalidations()
 {
-  // The App clock admits seat requests; native command callbacks only request work.
-  // The close drain also uses this guard, so its callbacks cannot enter admission.
+  this->admitAndApplyWindows();
+  this->reclaimWindows();
+}
+
+void App::admitAndApplyWindows()
+{
   if (this->flushingWindowWork_)
     return;
-  this->flushPendingWindowClosures();
+  this->pendingReclaim_.begin(this->pendingWindowClosures_);
   if (!this->group_)
     return;
 
@@ -199,15 +225,9 @@ void App::flushWindowInvalidations()
   for (size_t i = 0; i < comps.size(); ++i)
   {
     Window *win = comps[i] ? comps[i]->asWindow() : 0;
-    // Scene runs and focus publication can enter outside this App guard.
-    // Exclude the entire row so neither replacement nor reclaim touches it.
-    if (win && win->scene() && win->scene()->isBusy())
-      continue;
-    loka::app::DialogResultDelivery *delivery = win ? win->dialogResultDelivery() : 0;
-    if (win
-        && (win->hasPendingNativeVisibility() || win->hasPendingSceneInvalidation()
-            || win->hasPendingScenePlatformSync() || (delivery && delivery->hasRunnableWork())))
+    if (this->windowHasAdmissionWork(win))
     {
+      loka::app::DialogResultDelivery *delivery = win->dialogResultDelivery();
       if (admitted.empty())
         admitted.reserve(comps.size());
       admitted.push_back(AdmittedWindow(win, delivery, delivery ? delivery->retirementSnapshot() : 0));
@@ -239,12 +259,35 @@ void App::flushWindowInvalidations()
     if (this->isWindowClosePending(window))
       continue;
     window->flushSceneInvalidation();
-    if (this->isWindowClosePending(window))
-      continue;
-    window->reclaimScenes(it->scenes);
-    if (it->delivery)
-      it->delivery->reclaim(it->dialogRetirements);
   }
+  for (size_t i = 0; i < admitted.size(); ++i)
+    this->pendingReclaim_.remember(admitted[i]);
+  this->flushingWindowWork_ = false;
+}
+
+void App::reclaimWindows()
+{
+  if (this->flushingWindowWork_ || !this->pendingReclaim_.isOpen())
+    return;
+  this->flushingWindowWork_ = true;
+  // Remove borrowed identities before the close drain can delete their owners.
+  std::vector<AdmittedWindow> &rows = this->pendingReclaim_.rows;
+  for (size_t i = 0; i < rows.size(); ++i)
+    if (this->isWindowClosePending(rows[i].window))
+      rows[i].window = 0;
+  this->drainWindowClosures(this->pendingReclaim_.closes);
+  for (size_t i = 0; i < rows.size(); ++i)
+  {
+    AdmittedWindow &row = rows[i];
+    Window *window = row.window;
+    if (!window || this->isWindowClosePending(window)
+        || (window->scene() && window->scene()->isBusy()))
+      continue;
+    window->reclaimScenes(row.scenes);
+    if (row.delivery)
+      row.delivery->reclaim(row.dialogRetirements);
+  }
+  this->pendingReclaim_.clear();
   this->flushingWindowWork_ = false;
 }
 
@@ -324,22 +367,26 @@ void App::requestWindowClose(Window *window)
 
 void App::flushPendingWindowClosures()
 {
-  if (flushingWindowWork_ || pendingWindowClosures_.empty())
-  {
+  if (this->flushingWindowWork_ || this->pendingReclaim_.isOpen()
+      || this->pendingWindowClosures_.empty())
     return;
-  }
+  const std::vector<Window *> pending(this->pendingWindowClosures_);
+  this->flushingWindowWork_ = true;
+  this->drainWindowClosures(pending);
+  this->flushingWindowWork_ = false;
+}
 
-  std::vector<Window *> pending;
-  pending.swap(pendingWindowClosures_);
-  flushingWindowWork_ = true;
+void App::drainWindowClosures(const std::vector<Window *> &pending)
+{
   for (size_t i = 0; i < pending.size(); ++i)
   {
-    if (pending[i]->scene() && pending[i]->scene()->isBusy())
-      this->pendingWindowClosures_.push_back(pending[i]);
-    else
-      this->windowClosed(pending[i]);
+    Window *window = pending[i];
+    if (window->scene() && window->scene()->isBusy())
+      continue;
+    this->pendingWindowClosures_.erase(
+        std::find(this->pendingWindowClosures_.begin(), this->pendingWindowClosures_.end(), window));
+    this->windowClosed(window);
   }
-  flushingWindowWork_ = false;
 }
 
 bool App::handleMenuCommand(int commandId, Window *window)

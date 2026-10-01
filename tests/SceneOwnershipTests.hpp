@@ -44,4 +44,15 @@ void testSceneDetachObserverDropsWork();
 void testPreparedSceneSchedulerDoesNotPoll();
 void testPreparedSceneCoalescesDescendantWork();
 
+void testPendingSceneInvalidationWakesWindowAdmission();
+
+void testWindowCloseRequestedDuringCollectIsReclaimedAfterApply();
+void testFlushWindowInvalidationsIsAdmitApplyThenReclaim();
+void testWindowAdmissionTestAppOperationLoopReclaimsOncePerTail();
+void testEmptyFirstAdmissionKeepsLaterCloseForNextTail();
+
+void testWindowReclaimDefersBusyCapturedScene();
+
+void testTwoAdmissionsReclaimLatestDialogSnapshot();
+
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

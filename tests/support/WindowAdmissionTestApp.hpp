@@ -18,14 +18,18 @@ public:
   virtual ~WindowAdmissionTestApp() { this->group_->build(); }
   virtual void quit() {}
   using App::flushWindowInvalidations;
+  using App::admitAndApplyWindows;
+  using App::reclaimWindows;
+  using App::hasPendingWindowAdmission;
   void flush() { this->flushWindowInvalidations(); }
-  /** Null model of Win32App::flushIterationTail() and its two scheduled
-      window flushes. */
+  /** Null model of Win32App::flushIterationTail(): two admissions, one reclaim. */
   void operationLoop()
   {
-    this->flushWindowInvalidations();
+    this->flushMenuInvalidation();
+    this->admitAndApplyWindows();
     this->reconcileFocus();
-    this->flushWindowInvalidations();
+    this->admitAndApplyWindows();
+    this->reclaimWindows();
   }
 };
 

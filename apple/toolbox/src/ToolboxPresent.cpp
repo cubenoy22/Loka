@@ -1,9 +1,10 @@
 /** Outer admission/render completion, shared with the host fixture. */
 void ToolboxApp::present(ActivationPhase phase)
 {
-  this->flushWindowInvalidations();
+  this->admitAndApplyWindows();
   if (phase != ACTIVATION_FOREGROUND || !group_)
   {
+    this->reclaimWindows();
     return;
   }
   const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -17,4 +18,5 @@ void ToolboxApp::present(ActivationPhase phase)
     }
   }
   this->reconcileFocus();
+  this->reclaimWindows();
 }
