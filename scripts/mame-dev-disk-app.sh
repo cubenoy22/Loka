@@ -101,7 +101,7 @@ case "$key" in
     SmirkyCard)
         target=LokaSmirkyCard${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin
-        data=(example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS)
+        data=(example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS example/SmirkyCard/VIEWER.JS)
         ;;
     MineSweeper)
         target=LokaMine${suffix}_APPL

@@ -44,7 +44,8 @@ class SelectionTest(unittest.TestCase):
                     self.assertIn("mame-dev-disk.sh|" + cpu + "|", calls)
                     if key == "SmirkyCard":
                         self.assertIn(str(root / "example/SmirkyCard/MAIN.JS") + " " +
-                                      str(root / "example/SmirkyCard/MINES.JS") + "\n", calls)
+                                      str(root / "example/SmirkyCard/MINES.JS") + " " +
+                                      str(root / "example/SmirkyCard/VIEWER.JS") + "\n", calls)
                     elif key == "ScrapbookUI":
                         self.assertIn(str(root / ("build/retro68/" + cpu +
                                                  "/Release/example/ScrapbookUI/ASSETS.LRP")) + "\n", calls)
