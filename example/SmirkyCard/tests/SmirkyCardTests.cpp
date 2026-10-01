@@ -2989,7 +2989,14 @@ namespace
       // Card One reaches the viewer card, and the viewer card returns.
       clickCardButton(window, "SmirkyCard.OpenViewer");
       admission.flush();
-      LOKA_VERIFY(windowNode(window, "Viewer.Open"));
+      loka::app::scene::Node *open = windowNode(window, "Viewer.Open");
+      LOKA_VERIFY(open && open->asButtonNode() && open->asButtonNode()->props.getText());
+      // #1076: the Toolbox text path garbles non-ASCII on System 7, so the label stays ASCII.
+      const loka::core::StringBuffer label =
+          open->asButtonNode()->props.getText()->get().bufferWithEncoding(loka::core::StringEncodingUtf8);
+      LOKA_VERIFY(label.length() > 0);
+      for (std::size_t i = 0; i < label.length(); ++i)
+        LOKA_VERIFY(static_cast<const unsigned char *>(label.data())[i] < 0x80);
       LOKA_VERIFY(!windowNode(window, "SmirkyCard.OpenViewer"));
       clickCardButton(window, "SmirkyCard.OpenMain");
       admission.flush();
