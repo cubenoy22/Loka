@@ -536,7 +536,7 @@ namespace
       LOKA_VERIFY(surfaceCount(fixture.root()) == (cancel ? 2u : 1u));
     }
   }
-  void closeDuringRender()
+  void closeDuringRender(ActivationPhase phase)
   {
     InputFacts facts(EXTENT_INPUT, false);
     ToolboxWindow native;
@@ -553,7 +553,7 @@ namespace
     LOKA_VERIFY(facts.writes == 1 && facts.secondWrites == 1 && facts.destroyed == 0);
     LOKA_VERIFY(!controller.operationPhase().open());
     facts.unbind();
-    app.present(ACTIVATION_FOREGROUND);
+    app.present(phase);
     LOKA_VERIFY(facts.destroyed > facts.returned);
   }
 }
@@ -571,5 +571,9 @@ int main(int argc, char **argv)
       std::printf("[pin] %s same/parent lifetime passed\n", names[i]);
     }
   if (argc == 1 || std::strcmp(argv[1], "extent") == 0) extentOrdering();
-  if (argc == 1 || std::strcmp(argv[1], "close") == 0) closeDuringRender();
+  if (argc == 1 || std::strcmp(argv[1], "close") == 0)
+  {
+    closeDuringRender(ACTIVATION_FOREGROUND);
+    closeDuringRender(ACTIVATION_BACKGROUND);
+  }
 }
