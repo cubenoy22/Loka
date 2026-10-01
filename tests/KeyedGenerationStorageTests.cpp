@@ -1,4 +1,5 @@
 #include "KeyedGenerationStorageTests.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/TestVerify.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/BoundarySection.hpp"
@@ -1303,4 +1304,40 @@ void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce()
 #else
   std::printf("[skip] Seat row write-once pin requires NDEBUG or TEST_BUILD Linux without ASan for fork/SIGABRT.\n");
 #endif
+}
+
+void testRetiredGenerationReclaimedByRefreshLeavesClock()
+{
+  using namespace loka::core;
+  ComponentLifetime lifetime;
+  NullScenePlatformController platform;
+  Scene scene((Boundary<Root<false> >()));
+  scene.mount(&platform);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  Root<false> *root = static_cast<Root<false> *>(
+      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  Node *generation = findType(root, NodeTypeToken<KeyedGenerationRoot>());
+  LOKA_VERIFY(generation != 0);
+  StateTracker *tracker = generation->asStateOwner()->tracker();
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::hasRegisteredStates(*tracker->asPushTracker()));
+  Operation turn;
+  LOKA_VERIFY(Operation::openActive(tracker) == OPEN_OK);
+  {
+    BorrowScope borrow(platform);
+    StateTrackerGuard guard(root->tracker());
+    root->key.set(1);
+  }
+  int refreshes = 0;
+  scene.requestInvalidate();
+  loka::dsl::testing::SceneTestAccess::runCountingRefreshes(scene, refreshes);
+  LOKA_VERIFY(refreshes > 0 && lifetime.destroyed == 0);
+  const int firstRefreshes = refreshes;
+  LOKA_VERIFY(!loka::core::testing::OperationTestAccess::empty(turn));
+  scene.requestInvalidate();
+  loka::dsl::testing::SceneTestAccess::runCountingRefreshes(scene, refreshes);
+  LOKA_VERIFY(refreshes > firstRefreshes);
+  LOKA_VERIFY(lifetime.constructed == 2 && lifetime.destroyed == 1);
+  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
+  const OperationOutcome outcome = turn.close();
+  LOKA_VERIFY(outcome.status == OPERATION_SETTLED);
 }

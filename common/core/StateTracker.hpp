@@ -143,6 +143,9 @@ namespace loka
       {
         return this;
       }
+      /** An empty ledger may be destroyed while enrolled and withdraws quietly.
+          A ledger with registered States must outlive Operation close. Destroying
+          the stepping ledger from its own callback remains a contract violation. */
       ~PushStateTracker();
 
     private:

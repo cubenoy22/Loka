@@ -18,4 +18,6 @@ void testNestedKeyedReshowCommitsStagedDeclarations();
 void testNestedKeyedReshowRefusalDiscardsStagedDeclarations();
 void testVacatedKeyedReshowKeepsSectionStateOwner();
 void testSeatRuntimeRowParentAndStateOwnerAreWriteOnce();
+void testRetiredGenerationReclaimedByRefreshLeavesClock();
+
 #endif
