@@ -2964,6 +2964,43 @@ namespace
     h.admission->flush();
   }
 
+  void checkViewerNavigation()
+  {
+    const char *directory = "_smirkycard_viewer_nav_fixture";
+    const char *mainPath = "_smirkycard_viewer_nav_fixture/MAIN.JS";
+    const char *viewerPath = "_smirkycard_viewer_nav_fixture/VIEWER.JS";
+    std::remove(mainPath);
+    std::remove(viewerPath);
+    removeDirectory(directory);
+    LOKA_VERIFY(makeDirectory(directory));
+    writeMain(mainPath, readCardSource("MAIN.JS"));
+    writeMain(viewerPath, readCardSource("VIEWER.JS"));
+    NullPlatformContext context;
+    context.setApplicationDirectory(loka::core::String::Literal(directory));
+    smirkycard::ScriptRuntime runtime;
+    runtime.loadMain(&context);
+    {
+      NullScenePlatformController platform;
+      WindowProps props;
+      props.scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, runtime));
+      NullWindow window(&context, props, &platform);
+      WindowAdmissionTestApp admission(window);
+      loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
+      // Card One reaches the viewer card, and the viewer card returns.
+      clickCardButton(window, "SmirkyCard.OpenViewer");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "Viewer.Open"));
+      LOKA_VERIFY(!windowNode(window, "SmirkyCard.OpenViewer"));
+      clickCardButton(window, "SmirkyCard.OpenMain");
+      admission.flush();
+      LOKA_VERIFY(windowNode(window, "SmirkyCard.OpenViewer"));
+      LOKA_VERIFY(!windowNode(window, "Viewer.Open"));
+    }
+    std::remove(mainPath);
+    std::remove(viewerPath);
+    removeDirectory(directory);
+  }
+
   void checkMinesScenario()
   {
     // Pin that the runner ignores the production seed, using checkMines' known stream.
@@ -3937,6 +3974,12 @@ int main(int argc, char **argv)
   if (argc == 2 && !std::strcmp(argv[1], "--mines"))
   {
     checkMines();
+    checkViewerNavigation();
+    return 0;
+  }
+  if (argc == 2 && !std::strcmp(argv[1], "--viewer-navigation"))
+  {
+    checkViewerNavigation();
     return 0;
   }
   if (argc == 3 && !std::strcmp(argv[1], "--scenario-case"))

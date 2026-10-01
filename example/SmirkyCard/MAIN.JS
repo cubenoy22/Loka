@@ -21,6 +21,7 @@ card('first', class {
       Text(this.result).TEST_ID('SmirkyCard.Result'),
       Button('Run JavaScript', () => this.c.go('second')).TEST_ID('SmirkyCard.Run'),
       Button('./MINES.JS', () => this.c.open('./MINES.JS')).TEST_ID('SmirkyCard.OpenMines'),
+      Button('./VIEWER.JS', () => this.c.open('./VIEWER.JS')).TEST_ID('SmirkyCard.OpenViewer'),
       Button('Reload MAIN.JS', () => this.c.reload()).TEST_ID('SmirkyCard.Reload'),
       Text(this.c.error).TEST_ID('SmirkyCard.Status')
     );

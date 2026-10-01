@@ -23,15 +23,16 @@ error with its own **Reload MAIN.JS** button, so fixing the file does not requir
 relaunching. Stage Classic with:
 
 ```sh
-scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS
+scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS example/SmirkyCard/VIEWER.JS
 ```
 
 `mame-boot-disk.sh` takes the same application binary followed by `MAIN.JS` and
-`MINES.JS` as plain-data arguments.
+`MINES.JS` (and `VIEWER.JS`) as plain-data arguments.
 
 `open(name)` loads a sibling script into a fresh engine and shows its `first`
-card. MAIN.JS links to `./MINES.JS`; the placeholder there links back to
-`./MAIN.JS`. Names must be flat filenames: one leading `./` is stripped, but
+card. MAIN.JS links to `./MINES.JS` and `./VIEWER.JS`; each links back to
+`./MAIN.JS`. VIEWER.JS opens a picture through the platform's open-file
+dialog (on Classic, a PICT file). Names must be flat filenames: one leading `./` is stripped, but
 paths (including `../`), backslashes, colons, and embedded NUL are refused.
 Each open reads the disk again. `reload()` rereads the current engine's file
 and keeps the current card id; built-in cards retry MAIN.JS. Both operations

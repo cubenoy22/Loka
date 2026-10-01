@@ -1,5 +1,6 @@
 card('first', class {
   constructor(c) {
+    this.c = c;
     this.shown = c.state(false);
     this.chosen = c.state.file();
     this.picture = c.state.image();
@@ -14,8 +15,9 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Button('Open…', () => this.shown.set(true)),
+      Button('Open…', () => this.shown.set(true)).TEST_ID('Viewer.Open'),
       Show(this.shown, OpenFileDialog(this.chosen)),
-      ImageView(this.picture));
+      ImageView(this.picture),
+      Button('./MAIN.JS', () => this.c.open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain'));
   }
 });
