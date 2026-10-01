@@ -304,6 +304,12 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   )
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
+  # Characterize the real adapter/seam with deterministic stdio failures.
+  # Wrapping is confined to this Linux test executable, never a core library.
+  target_compile_definitions(LokaScenarioTests PRIVATE LOKA_FILE_READ_FAULT_PINS)
+  target_link_options(LokaScenarioTests PRIVATE
+    -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fread -Wl,--wrap=ferror)
+
 
   function(loka_add_vehicle_presentation_test target_name source_file example_include_dir test_name)
     add_executable(${target_name}

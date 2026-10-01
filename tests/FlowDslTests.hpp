@@ -18,6 +18,8 @@ void testSimpleViewerClosesDialogFromChooserCompletion();
 void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage();
 void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();
 void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure();
+void testSimpleViewerReadFailuresAndFallback();
+void testSimpleViewerReadStdioFaults();
 void testFlowChainHandleCopiesShareImplementationLifetime();
 void testFlowChainRunPinDefersImplementationDeletion();
 void testFlowOnSuccessBracketsGenericTrackerTransaction();
