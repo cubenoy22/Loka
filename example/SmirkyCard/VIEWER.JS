@@ -15,7 +15,7 @@ card('first', class {
   }
   compose() {
     return VStack(
-      Button('Open…', () => this.shown.set(true)).TEST_ID('Viewer.Open'),
+      Button('Open...', () => this.shown.set(true)).TEST_ID('Viewer.Open'),
       Show(this.shown, OpenFileDialog(this.chosen)),
       ImageView(this.picture),
       Button('./MAIN.JS', () => this.c.open('./MAIN.JS')).TEST_ID('SmirkyCard.OpenMain'));
