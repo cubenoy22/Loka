@@ -81,6 +81,12 @@ elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
     ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS
     ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS)
   smirkycard_cpp_target(LokaSmirkyCardMacOS)
+  # The open panel's view service keys its defaults by the bundle identifier and
+  # refuses to display without one (NSUserDefaults: domain name cannot be nil).
+  set_target_properties(LokaSmirkyCardMacOS PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "org.loka.smirkycard"
+    MACOSX_BUNDLE_BUNDLE_NAME "LokaSmirkyCardMacOS"
+  )
   target_link_libraries(LokaSmirkyCardMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaSmirkyCardMacOS PRIVATE -fno-objc-arc)
