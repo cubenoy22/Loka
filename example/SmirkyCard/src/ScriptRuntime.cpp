@@ -169,7 +169,7 @@ namespace smirkycard
       engine->runtime_->destroyRetiredEngine(engine);
   }
 
-  ScriptRuntime::ScriptRuntime()
+  ScriptRuntime::ScriptRuntime(PlatformContext *context)
       :
 #ifdef TEST_BUILD
         runner_(0),
@@ -178,7 +178,7 @@ namespace smirkycard
         currentEngine_(0),
         retiredEngines_(0),
         mainSource_(MAIN_SOURCE_BUILTIN),
-        mainContext_(0),
+        mainContext_(context),
         mainError_(),
         mainErrorScope_(MAIN_ERROR_NONE)
   {

@@ -113,7 +113,8 @@ namespace smirkycard
       InterruptWindow &operator=(const InterruptWindow &);
     };
 
-    ScriptRuntime();
+    /** Borrows the application context, including for baked runner sources. */
+    explicit ScriptRuntime(PlatformContext *context = 0);
     ~ScriptRuntime();
 
     JsEngine *currentEngine() const

@@ -63,6 +63,7 @@ if(WIN32)
   target_link_libraries(LokaSmirkyCardWin32 PRIVATE LokaWin32Core)
   configure_file(MAIN.JS MAIN.JS COPYONLY)
   configure_file(MINES.JS MINES.JS COPYONLY)
+  configure_file(VIEWER.JS VIEWER.JS COPYONLY)
 elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   enable_language(OBJCXX)
   loka_suppress_arclite_link()
@@ -70,14 +71,22 @@ elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   file(MAKE_DIRECTORY ${SMIRKYCARD_MACOS_RESOURCE_DIR})
   configure_file(MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS COPYONLY)
   configure_file(MINES.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS COPYONLY)
+  configure_file(VIEWER.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS COPYONLY)
   set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS
-    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS PROPERTIES
+    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS PROPERTIES
     GENERATED TRUE
     MACOSX_PACKAGE_LOCATION Resources
   )
   add_executable(LokaSmirkyCardMacOS MACOSX_BUNDLE src/MacOSMain.mm
-    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS)
+    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS
+    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS)
   smirkycard_cpp_target(LokaSmirkyCardMacOS)
+  # The open panel's view service keys its defaults by the bundle identifier and
+  # refuses to display without one (NSUserDefaults: domain name cannot be nil).
+  set_target_properties(LokaSmirkyCardMacOS PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "org.loka.smirkycard"
+    MACOSX_BUNDLE_BUNDLE_NAME "LokaSmirkyCardMacOS"
+  )
   target_link_libraries(LokaSmirkyCardMacOS PRIVATE LokaMacOSCore)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
     target_compile_options(LokaSmirkyCardMacOS PRIVATE -fno-objc-arc)
@@ -154,6 +163,11 @@ function(smirkycard_add_scenario_runner name)
   # task makes the app and its scenario runner together (EXCLUDE_FROM_ALL).
   if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC)$")
     set(target "Loka${name}StandaloneFlow${LOKA_CLASSIC_TARGET_SUFFIX}")
+    # The APPL keeps the target name on the HFS dev disk, whose names stop at 31 characters.
+    string(LENGTH "${target}" target_length)
+    if(target_length GREATER 31)
+      message(FATAL_ERROR "${target} is ${target_length} characters; HFS file names allow 31. Shorten the runner name '${name}'.")
+    endif()
     loka_add_toolbox_test_application(${target} LokaAppleToolboxTestCore
       src/StandaloneFlowMain.cpp src/StandaloneFlowAppConfig.cpp Size.r
       ${PROJECT_SOURCE_DIR}/tests/standalone/StandaloneScenarioSupport.cpp
@@ -169,6 +183,7 @@ endfunction()
 
 smirkycard_add_scenario_runner(SmirkyCard CARD MINES.JS FLOW MINES.FLOW.JS
   SCENARIO mines APP_NAME "SmirkyCard Mines" SEED 7)
+smirkycard_add_scenario_runner(SmirkyView CARD VIEWER.JS FLOW VIEWER.FLOW.JS SCENARIO viewer APP_NAME "SmirkyCard Viewer" SEED 7)
 if(TARGET LokaSmirkyCardTests)
   target_link_libraries(LokaSmirkyCardTests PRIVATE SmirkyCardScenarioInputs)
   target_sources(LokaSmirkyCardTests PRIVATE src/StandaloneFlowAppConfig.cpp

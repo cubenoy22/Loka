@@ -114,7 +114,7 @@ for app in \
   mkdir -p "$ALL_PROJECT/build/retro68/68k/Release/example/$(dirname "$app")"
   touch "$ALL_PROJECT/build/retro68/68k/Release/example/$app"
 done
-touch "$ALL_PROJECT/example/ScrapbookUI/ASSETS.LRP" "$ALL_PROJECT/example/SmirkyCard/MAIN.JS" "$ALL_PROJECT/example/SmirkyCard/MINES.JS"
+touch "$ALL_PROJECT/example/ScrapbookUI/ASSETS.LRP" "$ALL_PROJECT/example/SmirkyCard/MAIN.JS" "$ALL_PROJECT/example/SmirkyCard/MINES.JS" "$ALL_PROJECT/example/SmirkyCard/VIEWER.JS"
 MAME_BOOT_DISK_TEST_LOG="$SANDBOX/all-apps.log" \
 MAME_ENV_FILE="$SANDBOX/missing.env" \
 MAME_MACHINE="macplus" \
@@ -125,7 +125,7 @@ RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
   /bin/bash "$ALL_PROJECT/scripts/mame-boot-disk.sh" --all >/dev/null
 grep -Fx "hcopy <-m> <$ALL_PROJECT/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
   fail "all-apps did not copy SmirkyCard"
-for script in MAIN.JS MINES.JS; do
+for script in MAIN.JS MINES.JS VIEWER.JS; do
   grep -Fx "hcopy <-r> <$ALL_PROJECT/example/SmirkyCard/$script> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
     fail "all-apps did not copy SmirkyCard $script"
 done

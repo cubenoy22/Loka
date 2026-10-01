@@ -3,6 +3,9 @@
 #include "CardNodes.hpp"
 #include "CardFlowDescription.hpp"
 #include "JsNativeClass.hpp"
+#ifdef LOKA_RETRO68
+#include "ToolboxPlatformContext.hpp"
+#endif
 #include "app/nodes/AttributedText.hpp"
 #include <new>
 #include <stdint.h>
@@ -21,7 +24,9 @@ namespace smirkycard
       Enabled,
       Text,
       Log,
-      Random
+      Random,
+      DeliverChosenFile,
+      ImageFacts
     };
     std::string utf8(const loka::core::String &value)
     {
@@ -69,11 +74,11 @@ namespace smirkycard
     if (JS_SetPropertyStr(ctx, context, "run", JS_NewCFunctionData(ctx, method, 1, Run, 1, &capability)) < 0)
       return false;
     JSValue test = JS_NewObject(ctx);
-    const char *names[] = {"click", "enabled", "text", "log", "random"};
+    const char *names[] = {"click", "enabled", "text", "log", "random", "deliverChosenFile", "imageFacts"};
     bool ok = !JS_IsException(test);
-    for (int i = 0; ok && i < 5; ++i)
+    for (int i = 0; ok && i < static_cast<int>(sizeof(names) / sizeof(names[0])); ++i)
       ok = JS_SetPropertyStr(
-               ctx, test, names[i], JS_NewCFunctionData(ctx, method, i == 4 ? 0 : 1, Click + i, 1, &capability))
+               ctx, test, names[i], JS_NewCFunctionData(ctx, method, Click + i == Random ? 0 : Click + i == DeliverChosenFile ? 2 : 1, Click + i, 1, &capability))
            >= 0;
     ok = ok && JS_FreezeObject(ctx, test) >= 0;
     if (!ok)
@@ -280,12 +285,118 @@ namespace smirkycard
     memcpy(&result, &bits, sizeof(result));
     return result;
   }
+  JsSeatRecord *CardScenario::ownSeat(JSContext *ctx, JSValueConst argument)
+  {
+    if (!this->canAdvance() || !this->input_ || this->card_.flowAdmission_.hasExecution())
+    {
+      JS_ThrowTypeError(ctx, "seat operation requires a Live card outside CardFlow");
+      return 0;
+    }
+    JSValue value = JS_DupValue(ctx, argument);
+    if (JS_IsString(argument))
+    {
+      JSAtom name = JS_ValueToAtom(ctx, argument);
+      if (name == JS_ATOM_NULL)
+      {
+        JS_FreeValue(ctx, value);
+        return 0;
+      }
+      JSPropertyDescriptor property;
+      const int found = JS_GetOwnProperty(ctx, &property, this->card_.instance_, name);
+      JS_FreeAtom(ctx, name);
+      JS_FreeValue(ctx, value);
+      if (found < 0)
+        return 0;
+      value = found ? property.value : JS_UNDEFINED;
+      if (found)
+      {
+        JS_FreeValue(ctx, property.getter);
+        JS_FreeValue(ctx, property.setter);
+      }
+    }
+    // A Proxy own-property trap may navigate while resolving the seat name.
+    if (!this->canAdvance() || !this->input_ || this->card_.flowAdmission_.hasExecution())
+    {
+      JS_FreeValue(ctx, value);
+      JS_ThrowTypeError(ctx, "seat operation card is no longer available");
+      return 0;
+    }
+    JsSeatRecord *seat = this->card_.findSeat(ctx, value);
+    JS_FreeValue(ctx, value);
+    if (!seat || !seat->isMaterialized())
+    {
+      JS_ThrowTypeError(ctx, "seat operation requires an own materialized seat");
+      return 0;
+    }
+    return seat;
+  }
   JSValue CardScenario::operation(JSContext *ctx, int argc, JSValueConst *argv, int op)
   {
     if (op == Run)
       return argc == 1 ? this->accept(ctx, argv[0]) : JS_ThrowTypeError(ctx, "c.run requires one Flow");
     if (op == Random)
       return argc == 0 ? JS_NewFloat64(ctx, this->random()) : JS_ThrowTypeError(ctx, "random takes no arguments");
+    if (op == ImageFacts)
+    {
+      if (argc != 1)
+        return JS_ThrowTypeError(ctx, "imageFacts requires one IMAGE seat");
+      JsSeatRecord *seat = this->ownSeat(ctx, argv[0]);
+      if (!seat)
+        return JS_EXCEPTION;
+      if (seat->kind != JsSeatRecord::IMAGE)
+        return JS_ThrowTypeError(ctx, "imageFacts requires an own IMAGE seat");
+      const loka::core::resource::Image &image = seat->image.state()->getRef();
+      const bool empty = !image.isValid();
+      JSValue facts = JS_NewObject(ctx);
+      if (JS_IsException(facts))
+        return facts;
+      if (JS_DefinePropertyValueStr(ctx, facts, "empty", JS_NewBool(ctx, empty), JS_PROP_C_W_E) < 0
+          || JS_DefinePropertyValueStr(ctx, facts, "width", JS_NewInt32(ctx, empty ? 0 : image.width()), JS_PROP_C_W_E) < 0
+          || JS_DefinePropertyValueStr(ctx, facts, "height", JS_NewInt32(ctx, empty ? 0 : image.height()), JS_PROP_C_W_E) < 0
+          || JS_FreezeObject(ctx, facts) < 0)
+      {
+        JS_FreeValue(ctx, facts);
+        return JS_EXCEPTION;
+      }
+      return facts;
+    }
+    if (op == DeliverChosenFile)
+    {
+      if (argc != 2)
+        return JS_ThrowTypeError(ctx, "deliverChosenFile requires a seat and filename or null");
+      JsSeatRecord *seat = this->ownSeat(ctx, argv[0]);
+      if (!seat)
+        return JS_EXCEPTION;
+      if (seat->kind != JsSeatRecord::FILE_RESULT)
+        return JS_ThrowTypeError(ctx, "deliverChosenFile requires an own FILE seat");
+      loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
+      if (!JS_IsNull(argv[1]))
+      {
+        if (!JS_IsString(argv[1]))
+          return JS_ThrowTypeError(ctx, "deliverChosenFile requires a flat filename or null");
+        size_t length = 0;
+        const char *bytes = JS_ToCStringLen(ctx, &length, argv[1]);
+        if (!bytes)
+          return JS_EXCEPTION;
+        const std::string name(bytes, length);
+        JS_FreeCString(ctx, bytes);
+        if (name.empty() || name == "." || name == ".."
+            || name.find_first_of("/\\:") != std::string::npos || name.find('\0') != std::string::npos)
+          return JS_ThrowTypeError(ctx, "deliverChosenFile requires a flat filename");
+        const loka::file::File chosen(loka::core::String::Utf8(name.data(), name.size()));
+#ifdef LOKA_RETRO68
+        PlatformContext *platform = this->runtime_.nativeContext();
+        loka::platform::file::FileHandle handle;
+        if (!platform || !platform->openFile(loka::file::File::Application() << chosen, handle) || !handle.hasSpec)
+          return JS_ThrowTypeError(ctx, "deliverChosenFile could not resolve file");
+        // Match SimpleViewerScenarioDriver's stand-in for the dialog rail.
+        ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
+#endif
+        result = loka::app::FileChooserResult::File(chosen);
+      }
+      seat->file.set(result, true);
+      return JS_UNDEFINED;
+    }
     if (argc != 1 || !JS_IsString(argv[0]))
       return JS_ThrowTypeError(ctx, "test operation requires a string");
     size_t length = 0;

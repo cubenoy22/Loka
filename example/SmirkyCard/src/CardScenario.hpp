@@ -9,6 +9,7 @@ namespace smirkycard
   class CardScene;
   class JsCardNode;
   class JsFlowDescription;
+  struct JsSeatRecord;
 
   /** Card-owned stable execution slot. Roots die before the card's engine ref.
       Detach cancels synchronously; an active tick owns its final audit delivery. */
@@ -65,6 +66,7 @@ namespace smirkycard
       CardScenario *owner_;
     };
     bool canAdvance() const;
+    JsSeatRecord *ownSeat(JSContext *ctx, JSValueConst argument);
     JSValue accept(JSContext *ctx, JSValueConst description);
     void complete(loka::dsl::FlowRunResult result);
     bool invoke(JSValueConst function, int argc, JSValueConst *argv, JSValue &result, loka::core::String &error);

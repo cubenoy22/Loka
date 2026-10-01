@@ -70,7 +70,7 @@ switch ($Key) {
         exit $LASTEXITCODE
     }
     "HelloWorld" { $cmakeTarget = "LokaHello${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/HelloWorld/LokaHello${suffix}.bin" }
-    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin"; $data = @("example/SmirkyCard/MAIN.JS", "example/SmirkyCard/MINES.JS") }
+    "SmirkyCard" { $cmakeTarget = "LokaSmirkyCard${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin"; $data = @("example/SmirkyCard/MAIN.JS", "example/SmirkyCard/MINES.JS", "example/SmirkyCard/VIEWER.JS") }
     "MineSweeper" { $cmakeTarget = "LokaMine${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/MineSweeper/LokaMine${suffix}.bin" }
     "SimpleViewer" { $cmakeTarget = "LokaSimpleViewer${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin" }
     "FloppyBird" { $cmakeTarget = "LokaFloppyBird${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin" }

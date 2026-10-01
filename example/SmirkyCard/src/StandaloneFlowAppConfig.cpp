@@ -45,6 +45,7 @@ SmirkyCardStandaloneFlowAppConfig::SmirkyCardStandaloneFlowAppConfig(PlatformCon
                                                                      const loka::platform::file::FileHandle *auditFile)
     : AppConfigurable(context),
       audit_(auditFile ? *auditFile : loka::standalone_tests::ResolveStandaloneAuditFile()),
+      runtime_(context),
       app_(0)
 {
   char seed[40];

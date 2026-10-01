@@ -23,15 +23,16 @@ error with its own **Reload MAIN.JS** button, so fixing the file does not requir
 relaunching. Stage Classic with:
 
 ```sh
-scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS
+scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS example/SmirkyCard/VIEWER.JS
 ```
 
 `mame-boot-disk.sh` takes the same application binary followed by `MAIN.JS` and
-`MINES.JS` as plain-data arguments.
+`MINES.JS` (and `VIEWER.JS`) as plain-data arguments.
 
 `open(name)` loads a sibling script into a fresh engine and shows its `first`
-card. MAIN.JS links to `./MINES.JS`; the placeholder there links back to
-`./MAIN.JS`. Names must be flat filenames: one leading `./` is stripped, but
+card. MAIN.JS links to `./MINES.JS` and `./VIEWER.JS`; each links back to
+`./MAIN.JS`. VIEWER.JS opens a picture through the platform's open-file
+dialog (on Classic, a PICT file). Names must be flat filenames: one leading `./` is stripped, but
 paths (including `../`), backslashes, colons, and embedded NUL are refused.
 Each open reads the disk again. `reload()` rereads the current engine's file
 and keeps the current card id; built-in cards retry MAIN.JS. Both operations
@@ -304,3 +305,59 @@ The standalone audit is not registered in `scenarios.txt`: that file also contro
 the approved MAME golden cells. Until its registration policy is decided, compare
 LOG.TXT directly with the expected audit (`cmp`), rather than using
 `verify-standalone-audit.sh`.
+
+## SimpleViewer.JS card
+
+[VIEWER.JS](VIEWER.JS) composes an Open button, a conditional OpenFileDialog,
+and an ImageView. Its card-owned Flow consumes the FILE result, loads the image
+through `c.native.loadImage`, and writes the IMAGE seat. Cancellation keeps the
+previous picture. To launch it directly, copy VIEWER.JS beside the application
+as MAIN.JS. The card needs no application-specific C++ code.
+
+Under an enabled runner, `c.test.deliverChosenFile('chosen', 'Sun.pict')`
+delivers a file result into the current card's own FILE seat; passing `null`
+instead of a filename delivers cancellation. A seat handle is also accepted.
+The operation runs outside production CardFlow execution and forces notification
+inside a tracker transaction. Classic resolves the file beside the application
+and registers its FSSpec through the same seam used by the native dialog.
+
+`c.test.imageFacts('picture')` (or an own IMAGE seat handle) returns the frozen
+plain object `{ empty, width, height }`, with zero dimensions when empty. It
+borrows the current image to copy facts only; it exposes no native handle and
+retains no image. Both seat operations refuse foreign seats, revoked cards,
+and calls made inside a production CardFlow. Named lookup rechecks admission
+if a Proxy property trap navigates.
+
+[VIEWER.FLOW.JS](VIEWER.FLOW.JS) checks the initially empty picture, delivers
+Sun.pict without opening a modal dialog, checks the image after the runner's
+automatic settlement, delivers cancellation, and checks unchanged picture
+facts. Loading is synchronous, so the first check after settlement is the
+bounded success/failure check; there is no retry loop. The facts comparison
+checks dimensions and emptiness, not image identity. Existing text/control
+inspection cannot observe OpenFileDialog or the `shown` seat, so the JS audit
+makes no claim about `shown` after cancellation.
+
+Build and run the host coverage with `LokaSmirkyCardTests --viewer-scenario`.
+For Classic, enable SmirkyCard and build
+`LokaSmirkyViewStandaloneFlow68K_APPL` or
+`LokaSmirkyViewStandaloneFlowPPC_APPL`. Stage the resulting `.bin` and
+`Sun.pict` beside it on the dev disk; the picture comes from the boot template's
+`:Desktop Folder:Images:` folder. Launch the runner application. Both JS sources
+are baked in; it needs no MAIN.JS, VIEWER.JS, VIEWER.FLOW.JS, or LokaTest.cfg
+sidecar. It writes LOG.TXT beside itself and quits on the terminal record.
+For the Sun fixture, the result records are:
+
+```text
+log text=image.load%20ok
+log text=image.width%20256
+log text=image.height%20256
+log text=cancel.picture.facts%20unchanged
+terminal status=succeeded
+```
+
+The whole LOG.TXT for this configuration is the [expected audit](tests/VIEWER.audit)
+(runtime-verified on the maciix rig, 68K runner, 2026-10-01; two runs byte-identical).
+The host decoder double supplies a 256 by 256 image and checks the same records
+through the same runner and audit writer. Runner names must keep the Classic
+target name within HFS's 31-character limit; `smirkycard_add_scenario_runner`
+refuses a longer one at configure time.
