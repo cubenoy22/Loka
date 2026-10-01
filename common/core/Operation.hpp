@@ -97,6 +97,9 @@ namespace loka
       /** Suspended round positions, repaired by withdraw; null outside DRIVING. */
       PushStateTracker *cursor_;
       PushStateTracker *frontier_;
+      /** The ledger whose step or cleanup is on the stack; its destruction is a
+          contract violation even when it holds no rows. Null between visits. */
+      PushStateTracker *driving_;
       OperationBudget budget_;
       Phase phase_;
       OperationStatus status_;

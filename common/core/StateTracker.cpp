@@ -32,7 +32,7 @@ namespace loka
 
     Operation::Operation(const OperationBudget &budget)
         : outer_(Operation::active_), head_(0), tail_(0), cursor_(0), frontier_(0),
-          budget_(budget), phase_(OPEN),
+          driving_(0), budget_(budget), phase_(OPEN),
           status_(OPERATION_SETTLED), rounds_(0)
     {
       if (!this->outer_)
@@ -118,10 +118,16 @@ namespace loka
         {
           PushStateTracker *t = this->cursor_;
           this->cursor_ = t->opNext_;
-          if (t->hasWork() && t->step(this->budget_) == PushStateTracker::STEP_STATE_BUDGET)
+          if (t->hasWork())
           {
-            this->status_ = OPERATION_REFUSED_STATE_BUDGET;
-            break;
+            this->driving_ = t;
+            const PushStateTracker::StepResult result = t->step(this->budget_);
+            this->driving_ = 0;
+            if (result == PushStateTracker::STEP_STATE_BUDGET)
+            {
+              this->status_ = OPERATION_REFUSED_STATE_BUDGET;
+              break;
+            }
           }
           if (t == this->frontier_)
             break;
@@ -144,8 +150,13 @@ namespace loka
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
         t->removeRoutes();
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
-        if (!t->drainDeferred(this->budget_) && this->status_ == OPERATION_SETTLED)
+      {
+        this->driving_ = t;
+        const bool drained = t->drainDeferred(this->budget_);
+        this->driving_ = 0;
+        if (!drained && this->status_ == OPERATION_SETTLED)
           this->status_ = OPERATION_REFUSED_CHAIN_LIMIT;
+      }
       while (this->head_)
       {
         PushStateTracker *t = this->head_;
@@ -232,7 +243,9 @@ namespace loka
     {
       if (this->op_)
       {
-        if (this->statesHead_)
+        // An empty ledger may leave the clock, unless its own step or cleanup
+        // is on the stack: the driver resumes into this object afterwards.
+        if (this->statesHead_ || this->op_->driving_ == this)
           assert(!"ledger destroyed while open by an Operation");
         this->op_->withdraw(this);
       }

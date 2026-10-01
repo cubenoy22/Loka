@@ -433,6 +433,35 @@ void testOperationWriteDuringCloseIsUnmarked()
   verifyClosed(b);
 }
 
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+namespace
+{
+  // #1078 bot P2: a rowless ledger deleting itself from its own cleanup callback
+  // is still a contract violation; the driver resumes into the freed object.
+  void deleteSelfFromCleanup(void *data)
+  {
+    delete static_cast<PushStateTracker *>(data);
+  }
+  void destroySteppingLedger()
+  {
+    PushStateTracker *ledger = new PushStateTracker;
+    Operation operation;
+    LOKA_VERIFY(operation.open(ledger) == OPEN_OK);
+    Access::defer(*ledger, &deleteSelfFromCleanup, ledger);
+    operation.close();
+  }
+}
+#endif
+
+void testSteppingLedgerCannotDestroyItselfEvenWithoutRows()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  expectAssert(&destroySteppingLedger);
+#else
+  std::printf("[skip] stepping-ledger death pin requires Linux debug without ASan.\n");
+#endif
+}
+
 void testLedgerWithRowsCannotBeDestroyedWhileOpen()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)

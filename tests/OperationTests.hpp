@@ -13,6 +13,7 @@ void testOperationSettlesOnLastPermittedRound();
 void testOperationCloseDrainIsBounded();
 void testOperationWriteDuringCloseIsUnmarked();
 void testLedgerWithRowsCannotBeDestroyedWhileOpen();
+void testSteppingLedgerCannotDestroyItselfEvenWithoutRows();
 void testStateTrackerNestedGuardInsideOperationDoesNotDrive();
 void testOperationAuditRejectsRouteInstallOverAnotherLedgerBegin();
 void testOperationAuditRejectsRouteInstallOverAnotherLedgerAddState();
