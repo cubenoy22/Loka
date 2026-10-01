@@ -157,7 +157,7 @@ short Win32ButtonContext::layout(loka::app::scene::IPlatformController *, loka::
 bool Win32ButtonContext::handleCommand(WPARAM, LPARAM)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (node_ && node_->props.onClick_)
   {

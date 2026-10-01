@@ -169,7 +169,7 @@ bool Win32ScrollViewContext::handleVerticalScroll(int command,
                                                   int thumbPosition)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   SCROLLINFO info;
   if (!this->readScrollInfo(info))
@@ -366,7 +366,7 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
 void Win32ScrollViewContext::handleMouseWheel(WPARAM wParam)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   UINT lines = 3;
   if (!SystemParametersInfoW(SPI_GETWHEELSCROLLLINES, 0, &lines, 0))

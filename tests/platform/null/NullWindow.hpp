@@ -36,7 +36,7 @@ public:
   void destroyScenePlatform()
   {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->controller_ || !this->controller_->operationPhase().open());
+    assert(!this->controller_ || !this->controller_->borrowPhase().open());
 #endif
     this->dialogResults().close();
     this->teardownScene();

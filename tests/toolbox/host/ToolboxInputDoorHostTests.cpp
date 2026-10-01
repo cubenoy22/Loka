@@ -116,7 +116,7 @@ namespace
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.secondWrites;
-      LOKA_VERIFY(f.writes == 1 && f.controller->operationPhase().open());
+      LOKA_VERIFY(f.writes == 1 && f.controller->borrowPhase().open());
     }
     void bind()
     {
@@ -407,7 +407,7 @@ namespace
     {
       facts.returned = ++facts.sequence;
       LOKA_VERIFY(facts.writes == 1 && facts.destroyed == 0);
-      LOKA_VERIFY(!controller.operationPhase().open());
+      LOKA_VERIFY(!controller.borrowPhase().open());
       facts.unbind();
       {
         loka::core::Operation turn;
@@ -566,7 +566,7 @@ namespace
       ToolboxInputDoor::render(fixture.controller);
       LOKA_VERIFY(fixture.facts.writes == 1 && fixture.facts.secondWrites == 1);
       LOKA_VERIFY(surfaceCount(fixture.root()) == 2);
-      LOKA_VERIFY(!fixture.controller.operationPhase().open());
+      LOKA_VERIFY(!fixture.controller.borrowPhase().open());
       fixture.facts.unbind();
       {
         loka::core::Operation turn;
@@ -593,7 +593,7 @@ namespace
     ToolboxInputDoor::render(controller);
     facts.returned = ++facts.sequence;
     LOKA_VERIFY(facts.writes == 1 && facts.secondWrites == 1 && facts.destroyed == 0);
-    LOKA_VERIFY(!controller.operationPhase().open());
+    LOKA_VERIFY(!controller.borrowPhase().open());
     facts.unbind();
     {
       loka::core::Operation turn;

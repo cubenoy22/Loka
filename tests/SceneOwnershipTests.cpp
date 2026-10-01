@@ -2338,7 +2338,7 @@ void testWindowReclaimDefersBusyCapturedScene()
   app.admitAndApplyWindows();
   app.admitAndApplyWindows();
   {
-    loka::app::scene::OperationScope borrow(*window.scenePlatformController());
+    loka::app::scene::BorrowScope borrow(*window.scenePlatformController());
     app.reclaimWindows();
     LOKA_VERIFY(g_sceneOwnershipScenesAlive == alive + 1);
   }

@@ -218,7 +218,7 @@ int MacScrollViewContext::setScrollMetrics(int contentHeight, int viewportHeight
 void MacScrollViewContext::publishClipViewBoundsOrigin()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   NSScrollView *scrollView = (NSScrollView *)this->scrollView_;
   if (!scrollView)

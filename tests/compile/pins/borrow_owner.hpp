@@ -19,7 +19,7 @@ public:
     (void)identity;
   }
 #ifdef TEST_BUILD
-  PinOwner(OperationPhase &phase, Node *node, const NodeContext *identity)
+  PinOwner(BorrowPhase &phase, Node *node, const NodeContext *identity)
       : SettleOwner<LineCursor>(phase, node, identity) {}
   virtual LineCursor fact(Node &) const { return LineCursor(); }
 #endif

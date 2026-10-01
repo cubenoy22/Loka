@@ -148,7 +148,7 @@ void Win32EditTextContext::applyDetachedPresentation()
 bool Win32EditTextContext::handleCommand(WPARAM wParam, LPARAM)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   WORD code = HIWORD(wParam);
   if (code == EN_CHANGE)

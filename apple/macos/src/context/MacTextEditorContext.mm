@@ -936,7 +936,7 @@ loka::app::scene::FollowUp MacTextEditorContext::prepareRestore()
 void MacTextEditorContext::restoreCommittedProjection()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;
@@ -1076,7 +1076,7 @@ void MacTextEditorContext::restoreSelectionFromFact(RailOperation &op)
 void MacTextEditorContext::captureSelection()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (this->projection_->phase == Projection::IDLE || this->projection_->phase == Projection::STORAGE_PENDING)
     this->projection_->selection = [(NSTextView *)[(NSScrollView *)this->scroll_ documentView] selectedRange];
@@ -1085,7 +1085,7 @@ void MacTextEditorContext::captureSelection()
 void MacTextEditorContext::handleSelectionDidChange()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   RailOperation op(*this);
   Projection &p = *this->projection_;
@@ -1211,7 +1211,7 @@ EditorResult MacTextEditorContext::applyNativeChange(TextObservation source, std
 void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size_t caretOffset)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   RailOperation op(*this);
   Projection &p = *this->projection_;
@@ -1278,7 +1278,7 @@ void MacTextEditorContext::handleTextDidChange(TextObservation source, std::size
 void MacTextEditorContext::applyHighlights()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
     return;

@@ -153,7 +153,7 @@ namespace
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.secondWrites;
-      LOKA_VERIFY(f.writes == 1 && f.controller->operationPhase().open());
+      LOKA_VERIFY(f.writes == 1 && f.controller->borrowPhase().open());
     }
     void bind()
     {
@@ -371,7 +371,7 @@ namespace
       LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
       this->facts.returned = ++this->facts.sequence;
       LOKA_VERIFY(this->facts.writes > 0 && this->facts.destroyed == 0);
-      LOKA_VERIFY(!this->facts.controller->operationPhase().open());
+      LOKA_VERIFY(!this->facts.controller->borrowPhase().open());
       this->facts.unbind();
       this->app.flushInvalidationsTick();
       LOKA_VERIFY(this->facts.destroyed > this->facts.returned);
@@ -468,7 +468,7 @@ void testMacInputDoorExtentOrdering()
                                                       object:fixture.nativeWindow()]];
     LOKA_VERIFY(fixture.facts.writes == 1 && fixture.facts.secondWrites == 1);
     LOKA_VERIFY(surfaceCount(fixture.root()) == 2);
-    LOKA_VERIFY(!fixture.facts.controller->operationPhase().open());
+    LOKA_VERIFY(!fixture.facts.controller->borrowPhase().open());
     fixture.facts.unbind();
     fixture.app.flushInvalidationsTick();
     LOKA_VERIFY(fixture.facts.shown->get() == (cancel != 0));
@@ -522,11 +522,11 @@ void testMacInputDoorCloseDuringPendingLayout()
   facts.controller->requestRelayout();
   MacScenePlatformController::flushPendingRelayouts();
   LOKA_VERIFY(other.facts.writes == 1 && other.facts.secondWrites == 1);
-  LOKA_VERIFY(!other.facts.controller->operationPhase().open());
+  LOKA_VERIFY(!other.facts.controller->borrowPhase().open());
   other.facts.unbind();
   facts.returned = ++facts.sequence;
   LOKA_VERIFY(facts.writes == 1 && facts.secondWrites == 1 && facts.destroyed == 0);
-  LOKA_VERIFY(!facts.controller->operationPhase().open());
+  LOKA_VERIFY(!facts.controller->borrowPhase().open());
   facts.unbind();
   app.flushInvalidationsTick();
   LOKA_VERIFY(facts.destroyed > facts.returned);

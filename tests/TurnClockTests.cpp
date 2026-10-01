@@ -86,7 +86,7 @@ namespace
     Operation &turn;
     void invoke()
     {
-      LOKA_VERIFY(this->controller.operationPhase().open());
+      LOKA_VERIFY(this->controller.borrowPhase().open());
       LOKA_VERIFY(ClockAccess::active() == &this->turn);
       LOKA_VERIFY(!Operation::isSettling());
     }
@@ -187,7 +187,7 @@ void testInputInvocationInsideTurnDoesNotOpenClock()
   Operation turn;
   BorrowProbe probe = { controller, turn };
   loka::app::scene::detail::InputInvocation(controller).operator()(probe, &BorrowProbe::invoke);
-  LOKA_VERIFY(!controller.operationPhase().open());
+  LOKA_VERIFY(!controller.borrowPhase().open());
   LOKA_VERIFY(ClockAccess::active() == &turn);
   turn.close();
   LOKA_VERIFY(!ClockAccess::active());

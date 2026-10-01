@@ -577,7 +577,7 @@ void ToolboxScenePlatformController::onChange(loka::app::scene::Node *rootNode,
                                               bool fullRebuild)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   rootNode_ = rootNode;
   debugStats_.begin(flags, fullRebuild);
@@ -644,7 +644,7 @@ bool ToolboxScenePlatformController::hasPendingSync() const
 void ToolboxScenePlatformController::drainNativeRetirements()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   this->flushRetiredNativeHandles();
 }
@@ -652,7 +652,7 @@ void ToolboxScenePlatformController::drainNativeRetirements()
 void ToolboxScenePlatformController::destroy()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   rootNode_ = 0;
   hitLedger_.popupHits_.clear();
