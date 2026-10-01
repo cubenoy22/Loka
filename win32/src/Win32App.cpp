@@ -158,87 +158,106 @@ void Win32App::run()
   bool running = true;
   while (running)
   {
-    MSG msg;
     bool handledMessage = false;
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
+    bool idleDispatched = false;
+    LARGE_INTEGER now;
+    loka::app::IdlePolicy waitPolicy;
     {
-      handledMessage = true;
-      if (msg.message == WM_QUIT)
+      loka::core::Operation turn;
+      MSG msg;
+      while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
       {
-        running = false;
+        handledMessage = true;
+        if (msg.message == WM_QUIT)
+        {
+          running = false;
+          break;
+        }
+        HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+        // Dialog navigation still reaches the outer admission/completion tail.
+        if (root && IsDialogMessageW(root, &msg))
+        {
+          continue;
+        }
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+      }
+      if (!running)
+      {
         break;
       }
-      HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-      // Dialog navigation still reaches the outer admission/completion tail.
-      if (root && IsDialogMessageW(root, &msg))
+
+      const loka::app::IdlePolicy policy = this->idlePolicy();
+
+      QueryPerformanceCounter(&now);
+      double elapsedSeconds = 0.0;
+      if (frequency.QuadPart > 0)
       {
-        continue;
+        elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) / static_cast<double>(frequency.QuadPart);
       }
-      TranslateMessage(&msg);
-      DispatchMessage(&msg);
-    }
-    if (!running)
-    {
-      break;
-    }
+      lastTick = now;
 
-    const loka::app::IdlePolicy policy = this->idlePolicy();
-
-    LARGE_INTEGER now;
-    QueryPerformanceCounter(&now);
-    double elapsedSeconds = 0.0;
-    if (frequency.QuadPart > 0)
+      if (policy.mode == loka::app::IDLE_MODE_NONE)
+      {
+        idlePacer.reset();
+        this->flushIterationTail(turn);
+        if (this->hasPendingWindowAdmission())
+          continue;
+        waitPolicy = policy;
+      }
+      else
+      {
+        double candidateElapsedSeconds = 0.0;
+        const bool idleCandidate = this->consumeIdle(elapsedSeconds, candidateElapsedSeconds);
+        double dispatchElapsedSeconds = candidateElapsedSeconds;
+        idleDispatched = idleCandidate;
+        if (policy.mode == loka::app::IDLE_MODE_EVERY_TICK)
+        {
+          idleDispatched = idleCandidate
+                           && idlePacer.gateEveryTick(
+                               candidateElapsedSeconds, policy, now.QuadPart, frequency.QuadPart, dispatchElapsedSeconds);
+        }
+        if (idleDispatched)
+        {
+          this->handleIdle(dispatchElapsedSeconds);
+        }
+        this->flushIterationTail(turn);
+        waitPolicy = this->idlePolicy();
+        if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
+        {
+          idlePacer.reset();
+          continue;
+        }
+        if (this->hasPendingWindowAdmission())
+          continue;
+      }
+    } // Close and destroy the turn before either wait.
+    if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
     {
-      elapsedSeconds = static_cast<double>(now.QuadPart - lastTick.QuadPart) / static_cast<double>(frequency.QuadPart);
-    }
-    lastTick = now;
-
-    if (policy.mode == loka::app::IDLE_MODE_NONE)
-    {
-      idlePacer.reset();
-      this->flushIterationTail();
-      if (this->hasPendingWindowAdmission())
-        continue;
       if (!handledMessage)
       {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        assert(!loka::core::Operation::hasActive());
+#endif
         WaitMessage();
       }
       continue;
     }
-
-    double candidateElapsedSeconds = 0.0;
-    const bool idleCandidate = this->consumeIdle(elapsedSeconds, candidateElapsedSeconds);
-    double dispatchElapsedSeconds = candidateElapsedSeconds;
-    bool idleDispatched = idleCandidate;
-    if (policy.mode == loka::app::IDLE_MODE_EVERY_TICK)
-    {
-      idleDispatched = idleCandidate
-                       && idlePacer.gateEveryTick(
-                           candidateElapsedSeconds, policy, now.QuadPart, frequency.QuadPart, dispatchElapsedSeconds);
-    }
-    if (idleDispatched)
-    {
-      this->handleIdle(dispatchElapsedSeconds);
-    }
-    this->flushIterationTail();
-    const loka::app::IdlePolicy waitPolicy = this->idlePolicy();
-    if (waitPolicy.mode == loka::app::IDLE_MODE_NONE)
-    {
-      idlePacer.reset();
-      continue;
-    }
-    if (this->hasPendingWindowAdmission())
-      continue;
+#ifdef LOKA_LIFECYCLE_AUDIT
+    assert(!loka::core::Operation::hasActive());
+#endif
     idlePacer.wait(waitPolicy, idleDispatched, now.QuadPart, frequency.QuadPart);
   }
 }
 
-void Win32App::flushIterationTail()
+void Win32App::flushIterationTail(loka::core::Operation &turn)
 {
   this->flushMenuInvalidation();
+  turn.settle();
   this->admitAndApplyWindows();
   this->reconcileFocus();
   this->admitAndApplyWindows();
+  turn.close();
   this->reclaimWindows();
 }
 

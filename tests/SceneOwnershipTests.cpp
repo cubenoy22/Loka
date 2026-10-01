@@ -2241,7 +2241,11 @@ namespace
     virtual bool hasRunnableWork() const { return true; }
     virtual void deliver() { ++this->deliveries; }
     virtual Retirement *retirementSnapshot() const { return 0; }
-    virtual void reclaim(Retirement *) { ++this->reclaims; }
+    virtual void reclaim(Retirement *)
+    {
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      ++this->reclaims;
+    }
     int deliveries;
     int reclaims;
   };

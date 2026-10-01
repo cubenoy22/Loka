@@ -225,6 +225,7 @@ void ToolboxApp::run()
     }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
+    loka::core::Operation turn;
     // Consume the OS foreground fact before idle work or hover can write the
     // shared cursor on the iteration that delivers a suspend event.
     if (event.what == osEvt && IsSuspendResumeEvent(event))
@@ -448,7 +449,7 @@ void ToolboxApp::run()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    this->present(activationPhase_);
+    this->present(activationPhase_, turn);
     this->cursorOwner_.assertIdle();
     if (event.what == nullEvent && group_)
     {

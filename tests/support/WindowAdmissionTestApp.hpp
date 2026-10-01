@@ -2,6 +2,7 @@
 #define LOKA_TESTS_WINDOW_ADMISSION_TEST_APP_HPP
 
 #include "app/core/App.hpp"
+#include "core/Operation.hpp"
 #include "app/core/Window.hpp"
 
 /** Exercises the production App clock with fixture-owned windows. The fixture
@@ -25,10 +26,13 @@ public:
   /** Null model of Win32App::flushIterationTail(): two admissions, one reclaim. */
   void operationLoop()
   {
+    loka::core::Operation turn;
     this->flushMenuInvalidation();
+    turn.settle();
     this->admitAndApplyWindows();
     this->reconcileFocus();
     this->admitAndApplyWindows();
+    turn.close();
     this->reclaimWindows();
   }
 };

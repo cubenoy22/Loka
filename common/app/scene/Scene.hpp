@@ -1,6 +1,7 @@
 #ifndef LOKA_CORE2_SCENE_SCENE_HPP
 #define LOKA_CORE2_SCENE_SCENE_HPP
 
+#include "core/Operation.hpp"
 #include "core/diag/LifecycleAudit.hpp"
 #include "core/State.hpp"
 #include <cassert>
@@ -510,7 +511,7 @@ namespace loka
 
         bool flushInvalidation()
         {
-          if (this->isOperationOpen())
+          if (this->isOperationOpen() || loka::core::Operation::isSettling())
             return false;
           return nextTickTracker_.run(&Scene::RefreshThunk, &Scene::ApplyThunk, this);
         }

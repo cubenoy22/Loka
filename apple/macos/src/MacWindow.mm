@@ -34,6 +34,7 @@
 
 - (void)keyDown:(NSEvent *)event
 {
+  loka::core::Operation turn;
   if (owner_)
   {
     NSString *characters = [event charactersIgnoringModifiers];
@@ -64,7 +65,9 @@
   (void)notification;
   if (self.owner)
   {
+    loka::core::Operation turn;
     self.owner->handleWindowWillClose();
+    turn.close();
   }
 }
 

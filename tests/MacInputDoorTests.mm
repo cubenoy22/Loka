@@ -1,4 +1,5 @@
 #include "MacInputDoorTests.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include <AppKit/AppKit.h>
 #include "testing/MacWindowTestAccess.hpp"
 #include "app/nodes/controls/Cell.hpp"
@@ -122,6 +123,7 @@ namespace
     static void changed(void *data)
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
+      LOKA_VERIFY(loka::core::testing::OperationTestAccess::active());
       ++f.writes;
       if (f.closeOnExtent)
       {
@@ -366,6 +368,7 @@ namespace
     }
     void returned()
     {
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
       this->facts.returned = ++this->facts.sequence;
       LOKA_VERIFY(this->facts.writes > 0 && this->facts.destroyed == 0);
       LOKA_VERIFY(!this->facts.controller->operationPhase().open());

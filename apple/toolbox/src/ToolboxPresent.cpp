@@ -1,9 +1,11 @@
 /** Outer admission/render completion, shared with the host fixture. */
-void ToolboxApp::present(ActivationPhase phase)
+void ToolboxApp::present(ActivationPhase phase, loka::core::Operation &turn)
 {
+  turn.settle();
   this->admitAndApplyWindows();
   if (phase != ACTIVATION_FOREGROUND || !group_)
   {
+    turn.close();
     this->reclaimWindows();
     return;
   }
@@ -18,5 +20,6 @@ void ToolboxApp::present(ActivationPhase phase)
     }
   }
   this->reconcileFocus();
+  turn.close();
   this->reclaimWindows();
 }
