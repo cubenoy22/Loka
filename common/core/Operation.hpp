@@ -55,8 +55,8 @@ namespace loka
         a contract violation. Nested tracker guards
         must end before settlement. Completion turns collect, settle, apply, close,
         then reclaim; collection turns only collect, settle and close. Fair rounds
-        visit the ledgers present at each round's start. Production turns do not
-        yet open ledgers. */
+        visit the ledgers present at each round's start. WriteSeat enrolls its
+        owner ledger through openActive; legacy guards keep their own brackets. */
     class Operation
     {
     public:

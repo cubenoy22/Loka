@@ -449,12 +449,29 @@ namespace
     }
   };
 
-  void controlWriteUsesOwnerTracker(InputKind kind)
+  class TrackerWindow : public Window
+  {
+    ToolboxWindow &native_;
+  public:
+    unsigned admissions;
+    TrackerWindow(ToolboxWindow &native, ToolboxScenePlatformController &controller)
+        : Window(0, WindowProps().scene(new Scene(Boundary<TrackerOwner>(TrackerOwnerProps())))),
+          native_(native), admissions(0)
+    { this->scene()->mount(&controller); }
+    virtual ~TrackerWindow() { this->unmountSceneForTeardown(*this->scene()); }
+    virtual bool hasLiveScenePlatform() const { return true; }
+    virtual ToolboxWindow *asToolboxWindow() { return &this->native_; }
+    virtual void applyNativeVisibility() { ++this->admissions; }
+  };
+
+  void controlWriteUsesOwnerTracker(InputKind kind, bool clocked)
   {
     ToolboxWindow window;
     ToolboxScenePlatformController controller(&window);
-    Scene scene((Boundary<TrackerOwner>(TrackerOwnerProps())));
-    scene.mount(&controller);
+    TrackerWindow logical(window, controller);
+    ToolboxApp app(logical);
+    app.flush();
+    Scene &scene = *logical.scene();
     typedef loka::dsl::testing::SceneTestAccess Access;
     Access::updateAttached(scene, true);
     TrackerOwner *owner = static_cast<TrackerOwner *>(Access::rootBoundary(scene));
@@ -505,10 +522,24 @@ namespace
       toolbox_host::hitControl = &control;
       toolbox_host::trackedValue = 3;
     }
-    ToolboxInputDoor::mouseDown(controller, point);
-    // No flush/update between native input and these observations (#366).
-    std::printf("[pin] %s owner tracker: source=%d derived=%d\n",
-        kind == POPUP_INPUT ? "popup" : "scroll", owner->value.get(), owner->doubled.get());
+    if (clocked)
+    {
+      Operation turn;
+      const unsigned admissions = logical.admissions;
+      ToolboxInputDoor::mouseDown(controller, point);
+      // PR C1 (#1057): popup/scroll source is immediate, owner-derived values
+      // move from before present to present's settle. The no-clock twin stays.
+      LOKA_VERIFY(owner->value.get() == 3 && owner->doubled.get() == 0);
+      LOKA_VERIFY(owner->tracker()->phase() == TRACKER_PRECOMMIT);
+      app.present(ACTIVATION_FOREGROUND, turn);
+      LOKA_VERIFY(logical.admissions == admissions + 1);
+      LOKA_VERIFY(!Operation::hasActive());
+    }
+    else
+      ToolboxInputDoor::mouseDown(controller, point);
+    // No-clock #366 control; clock variant has now completed present.
+    std::printf("[pin] %s owner tracker (%s): source=%d derived=%d\n",
+        kind == POPUP_INPUT ? "popup" : "scroll", clocked ? "clock" : "legacy", owner->value.get(), owner->doubled.get());
     std::fflush(stdout);
     LOKA_VERIFY(owner->value.get() == 3);
     LOKA_VERIFY(owner->doubled.get() == 6);
@@ -516,7 +547,11 @@ namespace
     toolbox_host::hitControl = 0;
     toolbox_host::trackedValue = previousTrackedValue;
     toolbox_host::popupItem = previousPopupItem;
-    Access::unmount(scene);
+  }
+  void controlWriteUsesOwnerTracker(InputKind kind)
+  {
+    controlWriteUsesOwnerTracker(kind, false);
+    controlWriteUsesOwnerTracker(kind, true);
   }
   struct PresentSettleProbe
   {

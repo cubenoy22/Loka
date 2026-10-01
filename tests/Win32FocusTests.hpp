@@ -8,4 +8,5 @@ void testWin32FocusInactiveRequest();
 void testWin32FocusWriteAdmission();
 void testWin32FocusWriteReentry();
 void testWin32FocusInitialRequest();
+void testWin32FocusCompletionTailClock();
 #endif

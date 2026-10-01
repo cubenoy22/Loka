@@ -3,6 +3,7 @@
 
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
+#include "core/Operation.hpp"
 
 namespace loka
 {
@@ -12,7 +13,11 @@ namespace loka
     {
       template <typename T> class NodeState;
 
-      /** Input-write door carrying the state owner's tracker. */
+      /** Input-write door carrying the state owner's tracker.
+          Inside a turn the owner ledger joins the clock; the write's derived
+          values, dirty summary and Scene projection complete at the turn's
+          settle/apply, not when set returns. Source value and direct observers
+          are synchronous as before. */
       template <typename T> class WriteSeat
       {
       public:
@@ -36,14 +41,33 @@ namespace loka
           {
             return;
           }
-          if (this->tracker_ && this->tracker_->phase() == loka::core::TRACKER_IDLE)
+          if (!this->tracker_)
           {
-            this->tracker_->begin();
             this->state_->set(value, forceUpdate);
-            this->tracker_->end();
             return;
           }
-          this->state_->set(value, forceUpdate);
+          switch (loka::core::Operation::openActive(this->tracker_))
+          {
+          case loka::core::OPEN_OK:
+          case loka::core::OPEN_ALREADY_OPEN:
+          case loka::core::OPEN_REFUSED_BUSY:
+          case loka::core::OPEN_REFUSED_CLOSING:
+            this->state_->set(value, forceUpdate);
+            return;
+          case loka::core::OPEN_NO_CLOCK:
+          case loka::core::OPEN_REFUSED_NOT_PUSH:
+            if (this->tracker_->phase() == loka::core::TRACKER_IDLE)
+            {
+              this->tracker_->begin();
+              this->state_->set(value, forceUpdate);
+              this->tracker_->end();
+            }
+            else
+            {
+              this->state_->set(value, forceUpdate);
+            }
+            return;
+          }
         }
 
       private:

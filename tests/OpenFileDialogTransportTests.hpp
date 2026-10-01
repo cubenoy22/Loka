@@ -14,4 +14,8 @@ void testOpenFileDialogTransportRetargetDuringWriteCannotUnlinkReplacement();
 void testOpenFileDialogTransportEmitterTokenChecksDeliveryLifetime();
 void testOpenFileDialogTransportCrossWindowCloseCancelsLaterBatch();
 void testOpenFileDialogTransportEnrollmentRefusalRetriesOnAdmission();
+void testDialogSeatClockEligibility();
+void testDialogSeatClockCancellationStillSuppresses();
+void testDialogSeatClockDeadTokenStillSuppresses();
+void testDialogSeatClockWindowCloseStillSuppresses();
 #endif

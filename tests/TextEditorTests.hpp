@@ -56,4 +56,5 @@ void testPlatformOperationMount();
 void testPlatformOperationMountAudit();
 void testPlatformOperationNativeDrain();
 void testNullInputDoorNestedSettlement();
+void testTextEditorSeatGuardOrders();
 #endif

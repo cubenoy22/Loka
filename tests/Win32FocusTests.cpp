@@ -469,11 +469,14 @@ namespace
       this->fallbackFired_ = true;
       PostQuitMessage(0);
     }
-    void verify()
+    void verify(bool clocked)
     {
       LOKA_VERIFY(!this->fallbackFired_);
       LOKA_VERIFY(this->replies_ == 1);
-      LOKA_VERIFY(!completionTailEditor(&this->root_));
+      // PR C1: close commits the Seat after Win32's second admission.
+      // The no-clock baseline still removes the editor in the same tail.
+      LOKA_VERIFY((completionTailEditor(&this->root_) != 0) == clocked);
+      if (clocked) LOKA_VERIFY(this->scene_.hasPendingInvalidation());
       LOKA_VERIFY(!this->scene_.isBorrowOpen());
       LOKA_VERIFY(!this->scene_.focus().isPublishing());
     }
@@ -532,7 +535,7 @@ namespace
   }
 }
 
-void testWin32FocusCompletionTailFlush()
+static void runWin32FocusCompletionTail(bool clocked)
 {
   ActivationRefusal refusal;
   NullPlatformContext context;
@@ -549,8 +552,8 @@ void testWin32FocusCompletionTailFlush()
   SetFocus(window.hwnd());
   if (GetActiveWindow() != window.hwnd())
   {
-    skipWithoutActivation("testWin32FocusCompletionTailFlush",
-                          "the focus completion and same-iteration retirement checks",
+    skipWithoutActivation(clocked ? "testWin32FocusCompletionTailClock" : "testWin32FocusCompletionTailFlush",
+                          "the focus completion and admission-timing checks",
                           "the initial editor attachment was verified.");
     return;
   }
@@ -567,7 +570,18 @@ void testWin32FocusCompletionTailFlush()
   // Ensure this iteration handled a message. The late-quit mutation then
   // reaches another tail before waiting for the timer, even on a quiet queue.
   LOKA_VERIFY(PostMessageW(window.hwnd(), WM_NULL, 0, 0));
-  app.run();
+  if (clocked)
+    app.run();
+  else
+  {
+    // Legacy control: the same completion ordering with no Operation.
+    admission.admitAndApplyWindows();
+    admission.reconcileFocus();
+    admission.admitAndApplyWindows();
+    admission.reclaimWindows();
+    MSG quit;
+    LOKA_VERIFY(PeekMessageW(&quit, 0, WM_QUIT, WM_QUIT, PM_REMOVE));
+  }
   KillTimer(0, timer);
   completionTailProbe = 0;
   // The fallback may quit before WM_SETFOCUS consumed the one-shot hook.
@@ -575,9 +589,18 @@ void testWin32FocusCompletionTailFlush()
     SetWindowLongPtrW(editor, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(completionTailPrevious));
   completionTailPrevious = 0;
   window.setApp(0);
-  probe.verify();
+  probe.verify(clocked);
+  if (clocked)
+  {
+    admission.operationLoop();
+    LOKA_VERIFY(!completionTailEditor(&root));
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+  }
 }
 
+
+void testWin32FocusCompletionTailFlush() { runWin32FocusCompletionTail(false); }
+void testWin32FocusCompletionTailClock() { runWin32FocusCompletionTail(true); }
 
 void testWin32FocusPostedRequest()
 {

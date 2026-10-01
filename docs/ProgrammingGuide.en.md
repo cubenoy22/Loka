@@ -636,6 +636,22 @@ It is the reason Loka can avoid treating the whole UI as one undifferentiated
 tree. State updates should be made inside a tracker transaction so the framework
 can see what changed and decide what to update.
 
+`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an idle
+owner ledger joins `Operation`: source values and direct observers remain
+synchronous, but derived values, the dirty summary, and Scene projection wait
+for the turn's settle/apply. Reading an owner-derived value immediately after
+`set()` can therefore read the previous value. Multiple collect-time writes
+share the tail projection; intermediate Show/Keyed structures are not projected.
+Writes during apply or focus completion settle at close and leave their
+commit-driven projection pending for the next eligible admission.
+
+Outside a turn, an idle owner's Seat still begins, writes, and ends a transaction
+before returning. A legacy guard opened before the first Seat keeps that behavior
+at its own end. If a Seat already enrolled the ledger, a later guard is nested
+and its end leaves settlement to the clock. Guard, Flow, Menu, and dialog
+transport brackets otherwise retain their existing contracts; Menu is standalone.
+Cleanup writes do not reopen a closing clock.
+
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
 

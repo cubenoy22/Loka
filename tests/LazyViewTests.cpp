@@ -731,3 +731,32 @@ void testLazyViewCanceledRefusedWindowRefreshesContent()
 {
   canceledWindowRefresh(true);
 }
+
+#include "testing/core/StateTrackerTestAccess.hpp"
+void testLazyViewSeatGuardOrders()
+{
+  typedef loka::core::testing::PushStateTrackerTestAccess Access;
+  for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+  {
+    Access::InvalidationProbe commits;
+    Fixture f;
+    LazyViewNode<CardProps> *flex = f.flex();
+    PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
+    NodeState<int> earlier;
+    StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
+    commits.install(owner);
+    Operation turn;
+    if (seatFirst) earlier.set(1);
+    {
+      StateTrackerGuard viewportGuard(&f.tracker);
+      f.view.set(Frame(0, 200, 200, 160));
+    }
+    // selectWindow's own guard is first, or nested under the earlier Seat.
+    LOKA_VERIFY(Access::depth(owner) == seatFirst);
+    LOKA_VERIFY(commits.calls == (seatFirst ? 0 : 1));
+    turn.close();
+    LOKA_VERIFY(commits.calls == 1);
+    f.drain();
+    LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
+  }
+}

@@ -3087,3 +3087,56 @@ void testNullInputDoorNestedSettlement()
   LOKA_VERIFY(Input::type(*fixture.context, 'y') == EDITOR_OK);
   LOKA_VERIFY(!fixture.platform.borrowPhase().open());
 }
+
+namespace
+{
+  struct SeatDocumentCommit
+  {
+    PushStateTracker &tracker;
+    StateBase *cursor;
+    StateBase *revision;
+    unsigned cursorCommits, listCommits;
+    SeatDocumentCommit(Fixture &f)
+        : tracker(f.tracker), cursor(f.cursor.state()),
+          revision(const_cast<State<ListRevision> *>(&f.lines.revision())), cursorCommits(0), listCommits(0) {}
+    static void count(void *data)
+    {
+      SeatDocumentCommit &self = *static_cast<SeatDocumentCommit *>(data);
+      const PushStateTracker::StateList &dirty = self.tracker.committedDirtyStates();
+      for (size_t i = 0; i < dirty.size(); ++i)
+      {
+        if (dirty[i] == self.cursor) ++self.cursorCommits;
+        if (dirty[i] == self.revision) ++self.listCommits;
+      }
+    }
+  };
+}
+void testTextEditorSeatGuardOrders()
+{
+  for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+    for (unsigned replace = 0; replace != 2; ++replace)
+    {
+      Fixture f;
+      SeatDocumentCommit probe(f);
+      f.tracker.setInvalidateCallback(&SeatDocumentCommit::count, &probe);
+      MutableState<int> earlier(0);
+      f.tracker.addState(&earlier);
+      NodeState<int> earlierSeat(&earlier, &f.tracker);
+      Operation turn;
+      if (seatFirst) earlierSeat.set(1);
+      TextEditorDocument &document = loka::app::testing::TextEditorAccess::document(f.node);
+      const LineCursor before = f.cursor.state()->get();
+      if (replace)
+        LOKA_VERIFY(document.applyReplace(before, before, "x", 1) == EDITOR_OK);
+      else
+        LOKA_VERIFY(document.moveCaret(LineCursor(before.line, 3)) == EDITOR_OK);
+      LOKA_VERIFY(f.cursor.state()->get() == LineCursor(before.line, 3));
+      LOKA_VERIFY(probe.cursorCommits == (seatFirst ? 0u : 1u));
+      LOKA_VERIFY(probe.listCommits == (replace && !seatFirst ? 1u : 0u));
+      LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(f.tracker) == seatFirst);
+      turn.close();
+      LOKA_VERIFY(probe.cursorCommits == 1 && probe.listCommits == replace);
+      f.tracker.setInvalidateCallback(0, 0);
+      f.tracker.removeState(&earlier);
+    }
+}
