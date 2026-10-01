@@ -2789,7 +2789,7 @@ namespace
         LOKA_VERIFY(this->focusScene && this->focusScene->focus().isPublishing());
         Input::move(*input, this->focusCursor);
         LOKA_VERIFY(this->focusScene->focus().isPublishing());
-        LOKA_VERIFY(!this->operationPhase().open());
+        LOKA_VERIFY(!this->borrowPhase().open());
       }
       out = 0;
       return true;
@@ -2888,7 +2888,7 @@ void probeRequestSettlementLifecycle()
       {
         // The first later run retires the node. Its owning queue must still
         // hold it across a new operation, even when completion is pumped.
-        OperationScope scope(platform);
+        BorrowScope scope(platform);
         const unsigned drains = platform.drains;
         LOKA_VERIFY(!scene.flushInvalidation());
         LOKA_VERIFY(!window.flushSceneInvalidation());
@@ -2922,13 +2922,13 @@ void testPlatformOperationPumps()
   const unsigned drains = platform.drains;
   const unsigned reads = platform.focusReads;
   {
-    OperationScope outer(platform);
+    BorrowScope outer(platform);
     LOKA_VERIFY(scene.isBusy());
     {
-      OperationScope inner(platform);
-      LOKA_VERIFY(platform.operationPhase().open());
+      BorrowScope inner(platform);
+      LOKA_VERIFY(platform.borrowPhase().open());
     }
-    LOKA_VERIFY(platform.operationPhase().open());
+    LOKA_VERIFY(platform.borrowPhase().open());
     scene.requestInvalidate();
     LOKA_VERIFY(!scene.flushInvalidation());
     LOKA_VERIFY(!window.flushSceneInvalidation());
@@ -2973,7 +2973,7 @@ void testPlatformOperationFocusTail()
   app.operationLoop();
   LOKA_VERIFY(observer.replies == 2);
   LOKA_VERIFY(platform.applies > applies);
-  LOKA_VERIFY(!scene.focus().isPublishing() && !platform.operationPhase().open());
+  LOKA_VERIFY(!scene.focus().isPublishing() && !platform.borrowPhase().open());
   LOKA_VERIFY(!settlementProbeFind(&root));
 }
 
@@ -2994,7 +2994,7 @@ void testPlatformOperationMount()
   LOKA_VERIFY(SceneTestAccess::rootNode(first) == root);
   LOKA_VERIFY(SceneTestAccess::platformController(first) == &platform);
   {
-    OperationScope scope(platform);
+    BorrowScope scope(platform);
     LOKA_VERIFY(!replacement.mount(&platform));
     LOKA_VERIFY(SceneTestAccess::platformController(replacement) == 0);
     LOKA_VERIFY(!SceneTestAccess::rootNode(replacement));
@@ -3032,7 +3032,7 @@ void testPlatformOperationMountAudit()
       }
       else
       {
-        OperationScope scope(platform);
+        BorrowScope scope(platform);
         (void)scene.mount(&platform);
       }
       _exit(0);
@@ -3066,7 +3066,7 @@ void testPlatformOperationNativeDrain()
   LOKA_VERIFY(platform.retiredCount() == 1);
   const unsigned drains = platform.drains;
   {
-    OperationScope scope(platform);
+    BorrowScope scope(platform);
     LOKA_VERIFY(!window.flushSceneInvalidation());
     LOKA_VERIFY(platform.retiredCount() == 1 && platform.drains == drains);
   }
@@ -3077,13 +3077,13 @@ void testPlatformOperationNativeDrain()
 void testNullInputDoorNestedSettlement()
 {
   Fixture fixture;
-  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+  LOKA_VERIFY(!fixture.platform.borrowPhase().open());
   {
-    OperationScope outer(fixture.platform);
+    BorrowScope outer(fixture.platform);
     LOKA_VERIFY(Input::type(*fixture.context, 'x') == EDITOR_OK);
-    LOKA_VERIFY(fixture.platform.operationPhase().open());
+    LOKA_VERIFY(fixture.platform.borrowPhase().open());
   }
-  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+  LOKA_VERIFY(!fixture.platform.borrowPhase().open());
   LOKA_VERIFY(Input::type(*fixture.context, 'y') == EDITOR_OK);
-  LOKA_VERIFY(!fixture.platform.operationPhase().open());
+  LOKA_VERIFY(!fixture.platform.borrowPhase().open());
 }

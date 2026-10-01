@@ -2,6 +2,7 @@
 #define LOKA_TESTING_CORE_STATE_TRACKER_TEST_ACCESS_HPP
 
 #include "core/StateTracker.hpp"
+#include "core/Operation.hpp"
 
 namespace loka
 {
@@ -9,6 +10,13 @@ namespace loka
   {
     namespace testing
     {
+      /** Clock identity and phase probes, kept out of the application API. */
+      struct OperationTestAccess
+      {
+        static Operation *active() { return Operation::active_; }
+        static bool isOpen(const Operation &clock) { return clock.phase_ == Operation::OPEN; }
+      };
+
       /** Test-only access to deferred work, walk identity and tracker-owned registration rows. */
       struct PushStateTrackerTestAccess
       {

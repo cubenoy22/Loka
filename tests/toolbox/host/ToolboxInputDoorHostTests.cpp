@@ -1,5 +1,6 @@
 #include "ToolboxInputDoor.hpp"
 #include "support/TestVerify.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/WindowAdmissionTestApp.hpp"
 #include "support/StandaloneMountTestSupport.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -14,7 +15,7 @@ class ToolboxApp : public WindowAdmissionTestApp
 {
 public:
   explicit ToolboxApp(Window &window) : WindowAdmissionTestApp(window) {}
-  void present(ActivationPhase);
+  void present(ActivationPhase, loka::core::Operation &turn);
 };
 #include "ToolboxPresent.cpp"
 namespace
@@ -115,7 +116,7 @@ namespace
     {
       InputFacts &f = *static_cast<InputFacts *>(data);
       ++f.secondWrites;
-      LOKA_VERIFY(f.writes == 1 && f.controller->operationPhase().open());
+      LOKA_VERIFY(f.writes == 1 && f.controller->borrowPhase().open());
     }
     void bind()
     {
@@ -406,9 +407,15 @@ namespace
     {
       facts.returned = ++facts.sequence;
       LOKA_VERIFY(facts.writes == 1 && facts.destroyed == 0);
-      LOKA_VERIFY(!controller.operationPhase().open());
+      LOKA_VERIFY(!controller.borrowPhase().open());
       facts.unbind();
-      app.present(ACTIVATION_FOREGROUND);
+      {
+        loka::core::Operation turn;
+        app.present(ACTIVATION_FOREGROUND, turn);
+        LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      }
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      LOKA_VERIFY(!loka::core::Operation::isSettling());
       LOKA_VERIFY(facts.destroyed > facts.returned);
       LOKA_VERIFY(!findField(root(), facts.kind));
     }
@@ -511,6 +518,35 @@ namespace
     toolbox_host::popupItem = previousPopupItem;
     Access::unmount(scene);
   }
+  struct PresentSettleProbe
+  {
+    Scene *scene;
+    unsigned calls;
+    static void invalidate(void *data)
+    {
+      PresentSettleProbe &probe = *static_cast<PresentSettleProbe *>(data);
+      ++probe.calls;
+      LOKA_VERIFY(Operation::isSettling());
+      probe.scene->requestInvalidate();
+      LOKA_VERIFY(!probe.scene->flushInvalidation());
+    }
+  };
+  void presentSettlesBeforeApply(ActivationPhase phase)
+  {
+    InputFixture fixture(EDIT_INPUT, false);
+    MutableState<int> value(0);
+    PushStateTracker ledger;
+    ledger.addState(&value);
+    PresentSettleProbe probe = { fixture.window.scene(), 0 };
+    ledger.setInvalidateCallback(&PresentSettleProbe::invalidate, &probe);
+    Operation turn;
+    LOKA_VERIFY(turn.open(&ledger) == OPEN_OK);
+    value.set(1);
+    fixture.app.present(phase, turn);
+    LOKA_VERIFY(probe.calls == 1);
+    LOKA_VERIFY(!probe.scene->hasPendingInvalidation());
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+  }
   void lifetime(InputKind kind, bool parentOnly)
   {
     for (int parent = parentOnly ? 1 : 0; parent != 2; ++parent)
@@ -530,13 +566,19 @@ namespace
       ToolboxInputDoor::render(fixture.controller);
       LOKA_VERIFY(fixture.facts.writes == 1 && fixture.facts.secondWrites == 1);
       LOKA_VERIFY(surfaceCount(fixture.root()) == 2);
-      LOKA_VERIFY(!fixture.controller.operationPhase().open());
+      LOKA_VERIFY(!fixture.controller.borrowPhase().open());
       fixture.facts.unbind();
-      fixture.app.present(ACTIVATION_FOREGROUND);
+      {
+        loka::core::Operation turn;
+        fixture.app.present(ACTIVATION_FOREGROUND, turn);
+        LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      }
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+      LOKA_VERIFY(!loka::core::Operation::isSettling());
       LOKA_VERIFY(surfaceCount(fixture.root()) == (cancel ? 2u : 1u));
     }
   }
-  void closeDuringRender()
+  void closeDuringRender(ActivationPhase phase)
   {
     InputFacts facts(EXTENT_INPUT, false);
     ToolboxWindow native;
@@ -551,14 +593,25 @@ namespace
     ToolboxInputDoor::render(controller);
     facts.returned = ++facts.sequence;
     LOKA_VERIFY(facts.writes == 1 && facts.secondWrites == 1 && facts.destroyed == 0);
-    LOKA_VERIFY(!controller.operationPhase().open());
+    LOKA_VERIFY(!controller.borrowPhase().open());
     facts.unbind();
-    app.present(ACTIVATION_FOREGROUND);
+    {
+      loka::core::Operation turn;
+      app.present(phase, turn);
+      LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    }
+    LOKA_VERIFY(!loka::core::testing::OperationTestAccess::active());
+    LOKA_VERIFY(!loka::core::Operation::isSettling());
     LOKA_VERIFY(facts.destroyed > facts.returned);
   }
 }
 int main(int argc, char **argv)
 {
+  if (argc == 1 || std::strcmp(argv[1], "turn") == 0)
+  {
+    presentSettlesBeforeApply(ACTIVATION_FOREGROUND);
+    presentSettlesBeforeApply(ACTIVATION_BACKGROUND);
+  }
   if (argc == 1 || std::strcmp(argv[1], "popup-owner-tracker") == 0)
     controlWriteUsesOwnerTracker(POPUP_INPUT);
   if (argc == 1 || std::strcmp(argv[1], "scroll-owner-tracker") == 0)
@@ -571,5 +624,9 @@ int main(int argc, char **argv)
       std::printf("[pin] %s same/parent lifetime passed\n", names[i]);
     }
   if (argc == 1 || std::strcmp(argv[1], "extent") == 0) extentOrdering();
-  if (argc == 1 || std::strcmp(argv[1], "close") == 0) closeDuringRender();
+  if (argc == 1 || std::strcmp(argv[1], "close") == 0)
+  {
+    closeDuringRender(ACTIVATION_FOREGROUND);
+    closeDuringRender(ACTIVATION_BACKGROUND);
+  }
 }

@@ -155,7 +155,7 @@ void Win32PopupMenuContext::applyDetachedPresentation()
 bool Win32PopupMenuContext::handleCommand(WPARAM, LPARAM)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (!applyingFromState_)
   {

@@ -442,19 +442,19 @@ loka_compile_pin(observed-use-copy
   ACCEPTS pins/accepts_observed_use_borrow.cpp
 )
 
-loka_compile_pin(operation-scope-copy
-  REFUSES pins/refuses_operation-scope-copy.cpp
-  ACCEPTS pins/accepts_operation-scope-copy.cpp
+loka_compile_pin(borrow-scope-copy
+  REFUSES pins/refuses_borrow-scope-copy.cpp
+  ACCEPTS pins/accepts_borrow-scope-copy.cpp
 )
 
-loka_compile_pin(operation-phase-copy
-  REFUSES pins/refuses_operation-phase-copy.cpp
-  ACCEPTS pins/accepts_operation-phase-copy.cpp
+loka_compile_pin(borrow-phase-copy
+  REFUSES pins/refuses_borrow-phase-copy.cpp
+  ACCEPTS pins/accepts_borrow-phase-copy.cpp
 )
 
-loka_compile_pin(operation-controller-copy
-  REFUSES pins/refuses_operation-controller-copy.cpp
-  ACCEPTS pins/accepts_operation-controller-copy.cpp
+loka_compile_pin(borrow-controller-copy
+  REFUSES pins/refuses_borrow-controller-copy.cpp
+  ACCEPTS pins/accepts_borrow-controller-copy.cpp
 )
 
 loka_compile_pin(settle-single-owner
@@ -467,19 +467,19 @@ loka_compile_pin(settle-multi-owner
   ACCEPTS pins/accepts_settle-multi-owner.cpp
 )
 
-loka_compile_pin(operation-owner-construction
-  REFUSES pins/refuses_operation-owner-construction.cpp
-  ACCEPTS pins/accepts_operation-owner-construction.cpp
+loka_compile_pin(borrow-owner-construction
+  REFUSES pins/refuses_borrow-owner-construction.cpp
+  ACCEPTS pins/accepts_borrow-owner-construction.cpp
 )
 
-loka_compile_pin(operation-owner-default
-  REFUSES pins/refuses_operation-owner-default.cpp
-  ACCEPTS pins/accepts_operation-owner-default.cpp
+loka_compile_pin(borrow-owner-default
+  REFUSES pins/refuses_borrow-owner-default.cpp
+  ACCEPTS pins/accepts_borrow-owner-default.cpp
 )
 
-loka_compile_pin(operation-owner-copy
-  REFUSES pins/refuses_operation-owner-copy.cpp
-  ACCEPTS pins/accepts_operation-owner-copy.cpp
+loka_compile_pin(borrow-owner-copy
+  REFUSES pins/refuses_borrow-owner-copy.cpp
+  ACCEPTS pins/accepts_borrow-owner-copy.cpp
 )
 
 loka_compile_pin(null-input-body

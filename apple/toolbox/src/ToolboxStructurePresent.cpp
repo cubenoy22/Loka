@@ -13,7 +13,7 @@ void ToolboxScenePlatformController::requestStructurePresent()
 void ToolboxScenePlatformController::releaseNodeContexts(loka::app::scene::Node *node)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-    assert(!this->operationPhase().open());
+    assert(!this->borrowPhase().open());
 #endif
   if (!node)
   {

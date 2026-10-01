@@ -16,6 +16,7 @@ namespace loka
         switch (status)
         {
         case OPERATION_SETTLED:
+        case OPERATION_JOINED:
           break;
         case OPERATION_REFUSED_STATE_BUDGET:
           fprintf(stderr, "[Loka] StateTracker transaction did not settle before the iteration limit.\n");
@@ -30,20 +31,23 @@ namespace loka
     Operation *Operation::active_ = 0;
 
     Operation::Operation(const OperationBudget &budget)
-        : head_(0), tail_(0), budget_(budget), phase_(OPEN)
+        : outer_(Operation::active_), head_(0), tail_(0), budget_(budget), phase_(OPEN),
+          status_(OPERATION_SETTLED), rounds_(0)
     {
-      assert(!Operation::active_ && "only one Operation may be active");
-      Operation::active_ = this;
+      if (!this->outer_)
+        Operation::active_ = this;
     }
 
     Operation::~Operation()
     {
-      if (this->phase_ != CLOSED)
+      if (!this->outer_ && this->phase_ != CLOSED)
         this->close();
     }
 
     OpenResult Operation::open(StateTracker *tracker)
     {
+      if (this->outer_)
+        return this->outer_->open(tracker);
       assert(this->phase_ == OPEN || this->phase_ == DRIVING);
       assert(tracker);
       PushStateTracker *ledger = tracker->asPushTracker();
@@ -72,41 +76,61 @@ namespace loka
       return false;
     }
 
-    OperationOutcome Operation::close()
+    bool Operation::hasActive()
     {
-      assert(this->phase_ == OPEN && "Operation closes once, outside its callbacks");
+      return Operation::active_ != 0;
+    }
+
+    bool Operation::isSettling()
+    {
+      return Operation::active_ && (Operation::active_->phase_ == DRIVING
+                                    || Operation::active_->phase_ == CLOSING);
+    }
+
+    OperationOutcome Operation::settle()
+    {
+      if (this->outer_)
+        return OperationOutcome(OPERATION_JOINED, 0);
+      assert(this->phase_ == OPEN && "Operation settles only while open, outside its callbacks");
       this->phase_ = DRIVING;
-      OperationStatus status = OPERATION_SETTLED;
-      size_t rounds = 0;
-      while (this->hasWork())
+      while (this->status_ == OPERATION_SETTLED && this->hasWork())
       {
         if (this->budget_.rounds == 0)
         {
-          status = OPERATION_REFUSED_CHAIN_LIMIT;
+          this->status_ = OPERATION_REFUSED_CHAIN_LIMIT;
           break;
         }
         --this->budget_.rounds;
         PushStateTracker *const frontier = this->tail_;
-        ++rounds;
+        ++this->rounds_;
         for (PushStateTracker *t = this->head_; t; t = t->opNext_)
         {
           if (t->hasWork() && t->step(this->budget_) == PushStateTracker::STEP_STATE_BUDGET)
           {
-            status = OPERATION_REFUSED_STATE_BUDGET;
+            this->status_ = OPERATION_REFUSED_STATE_BUDGET;
             break;
           }
           if (t == frontier)
             break;
         }
-        if (status != OPERATION_SETTLED)
+        if (this->status_ != OPERATION_SETTLED)
           break;
       }
+      this->phase_ = OPEN;
+      return OperationOutcome(this->status_, this->rounds_);
+    }
+
+    OperationOutcome Operation::close()
+    {
+      if (this->outer_)
+        return OperationOutcome(OPERATION_JOINED, 0);
+      this->settle();
       this->phase_ = CLOSING;
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
         t->removeRoutes();
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
-        if (!t->drainDeferred(this->budget_) && status == OPERATION_SETTLED)
-          status = OPERATION_REFUSED_CHAIN_LIMIT;
+        if (!t->drainDeferred(this->budget_) && this->status_ == OPERATION_SETTLED)
+          this->status_ = OPERATION_REFUSED_CHAIN_LIMIT;
       while (this->head_)
       {
         PushStateTracker *t = this->head_;
@@ -118,8 +142,8 @@ namespace loka
       this->tail_ = 0;
       this->phase_ = CLOSED;
       Operation::active_ = 0;
-      reportOperationStatus(status);
-      return OperationOutcome(status, rounds);
+      reportOperationStatus(this->status_);
+      return OperationOutcome(this->status_, this->rounds_);
     }
 
     void Operation::withdraw(PushStateTracker *tracker)

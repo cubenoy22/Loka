@@ -526,7 +526,7 @@ namespace
     {
       Observer &observer = *static_cast<Observer *>(data);
       ++observer.notifications;
-      LOKA_VERIFY(observer.fixture.controller.operationPhase().open());
+      LOKA_VERIFY(observer.fixture.controller.borrowPhase().open());
       const PaintQuery query = {Win32RetirableContext::paintScope(), PLACEMENT_ELIGIBLE};
       const PaintAnswer answer = observer.fixture.context->queryPaintDamage(query);
       LOKA_VERIFY(answer.kind == PAINT_ANSWER_EXACT);
@@ -543,7 +543,7 @@ namespace
     {
       Observer &observer = *static_cast<Observer *>(data);
       ++observer.settled;
-      LOKA_VERIFY(observer.fixture.controller.operationPhase().open());
+      LOKA_VERIFY(observer.fixture.controller.borrowPhase().open());
       if (observer.deferred)
       {
         observer.deferred = false;
@@ -1578,9 +1578,9 @@ void testWin32TextEditorNestedInput()
     observer.deferred = deferred != 0;
     Probe probe(fixture.context->hwnd());
     probe.echo = true;
-    LOKA_VERIFY(!fixture.controller.operationPhase().open());
+    LOKA_VERIFY(!fixture.controller.borrowPhase().open());
     fixture.type(L'x');
-    LOKA_VERIFY(!fixture.controller.operationPhase().open());
+    LOKA_VERIFY(!fixture.controller.borrowPhase().open());
     LOKA_VERIFY(observer.notifications == 1 && observer.settled == 1);
     LOKA_VERIFY(fixture.lines.at(0).value.equals(String("abxcd")));
     fixture.matches();

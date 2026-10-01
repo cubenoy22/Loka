@@ -689,7 +689,7 @@ EditorResult Win32TextEditorContext::commitNativeChange()
 bool Win32TextEditorContext::handleCommand(WPARAM wParam, LPARAM)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (HIWORD(wParam) != EN_CHANGE)
     return false;
@@ -765,7 +765,7 @@ LRESULT CALLBACK Win32TextEditorContext::WindowProc(HWND window, UINT message, W
 void Win32TextEditorContext::handleRestoreTimer()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   const HWND window = this->hwnd_;
   RailOperation op(*this);
@@ -780,7 +780,7 @@ void Win32TextEditorContext::handleRestoreTimer()
 LRESULT Win32TextEditorContext::handleInputMessage(UINT message, WPARAM wParam, LPARAM lParam)
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   const HWND window = this->hwnd_;
   if (this->phase_ == INPUT || this->phase_ == PASTING)

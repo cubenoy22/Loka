@@ -2,6 +2,7 @@
 #define LOKA_TOOLBOX_APP_HPP
 
 #include "app/core/App.hpp"
+#include "core/Operation.hpp"
 #include <vector>
 #include <Menus.h>
 #include <Quickdraw.h>
@@ -138,7 +139,7 @@ private:
   void disposeHierarchicalMenus();
   /** Applies recorded scene changes and, while foreground, paints each window
       once at the run-loop tick's presentation boundary. */
-  void present(ActivationPhase phase);
+  void present(ActivationPhase phase, loka::core::Operation &turn);
   /** The run loop owns this; every step branches on it rather than taking
       per-step booleans (see ToolboxActivationPhase.hpp). */
   ActivationPhase activationPhase_;

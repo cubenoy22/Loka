@@ -34,6 +34,7 @@
 
 - (void)keyDown:(NSEvent *)event
 {
+  loka::core::Operation turn;
   if (owner_)
   {
     NSString *characters = [event charactersIgnoringModifiers];
@@ -64,7 +65,9 @@
   (void)notification;
   if (self.owner)
   {
+    loka::core::Operation turn;
     self.owner->handleWindowWillClose();
+    turn.close();
   }
 }
 
@@ -601,7 +604,7 @@ void MacWindow::handleWindowWillClose()
 void MacWindow::handleWindowDidResize()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->borrowPhase().open());
 #endif
   NSWindow *window = (NSWindow *)window_;
   NSView *view = (NSView *)contentView_;
@@ -622,7 +625,7 @@ void MacWindow::handleWindowDidResize()
 void MacWindow::handleWindowDidMove()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(!this->scenePlatformController_ || this->scenePlatformController_->operationPhase().open());
+  assert(!this->scenePlatformController_ || this->scenePlatformController_->borrowPhase().open());
 #endif
   NSWindow *window = (NSWindow *)window_;
   if (window)

@@ -214,7 +214,7 @@ short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::ap
 void MacButtonContext::handlePress()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (node_ && node_->props.onClick_)
   {

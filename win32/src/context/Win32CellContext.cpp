@@ -299,7 +299,7 @@ void RegisterWin32CellNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry 
 void Win32CellContext::handleClick()
 {
 #ifdef LOKA_LIFECYCLE_AUDIT
-  assert(this->controller()->operationPhase().open());
+  assert(this->controller()->borrowPhase().open());
 #endif
   if (this->node_ && this->node_->props.onClick_)
     this->node_->props.onClick_->emit();

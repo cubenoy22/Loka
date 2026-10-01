@@ -1,4 +1,5 @@
 #include "MacApp.hpp"
+#include "core/Operation.hpp"
 #include "MacWindow.hpp"
 #include "MacScenePlatformController.hpp"
 #include "MacObjCCompat.hpp"
@@ -21,8 +22,10 @@
 {
   if (self.owner)
   {
+    loka::core::Operation turn;
     NSInteger tag = [sender tag];
     self.owner->dispatchNativeMenuCommand(static_cast<int>(tag));
+    turn.close();
   }
 }
 @end
@@ -174,28 +177,41 @@ void MacApp::quit()
 
 void MacApp::flushInvalidationsTick()
 {
-  const unsigned long long now = mach_absolute_time();
-  double elapsedSeconds = 0.0;
-  if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const bool entryActive = loka::core::Operation::hasActive();
+#endif
   {
-    const unsigned long long elapsed = now - lastIdleTick_;
-    const double nanos = static_cast<double>(elapsed) * static_cast<double>(idleTimebase_.numer)
-                         / static_cast<double>(idleTimebase_.denom);
-    elapsedSeconds = nanos * 1.0e-9;
+    loka::core::Operation turn;
+    const unsigned long long now = mach_absolute_time();
+    double elapsedSeconds = 0.0;
+    if (lastIdleTick_ != 0 && idleTimebase_.denom != 0)
+    {
+      const unsigned long long elapsed = now - lastIdleTick_;
+      const double nanos = static_cast<double>(elapsed) * static_cast<double>(idleTimebase_.numer)
+                           / static_cast<double>(idleTimebase_.denom);
+      elapsedSeconds = nanos * 1.0e-9;
+    }
+    lastIdleTick_ = now;
+    double dispatchElapsedSeconds = 0.0;
+    if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
+    {
+      this->handleIdle(dispatchElapsedSeconds);
+    }
+    if (!IsEventTrackingRunLoopMode())
+    {
+      this->flushMenuInvalidation();
+    }
+    turn.settle();
+    this->admitAndApplyWindows();
+    MacScenePlatformController::flushPendingRelayouts();
+    this->reconcileFocus();
+    turn.close();
+    this->reclaimWindows();
   }
-  lastIdleTick_ = now;
-  double dispatchElapsedSeconds = 0.0;
-  if (this->consumeIdle(elapsedSeconds, dispatchElapsedSeconds))
-  {
-    this->handleIdle(dispatchElapsedSeconds);
-  }
-  if (!IsEventTrackingRunLoopMode())
-  {
-    this->flushMenuInvalidation();
-  }
-  this->flushWindowInvalidations();
-  MacScenePlatformController::flushPendingRelayouts();
-  this->reconcileFocus();
+#ifdef LOKA_LIFECYCLE_AUDIT
+  // A runModal timer joins the outer apply turn; only an outermost timer returns idle.
+  assert(loka::core::Operation::hasActive() == entryActive);
+#endif
 }
 
 void MacApp::startInvalidationFlushTimer()
