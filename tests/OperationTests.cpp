@@ -57,9 +57,9 @@ namespace
 
   void verifyClosed(const Ledger &ledger)
   {
-    assert(ledger.tracker.phase() == TRACKER_IDLE);
-    assert(ledger.source.trackerOwner() == 0);
-    assert(Access::depth(ledger.tracker) == 0);
+    LOKA_VERIFY(ledger.tracker.phase() == TRACKER_IDLE);
+    LOKA_VERIFY(ledger.source.trackerOwner() == 0);
+    LOKA_VERIFY(Access::depth(ledger.tracker) == 0);
     (void)ledger;
   }
 
@@ -76,7 +76,7 @@ namespace
       {
         --write.writes;
         if (write.to != &write.from->source)
-          assert(write.to->trackerOwner()->phase() == TRACKER_PRECOMMIT);
+          LOKA_VERIFY(write.to->trackerOwner()->phase() == TRACKER_PRECOMMIT);
         write.to->set(write.to->get() + 1);
       }
     }
@@ -123,10 +123,10 @@ namespace
     static void invoke(void *data)
     {
       CleanupWrite &probe = *static_cast<CleanupWrite *>(data);
-      assert(probe.from->tracker.phase() == TRACKER_IDLE);
-      assert(probe.to->tracker.phase() == TRACKER_IDLE);
-      assert(probe.from->source.trackerOwner() == 0);
-      assert(probe.to->source.trackerOwner() == 0);
+      LOKA_VERIFY(probe.from->tracker.phase() == TRACKER_IDLE);
+      LOKA_VERIFY(probe.to->tracker.phase() == TRACKER_IDLE);
+      LOKA_VERIFY(probe.from->source.trackerOwner() == 0);
+      LOKA_VERIFY(probe.to->source.trackerOwner() == 0);
       ++probe.calls;
       // Cleanup runs outside every ledger's routes: this assignment changes
       // the value but deliberately does not create another transaction.
@@ -180,11 +180,6 @@ namespace
     delete tracker;
   }
 
-  void nestClocks()
-  {
-    Operation first;
-    Operation second;
-  }
   void closeTwice()
   {
     Operation operation;
@@ -379,7 +374,7 @@ void testOperationStateBudgetClosesAllLedgers()
   LOKA_VERIFY(outcome.rounds == 1);
   verifyClosed(a);
   verifyClosed(b);
-  assert(cycle.trackerOwner() == 0);
+  LOKA_VERIFY(cycle.trackerOwner() == 0);
   assert(a.invalidations == 0);
   a.tracker.removeState(&cycle);
 }
@@ -429,8 +424,8 @@ void testOperationWriteDuringCloseIsUnmarked()
   assert(b.source.get() == 9);
   assert(!b.tracker.transactionDirty());
   assert(!b.tracker.peekDirty());
-  assert(Access::currentDirtyCount(b.tracker) == 0);
-  assert(Access::nextDirtyCount(b.tracker) == 0);
+  LOKA_VERIFY(Access::currentDirtyCount(b.tracker) == 0);
+  LOKA_VERIFY(Access::nextDirtyCount(b.tracker) == 0);
   assert(a.invalidations == 0 && b.invalidations == 0);
   verifyClosed(a);
   verifyClosed(b);
@@ -455,8 +450,8 @@ void testStateTrackerNestedGuardInsideOperationDoesNotDrive()
     StateTrackerGuard guard(&ledger.tracker, &count, &guardInvalidations);
     ledger.source.set(1);
   }
-  assert(Access::depth(ledger.tracker) == 1);
-  assert(ledger.tracker.phase() == TRACKER_PRECOMMIT);
+  LOKA_VERIFY(Access::depth(ledger.tracker) == 1);
+  LOKA_VERIFY(ledger.tracker.phase() == TRACKER_PRECOMMIT);
   assert(ledger.invalidations == 0 && guardInvalidations == 0);
   const OperationOutcome outcome = operation.close();
   LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 1);
@@ -499,12 +494,12 @@ void testOperationRefusesNonPushAndBusyLedgers()
   LOKA_VERIFY(operation.open(&busy.tracker) == OPEN_REFUSED_BUSY);
   LOKA_VERIFY(operation.open(&available.tracker) == OPEN_OK);
   LOKA_VERIFY(operation.open(&available.tracker) == OPEN_ALREADY_OPEN);
-  assert(Access::depth(available.tracker) == 1);
+  LOKA_VERIFY(Access::depth(available.tracker) == 1);
   assert(mock.begins == 0 && mock.ends == 0);
   const OperationOutcome outcome = operation.close();
   LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 0);
-  assert(busy.tracker.phase() == TRACKER_PRECOMMIT);
-  assert(Access::depth(busy.tracker) == 1);
+  LOKA_VERIFY(busy.tracker.phase() == TRACKER_PRECOMMIT);
+  LOKA_VERIFY(Access::depth(busy.tracker) == 1);
 }
 
 namespace
@@ -640,11 +635,127 @@ void testOperationReleaseWithdrawalAndRouteReplacement()
 void testOperationClockContracts()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
-  expectAssert(&nestClocks);
   expectAssert(&closeTwice);
   expectAssert(&openAfterClose);
   expectAssert(&closeWithNestedGuard);
 #else
   std::printf("[skip] Operation clock death pins require Linux debug without ASan.\n");
 #endif
+}
+
+namespace
+{
+  struct JoinDuringDrive
+  {
+    Operation *outer;
+    Ledger *target;
+    int calls;
+    static void invoke(void *data)
+    {
+      JoinDuringDrive &probe = *static_cast<JoinDuringDrive *>(data);
+      ++probe.calls;
+      LOKA_VERIFY(Operation::isSettling());
+      Operation inner;
+      LOKA_VERIFY(testing::OperationTestAccess::active() == probe.outer);
+      LOKA_VERIFY(inner.open(&probe.target->tracker) == OPEN_OK);
+      probe.target->source.set(1);
+      const OperationOutcome checkpoint = inner.settle();
+      const OperationOutcome closed = inner.close();
+      LOKA_VERIFY(checkpoint.status == OPERATION_JOINED && checkpoint.rounds == 0);
+      LOKA_VERIFY(closed.status == OPERATION_JOINED && closed.rounds == 0);
+      LOKA_VERIFY(probe.target->invalidations == 0);
+    }
+  };
+}
+
+void testNestedOperationJoinsOuterClock()
+{
+  Ledger a, b, c;
+  Operation outer;
+  LOKA_VERIFY(outer.open(&a.tracker) == OPEN_OK);
+  JoinDuringDrive probe = { &outer, &c, 0 };
+  a.tracker.setInvalidateCallback(&JoinDuringDrive::invoke, &probe);
+  {
+    Operation inner;
+    LOKA_VERIFY(testing::OperationTestAccess::active() == &outer);
+    LOKA_VERIFY(inner.open(&b.tracker) == OPEN_OK);
+    a.source.set(1);
+    b.source.set(1);
+    const OperationOutcome checkpoint = inner.settle();
+    const OperationOutcome closed = inner.close();
+    LOKA_VERIFY(checkpoint.status == OPERATION_JOINED && checkpoint.rounds == 0);
+    LOKA_VERIFY(closed.status == OPERATION_JOINED && closed.rounds == 0);
+    LOKA_VERIFY(probe.calls == 0 && b.invalidations == 0);
+  }
+  LOKA_VERIFY(testing::OperationTestAccess::active() == &outer);
+  const OperationOutcome outcome = outer.close();
+  LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 2);
+  LOKA_VERIFY(probe.calls == 1 && b.invalidations == 1 && c.invalidations == 1);
+  LOKA_VERIFY(!testing::OperationTestAccess::active());
+  verifyClosed(a);
+  verifyClosed(b);
+  verifyClosed(c);
+}
+
+void testSettleLeavesLedgersOpenWithRoutes()
+{
+  Ledger ledger;
+  Operation turn;
+  LOKA_VERIFY(turn.open(&ledger.tracker) == OPEN_OK);
+  ledger.source.set(1);
+  const OperationOutcome first = turn.settle();
+  LOKA_VERIFY(first.status == OPERATION_SETTLED && first.rounds == 1);
+  LOKA_VERIFY(testing::OperationTestAccess::isOpen(turn));
+  LOKA_VERIFY(!Operation::isSettling());
+  LOKA_VERIFY(ledger.source.trackerOwner() == &ledger.tracker);
+  LOKA_VERIFY(ledger.tracker.phase() == TRACKER_PRECOMMIT);
+  LOKA_VERIFY(Access::depth(ledger.tracker) == 1);
+  ledger.source.set(2);
+  LOKA_VERIFY(Access::currentDirtyCount(ledger.tracker) == 1);
+  LOKA_VERIFY(Access::nextDirtyCount(ledger.tracker) == 0);
+  LOKA_VERIFY(ledger.invalidations == 1);
+  const OperationOutcome last = turn.close();
+  LOKA_VERIFY(last.status == OPERATION_SETTLED && last.rounds == 2);
+  LOKA_VERIFY(ledger.invalidations == 2);
+  verifyClosed(ledger);
+}
+
+void testSettleThenCloseShareOneBudgetAndKeepFirstRefusal()
+{
+  {
+    Ledger ledger;
+    Operation turn(OperationBudget(2, 10));
+    LOKA_VERIFY(turn.open(&ledger.tracker) == OPEN_OK);
+    ledger.source.set(1);
+    const OperationOutcome first = turn.settle();
+    LOKA_VERIFY(first.status == OPERATION_SETTLED && first.rounds == 1);
+    Write write = { &ledger, &ledger.source, 1 };
+    ledger.tracker.setInvalidateCallback(&Write::invoke, &write);
+    ledger.source.set(2);
+    const OperationOutcome last = turn.close();
+    LOKA_VERIFY(last.status == OPERATION_REFUSED_CHAIN_LIMIT && last.rounds == 2);
+    LOKA_VERIFY(ledger.invalidations == 2);
+    verifyClosed(ledger);
+  }
+  {
+    Ledger ledger;
+    DeferredLoop loop = { &ledger.tracker, 0, 0 };
+    Operation turn(OperationBudget(5, 1));
+    LOKA_VERIFY(turn.open(&ledger.tracker) == OPEN_OK);
+    ledger.source.set(1);
+    const OperationOutcome first = turn.settle();
+    LOKA_VERIFY(first.status == OPERATION_SETTLED && first.rounds == 1);
+    ledger.source.set(2);
+    Access::defer(ledger.tracker, &DeferredLoop::invoke, &loop);
+    const OperationOutcome refused = turn.settle();
+    LOKA_VERIFY(refused.status == OPERATION_REFUSED_STATE_BUDGET && refused.rounds == 2);
+    LOKA_VERIFY(ledger.invalidations == 1 && loop.calls == 0);
+    const OperationOutcome repeated = turn.settle();
+    LOKA_VERIFY(repeated.status == refused.status && repeated.rounds == refused.rounds);
+    const OperationOutcome closed = turn.close();
+    LOKA_VERIFY(closed.status == refused.status && closed.rounds == refused.rounds);
+    LOKA_VERIFY(ledger.invalidations == 1);
+    LOKA_VERIFY(loop.calls == 4 && loop.cleanupCalls == 4);
+    verifyClosed(ledger);
+  }
 }
