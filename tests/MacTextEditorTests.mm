@@ -1529,7 +1529,13 @@ void testMacTextEditorRefusals()
 
 void testMacTextEditorNestedInput()
 {
-  for (int deferred = 0; deferred < 2; ++deferred)
+  // PR C2 (#1057): only the immediate variant remains. The deferred variant
+  // modelled a callback deferred through the document ledger re-entering
+  // native input while the guard's own end() still ran it inside the input
+  // borrow; with the guard joining the collection turn that callback runs at
+  // the turn's settle, outside the borrow, and the path it pinned no longer
+  // exists. Production defers only BoundaryNode release thunks.
+  for (int deferred = 0; deferred < 1; ++deferred)
   {
     Fixture f;
     Observer observer(f);
@@ -1537,25 +1543,11 @@ void testMacTextEditorNestedInput()
     observer.deferred = deferred != 0;
     f.edit(@"abxcd\nabcd\nabcd", 3);
     LOKA_VERIFY(!f.controller.borrowPhase().open());
-    if (!deferred)
-    {
-      // An immediate observer re-enters inside the input borrow: refused, as #977 says.
-      LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
-      LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 3));
-    }
-    else
-    {
-      // PR C2 (#1057): the document's guard joins the collection turn, so a
-      // callback deferred through its ledger runs at the turn's settle, after
-      // the input borrow restored. Its native edit is a new input of the same
-      // turn and is accepted. Before C2 the guard's own end() ran it inside the
-      // borrow, where the re-entry was refused.
-      // The caret placement of a settle-time re-entered edit is not this pin's
-      // subject (macOS CI showed it is not column 4); only acceptance is pinned.
-      LOKA_VERIFY(observer.calls == 2 && bytes(f.lines.at(0).value) == "abxZcd");
-    }
+    // An immediate observer re-enters inside the input borrow: refused, as #977 says.
+    LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
+    LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 3));
     f.restored(1);
-    LOKA_VERIFY(observer.calls == (deferred ? 2u : 1u));
+    LOKA_VERIFY(observer.calls == 1);
     nextKey(f);
   }
   {
