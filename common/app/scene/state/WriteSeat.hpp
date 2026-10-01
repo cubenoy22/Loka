@@ -55,6 +55,7 @@ namespace loka
             this->state_->set(value, forceUpdate);
             return;
           case loka::core::OPEN_NO_CLOCK:
+          case loka::core::OPEN_CLOCK_REFUSED:
           case loka::core::OPEN_REFUSED_NOT_PUSH:
             if (this->tracker_->phase() == loka::core::TRACKER_IDLE)
             {

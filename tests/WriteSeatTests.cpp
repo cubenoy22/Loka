@@ -324,6 +324,27 @@ void testSeatDuringCleanupWritesWithoutRoute()
   LOKA_VERIFY(SeatAccess::currentDirtyCount(f.tracker) == 0 && SeatAccess::nextDirtyCount(f.tracker) == 0);
 }
 
+void testSeatAfterRefusedSettleKeepsLegacyTransaction()
+{
+  // #1079 bot P2: once the clock refused a settle it runs no further work
+  // round, so a later write must not be queued into a ledger nobody settles.
+  SeatLedger a, b;
+  Operation turn(OperationBudget(0));
+  a.seat.set(2);
+  const OperationOutcome refused = turn.settle();
+  LOKA_VERIFY(refused.status == OPERATION_REFUSED_CHAIN_LIMIT);
+  LOKA_VERIFY(Operation::openActive(&b.tracker) == OPEN_CLOCK_REFUSED);
+  b.seat.set(5);
+  LOKA_VERIFY(b.source.get() == 5 && b.derived.get() == 10 && b.commits.calls == 1);
+  LOKA_VERIFY(b.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(b.tracker) == 0);
+  LOKA_VERIFY(Operation::openActive(&a.tracker) == OPEN_ALREADY_OPEN);
+  a.seat.set(3);
+  LOKA_VERIFY(a.source.get() == 3 && a.derived.get() == 2);
+  const OperationOutcome closed = turn.close();
+  LOKA_VERIFY(closed.status == OPERATION_REFUSED_CHAIN_LIMIT);
+  LOKA_VERIFY(a.tracker.phase() == TRACKER_IDLE && b.tracker.phase() == TRACKER_IDLE);
+}
+
 void testSeatAbstractTrackerKeepsLegacyTransaction()
 {
   MutableState<int> source(0);
