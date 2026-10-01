@@ -646,11 +646,17 @@ Writes during apply or focus completion settle at close and leave their
 commit-driven projection pending for the next eligible admission.
 
 Outside a turn, an idle owner's Seat still begins, writes, and ends a transaction
-before returning. A legacy guard opened before the first Seat keeps that behavior
-at its own end. If a Seat already enrolled the ledger, a later guard is nested
-and its end leaves settlement to the clock. Guard, Flow, Menu, and dialog
-transport brackets otherwise retain their existing contracts; Menu is standalone.
-Cleanup writes do not reopen a closing clock.
+before returning. `StateTrackerGuard` joins the active clock too, regardless of
+whether a Seat or guard writes first. It retains begin/end when enrollment is
+refused or no clock is active. Its optional callback is not invoked when joined;
+observe the State or use `StandaloneTransactionGuard` for post-commit work.
+
+`StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
+commit-before-read preparation: menu composition, Scene installation/rearm, and
+bootstrap. Flow's `onSuccess` state assignment joins through `StateTrackerGuard`,
+so a following step or `finally` can still read the previous derived value until
+the tail. Flow's other brackets, dialog transport, and Menu's own NextTick remain
+unchanged. Cleanup writes do not reopen a closing clock.
 
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.

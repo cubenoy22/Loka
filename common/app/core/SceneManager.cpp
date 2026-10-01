@@ -78,7 +78,7 @@ bool SceneManager::applyPendingWork()
   // Only this Scene's owned composition is walked, once per admitted request.
   this->applying_ = current;
   {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
+    loka::core::StandaloneTransactionGuard guard(&this->tracker_);
     current->updateAttached(false);
     current->updateLifecycle(ON_DETACH);
     switch (request)
@@ -152,7 +152,7 @@ void SceneManager::installScene(loka::app::scene::Scene *next)
 {
   loka::app::scene::Scene *old = this->currentScene_.get();
   {
-    loka::core::StateTrackerGuard guard(&this->tracker_);
+    loka::core::StandaloneTransactionGuard guard(&this->tracker_);
     if (old)
     {
       old->setWindow(0);

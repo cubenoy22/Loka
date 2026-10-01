@@ -434,18 +434,28 @@ namespace
   public:
     NodeState<int> value;
     DerivedNodeState<int> doubled;
+    EmitterState click;
     explicit TrackerOwner(const TrackerOwnerProps &props)
         : StdCompositionBoundaryNodeBase<TrackerOwnerProps>(props)
     {
+      this->click.bind(&TrackerOwner::guardedWrite, this, false);
       this->state(this->value, 0);
       this->derived(this->doubled, this->value, new DoubleValue(this->value));
+    }
+    virtual ~TrackerOwner() { this->click.unbind(&TrackerOwner::guardedWrite, this); }
+    static void guardedWrite(void *data)
+    {
+      TrackerOwner &owner = *static_cast<TrackerOwner *>(data);
+      StateTrackerGuard guard(owner.tracker());
+      owner.value.set(3);
     }
     virtual void composeNode(NodeComposition &composition)
     {
       const char *items[] = {"zero", "one", "two", "three"};
       composition.declare(Column()
           << PopupMenu(PopupMenuProps().items(items, 4).selectedIndex(this->value))
-          << ScrollBar(ScrollBarProps().value(this->value).range(0, 10)));
+          << ScrollBar(ScrollBarProps().value(this->value).range(0, 10))
+          << Button(ButtonProps().text("guarded").onClick(&this->click)));
     }
   };
 
@@ -489,7 +499,19 @@ namespace
     HostControl control = {0};
     const short previousPopupItem = toolbox_host::popupItem;
     const short previousTrackedValue = toolbox_host::trackedValue;
-    if (kind == POPUP_INPUT)
+    if (kind == BUTTON_INPUT)
+    {
+      ToolboxButtonContext *context = new ToolboxButtonContext();
+      context->setOwner(node);
+      node->setContext(context);
+      context->rect_ = rect;
+      context->emitter_ = &owner->click;
+      ToolboxHitLedger::ButtonHit hit;
+      hit.rect = rect; hit.context = context; hit.emitter = &owner->click;
+      hit.enabled = 0; hit.boundary = owner;
+      controller.installHit(hit);
+    }
+    else if (kind == POPUP_INPUT)
     {
       const PopupMenuProps &props = node->asPopupMenuNode()->props;
       LOKA_VERIFY(props.selectedIndex_.usesTracker(owner->tracker()));
@@ -527,7 +549,7 @@ namespace
       Operation turn;
       const unsigned admissions = logical.admissions;
       ToolboxInputDoor::mouseDown(controller, point);
-      // PR C1 (#1057): popup/scroll source is immediate, owner-derived values
+      // PR C1/C2 (#1057): Seat/guard source is immediate, owner-derived values
       // move from before present to present's settle. The no-clock twin stays.
       LOKA_VERIFY(owner->value.get() == 3 && owner->doubled.get() == 0);
       LOKA_VERIFY(owner->tracker()->phase() == TRACKER_PRECOMMIT);
@@ -539,7 +561,7 @@ namespace
       ToolboxInputDoor::mouseDown(controller, point);
     // No-clock #366 control; clock variant has now completed present.
     std::printf("[pin] %s owner tracker (%s): source=%d derived=%d\n",
-        kind == POPUP_INPUT ? "popup" : "scroll", clocked ? "clock" : "legacy", owner->value.get(), owner->doubled.get());
+        kind == POPUP_INPUT ? "popup" : (kind == BUTTON_INPUT ? "guarded-button" : "scroll"), clocked ? "clock" : "legacy", owner->value.get(), owner->doubled.get());
     std::fflush(stdout);
     LOKA_VERIFY(owner->value.get() == 3);
     LOKA_VERIFY(owner->doubled.get() == 6);
@@ -651,6 +673,8 @@ int main(int argc, char **argv)
     controlWriteUsesOwnerTracker(POPUP_INPUT);
   if (argc == 1 || std::strcmp(argv[1], "scroll-owner-tracker") == 0)
     controlWriteUsesOwnerTracker(SCROLL_INPUT);
+  if (argc == 1 || std::strcmp(argv[1], "guarded-owner-tracker") == 0)
+    controlWriteUsesOwnerTracker(BUTTON_INPUT);
   const char *names[] = {"edit", "popup", "cell", "scroll", "button"};
   for (int i = 0; i < 5; ++i)
     if (argc == 1 || std::strcmp(argv[1], names[i]) == 0)

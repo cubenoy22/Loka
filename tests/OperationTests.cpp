@@ -201,7 +201,7 @@ namespace
     Ledger ledger;
     Operation operation;
     LOKA_VERIFY(operation.open(&ledger.tracker) == OPEN_OK);
-    StateTrackerGuard guard(&ledger.tracker);
+    StandaloneTransactionGuard guard(&ledger.tracker);
     operation.close();
   }
 

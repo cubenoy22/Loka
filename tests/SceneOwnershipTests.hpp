@@ -57,4 +57,6 @@ void testTwoAdmissionsReclaimLatestDialogSnapshot();
 
 void testSceneReplacementTearsDownEnrolledRootWithoutAssert();
 
+void testSceneInstallProjectsAttachedObserverInsideTurn();
+void testSceneRearmCommitsBeforeReadInsideTurn();
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

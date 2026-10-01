@@ -1,3 +1,4 @@
+#include "core/util/ScopedPtr.hpp"
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
 #include "support/UpstreamGaugePin.hpp"
 #endif
@@ -736,27 +737,28 @@ void testLazyViewCanceledRefusedWindowRefreshesContent()
 void testLazyViewSeatGuardOrders()
 {
   typedef loka::core::testing::PushStateTrackerTestAccess Access;
-  for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
-  {
-    Access::InvalidationProbe commits;
-    Fixture f;
-    LazyViewNode<CardProps> *flex = f.flex();
-    PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
-    NodeState<int> earlier;
-    StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
-    commits.install(owner);
-    Operation turn;
-    if (seatFirst) earlier.set(1);
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
     {
-      StateTrackerGuard viewportGuard(&f.tracker);
-      f.view.set(Frame(0, 200, 200, 160));
+      Access::InvalidationProbe commits;
+      Fixture f;
+      LazyViewNode<CardProps> *flex = f.flex();
+      PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
+      NodeState<int> earlier;
+      StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
+      loka::core::ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      if (seatFirst) earlier.set(1);
+      commits.install(owner);
+      {
+        StateTrackerGuard viewportGuard(&f.tracker);
+        f.view.set(Frame(0, 200, 200, 160));
+      }
+      // C2: either write order joins; without a clock selection still commits here.
+      LOKA_VERIFY(Access::depth(owner) == clocked);
+      LOKA_VERIFY(commits.calls == (clocked ? 0 : 1));
+      if (turn.get()) turn->close();
+      LOKA_VERIFY(commits.calls == 1);
+      f.drain();
+      LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
     }
-    // selectWindow's own guard is first, or nested under the earlier Seat.
-    LOKA_VERIFY(Access::depth(owner) == seatFirst);
-    LOKA_VERIFY(commits.calls == (seatFirst ? 0 : 1));
-    turn.close();
-    LOKA_VERIFY(commits.calls == 1);
-    f.drain();
-    LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
-  }
 }
