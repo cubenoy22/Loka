@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -181,14 +182,9 @@ namespace
     {
       return;
     }
-    const std::size_t n = std::strlen(utf8);
-    const std::size_t capped = (n > 255) ? 255 : n;
     Str255 text;
-    text[0] = static_cast<unsigned char>(capped);
-    if (capped > 0)
-    {
-      std::memcpy(text + 1, utf8, capped);
-    }
+    if (!ToolboxEncodePascal(loka::core::String::Literal(utf8), text))
+      return;
     MoveTo(x, y);
     DrawString(text);
   }

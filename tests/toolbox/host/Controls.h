@@ -1,6 +1,8 @@
 #ifndef LOKA_HOST_CONTROLS_H
 #define LOKA_HOST_CONTROLS_H
 #include "TextEdit.h"
+#include <string>
+#include <vector>
 struct HostControl { short value; };
 typedef HostControl *ControlRef;
 typedef short ControlPartCode;
@@ -50,22 +52,53 @@ inline short FindControl(Point, GrafPtr, ControlRef *out)
 inline short TrackControl(ControlRef c, Point, ControlActionUPP)
 { ++toolbox_host::tracks; c->value = toolbox_host::trackedValue; return kControlIndicatorPart; }
 #ifdef LOKA_HOST_CONTROL_WIDTH
-namespace toolbox_host { extern Rect controlRect; }
+namespace toolbox_host { extern Rect controlRect; extern std::vector<std::string> controlTitles; }
 struct PenState {};
 struct HostQD { int gray; };
 extern HostQD qd;
 inline void GetPenState(PenState *) {}
 inline void SetPenState(const PenState *) {}
 inline void PenPat(const int *) {}
-inline void SetControlTitle(ControlRef, const unsigned char *) {}
+inline void SetControlTitle(ControlRef, const unsigned char *text)
+{ toolbox_host::controlTitles.push_back(std::string(reinterpret_cast<const char *>(text + 1), text[0])); }
 inline void LineTo(short, short) {}
-typedef int *MenuHandle;
-inline MenuHandle NewMenu(short, const unsigned char *) { return new int(0); }
-inline void AppendMenu(MenuHandle, const unsigned char *) {}
+#endif
+/** Native call ledger: Pascal payloads are copied at the OS boundary. */
+struct HostMenu { std::vector<std::string> items; };
+typedef HostMenu *MenuHandle;
+namespace toolbox_host
+{
+  extern std::vector<std::string> menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
+}
+inline std::string HostPascalBytes(const unsigned char *text)
+{ return std::string(reinterpret_cast<const char *>(text + 1), text[0]); }
+inline MenuHandle NewMenu(short, const unsigned char *title)
+{ toolbox_host::menuTitles.push_back(HostPascalBytes(title)); return new HostMenu; }
+inline void AppendMenu(MenuHandle menu, const unsigned char *text)
+{
+  const std::string bytes = HostPascalBytes(text);
+  toolbox_host::menuAppends.push_back(bytes);
+  // Classic AppendMenu treats semicolons and Return as item separators.
+  std::size_t start = 0;
+  for (std::size_t i = 0; i <= bytes.size(); ++i)
+    if (i == bytes.size() || bytes[i] == ';' || bytes[i] == '\r')
+    { menu->items.push_back(bytes.substr(start, i - start)); start = i + 1; }
+}
+inline void InsertMenuItem(MenuHandle menu, const unsigned char *text, short after)
+{
+  toolbox_host::menuInserts.push_back(HostPascalBytes(text));
+  menu->items.insert(menu->items.begin() + after, HostPascalBytes(text));
+}
+inline void SetMenuItemText(MenuHandle menu, short item, const unsigned char *text)
+{
+  toolbox_host::menuSets.push_back(HostPascalBytes(text));
+  if (item > 0 && static_cast<std::size_t>(item) <= menu->items.size())
+    menu->items[item - 1] = HostPascalBytes(text);
+}
 inline void InsertMenu(MenuHandle, short) {}
 inline void LocalToGlobal(Point *) {}
-inline long PopUpMenuSelect(MenuHandle, short, short, short) { return 2; }
+inline long PopUpMenuSelect(MenuHandle, short, short, short) { return toolbox_host::popupItem; }
 inline void DeleteMenu(short) {}
-inline void DisposeMenu(MenuHandle menu) { delete menu; }
-#endif
+inline void DisposeMenu(MenuHandle menu)
+{ toolbox_host::disposedMenuItems = menu->items; delete menu; }
 #endif
