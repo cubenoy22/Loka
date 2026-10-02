@@ -2366,3 +2366,48 @@ void testTwoAdmissionsReclaimLatestDialogSnapshot()
   LOKA_VERIFY(loka::app::testing::DialogResultTestAccess::census(window.dialogResults()) == 0);
   delete registration;
 }
+
+namespace
+{
+  class EnrolledRoot : public loka::app::scene::BoundaryNodeFor<EnrolledRoot>
+  {
+  public:
+    explicit EnrolledRoot(const loka::app::scene::BoundaryPropsFor<EnrolledRoot> &props)
+        : loka::app::scene::BoundaryNodeFor<EnrolledRoot>(props)
+    {
+      this->state(this->value_, 7);
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::Box());
+    }
+  private:
+    loka::app::scene::NodeState<int> value_;
+  };
+}
+
+void testSceneReplacementTearsDownEnrolledRootWithoutAssert()
+{
+  using namespace loka::core;
+  using namespace loka::app::scene;
+  WindowCreatingPlatformContext context;
+  WindowProps props;
+  props.scene(new Scene(loka::app::scene::Boundary<EnrolledRoot>()));
+  NullWindow window(&context, props);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  Scene *outgoing = window.scene();
+  StateTracker *tracker = loka::dsl::testing::SceneTestAccess::rootBoundary(*outgoing)->tracker();
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::hasRegisteredStates(*tracker->asPushTracker()));
+  Operation turn;
+  LOKA_VERIFY(Operation::openActive(tracker) == OPEN_OK);
+  Scene *incoming = new Scene(new loka::app::Box());
+  LOKA_VERIFY(window.sceneManager()->commitTransaction(0, incoming));
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(window.scene() == incoming);
+  LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*outgoing) == 0);
+  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
+  const OperationOutcome outcome = turn.close();
+  LOKA_VERIFY(outcome.status == OPERATION_SETTLED);
+  app.reclaimWindows();
+}

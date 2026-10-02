@@ -42,12 +42,17 @@ namespace loka
       OPEN_OK,
       OPEN_ALREADY_OPEN,
       OPEN_REFUSED_BUSY,
-      OPEN_REFUSED_NOT_PUSH
+      OPEN_REFUSED_NOT_PUSH,
+      OPEN_NO_CLOCK,
+      OPEN_REFUSED_CLOSING
     };
 
     /** Main-thread stack clock borrowing ledgers until close. Nested clocks join
-        the outermost clock, which alone settles and closes all ledgers. Ledgers
-        and their registered States must outlive that close. Nested tracker guards
+        the outermost clock, which alone settles and closes all ledgers. A ledger
+        that still holds registered States must outlive the close; an owner that
+        has unregistered every State may destroy its ledger at any time, which
+        withdraws it. Destroying the stepping ledger from its own callback remains
+        a contract violation. Nested tracker guards
         must end before settlement. Completion turns collect, settle, apply, close,
         then reclaim; collection turns only collect, settle and close. Fair rounds
         visit the ledgers present at each round's start. Production turns do not
@@ -60,6 +65,11 @@ namespace loka
       /** Opens an idle ledger, or recognizes a ledger already in this clock.
           May be called during work rounds, never during cleanup or after close. */
       OpenResult open(StateTracker *tracker);
+      /** The single active-clock door for write seats and guards. No clock returns
+          OPEN_NO_CLOCK so the caller uses legacy begin/end. Cleanup returns
+          OPEN_REFUSED_CLOSING so the caller writes without a route. Otherwise
+          forwards to open without exposing the active clock pointer. */
+      static OpenResult openActive(StateTracker *tracker);
       /** Checkpoint with routes and ledger levels retained. The shared budget,
           first refusal and work-round count survive every checkpoint. */
       OperationOutcome settle();
@@ -84,15 +94,21 @@ namespace loka
       Operation *const outer_;
       PushStateTracker *head_;
       PushStateTracker *tail_;
+      /** Suspended round positions, repaired by withdraw; null outside DRIVING. */
+      PushStateTracker *cursor_;
+      PushStateTracker *frontier_;
+      /** The ledger whose step or cleanup is on the stack; its destruction is a
+          contract violation even when it holds no rows. Null between visits. */
+      PushStateTracker *driving_;
       OperationBudget budget_;
       Phase phase_;
       OperationStatus status_;
       size_t rounds_;
 
       bool hasWork() const;
-      /** Release-build emergency only: unlink without touching State routes.
-          Destruction during a driver callback still violates the lifetime
-          contract, including the captured round frontier's lifetime. */
+      /** Unlink an empty dying ledger and repair suspended round positions.
+          Also retains the release fallback for a violated registered-row contract.
+          Never touches State routes; the stepping ledger must remain alive. */
       void withdraw(PushStateTracker *tracker);
     };
   }

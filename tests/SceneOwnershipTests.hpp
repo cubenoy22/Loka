@@ -55,4 +55,6 @@ void testWindowReclaimDefersBusyCapturedScene();
 
 void testTwoAdmissionsReclaimLatestDialogSnapshot();
 
+void testSceneReplacementTearsDownEnrolledRootWithoutAssert();
+
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

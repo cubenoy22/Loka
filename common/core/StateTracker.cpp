@@ -31,7 +31,8 @@ namespace loka
     Operation *Operation::active_ = 0;
 
     Operation::Operation(const OperationBudget &budget)
-        : outer_(Operation::active_), head_(0), tail_(0), budget_(budget), phase_(OPEN),
+        : outer_(Operation::active_), head_(0), tail_(0), cursor_(0), frontier_(0),
+          driving_(0), budget_(budget), phase_(OPEN),
           status_(OPERATION_SETTLED), rounds_(0)
     {
       if (!this->outer_)
@@ -68,6 +69,15 @@ namespace loka
       return OPEN_OK;
     }
 
+    OpenResult Operation::openActive(StateTracker *tracker)
+    {
+      if (!Operation::active_)
+        return OPEN_NO_CLOCK;
+      if (Operation::active_->phase_ == CLOSING)
+        return OPEN_REFUSED_CLOSING;
+      return Operation::active_->open(tracker);
+    }
+
     bool Operation::hasWork() const
     {
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
@@ -101,18 +111,29 @@ namespace loka
           break;
         }
         --this->budget_.rounds;
-        PushStateTracker *const frontier = this->tail_;
+        this->frontier_ = this->tail_;
+        this->cursor_ = this->head_;
         ++this->rounds_;
-        for (PushStateTracker *t = this->head_; t; t = t->opNext_)
+        while (this->cursor_ && this->frontier_)
         {
-          if (t->hasWork() && t->step(this->budget_) == PushStateTracker::STEP_STATE_BUDGET)
+          PushStateTracker *t = this->cursor_;
+          this->cursor_ = t->opNext_;
+          if (t->hasWork())
           {
-            this->status_ = OPERATION_REFUSED_STATE_BUDGET;
-            break;
+            this->driving_ = t;
+            const PushStateTracker::StepResult result = t->step(this->budget_);
+            this->driving_ = 0;
+            if (result == PushStateTracker::STEP_STATE_BUDGET)
+            {
+              this->status_ = OPERATION_REFUSED_STATE_BUDGET;
+              break;
+            }
           }
-          if (t == frontier)
+          if (t == this->frontier_)
             break;
         }
+        this->cursor_ = 0;
+        this->frontier_ = 0;
         if (this->status_ != OPERATION_SETTLED)
           break;
       }
@@ -129,8 +150,13 @@ namespace loka
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
         t->removeRoutes();
       for (PushStateTracker *t = this->head_; t; t = t->opNext_)
-        if (!t->drainDeferred(this->budget_) && this->status_ == OPERATION_SETTLED)
+      {
+        this->driving_ = t;
+        const bool drained = t->drainDeferred(this->budget_);
+        this->driving_ = 0;
+        if (!drained && this->status_ == OPERATION_SETTLED)
           this->status_ = OPERATION_REFUSED_CHAIN_LIMIT;
+      }
       while (this->head_)
       {
         PushStateTracker *t = this->head_;
@@ -153,6 +179,10 @@ namespace loka
       {
         if (t == tracker)
         {
+          if (this->cursor_ == t)
+            this->cursor_ = t->opNext_;
+          if (this->frontier_ == t)
+            this->frontier_ = previous;
           if (previous)
             previous->opNext_ = t->opNext_;
           else
@@ -213,7 +243,10 @@ namespace loka
     {
       if (this->op_)
       {
-        assert(!"ledger destroyed while open by an Operation");
+        // An empty ledger may leave the clock, unless its own step or cleanup
+        // is on the stack: the driver resumes into this object afterwards.
+        if (this->statesHead_ || this->op_->driving_ == this)
+          assert(!"ledger destroyed while open by an Operation");
         this->op_->withdraw(this);
       }
       releaseEntries();

@@ -12,7 +12,8 @@ void testOperationStateBudgetClosesAllLedgers();
 void testOperationSettlesOnLastPermittedRound();
 void testOperationCloseDrainIsBounded();
 void testOperationWriteDuringCloseIsUnmarked();
-void testOperationRejectsLedgerDestructionWhileOpen();
+void testLedgerWithRowsCannotBeDestroyedWhileOpen();
+void testSteppingLedgerCannotDestroyItselfEvenWithoutRows();
 void testStateTrackerNestedGuardInsideOperationDoesNotDrive();
 void testOperationAuditRejectsRouteInstallOverAnotherLedgerBegin();
 void testOperationAuditRejectsRouteInstallOverAnotherLedgerAddState();
@@ -29,5 +30,10 @@ void testOperationClockContracts();
 void testNestedOperationJoinsOuterClock();
 void testSettleLeavesLedgersOpenWithRoutes();
 void testSettleThenCloseShareOneBudgetAndKeepFirstRefusal();
+
+void testEmptyLedgerLeavesClockOnDestruction();
+void testWithdrawDuringRoundKeepsDriverSafe();
+void testOpenActiveWithoutClockReportsNoClock();
+void testOpenActiveDuringClosingIsRefused();
 
 #endif
