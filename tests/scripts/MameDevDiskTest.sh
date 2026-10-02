@@ -93,6 +93,7 @@ for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleView
 done
 touch "$SANDBOX/repo/build/retro68/68k/Release/example/ScrapbookUI/ASSETS.LRP"
 touch "$SANDBOX/repo/example/SmirkyCard/MAIN.JS" "$SANDBOX/repo/example/SmirkyCard/MINES.JS" "$SANDBOX/repo/example/SmirkyCard/VIEWER.JS"
+cp "$REPO_DIR/example/SmirkyCard/disk-scripts.txt" "$SANDBOX/repo/example/SmirkyCard/"
 run_all() {
   MAME_DEV_DISK_TEST_LOG="$SANDBOX/all.log" \
   MAME_ENV_FILE="$SANDBOX/missing.env" \
@@ -110,8 +111,19 @@ for script in MAIN.JS MINES.JS VIEWER.JS; do
   grep -Fx "hcopy <-r> <$SANDBOX/repo/example/SmirkyCard/$script> <:>" "$SANDBOX/all.log" >/dev/null ||
     fail "All omitted SmirkyCard $script"
 done
+# A manifest-only addition must retain the original calls and append one script.
+# Exercise CRLF, whitespace, comments, and an unterminated final line as well.
+printf '\r\n  # extra card\r\n\r\n  FOURTH.JS  ' >> "$SANDBOX/repo/example/SmirkyCard/disk-scripts.txt"
+touch "$SANDBOX/repo/example/SmirkyCard/FOURTH.JS"
+: > "$SANDBOX/all.log"
+run_all
+[ "$(grep -c '^hcopy <-r>' "$SANDBOX/all.log")" -eq 5 ] || fail "manifest addition did not copy five assets"
+for script in MAIN.JS MINES.JS VIEWER.JS FOURTH.JS; do
+  grep -Fx "hcopy <-r> <$SANDBOX/repo/example/SmirkyCard/$script> <:>" "$SANDBOX/all.log" >/dev/null ||
+    fail "extended manifest omitted $script"
+done
 cp "$SANDBOX/all.hd" "$SANDBOX/previous.hd"
-for script in MAIN.JS MINES.JS VIEWER.JS; do
+for script in MAIN.JS MINES.JS VIEWER.JS FOURTH.JS; do
   mv "$SANDBOX/repo/example/SmirkyCard/$script" "$SANDBOX/missing.js"
   if run_all 2>/dev/null; then
     fail "All accepted missing $script"

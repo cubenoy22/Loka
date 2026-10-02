@@ -96,10 +96,13 @@ if ($MacBinaryPath -eq "--all") {
         }
     )
     $PlainDataPaths = @(
-        (Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP"),
-        (Join-Path $ProjectDirectory "example/SmirkyCard/MAIN.JS"),
-        (Join-Path $ProjectDirectory "example/SmirkyCard/MINES.JS"),
-        (Join-Path $ProjectDirectory "example/SmirkyCard/VIEWER.JS")
+        Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP"
+        # Manifest readers in mame-*-disk* and SmirkyCard/CMakeLists.txt stay parallel.
+        foreach ($line in Get-Content -LiteralPath (Join-Path $ProjectDirectory "example/SmirkyCard/disk-scripts.txt")) {
+            $script = $line.Trim()
+            if (!$script -or $script.StartsWith("#")) { continue }
+            Join-Path $ProjectDirectory "example/SmirkyCard/$script"
+        }
     )
 }
 $resolvedMacBinaries = @(
