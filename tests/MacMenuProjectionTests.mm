@@ -306,12 +306,18 @@ void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget()
     TestApp app;
     MenuBarDefinition offered = bar();
     LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
-    id target = [commandItem() target];
-    LOKA_VERIFY(target != nil);
-    LokaMenuTargetReleaseWitness *witness = [[LokaMenuTargetReleaseWitness alloc]
-        initWithReleased:&targetReleased detached:&detachedBeforeTargetRelease];
-    objc_setAssociatedObject(target, &witnessKey, witness, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    [witness release];
+    {
+      // Reading a weak `target` without ARC retains and autoreleases it; drain
+      // that +1 before the attachment dies so the witness sees the real release.
+      NSAutoreleasePool *reading = [[NSAutoreleasePool alloc] init];
+      id target = [commandItem() target];
+      LOKA_VERIFY(target != nil);
+      LokaMenuTargetReleaseWitness *witness = [[LokaMenuTargetReleaseWitness alloc]
+          initWithReleased:&targetReleased detached:&detachedBeforeTargetRelease];
+      objc_setAssociatedObject(target, &witnessKey, witness, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+      [witness release];
+      [reading drain];
+    }
     LOKA_VERIFY(!targetReleased && [NSApp mainMenu] != nil);
   }
   LOKA_VERIFY([NSApp mainMenu] == nil);
