@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxButtonContext.hpp"
@@ -36,7 +37,7 @@ namespace
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     Str255 text;
-    if (!ToolboxBuildPascalText(value, text))
+    if (!ToolboxEncodePascal(value, text))
     {
       return;
     }
@@ -184,7 +185,7 @@ bool ReconcileToolboxButtonControl(ControlRef control, const loka::core::String 
   if (installedLabel != labelUtf8)
   {
     Str255 title;
-    if (!ToolboxBuildPascalText(label, title))
+    if (!ToolboxEncodePascal(label, title))
       return false;
     SetControlTitle(control, title);
     installedLabel = labelUtf8;

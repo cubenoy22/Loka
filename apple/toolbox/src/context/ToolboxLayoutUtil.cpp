@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 
 #include "ToolboxScenePlatformController.hpp"
@@ -15,7 +16,7 @@ namespace
   }
 }
 
-bool ToolboxBuildPascalText(const loka::core::String &value, Str255 text)
+bool ToolboxBuildLegacyTextPascal(const loka::core::String &value, Str255 text)
 {
   std::string utf8;
   if (!loka::platform::CollectUtf8(value, utf8))
@@ -82,7 +83,25 @@ bool ToolboxTextMeasureScope::measure(const loka::core::String &value, short &wi
   if (!this->valid())
     return false;
   Str255 text;
-  if (!ToolboxBuildPascalText(value, text))
+  if (!ToolboxEncodePascal(value, text))
+    return false;
+  width = StringWidth(text);
+  return true;
+}
+
+short ToolboxTextMeasureScope::measureLegacyText(const loka::core::String &value) const
+{
+  short width = 0;
+  this->measureLegacyText(value, width);
+  return width;
+}
+
+bool ToolboxTextMeasureScope::measureLegacyText(const loka::core::String &value, short &width) const
+{
+  if (!this->valid())
+    return false;
+  Str255 text;
+  if (!ToolboxBuildLegacyTextPascal(value, text))
     return false;
   width = StringWidth(text);
   return true;
