@@ -72,7 +72,15 @@ find_retro68_tool() {
 MAME_EXECUTABLE="$(normalize_host_path "${MAME_EXECUTABLE:-mame}")"
 MAME_HDA="$(normalize_host_path "${MAME_HDA:-}")"
 [ -f "$MAME_HDA" ] || fail 'MAME_HDA must point to the boot template'
-export LOKA_TAB_COUNT="${LOKA_TAB_COUNT:-$((1 + ${#EXTRA_FILES[@]}))}"
+# Finder Tab order is a per-disk fact (run-scenario.sh records it per cell: an
+# app plus LokaTest.cfg needs 2 Tabs for HelloWorld but 3 for Tutorial). Only
+# the app alone is known to need one; with extra files the caller states it.
+if [ -z "${LOKA_TAB_COUNT:-}" ]; then
+  [ "${#EXTRA_FILES[@]}" -eq 0 ] \
+    || fail 'extra files change the Finder Tab order; set LOKA_TAB_COUNT for this disk'
+  LOKA_TAB_COUNT=1
+fi
+export LOKA_TAB_COUNT
 export LOKA_RUN_WAIT="${LOKA_RUN_WAIT:-90}"
 [[ "$LOKA_TAB_COUNT" =~ ^[1-9][0-9]*$ ]] || usage
 [[ "$LOKA_RUN_WAIT" =~ ^[1-9][0-9]*$ ]] || usage

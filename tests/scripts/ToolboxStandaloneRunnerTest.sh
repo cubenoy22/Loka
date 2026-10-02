@@ -93,12 +93,12 @@ for mode in native wsl; do
   grep -Fq 'terminal status=succeeded' "$SANDBOX/output" || fail 'log not printed'
   [ "$(cat "$SANDBOX/template.hd")" = template ] || fail 'template modified'
   touch "$WORK/stale"
-  run 0 "$APP" "$SANDBOX/inputs/Sun pict" --expect "$SANDBOX/expected.audit"
+  run 1 "$APP" "$SANDBOX/inputs/Sun pict" --expect "$SANDBOX/expected.audit"
+  grep -Fq 'set LOKA_TAB_COUNT' "$SANDBOX/output" || fail 'extra files without a Tab count must be refused'
+  LOKA_TAB_COUNT=2 run 0 "$APP" "$SANDBOX/inputs/Sun pict" --expect "$SANDBOX/expected.audit"
   [ ! -e "$WORK/stale" ] || fail 'work directory not wiped'
-  [ "$(head -1 "$SANDBOX/env")" = 2 ] || fail 'two items must use two Tabs'
+  [ "$(head -1 "$SANDBOX/env")" = 2 ] || fail 'stated Tab count not forwarded'
   grep -Fq "|-r|$SANDBOX/inputs/Sun pict|:" "$SANDBOX/copies" || fail 'plain file not staged intact'
-  run 0 "$APP" "$SANDBOX/inputs/Sun pict" "$SANDBOX/inputs/Second"
-  [ "$(head -1 "$SANDBOX/env")" = 3 ] || fail 'three-item count wrong'
   LOKA_TAB_COUNT=4 LOKA_RUN_WAIT=17 LOKA_LAUNCH_WAIT=12 run 0 "$APP"
   [ "$(head -1 "$SANDBOX/env")" = 4 ] || fail 'Tab override ignored'
   grep -Fxq 17 "$SANDBOX/env" || fail 'run wait override ignored'

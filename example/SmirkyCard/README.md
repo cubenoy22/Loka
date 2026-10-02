@@ -360,11 +360,12 @@ sidecar. It writes LOG.TXT beside itself and quits on the terminal record.
 With `Sun.pict` extracted from the boot template to `build/fixtures/Sun.pict`, run:
 
 ```sh
-tests/toolbox/run-standalone.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyViewStandaloneFlow68K.bin build/fixtures/Sun.pict --expect example/SmirkyCard/tests/VIEWER.audit
+LOKA_TAB_COUNT=2 tests/toolbox/run-standalone.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyViewStandaloneFlow68K.bin build/fixtures/Sun.pict --expect example/SmirkyCard/tests/VIEWER.audit
 ```
 
-The same launcher settings described for MINES apply; the application and picture
-produce two Finder Tabs automatically.
+The same launcher settings described for MINES apply. With the picture beside the
+application the Finder needs two Tabs to select it (observed on the maciix rig);
+the runner refuses extra files without an explicit `LOKA_TAB_COUNT`.
 For the Sun fixture, the result records are:
 
 ```text
