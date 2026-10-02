@@ -633,6 +633,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameDebugLaunchTest.sh)
     add_test(NAME scriptMameRunLaunch
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/MameRunLaunchTest.sh)
+    add_test(NAME scriptToolboxStandaloneRunner
+      COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/ToolboxStandaloneRunnerTest.sh)
     add_test(NAME scriptRetro68Environment
       COMMAND bash ${PROJECT_SOURCE_DIR}/tests/scripts/Retro68EnvironmentTest.sh)
     add_test(NAME scriptCiPaths
