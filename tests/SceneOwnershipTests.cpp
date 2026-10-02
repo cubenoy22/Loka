@@ -2453,3 +2453,187 @@ void testSceneManagerLedgerNeverEnrolls()
   LOKA_VERIFY(window.scene() == installed);
   LOKA_VERIFY(turn.close().rounds == 0);
 }
+
+#include "app/nodes/controls/TextEditor.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "support/Headless.hpp"
+#include "testing/app/WindowTestAccess.hpp"
+
+namespace
+{
+  /** Surviving owner makes detach writes and their tail notification distinct. */
+  struct CloseTurnOwner : loka::app::scene::HeadlessStateOwner
+  {
+    loka::app::scene::Request<loka::app::LineCursor> request;
+    loka::app::Focus<unsigned> focus;
+    loka::core::ObservableList<loka::core::String> lines;
+    loka::app::scene::Reported<loka::app::LineCursor> cursor;
+    std::vector<bool> detaches;
+    std::vector<bool> requestCommits;
+    std::vector<bool> focusCommits;
+    std::vector<bool> destructions;
+
+    CloseTurnOwner()
+    {
+      loka::app::scene::StateBatchBase::CreateImmediateState(this, this->request, loka::app::LineCursor::None());
+      loka::app::scene::StateBatchBase::CreateImmediateState(this, this->cursor, loka::app::LineCursor::None());
+      LOKA_VERIFY(this->lines.attach(this->tracker()->asPushTracker(), 1) == loka::core::ATTACH_OK);
+      LOKA_VERIFY(this->lines.insert(0, loka::core::String("abc")) == loka::core::EDIT_OK);
+    }
+    static void requestChanged(void *data)
+    {
+      CloseTurnOwner &owner = *static_cast<CloseTurnOwner *>(data);
+      owner.requestCommits.push_back(loka::core::Operation::hasActive());
+    }
+    static void focusChanged(void *data)
+    {
+      CloseTurnOwner &owner = *static_cast<CloseTurnOwner *>(data);
+      LOKA_VERIFY(!(owner.focus.state()->get() != loka::app::Focused<unsigned>::none()));
+      owner.focusCommits.push_back(loka::core::Operation::hasActive());
+    }
+  };
+
+  class CloseTurnRoot;
+  struct CloseTurnProps : loka::app::scene::NodePropsBase<CloseTurnProps>
+  {
+    typedef CloseTurnRoot NodeType;
+    struct TypeTag {};
+    CloseTurnOwner *owner;
+    explicit CloseTurnProps(CloseTurnOwner &value) : owner(&value) {}
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+        return this->propsTypeId() < rhs.propsTypeId();
+      return std::less<CloseTurnOwner *>()(this->owner, static_cast<const CloseTurnProps &>(rhs).owner);
+    }
+  };
+  class CloseTurnRoot : public loka::app::scene::StdCompositionBoundaryNodeBase<CloseTurnProps>
+  {
+  public:
+    explicit CloseTurnRoot(const CloseTurnProps &props)
+        : loka::app::scene::StdCompositionBoundaryNodeBase<CloseTurnProps>(props)
+    {
+      this->state(this->props.owner->focus);
+    }
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      composition.declare(loka::app::F()
+          << loka::app::TextEditor(loka::app::TextEditorProps(this->props.owner->lines, this->props.owner->cursor).moveCaretTo(this->props.owner->request))
+          << loka::app::EditText(loka::app::EditTextProps().focusedAs(this->props.owner->focus, 1u)));
+    }
+    virtual void detachNode(loka::app::scene::NodeComposition &)
+    {
+      this->props.owner->detaches.push_back(loka::core::Operation::hasActive());
+    }
+  };
+  class CloseTurnWindow : public NullWindow
+  {
+  public:
+    CloseTurnWindow(PlatformContext &context, CloseTurnOwner &owner)
+        : NullWindow(&context, makeProps(owner)), owner_(owner) {}
+    virtual ~CloseTurnWindow()
+    {
+      this->owner_.destructions.push_back(loka::core::Operation::hasActive());
+    }
+  private:
+    CloseTurnOwner &owner_;
+    static WindowProps makeProps(CloseTurnOwner &owner)
+    {
+      typedef loka::app::scene::BoundaryDefinition<CloseTurnProps, CloseTurnRoot> Root;
+      return WindowProps().scene(new loka::app::scene::Scene(Root(CloseTurnProps(owner))));
+    }
+  };
+  struct CloseTurnAction
+  {
+    WindowAdmissionTestApp &app;
+    Window &window;
+    static void close(void *data)
+    {
+      CloseTurnAction &action = *static_cast<CloseTurnAction *>(data);
+      action.app.requestWindowClose(&action.window);
+    }
+  };
+}
+
+void testWindowCloseDetachHookRunsInsideTurn()
+{
+  WindowCreatingPlatformContext context;
+  CloseTurnOwner owner;
+  CloseTurnWindow *window = new CloseTurnWindow(context, owner);
+  WindowAdmissionTestApp app(*window);
+  app.operationLoop();
+  CloseTurnAction action = {app, *window};
+  app.operationLoop(&CloseTurnAction::close, &action);
+  LOKA_VERIFY(owner.detaches.size() == 1);
+  std::fprintf(stderr, "C5 P1: DETACH active=%d\n", owner.detaches[0] ? 1 : 0);
+  LOKA_VERIFY(owner.detaches[0]);
+  LOKA_VERIFY(owner.destructions.size() == 1 && !owner.destructions[0]);
+}
+
+void testWindowCloseRequestCommitsAtTurnTail()
+{
+  WindowCreatingPlatformContext context;
+  CloseTurnOwner owner;
+  CloseTurnWindow *window = new CloseTurnWindow(context, owner);
+  WindowAdmissionTestApp app(*window);
+  app.operationLoop();
+  loka::core::Operation turn;
+  owner.request.set(loka::app::LineCursor(1, 2));
+  turn.settle();
+  LOKA_VERIFY(owner.request.get() != loka::app::LineCursor::None());
+  owner.setInvalidateCallback(&CloseTurnOwner::requestChanged, &owner);
+  app.requestWindowClose(window);
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(owner.request.get() == loka::app::LineCursor::None());
+  LOKA_VERIFY(owner.requestCommits.empty());
+  turn.close();
+  LOKA_VERIFY(owner.requestCommits.size() == 1 && owner.requestCommits[0]);
+  app.reclaimWindows();
+  LOKA_VERIFY(owner.requestCommits.size() == 1);
+  owner.setInvalidateCallback(0, 0);
+}
+
+void testWindowCloseFocusClearsInsideTurn()
+{
+  WindowCreatingPlatformContext context;
+  CloseTurnOwner owner;
+  CloseTurnWindow *window = new CloseTurnWindow(context, owner);
+  WindowAdmissionTestApp app(*window);
+  app.operationLoop();
+  owner.focus.post(1u);
+  app.operationLoop();
+  LOKA_VERIFY(owner.focus.state()->get().is(1u));
+  owner.focus.state()->bind(&CloseTurnOwner::focusChanged, &owner, false);
+  loka::core::Operation turn;
+  app.requestWindowClose(window);
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(owner.focusCommits.size() == 1 && owner.focusCommits[0]);
+  LOKA_VERIFY(loka::app::testing::WindowTestAccess::publishedFocusContext(*window) == 0);
+  loka::app::testing::WindowTestAccess::reconcileFocus(*window);
+  turn.close();
+  LOKA_VERIFY(owner.focusCommits.size() == 1 && owner.focusCommits[0]);
+  app.reclaimWindows();
+  app.reconcileFocus();
+  LOKA_VERIFY(owner.focusCommits.size() == 1);
+}
+
+void testWindowCloseTwoAdmissionsDetachOnceReclaimLater()
+{
+  WindowCreatingPlatformContext context;
+  CloseTurnOwner owner;
+  CloseTurnWindow *window = new CloseTurnWindow(context, owner);
+  WindowAdmissionTestApp app(*window);
+  app.operationLoop();
+  loka::core::Operation turn;
+  app.requestWindowClose(window);
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(owner.detaches.size() == 1 && owner.detaches[0]);
+  LOKA_VERIFY(owner.destructions.empty());
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(owner.detaches.size() == 1 && owner.destructions.empty());
+  turn.close();
+  LOKA_VERIFY(owner.destructions.empty());
+  app.reclaimWindows();
+  LOKA_VERIFY(owner.detaches.size() == 1);
+  LOKA_VERIFY(owner.destructions.size() == 1 && !owner.destructions[0]);
+}

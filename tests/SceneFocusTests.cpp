@@ -227,8 +227,14 @@ namespace
   void closeWhilePublishing(void *data)
   {
     CloseAction &action = *static_cast<CloseAction *>(data);
+    Node *root = SceneAccess::rootNode(*action.window->scene());
+    LOKA_VERIFY(root);
+    loka::core::Operation turn;
     action.app->requestWindowClose(action.window);
-    action.app->flush();
+    action.app->admitAndApplyWindows();
+    LOKA_VERIFY(SceneAccess::rootNode(*action.window->scene()) == root);
+    turn.close();
+    action.app->reclaimWindows();
     LOKA_VERIFY(action.app->closed == 0);
   }
   void assertPublishing(void *data)
@@ -516,7 +522,7 @@ void testSceneFocusBusyClose()
   CloseAction action = {&app, window};
   Access::duringPublication(window->scene()->focus(), &closeWhilePublishing, &action);
   LOKA_VERIFY(app.closed == 0);
-  app.flush();
+  app.operationLoop();
   LOKA_VERIFY(app.closed == 1);
   app.flush();
   LOKA_VERIFY(app.closed == 1);

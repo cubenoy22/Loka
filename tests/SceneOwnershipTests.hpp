@@ -60,4 +60,8 @@ void testSceneReplacementTearsDownEnrolledRootWithoutAssert();
 void testSceneInstallProjectsAttachedObserverInsideTurn();
 void testSceneRearmCommitsBeforeReadInsideTurn();
 void testSceneManagerLedgerNeverEnrolls();
+void testWindowCloseDetachHookRunsInsideTurn();
+void testWindowCloseRequestCommitsAtTurnTail();
+void testWindowCloseFocusClearsInsideTurn();
+void testWindowCloseTwoAdmissionsDetachOnceReclaimLater();
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP
