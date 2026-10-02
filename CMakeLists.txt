@@ -425,6 +425,23 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxMemorySourceTests COMMAND LokaToolboxMemorySourceTests)
 
+  add_executable(LokaToolboxBoxLayoutTests
+    tests/toolbox/host/ToolboxBoxLayoutHostTests.cpp
+    apple/toolbox/src/ToolboxNodeDispatch.cpp
+    apple/toolbox/src/ToolboxPlatformLayoutHandlers.cpp tests/TestingHooks.cpp)
+  target_include_directories(LokaToolboxBoxLayoutTests PRIVATE tests apple/toolbox/src)
+  target_compile_options(LokaToolboxBoxLayoutTests PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxBoxLayoutHost.hpp)
+  target_link_libraries(LokaToolboxBoxLayoutTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxBoxLayoutTests)
+  set_target_properties(LokaToolboxBoxLayoutTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_box_path handler fallback)
+    foreach(_box_case normal nested fixed empty small equal zero negative scroll-refusal scroll-limit)
+      add_test(NAME testToolboxBox_${_box_path}_${_box_case}
+        COMMAND LokaToolboxBoxLayoutTests ${_box_path} ${_box_case})
+    endforeach()
+  endforeach()
+
   # Production QuickDraw projection against a deterministic host OS fixture.
   add_executable(LokaToolboxAttributedTextTests
     tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
