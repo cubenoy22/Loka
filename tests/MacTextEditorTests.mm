@@ -1529,7 +1529,13 @@ void testMacTextEditorRefusals()
 
 void testMacTextEditorNestedInput()
 {
-  for (int deferred = 0; deferred < 2; ++deferred)
+  // PR C2 (#1057): only the immediate variant remains. The deferred variant
+  // modelled a callback deferred through the document ledger re-entering
+  // native input while the guard's own end() still ran it inside the input
+  // borrow; with the guard joining the collection turn that callback runs at
+  // the turn's settle, outside the borrow, and the path it pinned no longer
+  // exists. Production defers only BoundaryNode release thunks.
+  for (int deferred = 0; deferred < 1; ++deferred)
   {
     Fixture f;
     Observer observer(f);
@@ -1537,6 +1543,7 @@ void testMacTextEditorNestedInput()
     observer.deferred = deferred != 0;
     f.edit(@"abxcd\nabcd\nabcd", 3);
     LOKA_VERIFY(!f.controller.borrowPhase().open());
+    // An immediate observer re-enters inside the input borrow: refused, as #977 says.
     LOKA_VERIFY(observer.calls == 1 && bytes(f.lines.at(0).value) == "abxcd");
     LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(0).id, 3));
     f.restored(1);

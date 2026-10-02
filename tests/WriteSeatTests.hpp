@@ -17,4 +17,15 @@ void testTwoSeatsWithoutClockProjectTwice();
 void testThreeSeatOwnersTwoScenesSeeEveryCommit();
 void testSeatOwnerDestroyedDuringApplyLeavesClock();
 void testFlowStepSeatGuardOrders();
+void testGuardInsideTurnJoinsAndSettlesAtTail();
+void testGuardOutsideClockKeepsLegacyBracket();
+void testGuardOnBusyLedgerNestsLegacyLevel();
+void testGuardCallbackFiresOnlyOutsideTurn();
+void testStandaloneGuardCommitsBeforeReadInsideTurn();
+void testGuardedBlocksProjectOnceAtTail();
+void testMenuCompositionCommitsBeforeReadInsideTurn();
+void testBootstrapVisibilityCommitsBeforeReadInsideTurn();
+void testFlowOnSuccessJoinsTurn();
+void testMenuStateToggledInHandlerRebuildsMenuInSameTail();
+void testStandaloneLedgerRefusesTheClock();
 #endif

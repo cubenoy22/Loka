@@ -1,3 +1,4 @@
+#include "core/util/ScopedPtr.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "platform/null/NullWindow.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
@@ -1967,7 +1968,7 @@ namespace
     }
   };
 
-  void VerifyPreparedReplacement(bool reveal, bool observeAttach, bool ordinary)
+  void VerifyPreparedReplacement(bool reveal, bool observeAttach, bool ordinary, bool clocked = false)
   {
     WindowCreatingPlatformContext context;
     WindowProps props;
@@ -1981,8 +1982,10 @@ namespace
     if (!ordinary) probe.observed.getAttachedState()->bind(&PreparedNotification::run, &probe, false);
     const unsigned long before = window.scenePlatformController()->onChangeCallCount();
     LOKA_VERIFY(window.sceneManager()->commitTransaction(0, b));
+    loka::core::ScopedPtr<loka::core::Operation> turn(clocked ? new loka::core::Operation : 0);
     app.flush();
     LOKA_VERIFY(window.scene() == b);
+    LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::trackerPhase(*window.sceneManager()) == loka::core::TRACKER_IDLE);
     Node *edit = FindPreparedEdit(SceneTestAccess::rootNode(*b));
     LOKA_VERIFY(edit && edit->getContext());
     if (ordinary) LOKA_VERIFY(window.scenePlatformController()->onChangeCallCount() == before + 1);
@@ -2410,4 +2413,43 @@ void testSceneReplacementTearsDownEnrolledRootWithoutAssert()
   const OperationOutcome outcome = turn.close();
   LOKA_VERIFY(outcome.status == OPERATION_SETTLED);
   app.reclaimWindows();
+}
+
+void testSceneInstallProjectsAttachedObserverInsideTurn() { VerifyPreparedReplacement(true, true, false, true); }
+
+void testSceneRearmCommitsBeforeReadInsideTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    WindowCreatingPlatformContext context;
+    NullWindow window(&context, WindowProps().scene(new Scene(new loka::app::EditTextDefinition())));
+    WindowAdmissionTestApp app(window);
+    app.flush();
+    loka::core::ScopedPtr<loka::core::Operation> turn(clocked ? new loka::core::Operation : 0);
+    window.sceneManager()->requestRearm();
+    app.flush();
+    LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::trackerPhase(*window.sceneManager()) == loka::core::TRACKER_IDLE);
+    Node *edit = FindPreparedEdit(SceneTestAccess::rootNode(*window.scene()));
+    LOKA_VERIFY(edit && edit->getContext());
+  }
+}
+
+void testSceneManagerLedgerNeverEnrolls()
+{
+  using namespace loka::core;
+  typedef loka::app::testing::SceneManagerTestAccess ManagerAccess;
+  WindowCreatingPlatformContext context;
+  NullWindow window(&context, WindowProps().scene(new Scene(new loka::app::EditTextDefinition())));
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  SceneManager &manager = *window.sceneManager();
+  const PushStateTracker &tracker = ManagerAccess::tracker(manager);
+  Scene *installed = window.scene();
+  Operation turn;
+  ManagerAccess::writeCurrentScene(manager);
+  LOKA_VERIFY(tracker.phase() == TRACKER_IDLE);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(tracker) == 0);
+  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
+  LOKA_VERIFY(window.scene() == installed);
+  LOKA_VERIFY(turn.close().rounds == 0);
 }

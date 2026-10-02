@@ -636,7 +636,7 @@ It is the reason Loka can avoid treating the whole UI as one undifferentiated
 tree. State updates should be made inside a tracker transaction so the framework
 can see what changed and decide what to update.
 
-`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an idle
+`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an eligible idle
 owner ledger joins `Operation`: source values and direct observers remain
 synchronous, but derived values, the dirty summary, and Scene projection wait
 for the turn's settle/apply. Reading an owner-derived value immediately after
@@ -646,11 +646,21 @@ Writes during apply or focus completion settle at close and leave their
 commit-driven projection pending for the next eligible admission.
 
 Outside a turn, an idle owner's Seat still begins, writes, and ends a transaction
-before returning. A legacy guard opened before the first Seat keeps that behavior
-at its own end. If a Seat already enrolled the ledger, a later guard is nested
-and its end leaves settlement to the clock. Guard, Flow, Menu, and dialog
-transport brackets otherwise retain their existing contracts; Menu is standalone.
-Cleanup writes do not reopen a closing clock.
+before returning. `StateTrackerGuard` joins the active clock too, regardless of
+whether a Seat or guard writes first. It retains begin/end when enrollment is
+refused or no clock is active. Its optional callback is not invoked when joined;
+observe the State or use `StandaloneTransactionGuard` for post-commit work.
+
+`StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
+commit-before-read preparation: menu composition, Scene installation/rearm, and
+bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
+construction, so earlier handler writes cannot enroll them in the turn clock.
+Their seat writes and ordinary tracker guards keep synchronous transactions.
+Window retains a joining ledger; bootstrap uses the standalone bracket before
+any turn. Flow's `onSuccess` state assignment joins through `StateTrackerGuard`,
+so a following step or `finally` can still read the previous derived value until
+the tail. Flow's other brackets, dialog transport, and Menu's own NextTick remain
+unchanged. Cleanup writes do not reopen a closing clock.
 
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.

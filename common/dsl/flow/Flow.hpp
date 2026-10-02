@@ -222,7 +222,12 @@ namespace loka
       }
 
       /** Applies a successful output to borrowed State within its owner's
-          borrowed tracker transaction. Both must outlive Flow execution. */
+          borrowed tracker transaction. Inside a rail turn that transaction
+          joins the turn's clock (core::Operation), so the State and its
+          tracker must outlive the turn in which the Flow ran, not only the
+          execution; an owner that must die earlier unregisters its States
+          first, which lets its empty ledger leave the clock. Outside a turn
+          the bracket closes before onSuccess returns, as before. */
       StepSpec &onSuccess(loka::core::MutableState<Out> *state, loka::core::StateTracker *tracker)
       {
         assert(state != 0 && "StepSpec::onSuccess requires a target state");

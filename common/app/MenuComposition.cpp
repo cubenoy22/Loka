@@ -1,5 +1,6 @@
 #include "app/MenuComposition.hpp"
 #include "app/Menu.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 
 namespace loka
 {
@@ -77,13 +78,14 @@ namespace loka
         {
           tracker->setInvalidateCallback(invalidateFn_, invalidateUserData_);
         }
-        tracker->begin();
       }
-      boundary.composeMenu(*this);
+      {
+        loka::core::StandaloneTransactionGuard guard(tracker);
+        boundary.composeMenu(*this);
+      }
       bool boundaryDirty = false;
       if (tracker)
       {
-        tracker->end();
         boundaryDirty = tracker->peekDirty();
       }
       if (boundaryDirty)

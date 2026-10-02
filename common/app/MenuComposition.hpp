@@ -24,7 +24,7 @@ namespace loka
     {
     public:
       MenuBoundary()
-          : tracker_(),
+          : tracker_(loka::core::LEDGER_STANDALONE),
             ownedStates_(),
             callbacks_()
       {
