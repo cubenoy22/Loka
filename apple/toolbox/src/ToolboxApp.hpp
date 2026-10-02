@@ -7,6 +7,7 @@
 #include <Menus.h>
 #include <Quickdraw.h>
 #include "ToolboxActivationPhase.hpp"
+#include "ToolboxMenuAttachment.hpp"
 class ToolboxApp;
 class ToolboxSceneDebugStats;
 
@@ -91,29 +92,8 @@ public:
   virtual void run();
   virtual void quit();
   void handleMenuSelection(short menuId, short item);
-  static void MenuEnabledChangedThunk(void *userData);
-  static void MenuCheckedChangedThunk(void *userData);
-
-public:
   virtual void applyMenuBar(Window *activeWindow);
-
-  struct MenuCommand
-  {
-    short menuId;
-    short itemIndex;
-    loka::app::MenuActionType action;
-    loka::core::EmitterState *emitter;
-  };
-
-  struct MenuBinding
-  {
-    ToolboxApp *app;
-    MenuHandle menu;
-    short itemIndex;
-    loka::core::State<bool> *enabledState;
-    bool invertEnabled;
-    loka::core::State<bool> *checkedState;
-  };
+  ToolboxMenuAttachment &menuAttachment() { return this->menuAttachment_; }
 
   /** Called by a live menu binding when it has updated the app-owned menu
       data. Foreground: redraws the menu bar immediately. Background: the
@@ -124,19 +104,6 @@ public:
 private:
   friend class CursorOwner;
   void sampleHover(bool force);
-  struct MenuEntry
-  {
-    MenuHandle menu;
-    short menuId;
-    bool isAppMenu;
-    loka::core::String title;
-  };
-
-  void clearMenuBindings();
-  void clearMenuBindingsFor(MenuHandle menuHandle, short menuId);
-  void resetMenuState();
-  void disposeMenuEntries();
-  void disposeHierarchicalMenus();
   /** Applies recorded scene changes and, while foreground, paints each window
       once at the run-loop tick's presentation boundary. */
   void present(ActivationPhase phase, loka::core::Operation &turn);
@@ -147,11 +114,7 @@ private:
   /** A background binding changed the menu data; one DrawMenuBar is owed at
       resume. */
   bool menuBarDrawDeferred_;
-  short nextMenuId_;
-  std::vector<MenuCommand> commands_;
-  std::vector<MenuBinding *> bindings_;
-  std::vector<MenuEntry> menuEntries_;
-  std::vector<MenuHandle> hierarchicalMenus_;
+  ToolboxMenuAttachment menuAttachment_;
   bool running_;
 };
 
