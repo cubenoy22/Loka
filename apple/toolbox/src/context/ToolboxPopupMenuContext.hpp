@@ -93,7 +93,6 @@ private:
   FaceValue faceValue() const;
   void paintFace(const ToolboxPaintClip &clip);
   short clampIndex(int index) const;
-  void copyToPascalString(const loka::core::String &value, Str255 out) const;
   short menuId() const;
 
   loka::app::PopupMenuNode *node_;

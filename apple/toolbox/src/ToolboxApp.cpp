@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "ToolboxApp.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxScenePlatformController.hpp"
@@ -474,22 +475,6 @@ void ToolboxApp::quit()
   running_ = false;
 }
 
-static void CopyToPascalString(const loka::core::String &value, Str255 out)
-{
-  std::string utf8;
-  if (!loka::platform::CollectUtf8(value, utf8))
-  {
-    out[0] = 0;
-    return;
-  }
-  std::size_t length = utf8.size();
-  if (length > 255)
-    length = 255;
-  out[0] = static_cast<unsigned char>(length);
-  for (std::size_t i = 0; i < length; ++i)
-    out[1 + i] = static_cast<unsigned char>(utf8[i]);
-}
-
 void ToolboxApp::MenuEnabledChangedThunk(void *userData)
 {
   ToolboxApp::MenuBinding *binding = static_cast<ToolboxApp::MenuBinding *>(userData);
@@ -696,9 +681,10 @@ static void BuildMenuItems(ToolboxApp *app,
       continue;
     }
     Str255 title;
-    CopyToPascalString(itemDef->title, title);
-    AppendMenu(menu, title);
+    ToolboxEncodePascal(itemDef->title, title);
+    AppendMenu(menu, "\p ");
     short itemIndex = CountMenuItems(menu);
+    SetMenuItemText(menu, itemIndex, title);
     if (itemDef->hasChildren())
     {
       short subMenuId = nextMenuId++;
@@ -846,8 +832,9 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       AppendResMenu(menu, 'DRVR');
       const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
-      CopyToPascalString(itemDef->title, aboutTitle);
-      InsertMenuItem(menu, aboutTitle, 0);
+      ToolboxEncodePascal(itemDef->title, aboutTitle);
+      InsertMenuItem(menu, "\p ", 0);
+      SetMenuItemText(menu, 1, aboutTitle);
       short aboutIndex = 1;
       // Separator not needed; desk accessories already have one.
       ToolboxApp::MenuCommand command;
@@ -886,10 +873,10 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
         continue;
       }
       Str255 title;
-      CopyToPascalString(menuDef->title, title);
+      ToolboxEncodePascal(menuDef->title, title);
       if (title[0] == 0)
       {
-        CopyToPascalString(loka::core::String::Literal("Menu"), title);
+        ToolboxEncodePascal(loka::core::String::Literal("Menu"), title);
       }
       short menuId = nextMenuId_;
       MenuHandle menu = NewMenu(menuId, title);
@@ -987,8 +974,9 @@ void ToolboxApp::applyMenuBar(Window *activeWindow)
       AppendResMenu(entry.menu, 'DRVR');
       const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
       Str255 aboutTitle;
-      CopyToPascalString(itemDef->title, aboutTitle);
-      InsertMenuItem(entry.menu, aboutTitle, 0);
+      ToolboxEncodePascal(itemDef->title, aboutTitle);
+      InsertMenuItem(entry.menu, "\p ", 0);
+      SetMenuItemText(entry.menu, 1, aboutTitle);
       short aboutIndex = 1;
       ToolboxApp::MenuCommand command;
       command.menuId = entry.menuId;

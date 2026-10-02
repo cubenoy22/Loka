@@ -1,3 +1,4 @@
+#include "support/SeatBuildRequestAccess.hpp"
 #include "StackSpansTests.hpp"
 #include "StateStreamEvaluationTests.hpp"
 #include "StateStreamChainTests.hpp"

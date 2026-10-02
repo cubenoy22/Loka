@@ -1066,6 +1066,16 @@ The design goal is that memory and lifecycle are visible from the DSL structure.
 
 ### `LazyView()` / `LazyColumn()` / `LazyRow()`
 
+A typed per-item node recipe and positive maximum window are required, including
+for direct `LazyViewProps` construction. Declare the item node and all of its
+Component children; the library adds the generation, Fragment and Canvas.
+Recipe and maximum are fixed for a view Boundary lifetime. An incompatible props
+value requires a new Boundary; geometry, list and viewport can still change.
+The maximum includes margin rows. Selection always publishes its key. Declaring
+an oversized window asserts in Debug and refuses in Release before constructing
+a generation; it never grows the reservation.
+
+
 See [LazyList](../example/LazyList/README.md) for a paged card view with content edits, structural edits, and compile-time capacity builds.
 
 Use a lazy list for fixed-size component items backed by an `ObservableList`.
@@ -1073,15 +1083,18 @@ Each item Props type `T` names its `NodeType`, derived from `ComponentNodeWithPr
 The list and the viewport State belong to the app and must outlive the view.
 
 ```cpp
-c.declare(LazyColumn(cards).cells(200, 20).viewport(*this->viewport_.state()));
+typedef reservation::Nodes<CardNode, 1, reservation::Nodes<StackNode, 1,
+    reservation::Nodes<TextNode, 1, reservation::Nodes<ButtonNode, 1> > > > CardNodes;
+c.declare(LazyColumn(cards, reservation::SeatNodes<CardNodes>(), 12)
+    .cells(200, 20).viewport(*this->viewport_.state()));
 ```
 
-`LazyRow(cards)` selects horizontal progression.
+`LazyRow(cards, reservation::SeatNodes<CardNodes>(), 12)` selects horizontal progression.
 Horizontal viewport movement selects the window but leaves residents in absolute
 content coordinates; horizontal scrolling is pending a ScrollView X offset.
 `.wrap(count)` groups cells
 across the other axis. The explicit form is
-`LazyView<CardProps>(cards, layout::FixedGrid(200, 20))`. The helpers also
+`LazyView<CardProps>(cards, layout::FixedGrid(200, 20), reservation::SeatNodes<CardNodes>(), 12)`. The helpers also
 accept `.margin(rows)`, defaulting to one extra main-axis row on each side. The app writes the viewport rectangle in content coordinates.
 An empty initial viewport creates no item controls until the first sized value.
 

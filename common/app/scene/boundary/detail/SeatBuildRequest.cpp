@@ -32,7 +32,7 @@ namespace loka
           return available ? BUILD_AVAILABLE : BUILD_WAIT;
         }
 
-        bool ReturnedSeatStorage::build(const SeatLayoutTable &demand, NodeBuildOperation &operation)
+        bool AdmittedSeatStorage::build(const SeatLayoutTable &demand, NodeBuildOperation &operation)
         {
           return this->bank_.build(demand.layouts(), demand.count(), operation);
         }
@@ -76,10 +76,10 @@ namespace loka
           if (request.retiring() || capacity == BUILD_WAIT)
             return false;
           request.settle();
-          ReturnedSeatStorage returned(*this);
+          AdmittedSeatStorage returned(*this);
           if (returned.build(demand, operation))
             return true;
-          request.mark();
+          if (request.phase_ != SeatBuildRequest::REFUSED) request.mark();
           return false;
         }
       } // namespace detail

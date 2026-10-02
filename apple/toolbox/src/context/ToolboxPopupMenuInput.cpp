@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 /** Included by the native context and the host input fixture. */
 bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePlatformController *controller)
 {
@@ -28,8 +29,10 @@ bool ToolboxPopupMenuContext::handleMouseDown(const Point &point, ToolboxScenePl
   for (std::size_t j = 0; j < items->size(); ++j)
   {
     Str255 text;
-    copyToPascalString((*items)[j], text);
-    AppendMenu(menu, text);
+    ToolboxEncodePascal((*items)[j], text);
+    static const unsigned char placeholder[] = {1, ' '};
+    AppendMenu(menu, placeholder);
+    SetMenuItemText(menu, static_cast<short>(j + 1), text);
   }
   InsertMenu(menu, -1);
   short currentIndex = clampIndex(selectedIndex->get());

@@ -513,3 +513,23 @@ loka_compile_pin(paint-source-requires-merge-declaration
   REFUSES pins/refuses_paint_source_declaration.cpp
   ACCEPTS pins/accepts_paint_source_declaration.cpp
 )
+
+loka_compile_pin(lazyview-column-requires-recipe
+  REFUSES pins/refuses_lazyview_column_recipe.cpp
+  ACCEPTS pins/accepts_lazyview_column_recipe.cpp
+)
+
+loka_compile_pin(lazyview-row-requires-recipe
+  REFUSES pins/refuses_lazyview_row_recipe.cpp
+  ACCEPTS pins/accepts_lazyview_row_recipe.cpp
+)
+
+loka_compile_pin(lazyview-view-requires-recipe
+  REFUSES pins/refuses_lazyview_view_recipe.cpp
+  ACCEPTS pins/accepts_lazyview_view_recipe.cpp
+)
+
+loka_compile_pin(lazyview-props-requires-recipe
+  REFUSES pins/refuses_lazyview_props_recipe.cpp
+  ACCEPTS pins/accepts_lazyview_props_recipe.cpp
+)

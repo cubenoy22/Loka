@@ -1,11 +1,16 @@
 #include "ToolboxHost.hpp"
+#include "Script.h"
 #include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <cstring>
 namespace toolbox_host
 {
+  long systemScript = smRoman;
+  unsigned scriptReads = 0;
   ControlCalls controlCalls;
+  std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<Draw> draws;
+  std::vector<std::string> pascalDraws, windowTitles;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
@@ -15,10 +20,17 @@ namespace toolbox_host
   void reset()
   {
     draws.clear();
+    pascalDraws.clear();
     erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
   }
 } // namespace toolbox_host
+long GetScriptManagerVariable(short selector)
+{
+  if (selector == smSysScript)
+    ++toolbox_host::scriptReads;
+  return toolbox_host::systemScript;
+}
 namespace
 {
   GrafPort initialPort = {7, 12, 0};
@@ -351,7 +363,13 @@ namespace toolbox_host { GrafPtr frontWindow = 0; }
 
 // Compile the real plain leaf alongside the real attributed leaf in this fixture.
 #include "context/ToolboxTextContext.cpp"
-void DrawString(const unsigned char *text) { DrawText(text + 1, 0, text[0]); }
+void DrawString(const unsigned char *text)
+{
+  toolbox_host::pascalDraws.push_back(HostPascalBytes(text));
+  DrawText(text + 1, 0, text[0]);
+}
+void SetWTitle(GrafPtr, const unsigned char *text)
+{ toolbox_host::windowTitles.push_back(HostPascalBytes(text)); }
 short ToolboxScenePlatformController::measureTextWidth(
     const loka::core::String &value, const ToolboxTextFontDescriptor &descriptor) const
 {
@@ -370,16 +388,7 @@ namespace
 {
   int gActiveScrollBarLineStep = 1, gActiveScrollBarPageStep = 1;
   ControlActionUPP ScrollBarActionUPP() { return 0; }
-#ifndef LOKA_HOST_CONTROL_WIDTH
-  typedef int *MenuHandle;
-  MenuHandle NewMenu(short, const unsigned char *) { return new int(0); }
-  void AppendMenu(MenuHandle, const unsigned char *) {}
-  void InsertMenu(MenuHandle, short) {}
-  void LocalToGlobal(Point *) {}
-  long PopUpMenuSelect(MenuHandle, short, short, short) { return toolbox_host::popupItem; }
-  void DeleteMenu(short) {}
-  void DisposeMenu(MenuHandle menu) { delete menu; }
-#endif
+
 }
 #include "ToolboxControlInput.cpp"
 #include "ToolboxInputPublication.cpp"

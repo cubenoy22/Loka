@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "ToolboxInputDoor.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxApp.hpp"
@@ -15,16 +16,6 @@
 
 namespace
 {
-  void CopyToPascalString(const std::string &value, Str255 out)
-  {
-    std::size_t length = value.size();
-    if (length > 255)
-      length = 255;
-    out[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-      std::memcpy(out + 1, value.data(), length);
-  }
-
   Rect PrimaryWorkArea()
   {
     Rect work = qd.screenBits.bounds;
@@ -189,7 +180,8 @@ void ToolboxWindow::open()
   }
 #endif
   Str255 titleStr;
-  CopyToPascalString(title, titleStr);
+  if (!ToolboxEncodePascal(loka::core::String(title), titleStr))
+    ToolboxEncodePascal(loka::core::String::Literal("Loka"), titleStr);
 
   window_ = NewWindow(0, &bounds, titleStr, true, documentProc, (WindowPtr)-1, true, 0);
   if (!this->window_)
@@ -393,7 +385,8 @@ void ToolboxWindow::TitleChangedThunk(void *userData)
     title = "Loka";
   }
   Str255 titleStr;
-  CopyToPascalString(title, titleStr);
+  if (!ToolboxEncodePascal(loka::core::String(title), titleStr))
+    ToolboxEncodePascal(loka::core::String::Literal("Loka"), titleStr);
   SetWTitle(self->window_, titleStr);
 }
 

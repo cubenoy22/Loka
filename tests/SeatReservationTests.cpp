@@ -449,3 +449,34 @@ void testSeatReservationMineSweeperColdBacking()
   refuseBacking = false;
   loka::core::LokaAllocSetBackend(0, 0);
 }
+
+void testSeatReservationPreservedBackingAndScaling()
+{
+  SeatReservations owner;
+  SeatLayoutTable demand;
+  LOKA_VERIFY(demand.append(NodeSlotLayout::of<Item>(1)));
+  LOKA_VERIFY(demand.append(NodeSlotLayout::of<Substitute>(1)));
+  const SeatReservation *seat = owner.install(demand, PRESERVE_INSTALLED);
+  LOKA_VERIFY(seat && seat->replacementPolicy() == PRESERVE_INSTALLED);
+  LOKA_VERIFY(countLayout(seat->layoutTable(), NodeSlotLayout::of<Item>(1)) == 2);
+  SeatLayoutTable backing(seat->layoutTable());
+  LOKA_VERIFY(backing.scale(2));
+  size_t expected = 0, actual = 0;
+  LOKA_VERIFY(NodePartition::reservationBytes(backing.layouts(), backing.count(), 0, expected));
+  LOKA_VERIFY(seat->reservationBytes(actual) && actual == expected);
+  LOKA_VERIFY(seat->partition().buildCapacity(backing.layouts(), backing.count()) == NodePartition::BUILD_AVAILABLE);
+  Item *root = new (seat->partition().allocate(NodeSlotLayout::of<Item>(1))) Item();
+  LOKA_VERIFY(seat->partition().registerNode(root, 0));
+  Item *child = new (seat->partition().allocate(NodeSlotLayout::of<Item>(1))) Item();
+  LOKA_VERIFY(seat->partition().registerNode(child, root));
+  owner.recordRetiringRoot(child);
+  LOKA_VERIFY(!seat->request().retiring());
+  owner.recordRetiringRoot(root);
+  LOKA_VERIFY(seat->request().retiring() && !seat->request().waiting());
+  LOKA_VERIFY(seat->partition().destroy(root, NodeSlotLayout::of<Item>(1)));
+  owner.returnedNode(root);
+  LOKA_VERIFY(!seat->request().retiring());
+  SeatLayoutTable overflow;
+  LOKA_VERIFY(overflow.append(NodeSlotLayout::of<Item>(static_cast<size_t>(-1))));
+  LOKA_VERIFY(!overflow.scale(2) && overflow.layouts()[0].count() == static_cast<size_t>(-1));
+}
