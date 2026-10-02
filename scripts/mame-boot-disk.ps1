@@ -107,7 +107,10 @@ if ($All) {
     if (Test-Path -LiteralPath $assets) {
         $plainData += (Resolve-Path -LiteralPath $assets).Path
     }
-    foreach ($script in @("MAIN.JS", "MINES.JS", "VIEWER.JS")) {
+    # Manifest readers in mame-*-disk* and SmirkyCard/CMakeLists.txt stay parallel.
+    foreach ($line in Get-Content -LiteralPath (Join-Path $ProjectDirectory "example/SmirkyCard/disk-scripts.txt")) {
+        $script = $line.Trim()
+        if (!$script -or $script.StartsWith("#")) { continue }
         $smirkyCardScript = Join-Path $ProjectDirectory "example/SmirkyCard/$script"
         if (Test-Path -LiteralPath $smirkyCardScript) {
             $plainData += (Resolve-Path -LiteralPath $smirkyCardScript).Path

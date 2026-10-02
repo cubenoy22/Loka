@@ -16,6 +16,10 @@ class SelectionTest(unittest.TestCase):
             root = Path(temporary)
             scripts = root / "scripts"
             scripts.mkdir()
+            cards = root / "example/SmirkyCard"
+            cards.mkdir(parents=True)
+            manifest = cards / "disk-scripts.txt"
+            shutil.copy2(ROOT / "example/SmirkyCard/disk-scripts.txt", manifest)
             shutil.copy2(ROOT / "scripts/mame-dev-disk-app.sh", scripts)
             for name in ("retro68-cmake.sh", "mame-dev-disk.sh", "toolbox-standalone-flow.sh"):
                 path = scripts / name
@@ -43,12 +47,23 @@ class SelectionTest(unittest.TestCase):
                     self.assertIn("build/retro68/" + cpu + "/" + location + "/" + target + ".bin", calls)
                     self.assertIn("mame-dev-disk.sh|" + cpu + "|", calls)
                     if key == "SmirkyCard":
-                        self.assertIn(str(root / "example/SmirkyCard/MAIN.JS") + " " +
-                                      str(root / "example/SmirkyCard/MINES.JS") + " " +
-                                      str(root / "example/SmirkyCard/VIEWER.JS") + "\n", calls)
+                        with self.subTest(cpu=cpu, manifest="original"):
+                            self.assertIn(str(root / "example/SmirkyCard/MAIN.JS") + " " +
+                                          str(root / "example/SmirkyCard/MINES.JS") + " " +
+                                          str(root / "example/SmirkyCard/VIEWER.JS") + "\n", calls)
                     elif key == "ScrapbookUI":
                         self.assertIn(str(root / ("build/retro68/" + cpu +
                                                  "/Release/example/ScrapbookUI/ASSETS.LRP")) + "\n", calls)
+                original_manifest = manifest.read_bytes()
+                manifest.write_bytes(original_manifest + b"\r\n  # extra card\r\n\r\n  FOURTH.JS  ")
+                Path(env["CALL_LOG"]).write_text("")
+                subprocess.run(["bash", str(scripts / "mame-dev-disk-app.sh"),
+                                "SmirkyCard"], env=env, check=True)
+                calls = Path(env["CALL_LOG"]).read_text()
+                with self.subTest(cpu=cpu, manifest="fourth card"):
+                    self.assertIn(" ".join(str(cards / name) for name in
+                                           ("MAIN.JS", "MINES.JS", "VIEWER.JS", "FOURTH.JS")) + "\n", calls)
+                manifest.write_bytes(original_manifest)
                 for key, flag in (("All", "--all"), ("AllStandaloneLoops", "--all-loops"),
                                   ("AllStandaloneFlows", "--all-flows")):
                     Path(env["CALL_LOG"]).write_text("")

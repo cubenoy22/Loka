@@ -315,6 +315,7 @@ namespace loka
         {
           return;
         }
+        this->seatReservations_.recordRetiringRoot(node);
         Node::MarkSubtreeLifecycleFact(node, NODE_FACT_RETIRED);
         if (context.platformController())
         {

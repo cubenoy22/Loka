@@ -1,4 +1,6 @@
 #include "app/layout/ColumnLayout.hpp"
+#include "context/ToolboxTextContext.hpp"
+#include "Script.h"
 #include "app/layout/RowLayout.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -24,6 +26,9 @@ namespace
     {
       c.declare(Column().TEST_ID("column") << Button(this->title.state()).TEST_ID("button")
           << EditText(this->title).TEST_ID("edit") << PopupMenu().TEST_ID("popup")
+          << Text(this->title.state()).TEST_ID("text")
+          << (Text(this->title.state()).TEST_ID("wrapped") + BlockStyle().wrap(TEXT_WRAP_WORD))
+          << (Text(this->title.state()).TEST_ID("ellipsis") + BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS))
           << (Row().TEST_ID("row") << Button(this->title.state()).TEST_ID("row-button")));
     }
     NodeState<String> title;
@@ -76,7 +81,83 @@ int main(int argc, char **argv)
   popup->setContext(new ToolboxPopupMenuContext(popup->asPopupMenuNode(), &controller));
   rowButton->setContext(new ToolboxButtonContext(rowButton->asButtonNode(), &controller));
   const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
-  if (std::strncmp(mode, "column-", 7) == 0)
+  if (std::strcmp(mode, "encoding-button") == 0)
+  {
+    const String label = String::Literal("Open\xE2\x80\xA6 \xC3\xA9");
+    const std::string expected("Open\xC9 \x8E", 7);
+    HostControl control = {0};
+    std::string installed;
+    toolbox_host::controlTitles.clear();
+    LOKA_VERIFY(ReconcileToolboxButtonControl(&control, label, 0, installed));
+    LOKA_VERIFY(toolbox_host::controlTitles.size() == 1);
+    LOKA_VERIFY(toolbox_host::controlTitles[0] == expected);
+    LOKA_VERIFY(installed == "Open\xE2\x80\xA6 \xC3\xA9");
+    LOKA_VERIFY(ReconcileToolboxButtonControl(&control, label, 0, installed));
+    LOKA_VERIFY(toolbox_host::controlTitles.size() == 1);
+    { StateTrackerGuard guard(root->tracker()); root->title.set(label); }
+    LayoutState offer = seat(0);
+    const short measured = rowButton->context->layout(&controller, offer);
+    Str255 encoded = {7, 'O', 'p', 'e', 'n', 0xC9, ' ', 0x8E};
+    LOKA_VERIFY(measured == StringWidth(encoded) + 16);
+  }
+  else if (std::strcmp(mode, "encoding-popup") == 0)
+  {
+    String longLabel = String::Literal("");
+    for (unsigned i = 0; i < 128; ++i)
+      longLabel = String::Concat(longLabel, String::Literal("\xC3\xA9"));
+    longLabel = String::Concat(longLabel, String::Literal(";X"));
+    loka::Vector<String> items;
+    items.push_back(longLabel);
+    MutableState<int> selected(0);
+    ToolboxPopupMenuContext &context = *static_cast<ToolboxPopupMenuContext *>(popup->context);
+    context.updateData(&items, &selected, WriteSeat<int>(), 0, 0);
+    Rect face; SetRect(&face, 10, 20, 250, 44);
+    context.updateRect(face, 16);
+    toolbox_host::reset();
+    context.draw();
+    const std::string expected = std::string(128, static_cast<char>(0x8E)) + ";X";
+    LOKA_VERIFY(!toolbox_host::draws.empty());
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == expected);
+    LOKA_VERIFY(toolbox_host::pascalDraws.size() == 1);
+    LOKA_VERIFY(toolbox_host::pascalDraws[0] == expected);
+    toolbox_host::menuAppends.clear(); toolbox_host::menuSets.clear();
+    const Point click = {25, 15};
+    LOKA_VERIFY(context.handleMouseDown(click, 0));
+    LOKA_VERIFY(toolbox_host::menuAppends.size() == 1);
+    LOKA_VERIFY(toolbox_host::menuAppends[0] == " ");
+    LOKA_VERIFY(toolbox_host::menuSets.size() == 1);
+    LOKA_VERIFY(toolbox_host::menuSets[0] == expected);
+    LOKA_VERIFY(toolbox_host::disposedMenuItems.size() == 1);
+    LOKA_VERIFY(toolbox_host::disposedMenuItems[0] == expected);
+  }
+  else if (std::strcmp(mode, "encoding-text") == 0)
+  {
+    const String label = String::Literal("Open\xE2\x80\xA6 \xC3\xA9");
+    { StateTrackerGuard guard(root->tracker()); root->title.set(label); }
+    const char *ids[] = {"text", "wrapped"};
+    for (unsigned i = 0; i < 2; ++i)
+    {
+      Node *text = lookup(scene, ids[i]);
+      text->setContext(new ToolboxTextContext(text->asTextNode(), &controller));
+      LayoutState offer = seat(0);
+      toolbox_host::reset();
+      LOKA_VERIFY(text->context->layout(&controller, offer) == TextWidth("Open\xE2\x80\xA6 \xC3\xA9", 0, 10));
+      text->context->render(&controller);
+      LOKA_VERIFY(!toolbox_host::draws.empty());
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open\xE2\x80\xA6 \xC3\xA9");
+      LOKA_VERIFY(static_cast<ToolboxTextContext *>(text->context)->visibleWidth()
+          == TextWidth("Open\xE2\x80\xA6 \xC3\xA9", 0, 10));
+    }
+    Node *ellipsis = lookup(scene, "ellipsis");
+    ellipsis->setContext(new ToolboxTextContext(ellipsis->asTextNode(), &controller));
+    LayoutState narrow = seat(32);
+    toolbox_host::reset();
+    ellipsis->context->layout(&controller, narrow);
+    ellipsis->context->render(&controller);
+    LOKA_VERIFY(toolbox_host::draws.size() == 1);
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open...");
+  }
+  else if (std::strncmp(mode, "column-", 7) == 0)
   {
     Node *target = std::strcmp(mode, "column-button") == 0 ? button :
         std::strcmp(mode, "column-edit") == 0 ? edit : popup;

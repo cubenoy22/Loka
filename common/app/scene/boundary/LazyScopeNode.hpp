@@ -7,7 +7,7 @@ namespace loka
   {
     namespace scene
     {
-      template <class K, class NodeT> class LazyScopeDefinition;
+      template <class K, class NodeT, class Reservation> class LazyScopeDefinition;
       /** Generation owner whose own constructor states and declaration bindings
           connect in the candidate window before declareScope. */
       class LazyScopeNode : public GenerationRoot
@@ -20,7 +20,7 @@ namespace loka
         virtual void declareScope(NodeComposition &composition) = 0;
 
       private:
-        template <class K, class NodeT> friend class LazyScopeDefinition;
+        template <class K, class NodeT, class Reservation> friend class LazyScopeDefinition;
         void prepareScope(ComponentContext &context, NodeComposition &composition)
         {
           this->stateOwner_.attachStateOwner(context.boundary(), context.stateOwner());

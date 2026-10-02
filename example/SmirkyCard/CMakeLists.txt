@@ -2,6 +2,18 @@ cmake_minimum_required(VERSION 3.18)
 
 include(cmake/QuickJS.cmake)
 
+# Manifest readers in scripts/mame-*-disk* stay parallel with this reader.
+set(SMIRKYCARD_DISK_MANIFEST "${CMAKE_CURRENT_SOURCE_DIR}/disk-scripts.txt")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${SMIRKYCARD_DISK_MANIFEST}")
+file(STRINGS "${SMIRKYCARD_DISK_MANIFEST}" smirkycard_disk_lines)
+set(SMIRKYCARD_DISK_SCRIPTS)
+foreach(line IN LISTS smirkycard_disk_lines)
+  string(STRIP "${line}" script)
+  if(NOT script STREQUAL "" AND NOT script MATCHES "^#")
+    list(APPEND SMIRKYCARD_DISK_SCRIPTS "${script}")
+  endif()
+endforeach()
+
 set(SMIRKYCARD_BUILTIN_MAIN_JS ${CMAKE_CURRENT_SOURCE_DIR}/MAIN.JS)
 set(SMIRKYCARD_BUILTIN_MAIN_HEADER ${CMAKE_CURRENT_BINARY_DIR}/BuiltinMainJs.inc)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${SMIRKYCARD_BUILTIN_MAIN_JS})
@@ -61,25 +73,26 @@ if(WIN32)
   smirkycard_cpp_target(LokaSmirkyCardWin32)
   loka_enable_win32_visual_styles(LokaSmirkyCardWin32)
   target_link_libraries(LokaSmirkyCardWin32 PRIVATE LokaWin32Core)
-  configure_file(MAIN.JS MAIN.JS COPYONLY)
-  configure_file(MINES.JS MINES.JS COPYONLY)
-  configure_file(VIEWER.JS VIEWER.JS COPYONLY)
+  foreach(script IN LISTS SMIRKYCARD_DISK_SCRIPTS)
+    configure_file("${script}" "${script}" COPYONLY)
+  endforeach()
 elseif(LOKA_MACOS AND LOKA_ENABLE_APPLE)
   enable_language(OBJCXX)
   loka_suppress_arclite_link()
   set(SMIRKYCARD_MACOS_RESOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/macos-resources)
   file(MAKE_DIRECTORY ${SMIRKYCARD_MACOS_RESOURCE_DIR})
-  configure_file(MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS COPYONLY)
-  configure_file(MINES.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS COPYONLY)
-  configure_file(VIEWER.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS COPYONLY)
-  set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS
-    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS PROPERTIES
+  set(SMIRKYCARD_MACOS_RESOURCES)
+  foreach(script IN LISTS SMIRKYCARD_DISK_SCRIPTS)
+    set(resource "${SMIRKYCARD_MACOS_RESOURCE_DIR}/${script}")
+    configure_file("${script}" "${resource}" COPYONLY)
+    list(APPEND SMIRKYCARD_MACOS_RESOURCES "${resource}")
+  endforeach()
+  set_source_files_properties(${SMIRKYCARD_MACOS_RESOURCES} PROPERTIES
     GENERATED TRUE
     MACOSX_PACKAGE_LOCATION Resources
   )
   add_executable(LokaSmirkyCardMacOS MACOSX_BUNDLE src/MacOSMain.mm
-    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MAIN.JS ${SMIRKYCARD_MACOS_RESOURCE_DIR}/MINES.JS
-    ${SMIRKYCARD_MACOS_RESOURCE_DIR}/VIEWER.JS)
+    ${SMIRKYCARD_MACOS_RESOURCES})
   smirkycard_cpp_target(LokaSmirkyCardMacOS)
   # The open panel's view service keys its defaults by the bundle identifier and
   # refuses to display without one (NSUserDefaults: domain name cannot be nil).

@@ -5,6 +5,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "LazyViewTests.hpp"
 #include "support/TestVerify.hpp"
+#include "support/SeatBuildRequestAccess.hpp"
 #include "app/nodes/nestable/LazyView.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -19,6 +20,12 @@
 #include "testing/scene/OwnershipDump.hpp"
 #include <cstdio>
 #include <cstring>
+#include "core/Operation.hpp"
+#if defined(__linux__)
+#include <sys/wait.h>
+#include <unistd.h>
+#include <signal.h>
+#endif
 
 namespace
 {
@@ -59,7 +66,7 @@ namespace
           editing(false),
           scrolling(false),
           parking(false),
-          updates(0)
+          updates(0), maximum(32), refuseAttach(-1), events(0), withoutPoll(false), refuseClass(false), onAttach(0)
     {
       for (int i = 0; i < 64; ++i)
       {
@@ -72,10 +79,27 @@ namespace
     State<Frame> *viewport, *otherViewport;
     bool editing, scrolling, parking;
     int updates;
+    unsigned maximum;
+    int refuseAttach;
+    std::vector<int> *events;
+    bool withoutPoll;
+    int refuseClass;
+    void (*onAttach)(int);
     int constructions[64], bindings[64];
     CardNode *cards[64];
   };
   Record *record;
+  struct MissingNode;
+  struct MissingProps : NodePropsBase<MissingProps>
+  { typedef MissingProps TypeTag; typedef MissingNode NodeType;
+    bool operator<(const PropsBase &) const { return false; } };
+  struct MissingNode : Node
+  {
+    typedef MissingProps TypeTag;
+    MissingProps props;
+    explicit MissingNode(const MissingProps &p) : props(p) {}
+    char distinctLayout[4096];
+  };
   class CardNode : public ComponentNodeWithProps<CardProps>
   {
   public:
@@ -99,9 +123,25 @@ namespace
       if (!this->label.get().equals(this->props.label))
         this->label.set(this->props.label);
     }
+    virtual void attachNode(NodeComposition &)
+    {
+      if (record->events) record->events->push_back(this->props.number + 1);
+      if (record->onAttach) record->onAttach(this->props.number);
+      if (record->refuseAttach == this->props.number)
+      {
+        record->refuseAttach = -1;
+        this->componentContext()->boundary()->noteComposeAllocationFailure();
+      }
+    }
+    virtual void detachNode(NodeComposition &)
+    { if (record->events) record->events->push_back(-this->props.number - 1); }
     virtual void composeChildren(NodeComposition &c)
     {
-      if (record->editing)
+      if (record->refuseClass == 1 || (record->refuseClass == 3 && this->props.number == 9)) c.declare(NodeDefinition<MissingProps, MissingNode>(MissingProps()));
+      else if (record->refuseClass == 2)
+        c.declare(Row() << Text("quota") << Button("one") << Button("two")
+                       << Button("three") << Button("four") << Button("five") << Button("six"));
+      else if (record->editing)
         c.declare(Row() << Text(this->label.state()) << EditText(this->label));
       else
         c.declare(Row() << Text(this->label.state()) << Button("marker"));
@@ -109,6 +149,9 @@ namespace
     NodeState<String> label;
     NodeState<bool> toggle;
   };
+  typedef reservation::Nodes<CardNode, 1, reservation::Nodes<StackNode, 1,
+      reservation::Nodes<TextNode, 1, reservation::Nodes<ButtonNode, 1,
+      reservation::Nodes<EditTextNode, 1> > > > > CardNodes;
   class CountedFlex : public LazyViewNode<CardProps>
   {
   public:
@@ -120,7 +163,9 @@ namespace
     {
       if (event == COMPOSE_EVENT_UPDATE)
         ++record->updates;
-      LazyViewNode<CardProps>::composeWithContext(context, event);
+      if (record->withoutPoll)
+        StdCompositionBoundaryNodeBase<LazyViewProps<CardProps> >::composeWithContext(context, event);
+      else LazyViewNode<CardProps>::composeWithContext(context, event);
     }
   };
   class Root : public BoundaryNodeFor<Root>
@@ -146,12 +191,12 @@ namespace
     NodeState<bool> shown;
     virtual void composeNode(NodeComposition &c)
     {
-      LazyViewProps<CardProps> p(*record->list);
+      LazyViewProps<CardProps> p(*record->list, reservation::SeatNodes<CardNodes>(), record->maximum);
       p.layout = layout::FixedGrid(200, 20);
       p.viewport = record->viewport;
       if (record->second)
         c.declare(Column() << BoundaryDefinition<LazyViewProps<CardProps>, CountedFlex>(p)
-                           << LazyColumn(*record->second).cells(200, 20).viewport(*record->otherViewport));
+                           << LazyColumn(*record->second, reservation::SeatNodes<CardNodes>(), 32).cells(200, 20).viewport(*record->otherViewport));
       else if (record->scrolling)
         c.declare(ScrollView(this->offset) << BoundaryDefinition<LazyViewProps<CardProps>, CountedFlex>(p));
       else if (record->parking)
@@ -187,7 +232,7 @@ namespace
             bool edit = false,
             bool two = false,
             bool scroll = false,
-            bool park = false)
+            bool park = false, unsigned maximum = 32, int coldRefusal = 0)
         : r(),
           tracker(),
           list(),
@@ -198,6 +243,8 @@ namespace
           scene((Boundary<Root>()))
     {
       record = &this->r;
+      this->r.maximum = maximum;
+      this->r.refuseClass = coldRefusal;
       this->r.list = &this->list;
       this->r.viewport = &this->view;
       this->r.editing = edit;
@@ -470,6 +517,7 @@ void testLazyViewRefusedGenerationKeepsOldPresentation()
     }
     f.scene.flushInvalidation();
     LOKA_VERIFY(f.flex()->childrenHead() == old);
+    LOKA_VERIFY(loka::dsl::testing::SeatBuildRequestAccess::firstReservation(*f.flex())->request().retiring());
     LOKA_VERIFY(extent(f.flex()) == full && full.height == 400);
     LOKA_VERIFY(f.platform.projectedY == 60 - 200);
     rows(f, 9); // Stale old window at the moved offset, until a new flush retries.
@@ -518,7 +566,7 @@ void testLazyViewRowWrapUsesHalfOpenCells()
     StateTrackerGuard guard(&f.tracker);
     f.view.set(Frame(0, 0, 80, 80));
   }
-  Scene scene(LazyRow(f.list).cells(40, 40).wrap(2).viewport(f.view));
+  Scene scene(LazyRow(f.list, reservation::SeatNodes<CardNodes>(), 32).cells(40, 40).wrap(2).viewport(f.view));
   scene.mount(&f.platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
   rows(f, 6);
@@ -587,17 +635,9 @@ void allocpin::RunLazyViewPageFlipAllocPin()
     f.page(capture == 0 ? 200 : 0);
     EndCapture();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
-    // Measured ceilings for the host pool simulation, including the reclaim clock.
-    // One replacement ledger carries two borrowed clock links plus the
-    // construction policy (one pointer-aligned slot in the host layout).
-    const unsigned long clockLedgerStorage = 3 * sizeof(void *);
-#ifdef LOKA_LIFECYCLE_AUDIT
-    upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10768 : 9768) + clockLedgerStorage);
-#else
-    upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10352 : 9392) + clockLedgerStorage);
-#endif
+    // Both attached windows were warmed above. This stronger whole-fixture
+    // zero also covers the outer generation's node-domain upstream acquisitions.
+    upstreamPinCheck("LazyView", upstreamBefore, upstreamPinSnapshot(), 0, 0);
 #endif
     rows(f, f.view.get().y == 0 ? 9 : 10);
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
@@ -611,10 +651,11 @@ void allocpin::RunLazyViewPageFlipAllocPin()
                "LazyView warmed margin-window page flip: %lu / %lu allocations\n",
                CaptureAllocCount(0),
                CaptureAllocCount(1));
-  // #990 replaces the whole window, including overlap. The two directions
-  // admit ten and nine cards respectively, with no per-item Show residents.
-  LOKA_VERIFY(CaptureAllocCount(0) <= 332);
-  LOKA_VERIFY(CaptureAllocCount(1) <= 305);
+  // 43/39 node allocations disappear into the seat partition. Preserve-first
+  // ATTACH also reuses the still-live viewport observation row: one fewer
+  // BoundaryObservedState allocation than the 289/266 arithmetic forecast.
+  LOKA_VERIFY(CaptureAllocCount(0) <= 288);
+  LOKA_VERIFY(CaptureAllocCount(1) <= 265);
 }
 #endif
 
@@ -734,7 +775,314 @@ void testLazyViewCanceledRefusedWindowRefreshesContent()
   canceledWindowRefresh(true);
 }
 
+namespace
+{
+  typedef loka::app::scene::detail::SeatReservation Reservation;
+  typedef loka::dsl::testing::SeatBuildRequestAccess SeatAccess;
+  const Reservation &seat(Fixture &f)
+  { return *SeatAccess::firstReservation(*f.flex()); }
+  void select(Fixture &f, int y, int height = 160)
+  { StateTrackerGuard guard(&f.tracker); f.view.set(Frame(0, y, 200, height)); }
+  void provenance(Node *node, scene::detail::NodePartition *bank)
+  {
+    LOKA_VERIFY(node->partitionOwner() == bank);
+    INestable *children = node->asNestable();
+    for (Node *child = children ? children->childrenHead() : 0; child; child = child->nextInComposition)
+      provenance(child, bank);
+  }
+}
+void testLazyViewPartitionReuseAndQuietDrain()
+{
+  Fixture f;
+  const Reservation &reservation = seat(f);
+  Node *a = f.flex()->childrenHead();
+  provenance(a, &reservation.partition());
+  std::vector<int> events;
+  f.r.events = &events;
+  SeatAccess::holdRetirement(*f.flex(), true);
+  select(f, 200);
+  f.scene.flushInvalidation();
+  Node *b = f.flex()->childrenHead();
+  LOKA_VERIFY(a != b && SeatAccess::returning(seat(f).request()) == a);
+  provenance(a, &reservation.partition()); // Detached storage is still occupied.
+  provenance(b, &reservation.partition());
+  LOKA_VERIFY(a->lifecycleFact() == NODE_FACT_RETIRED);
+  LOKA_VERIFY(events.size() == 19 && events[0] == 10 && events[9] == 19 && events[10] == -1);
+  const int updates = f.r.updates;
+  SeatAccess::holdRetirement(*f.flex(), false);
+  f.drain();
+  LOKA_VERIFY(!reservation.request().retiring() && !reservation.request().waiting());
+  LOKA_VERIFY(f.r.updates == updates && !f.scene.hasPendingInvalidation());
+  f.page(0);
+  LOKA_VERIFY(f.flex()->childrenHead() == a && &seat(f) == &reservation);
+  f.page(200);
+  LOKA_VERIFY(f.flex()->childrenHead() == b && &seat(f) == &reservation);
+  provenance(f.flex()->childrenHead(), &reservation.partition());
+  f.r.events = 0;
+}
+void testLazyViewWaitingLatestKeyAndDrainWake()
+{
+  Fixture f;
+  f.r.withoutPoll = true; // Isolate the drain-tail wake from LazyView's after-run poll.
+  SeatAccess::holdRetirement(*f.flex(), true);
+  select(f, 200, 20);
+  f.scene.flushInvalidation();
+  Node *installed = f.flex()->childrenHead();
+  LOKA_VERIFY(seat(f).request().retiring());
+  select(f, 300, 20);
+  f.scene.flushInvalidation();
+  select(f, 340, 20);
+  f.scene.flushInvalidation();
+  LOKA_VERIFY(f.flex()->childrenHead() == installed && f.r.constructions[17] == 0);
+  LOKA_VERIFY(seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+  SeatAccess::holdRetirement(*f.flex(), false);
+  f.flex()->drainRetiredSubtreesAtNextTrackerRun();
+  LOKA_VERIFY(!seat(f).request().retiring() && f.scene.hasPendingInvalidation());
+  f.drain(); // No State event after return: latest key, not the first blocked key.
+  LOKA_VERIFY(f.flex()->childrenHead() != installed && f.r.cards[17] && !f.r.cards[14]);
+}
+void testLazyViewLateRefusalKeepsBindingsAndReturnsSlots()
+{
+  Fixture f;
+  Node *old = f.flex()->childrenHead();
+  CardNode *card = f.r.cards[3];
+  SeatAccess::holdRetirement(*f.flex(), true);
+  f.r.refuseAttach = 12;
+  select(f, 200);
+  f.scene.flushInvalidation();
+  LOKA_VERIFY(f.flex()->childrenHead() == old && seat(f).request().retiring());
+  { StateTrackerGuard guard(card->label.dangerouslyTracker()); card->label.set(String("still live")); }
+  LOKA_VERIFY(text(card)->props.text_->get().equals(String("still live")));
+  f.scene.flushInvalidation();
+  LOKA_VERIFY(f.flex()->childrenHead() == old);
+  SeatAccess::holdRetirement(*f.flex(), false);
+  f.drain();
+  LOKA_VERIFY(f.flex()->childrenHead() != old && !seat(f).request().retiring());
+  f.page(0);
+  LOKA_VERIFY(f.flex()->childrenHead() == old); // Same bank slot, after complete return.
+}
+namespace
+{
+  void maximumRefusal()
+  {
+    Fixture f(32, 20, false, false, false, false, false, 9);
+    Node *old = f.flex()->childrenHead(); // Exact M admitted on the first page.
+    State<LazyViewKey> *key = static_cast<State<LazyViewKey> *>(SeatAccess::firstCondition(*f.flex()));
+    select(f, 200); // Publish ten rows; declaration refuses before constructing.
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() == old && f.r.constructions[9] == 0 && key->get().window.count == 10);
+    LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+    const int updates = f.r.updates;
+    for (int turn = 0; turn != 5; ++turn) f.scene.flushInvalidation();
+    LOKA_VERIFY(f.r.updates == updates && !f.scene.hasPendingInvalidation());
+    select(f, 220, 120);
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() != old);
+  }
+  void oversizedStructureKeepsIdentity()
+  {
+    Fixture f(32, 20, false, false, false, false, false, 9);
+    Node *installed = f.flex()->childrenHead();
+    CardNode *retained[9];
+    for (int i = 0; i != 9; ++i) retained[i] = f.r.cards[i];
+    select(f, 0, 400);
+    f.drain();
+    { StateTrackerGuard guard(&f.tracker);
+      LOKA_VERIFY(f.list.remove(f.list.at(0).id) == EDIT_OK); }
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() == installed);
+    for (int i = 0; i != 9; ++i)
+      LOKA_VERIFY(retained[i] && retained[i]->props.number == i);
+    LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+  }
+  void classRefusal(int kind)
+  {
+    Fixture f(32, 20, false, false, false, false, false, 10);
+    Node *old = f.flex()->childrenHead();
+    f.r.refuseClass = kind;
+    select(f, 200);
+    f.scene.flushInvalidation();
+    LOKA_VERIFY(f.flex()->childrenHead() == old && seat(f).request().retiring());
+    Node *discarded = SeatAccess::returning(seat(f).request());
+    LOKA_VERIFY(discarded != old && discarded->nodeTypeKey() == NodeTypeToken<LazyScopeNode>());
+    const int constructions = f.r.constructions[10];
+    f.drain();
+    LOKA_VERIFY(!seat(f).request().waiting() && !seat(f).request().retiring());
+    for (int i = 0; i != 5; ++i) f.scene.flushInvalidation();
+    LOKA_VERIFY(!f.scene.hasPendingInvalidation() && f.r.constructions[10] == constructions);
+    f.r.refuseClass = false;
+    f.flex()->markViewDirty(NODE_DIRTY_LAYOUT);
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() == old); // Warm refusal waits for a changed key.
+    select(f, 220);
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() != old);
+  }
+  Fixture *redirectedFixture;
+  void redirectDuringAttach(int number)
+  {
+    if (number != 9) return;
+    redirectedFixture->r.onAttach = 0;
+    select(*redirectedFixture, 300, 20);
+  }
+  void newerKeyDuringRefusal()
+  {
+    Fixture f;
+    redirectedFixture = &f;
+    f.r.onAttach = &redirectDuringAttach;
+    f.r.refuseClass = 3;
+    SeatAccess::holdRetirement(*f.flex(), true);
+    select(f, 200, 20);
+    f.scene.flushInvalidation();
+    LOKA_VERIFY(seat(f).request().waiting() && seat(f).request().retiring());
+    SeatAccess::holdRetirement(*f.flex(), false);
+    f.drain();
+    LOKA_VERIFY(f.r.cards[14] && !seat(f).request().waiting());
+    redirectedFixture = 0;
+  }
+  void coldClassRefusal()
+  {
+    Fixture f(32, 20, false, false, false, false, false, 32, 1);
+    const int before = f.r.constructions[0];
+    LOKA_VERIFY(before > 0 && !f.flex()->childrenHead());
+    for (int turn = 0; turn != 5; ++turn) f.scene.flushInvalidation();
+    LOKA_VERIFY(f.r.constructions[0] == before && !f.scene.hasPendingInvalidation());
+    // Cold replay intentionally mirrors Keyed: an external update may retry.
+    f.flex()->markViewDirty(NODE_DIRTY_LAYOUT);
+    f.drain();
+    LOKA_VERIFY(f.r.constructions[0] > before);
+  }
+  void missingClass() { classRefusal(1); }
+  void exhaustedClass() { classRefusal(2); }
+  void directMaximumRefusal()
+  {
+    loka::core::testing::failLokaAllocRaw("LazyView", "ItemIndex", 0);
+    {
+      Fixture f;
+      const layout::LazyWindow oversized = {0, 33};
+      MutableState<LazyViewKey> key(LazyViewKey(oversized, 0));
+      typedef lazy_view_detail::WindowReservation<CardProps> Recipe;
+      LazyScopeDefinition<LazyViewKey, LazyGenerationNode<CardProps>, Recipe> direct =
+          LazyScope(key, LazyGenerationProps<CardProps>(&f.flex()->props, &key, &f.view),
+                    Recipe(*f.flex(), f.flex()->props.recipe));
+      ComponentContext context;
+      context.setBoundary(f.flex());
+      context.setOwner(f.flex());
+      context.setStateOwner(f.flex());
+      LOKA_VERIFY(direct.prepareSeatReservation());
+      loka::core::testing::failLokaAllocRaw("LazyView", "ItemIndex", 1);
+      OwnedDef<BranchSeatDeclaration> refused(direct.declareBranchCandidate(context));
+      LOKA_VERIFY(!refused.isSet() && loka::core::testing::lokaAllocRawAttempts() == 0);
+    }
+    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+    loka::core::testing::allowLokaAllocRaw();
+  }
+  void expectRefusal(void (*probe)(), const char *diagnostic)
+  {
+#ifdef NDEBUG
+    (void)diagnostic;
+    probe();
+#elif defined(__linux__)
+    int output[2];
+    LOKA_VERIFY(pipe(output) == 0);
+    const pid_t child = fork();
+    LOKA_VERIFY(child >= 0);
+    if (!child)
+    {
+      close(output[0]);
+      LOKA_VERIFY(dup2(output[1], STDERR_FILENO) >= 0);
+      close(output[1]); probe(); _exit(0);
+    }
+    close(output[1]);
+    std::string message;
+    char buffer[512];
+    ssize_t count;
+    while ((count = read(output[0], buffer, sizeof(buffer))) > 0) message.append(buffer, count);
+    close(output[0]);
+    int status = 0;
+    LOKA_VERIFY(waitpid(child, &status, 0) == child);
+    LOKA_VERIFY(WIFSIGNALED(status) && WTERMSIG(status) == SIGABRT);
+    LOKA_VERIFY(message.find(diagnostic) != std::string::npos);
+#else
+    (void)probe; (void)diagnostic;
+    std::fprintf(stderr, "[skip] Debug refusal subprocess needs fork\n");
+#endif
+  }
+}
+void testLazyViewPendingWindowRecoversFromMaximumRefusal()
+{
+  Fixture f(32, 20, false, false, false, false, false, 9);
+  SeatAccess::holdRetirement(*f.flex(), true);
+  select(f, 200, 20);
+  f.scene.flushInvalidation();
+  Node *installed = f.flex()->childrenHead();
+  LOKA_VERIFY(seat(f).request().retiring());
+  select(f, 300, 20); // C waits for the old root's return.
+  f.scene.flushInvalidation();
+  select(f, 0, 400); // Oversized fact must not erase C's next notification.
+  f.scene.flushInvalidation();
+  select(f, 300, 20);
+  f.scene.flushInvalidation();
+  LOKA_VERIFY(f.flex()->childrenHead() == installed);
+  SeatAccess::holdRetirement(*f.flex(), false);
+  f.drain();
+  LOKA_VERIFY(f.flex()->childrenHead() != installed && f.r.cards[14]);
+  LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+}
+void testLazyViewOversizedStructureKeepsIdentity()
+{ expectRefusal(&oversizedStructureKeepsIdentity, "LazyView window exceeds"); }
+void testLazyViewMaximumRefusalSettles() { expectRefusal(&maximumRefusal, "LazyView window exceeds"); expectRefusal(&directMaximumRefusal, "LazyView window exceeds"); }
+void testLazyViewClassRefusalSettles() { expectRefusal(&missingClass, "seat node declaration incomplete"); expectRefusal(&exhaustedClass, "seat node declaration incomplete"); expectRefusal(&newerKeyDuringRefusal, "seat node declaration incomplete"); expectRefusal(&coldClassRefusal, "seat node declaration incomplete"); }
+void testLazyViewRecipeCompatibilityAndClones()
+{
+  Fixture f;
+  const Reservation *bank = &seat(f);
+  lazy_view_detail::WindowReservation<CardProps> instruction(*f.flex(), f.flex()->props.recipe);
+  LOKA_VERIFY(instruction.prepare());
+  lazy_view_detail::WindowReservation<CardProps> copied(instruction);
+  LOKA_VERIFY(!copied.reservation() && copied.prepare());
+  LOKA_VERIFY(copied.reservation() != instruction.reservation());
+  for (int variant = 0; variant != 2; ++variant)
+  {
+    LazyViewProps<CardProps> p(f.list, reservation::SeatNodes<CardNodes>(), 31);
+    if (variant) p = LazyViewProps<CardProps>(f.list, reservation::SeatNodes<reservation::Nodes<CardNode, 1> >(), 32);
+    NodeDefinition<LazyViewProps<CardProps>, LazyViewNode<CardProps> > definition(p);
+    OwnedDef<NodeDefinitionBase> clone(definition.clone());
+    LOKA_VERIFY(clone.isSet() && !definition.isCompatibleWithNode(f.flex()));
+    LOKA_VERIFY(!clone->isCompatibleWithNode(f.flex()) && !clone->applyPropsToNode(f.flex()));
+    LOKA_VERIFY(&seat(f) == bank && !(f.flex()->props.recipe == p.recipe));
+  }
+  LazyView<CardProps> valid(f.list, f.flex()->props.layout, reservation::SeatNodes<CardNodes>(), 32);
+  OwnedDef<NodeDefinitionBase> clone(valid.clone());
+  LOKA_VERIFY(clone.isSet() && clone->isCompatibleWithNode(f.flex()));
+}
 #include "testing/core/StateTrackerTestAccess.hpp"
+void testLazyViewPartitionReuseWithinTurn()
+{
+  Fixture f;
+  Operation turn;
+  LOKA_VERIFY(Operation::hasActive());
+  Node *a = f.flex()->childrenHead();
+  scene::detail::NodePartition *bank = a->partitionOwner();
+  LOKA_VERIFY(bank && bank == &seat(f).partition());
+  f.page(200); // Reclaim A while the rail turn remains open.
+  f.page(0);
+  LOKA_VERIFY(f.flex()->childrenHead() == a && a->partitionOwner() == bank);
+  // #1079 (seat writes join the active clock) landed first, so this pin carries
+  // the enrolment half: a seat write in the generation rebuilt into the reused
+  // slot enrolls its live ledger, which the clock settles and releases at close.
+  CardNode *card = f.r.cards[0];
+  LOKA_VERIFY(card != 0);
+  card->toggle.set(true);
+  StateTracker *ledger = card->toggle.state()->trackerOwner();
+  LOKA_VERIFY(ledger != 0 && ledger->asPushTracker() != 0);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(*ledger->asPushTracker()) == 1);
+  LOKA_VERIFY(Operation::openActive(ledger) == OPEN_ALREADY_OPEN);
+  LOKA_VERIFY(turn.close().status == OPERATION_SETTLED);
+  LOKA_VERIFY(card->toggle.get() && ledger->phase() == TRACKER_IDLE);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(*ledger->asPushTracker()) == 0);
+}
+
 void testLazyViewSeatGuardOrders()
 {
   typedef loka::core::testing::PushStateTrackerTestAccess Access;

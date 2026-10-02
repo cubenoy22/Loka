@@ -27,5 +27,6 @@ public:
 };
 void pin(loka::core::ObservableList<Props> &list, NodeComposition &c)
 {
-  c.declare(loka::app::LazyColumn(list));
+  c.declare(loka::app::LazyColumn(list, loka::app::reservation::SeatNodes<
+      loka::app::reservation::Nodes<Probe, 1> >(), 4));
 }
