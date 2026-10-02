@@ -8,6 +8,7 @@
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/ZStack.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
+#include "app/layout/BoxLayout.hpp"
 #include "dsl/composition/CompositionList.hpp"
 
 namespace
@@ -24,6 +25,28 @@ namespace
     return traversal->layoutChild(child, state);
   }
 
+  /** Stack-local adapter for Toolbox's width return and separate result Y. */
+  struct ToolboxBoxTraversal
+  {
+    loka::app::scene::IPlatformLayoutTraversal &traversal;
+    short maxWidth;
+
+    explicit ToolboxBoxTraversal(loka::app::scene::IPlatformLayoutTraversal &value)
+        : traversal(value), maxWidth(0) {}
+
+    static int layoutChild(void *context, loka::app::scene::Node *child,
+                           const loka::app::scene::LayoutState &state)
+    {
+      ToolboxBoxTraversal &self = *static_cast<ToolboxBoxTraversal *>(context);
+      const int width = self.traversal.layoutChild(child, state);
+      if (width > self.maxWidth)
+      {
+        self.maxWidth = static_cast<short>(width);
+      }
+      return self.traversal.layoutResultY();
+    }
+  };
+
   class ToolboxBoxLayoutHandler : public loka::app::scene::IPlatformLayoutHandler
   {
   public:
@@ -38,60 +61,7 @@ namespace
                                const loka::app::layout::LazyWindow * = 0,
                                loka::app::layout::StackSpans * = 0)
     {
-      loka::app::BoxNode *box = node ? node->asBoxNode() : 0;
-      if (!box || !traversal)
-      {
-        return 0;
-      }
-
-      // Keep this fixed-size arm mirror-shaped with computeBoxLayoutResultY;
-      // Toolbox reports width and result-Y through separate return channels.
-      const short padding = static_cast<short>(box->props.padding);
-      const bool hasFixedSize = box->props.hasFixedSize();
-      loka::app::scene::LayoutState childState = state;
-      childState.x = static_cast<short>(state.x + padding);
-      childState.y = static_cast<short>(state.y + padding);
-      if (hasFixedSize)
-      {
-        childState.width = box->props.effectiveWidth();
-        childState.height = box->props.height;
-      }
-      if (childState.width > 0)
-      {
-        childState.width = static_cast<short>(childState.width - padding * 2);
-        if (childState.width < 0)
-        {
-          childState.width = 0;
-        }
-      }
-      if (childState.height > 0)
-      {
-        childState.height = static_cast<short>(childState.height - padding * 2);
-        if (childState.height < 0)
-        {
-          childState.height = 0;
-        }
-      }
-
-      short childWidth = 0;
-      short currentY = childState.y;
-      if (loka::app::scene::INestable *nestable = box->asNestable())
-      {
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), nestable->childrenCount());
-        for (loka::app::scene::Node *child = it.next(); child; child = it.next())
-        {
-          childState.y = currentY;
-          const int width = DispatchTraversalLayoutChild(traversal, child, childState);
-          if (width > childWidth)
-          {
-            childWidth = static_cast<short>(width);
-          }
-          currentY = traversal->layoutResultY();
-        }
-      }
-      traversal->setLayoutResultY(hasFixedSize ? static_cast<short>(state.y + box->props.height) : currentY);
-
-      return hasFixedSize ? box->props.effectiveWidth() : static_cast<short>(childWidth + padding * 2);
+      return ComputeToolboxBoxLayout(node ? node->asBoxNode() : 0, state, traversal);
     }
   };
 
@@ -340,6 +310,23 @@ namespace
     }
   };
 } // namespace
+
+int ComputeToolboxBoxLayout(loka::app::BoxNode *box,
+                            const loka::app::scene::LayoutState &state,
+                            loka::app::scene::IPlatformLayoutTraversal *traversal)
+{
+  if (!box || !traversal)
+  {
+    return 0;
+  }
+  ToolboxBoxTraversal adapter(*traversal);
+  // Common BoxLayout owns padding, clamping and child advancement on every rail.
+  const int resultY = loka::app::layout::computeBoxLayoutResultY(
+      box, state, &adapter, &ToolboxBoxTraversal::layoutChild);
+  traversal->setLayoutResultY(static_cast<short>(resultY));
+  return box->props.hasFixedSize() ? box->props.effectiveWidth()
+                                  : static_cast<short>(adapter.maxWidth + box->props.padding * 2);
+}
 
 int ComputeToolboxRowLayout(loka::app::StackNode *row,
                             const loka::app::scene::LayoutState &state,

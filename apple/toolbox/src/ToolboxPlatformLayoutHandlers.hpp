@@ -8,8 +8,14 @@ namespace loka
   namespace app
   {
     class StackNode;
+    class BoxNode;
   }
 } // namespace loka
+
+/** Applies common Box layout while preserving Toolbox's width/result-Y channels. */
+int ComputeToolboxBoxLayout(loka::app::BoxNode *box,
+                            const loka::app::scene::LayoutState &state,
+                            loka::app::scene::IPlatformLayoutTraversal *traversal);
 
 /** Applies Toolbox Row layout through the supplied traversal. */
 int ComputeToolboxRowLayout(loka::app::StackNode *row,
