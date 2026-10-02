@@ -1,4 +1,5 @@
 #include "OperationTests.hpp"
+#include "app/scene/state/NodeState.hpp"
 #include "core/Operation.hpp"
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -22,7 +23,7 @@ namespace
     MutableState<int> source;
     PushStateTracker tracker;
     int invalidations;
-    Ledger() : source(0), tracker(), invalidations(0)
+    Ledger(LedgerPolicy policy = LEDGER_JOINS) : source(0), tracker(policy), invalidations(0)
     {
       this->tracker.addState(&this->source);
       this->tracker.setInvalidateCallback(&Ledger::invalidate, this);
@@ -954,4 +955,102 @@ void testOpenActiveDuringClosingIsRefused()
   verifyClosed(a);
   verifyClosed(b);
   verifyClosed(idle);
+}
+
+namespace
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  void regimeSeatWithoutClock()
+  {
+    Ledger ledger;
+    loka::app::scene::NodeState<int> seat(&ledger.source, &ledger.tracker);
+    Operation::Regime regime;
+    seat.writeSeat().set(1);
+  }
+
+  void regimeGuardWithoutClock()
+  {
+    Ledger ledger;
+    Operation::Regime regime;
+    StateTrackerGuard guard(&ledger.tracker);
+    ledger.source.set(1);
+  }
+
+  void nestedRegime()
+  {
+    Operation::Regime outer;
+    Operation::Regime inner;
+  }
+#endif
+}
+
+void testRegimeNoClockSeatWriteAsserts()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  expectAssert(&regimeSeatWithoutClock);
+#else
+  std::printf("[skip] regime seat death pin requires Linux debug without ASan.\n");
+#endif
+}
+
+void testRegimeNoClockGuardAsserts()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  expectAssert(&regimeGuardWithoutClock);
+#else
+  std::printf("[skip] regime guard death pin requires Linux debug without ASan.\n");
+#endif
+}
+
+void testRegimeNestedDeclarationAsserts()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  expectAssert(&nestedRegime);
+#else
+  std::printf("[skip] nested regime death pin requires Linux debug without ASan.\n");
+#endif
+}
+
+void testRegimeInsideTurnSeatJoins()
+{
+  Ledger ledger;
+  loka::app::scene::NodeState<int> seat(&ledger.source, &ledger.tracker);
+  Operation::Regime regime;
+  {
+    Operation turn;
+    seat.writeSeat().set(1);
+    LOKA_VERIFY(ledger.source.get() == 1 && ledger.invalidations == 0);
+    LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_ALREADY_OPEN);
+    LOKA_VERIFY(Access::depth(ledger.tracker) == 1);
+  }
+  LOKA_VERIFY(ledger.invalidations == 1);
+  verifyClosed(ledger);
+}
+
+void testRegimeStandaloneLedgerWithoutClockStaysSynchronous()
+{
+  Ledger ledger(LEDGER_STANDALONE);
+  loka::app::scene::NodeState<int> seat(&ledger.source, &ledger.tracker);
+  Operation::Regime regime;
+  seat.writeSeat().set(1);
+  LOKA_VERIFY(ledger.source.get() == 1 && ledger.invalidations == 1);
+  const std::vector<StateBase *> &committed = ledger.tracker.committedDirtyStates();
+  LOKA_VERIFY(committed.size() == 1 && committed[0] == &ledger.source);
+  LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_REFUSED_STANDALONE);
+  verifyClosed(ledger);
+}
+
+void testOpenActiveOrderWithClock()
+{
+  Ledger standalone(LEDGER_STANDALONE), joining;
+  NonPushTracker nonPush;
+  Operation turn(OperationBudget(0));
+  LOKA_VERIFY(Operation::openActive(&standalone.tracker) == OPEN_REFUSED_STANDALONE);
+  LOKA_VERIFY(Operation::openActive(&nonPush) == OPEN_REFUSED_NOT_PUSH);
+  LOKA_VERIFY(Operation::openActive(&joining.tracker) == OPEN_OK);
+  joining.source.set(1);
+  const OperationOutcome outcome = turn.settle();
+  LOKA_VERIFY(outcome.status == OPERATION_REFUSED_CHAIN_LIMIT);
+  LOKA_VERIFY(Operation::openActive(&standalone.tracker) == OPEN_CLOCK_REFUSED);
+  LOKA_VERIFY(Operation::openActive(&nonPush) == OPEN_CLOCK_REFUSED);
 }
