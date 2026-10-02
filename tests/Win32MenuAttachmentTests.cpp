@@ -1,4 +1,5 @@
 #include "Win32MenuAttachmentTests.hpp"
+#include <cstdio>
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
 #include "Win32ScenePlatformController.hpp"
@@ -21,6 +22,11 @@ namespace
   public:
     MenuApp() : Win32App(0, GetModuleHandleW(NULL), SW_SHOW) {}
     virtual ~MenuApp() {}
+    virtual void applyMenuBar(Window *window)
+    {
+      std::fprintf(stderr, "DIAG applyMenuBar window=%p active=%p\n", (void *)window, (void *)this->activeWindow());
+      Win32App::applyMenuBar(window);
+    }
     void own(Window *window)
     {
       if (!this->group_)
@@ -255,12 +261,16 @@ void testWin32TwoWindowsOwnTheirMenus()
   show(b, true);
   MenuBarDefinition barA = bar("A", &emitterA), barB = bar("B", &emitterB);
   // Exercise the production apply path: B's projection used to detach A.
+  std::fprintf(stderr, "DIAG a=%p b=%p\n", (void *)&a, (void *)&b);
   app.setActiveWindow(&a);
   app.setDefaultMenuBar(&barA);
   HMENU menuA = GetMenu(a.hwnd());
   LOKA_VERIFY(menuA);
+  std::fprintf(stderr, "DIAG after barA: GetMenu(a)=%p menuA=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), (void *)menuA, IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
   app.setActiveWindow(&b);
+  std::fprintf(stderr, "DIAG after active b: GetMenu(a)=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
   app.setDefaultMenuBar(&barB);
+  std::fprintf(stderr, "DIAG after barB: GetMenu(a)=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
   HMENU menuB = GetMenu(b.hwnd());
   LOKA_VERIFY(menuB && menuB != menuA);
   LOKA_VERIFY(GetMenu(a.hwnd()) == menuA && IsMenu(menuA));
