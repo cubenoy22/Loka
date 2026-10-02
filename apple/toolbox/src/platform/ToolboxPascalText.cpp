@@ -116,9 +116,19 @@ void ToolboxNativeText::copyPascal(std::size_t start, std::size_t end, Str255 ou
 bool ToolboxEncodePascal(const loka::core::String &value, Str255 out)
 {
   out[0] = 0;
-  ToolboxNativeText native;
-  if (!native.build(value))
+  const bool roman = GetScriptManagerVariable(smSysScript) == smRoman;
+  std::string utf8;
+  if (!loka::platform::CollectUtf8(value, utf8))
     return false;
-  native.copyPascal(0, native.cappedEnd(255), out);
+  // Stream straight into the capped output: building a full projection here
+  // would add an allocation refusal that no short label had before (T1a).
+  std::size_t count = 0;
+  for (std::size_t input = 0; input < utf8.size() && count < 255;)
+  {
+    const ToolboxTextUnit unit = ToolboxNextTextUnit(utf8.data() + input, utf8.size() - input, roman);
+    out[++count] = unit.native;
+    input += unit.consumed;
+  }
+  out[0] = static_cast<unsigned char>(count);
   return true;
 }

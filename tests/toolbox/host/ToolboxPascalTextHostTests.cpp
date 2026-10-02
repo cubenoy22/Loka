@@ -2,6 +2,7 @@
 #include "platform/ToolboxHfsName.hpp"
 #include "platform/String.hpp"
 #include "support/TestVerify.hpp"
+#include "support/LokaAllocFailure.hpp"
 #include <Script.h>
 #include <cstdio>
 #include <cstring>
@@ -123,6 +124,12 @@ namespace
     Str63 name;
     LOKA_VERIFY(!loka::toolbox::CopyStringToHfsName(source, name));
     LOKA_VERIFY(name[0] == 0);
+    // The capped label door streams into Str255: a refused projection table
+    // must not turn a long menu or popup label into an empty one.
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+    LOKA_VERIFY(ToolboxEncodePascal(String(std::string(300, 'x')), out));
+    LOKA_VERIFY(out[0] == 255 && out[1] == 'x' && out[255] == 'x');
+    loka::core::testing::allowLokaAllocRaw();
   }
 
   void counted()
