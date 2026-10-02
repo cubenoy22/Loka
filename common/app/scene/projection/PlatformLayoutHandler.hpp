@@ -3,6 +3,7 @@
 
 #include "app/scene/Node.hpp"
 #include "app/layout/StackSpans.hpp"
+#include <climits>
 
 namespace loka
 {
@@ -15,6 +16,9 @@ namespace loka
       public:
         virtual ~IPlatformLayoutTraversal() {}
         virtual int layoutChild(Node *child, const LayoutState &state) = 0;
+        /** A handler asks before narrowing an int result Y; true means the
+            result is refused and must not be committed. */
+        virtual bool refuseLayoutResultY(int y) { return y < SHRT_MIN || y > SHRT_MAX; }
         virtual void setLayoutResultY(short y) = 0;
         virtual short layoutResultY() const = 0;
       };
