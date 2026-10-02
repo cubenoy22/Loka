@@ -47,10 +47,11 @@ public:
 
   bool open(const loka::app::MenuBarDefinition &bar)
   {
+    // Failure-atomic: a clone refusal leaves the connected projection as it is.
     loka::core::OwnedDef<loka::app::MenuBarDefinition> candidate(bar.clone());
-    this->disconnect();
     if (!candidate.isSet())
       return false;
+    this->disconnect();
     this->applied_.reset(candidate.take());
     for (const loka::app::MenuDefinition *menu = this->applied_->menusHead(); menu;
          menu = menu->nextInComposition)

@@ -373,9 +373,10 @@ void testMenuAttachmentDispatchAfterSceneReplacement()
   LOKA_VERIFY(f.calls == 2);
   loka::app::testing::failNextMenuBarDefinitionClone();
   const bool opened = attachment.open(*replacement->menuBar());
-  LOKA_VERIFY(!opened && !attachment.applied() && !attachment.connected());
-  LOKA_VERIFY(f.enabled.subscriptions() == 0 && f.checked.subscriptions() == 0);
+  // A refused clone keeps the live projection: table, subscriptions, baseline.
+  LOKA_VERIFY(!opened && attachment.applied() && attachment.connected());
+  LOKA_VERIFY(f.enabled.subscriptions() == 1 && f.checked.subscriptions() == 1);
   attachment.dispatch(1);
-  LOKA_VERIFY(f.calls == 2);
+  LOKA_VERIFY(f.calls == 3);
 }
 
