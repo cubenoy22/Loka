@@ -11,6 +11,7 @@
 
 // Test-only association observes the real target's destruction without adding
 // an injected target or lifetime getter to the production attachment.
+static NSMenu *gWitnessedMenu = nil;
 @interface LokaMenuTargetReleaseWitness : NSObject
 {
   bool *released_;
@@ -32,7 +33,9 @@
 - (void)dealloc
 {
   *released_ = true;
-  *detached_ = [NSApp mainMenu] == nil;
+  // AppKit substitutes its own application menu once the process has been
+  // activated, so "detached" means our bar is no longer installed, not nil.
+  *detached_ = [NSApp mainMenu] != gWitnessedMenu;
   [super dealloc];
 }
 @end
@@ -278,6 +281,7 @@ void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction()
   Observer observation;
   observer = &observation;
   NullPlatformContext platform;
+  NSMenu *installed = nil;
   {
     TestApp app;
     observation.attachment = &app.menuAttachment();
@@ -288,9 +292,12 @@ void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction()
     observation.tag = static_cast<int>([observation.item tag]);
     LOKA_VERIFY(app.menuAttachment().dispatch(observation.tag));
     LOKA_VERIFY(observation.calls == 1);
+    installed = [[NSApp mainMenu] retain];
   }
   LOKA_VERIFY(observation.detaches == 1);
-  LOKA_VERIFY([NSApp mainMenu] == nil);
+  // The attachment removes only its own bar; AppKit may now show its default.
+  LOKA_VERIFY([NSApp mainMenu] != installed);
+  [installed release];
   LOKA_VERIFY([observation.item target] == nil && [observation.item action] == NULL);
   [observation.item release];
   observer = 0;
@@ -318,9 +325,11 @@ void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget()
       [witness release];
       [reading drain];
     }
-    LOKA_VERIFY(!targetReleased && [NSApp mainMenu] != nil);
+    gWitnessedMenu = [NSApp mainMenu];
+    LOKA_VERIFY(!targetReleased && gWitnessedMenu != nil);
   }
-  LOKA_VERIFY([NSApp mainMenu] == nil);
+  LOKA_VERIFY([NSApp mainMenu] != gWitnessedMenu);
+  gWitnessedMenu = nil;
   LOKA_VERIFY(targetReleased);
   LOKA_VERIFY(detachedBeforeTargetRelease);
 }
@@ -339,8 +348,10 @@ void testMacMenuAttachmentCloneRefusalClearsBaseline()
   LOKA_VERIFY([NSApp mainMenu] != installed);
   [installed release];
   LOKA_VERIFY(!app.menuAttachment().project(&changed, 0));
+  NSMenu *before = [[NSApp mainMenu] retain];
   LOKA_VERIFY(app.menuAttachment().project(0, 0));
-  LOKA_VERIFY([NSApp mainMenu] == nil);
+  LOKA_VERIFY([NSApp mainMenu] != before);
+  [before release];
 }
 
 void testMacMenuAttachmentDispatchMayDisconnect()
