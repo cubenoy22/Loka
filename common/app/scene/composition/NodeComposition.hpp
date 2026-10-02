@@ -13,6 +13,7 @@
 #include "app/scene/state/StateOwner.hpp"
 #include "core/Profiler.hpp"
 #include "core/util/OwnedDef.hpp"
+#include "app/Menu.hpp"
 
 class Window;
 
@@ -396,6 +397,9 @@ namespace loka
         // Arena: owns copies of all definitions created during compose
         std::vector<NodeDefinitionBase *> arena_;
         NodeDefinitionBase *root_;
+        loka::core::OwnedDef<MenuBarDefinition> menuBar_;
+        bool isSceneRootDeclaration() const;
+        friend class Scene;
         INestableDefinition *activeParent_;
         ComponentContext *context_;
         BoundaryBranchSeatRuntimeRegistrationPlan *branchSeatRegistrations_;
@@ -479,6 +483,28 @@ namespace loka
         NodeDefinitionBase *store(const NodeDefinitionBase &def)
         {
           return storeBase(def);
+        }
+
+        /** Declare the Scene bar once, from its root Boundary's composition.
+            Refusal preserves the first declaration in every build; clone
+            failure joins the existing capture allocation-failure result. */
+        bool menuBar(const MenuBarDefinition &definition)
+        {
+          if (!this->isSceneRootDeclaration() || this->menuBar_.isSet())
+          {
+#ifdef LOKA_LIFECYCLE_AUDIT
+            assert(false && "menuBar requires the root Boundary and one declaration");
+#endif
+            return false;
+          }
+          loka::core::OwnedDef<MenuBarDefinition> candidate(definition.clone());
+          if (!candidate.isSet())
+          {
+            this->noteCaptureRefusal();
+            return false;
+          }
+          this->menuBar_.reset(candidate.take());
+          return true;
         }
 
         // Declare root node
@@ -595,6 +621,7 @@ namespace loka
         void reset()
         {
           this->destroyArena();
+          this->menuBar_.reset();
           activeParent_ = 0;
           context_ = 0;
           branchSeatRegistrations_ = 0;

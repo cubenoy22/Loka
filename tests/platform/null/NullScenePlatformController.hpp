@@ -3,6 +3,7 @@
 
 #include "app/scene/projection/CollectPaintAnswers.hpp"
 #include <cstddef>
+#include "platform/null/NullMenuAttachment.hpp"
 #include "app/layout/TextShaping.hpp"
 
 namespace loka { namespace app { class TextWidthSource; } }
@@ -199,6 +200,8 @@ public:
   virtual bool hasPendingSync() const;
   virtual void drainNativeRetirements();
   virtual void destroy();
+  virtual void releaseMenu() { this->menuAttachment_.disconnect(); }
+  NullMenuAttachment &menuAttachment() { return this->menuAttachment_; }
   virtual bool prepareProjectedLayout(loka::app::scene::Node *node,
                                       loka::app::scene::LayoutState &state);
   /** RectSurface, Text and AttributedText handlers cannot be replaced (registerNodeHandler refuses):
@@ -273,6 +276,7 @@ public:
   virtual void onPaintCommitted() {}
 
 private:
+  NullMenuAttachment menuAttachment_;
   friend class loka::testing::LazyViewAccess;
   unsigned long leafLayoutVisits_;
   class PaintCompletionVisitor;
