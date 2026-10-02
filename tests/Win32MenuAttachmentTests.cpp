@@ -154,7 +154,7 @@ namespace
       this->window.setApp(&this->app);
       show(this->window, true);
       LOKA_VERIFY(this->window.scene()->menuBar());
-      LOKA_VERIFY(this->window.menuAttachment().project(this->window.scene()->menuBar(), this->window.scene()));
+      LOKA_VERIFY(this->window.menuAttachment().project(this->window.scene()->menuBar(), this->window.scene()) == Win32MenuAttachment::PROJECT_APPLIED);
       this->observation.command = firstCommand(this->window);
     }
     ~Mounted() { show(this->window, false); }
@@ -175,24 +175,24 @@ void testWin32MenuAttachmentProjectsOnceForEqualBar()
   Frame before;
   LOKA_VERIFY(window.queryNativeContentFrame(before));
   MenuBarDefinition first = bar("Open"), equal = bar("Open"), changed = bar("Save");
-  LOKA_VERIFY(window.menuAttachment().project(&first, 0));
+  LOKA_VERIFY(window.menuAttachment().project(&first, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   HMENU installed = GetMenu(window.hwnd());
   LOKA_VERIFY(installed && IsMenu(installed));
   verifyFrame(window, before);
-  LOKA_VERIFY(!window.menuAttachment().project(&equal, 0));
+  LOKA_VERIFY(window.menuAttachment().project(&equal, 0) == Win32MenuAttachment::PROJECT_UNCHANGED);
   LOKA_VERIFY(GetMenu(window.hwnd()) == installed);
-  LOKA_VERIFY(window.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY(window.menuAttachment().project(&changed, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   LOKA_VERIFY(GetMenu(window.hwnd()) != installed);
   LOKA_VERIFY(!IsMenu(installed));
   verifyFrame(window, before);
-  LOKA_VERIFY(window.menuAttachment().project(0, 0));
+  LOKA_VERIFY(window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   LOKA_VERIFY(!GetMenu(window.hwnd()));
   verifyFrame(window, before);
   // Equal offers after native recreation must rebuild, never reuse a dead HMENU.
-  LOKA_VERIFY(window.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY(window.menuAttachment().project(&changed, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   show(window, false);
   show(window, true);
-  LOKA_VERIFY(window.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY(window.menuAttachment().project(&changed, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   LOKA_VERIFY(GetMenu(window.hwnd()) && IsMenu(GetMenu(window.hwnd())));
   show(window, false);
 }
@@ -296,7 +296,7 @@ void testWin32AppShutdownReleasesMenuBeforeAttachmentDestruction()
     window->setApp(&app);
     show(*window, true);
     app.own(window);
-    LOKA_VERIFY(window->menuAttachment().project(window->scene()->menuBar(), window->scene()));
+    LOKA_VERIFY(window->menuAttachment().project(window->scene()->menuBar(), window->scene()) == Win32MenuAttachment::PROJECT_APPLIED);
     observation.command = firstCommand(*window);
     LOKA_VERIFY(window->menuAttachment().dispatch(observation.command));
     LOKA_VERIFY(observation.calls == 1);

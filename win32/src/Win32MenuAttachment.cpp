@@ -269,20 +269,20 @@ bool Win32MenuAttachment::buildMenuItems(HMENU menu, const loka::app::MenuItemDe
   return true;
 }
 
-bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
+Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
                                   const loka::app::scene::Scene *source)
 {
   if (!this->window_.hwnd())
-    return false;
+    return PROJECT_REFUSED;
   if (bar && this->source_ == source && this->applied_.get() &&
       this->applied_->equalsProjection(*bar))
-    return false;
+    return PROJECT_UNCHANGED;
   if (!bar)
   {
     if (!this->reset(DETACH_PRESERVING_CONTENT_FRAME))
-      return false;
+      return PROJECT_REFUSED;
     this->disconnect();
-    return true;
+    return PROJECT_APPLIED;
   }
 
   // The same owner shape holds the candidate until the native swap succeeds.
@@ -290,7 +290,7 @@ bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
   Win32MenuAttachment next(this->window_);
   next.menu_ = CreateMenu();
   if (!next.menu_)
-    return false;
+    return PROJECT_REFUSED;
   HWND hwnd = this->window_.hwnd();
   loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(bar->menusHead(), bar->menusCount());
   for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
@@ -303,11 +303,11 @@ bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
       titleWide = L"Menu";
     HMENU subMenu = CreatePopupMenu();
     if (!subMenu)
-      return false;
+      return PROJECT_REFUSED;
     if (!next.buildMenuItems(subMenu, menuDef->itemsHead(), hwnd))
     {
       DestroyMenu(subMenu);
-      return false;
+      return PROJECT_REFUSED;
     }
     if (GetMenuItemCount(subMenu) == 0)
     {
@@ -317,7 +317,7 @@ bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
     if (!AppendMenuW(next.menu_, MF_STRING | MF_POPUP, reinterpret_cast<UINT_PTR>(subMenu), titleWide.c_str()))
     {
       DestroyMenu(subMenu);
-      return false;
+      return PROJECT_REFUSED;
     }
   }
 
@@ -328,7 +328,7 @@ bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
     next.menu_ = NULL;
   }
   if (!ApplyWindowMenuPreservingContentFrame(&this->window_, next.menu_))
-    return false;
+    return PROJECT_REFUSED;
   this->disconnect();
   std::swap(this->menu_, next.menu_);
   this->commands_.swap(next.commands_);
@@ -337,5 +337,5 @@ bool Win32MenuAttachment::project(const loka::app::MenuBarDefinition *bar,
   this->source_ = source;
   // A failed capture leaves no stale reconciliation baseline (N2b ruling).
   this->applied_.reset(bar->clone());
-  return true;
+  return PROJECT_APPLIED;
 }

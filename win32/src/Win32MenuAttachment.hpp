@@ -18,7 +18,15 @@ public:
   ~Win32MenuAttachment();
   /** Equal offers return false. Snapshot refusal clears the baseline while
       keeping the installed projection; native build refusal preserves it. */
-  bool project(const loka::app::MenuBarDefinition *bar,
+  /** project() answers three ways so the caller can tell a refused native swap
+      (nothing changed, keep the pending diff) from an equal offer or a swap. */
+  enum ProjectResult
+  {
+    PROJECT_APPLIED,
+    PROJECT_UNCHANGED,
+    PROJECT_REFUSED
+  };
+  ProjectResult project(const loka::app::MenuBarDefinition *bar,
                const loka::app::scene::Scene *source);
   void disconnect();
   void releaseFrom(const loka::app::scene::Scene *source);
