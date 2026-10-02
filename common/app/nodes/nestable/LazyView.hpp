@@ -131,7 +131,7 @@ namespace loka
       {
       public:
         template <class List> WindowRecipe(reservation::SeatNodes<List>, unsigned maximum)
-            : emit_(&emit<List>), maximum_(maximum)
+            : emit_(&WindowRecipe::template emitList<List>), maximum_(maximum)
         {
           typedef reservation::Nodes<LazyGenerationNode<T>, 1,
               reservation::Nodes<FragmentNode, 1, reservation::Nodes<WindowCanvasNode<T>, 1, List> > > Full;
@@ -152,7 +152,7 @@ namespace loka
         { return this->emit_ != other.emit_ ? std::less<Emitter>()(this->emit_, other.emit_) : this->maximum_ < other.maximum_; }
       private:
         typedef bool (*Emitter)(scene::detail::SeatLayoutTable &, unsigned);
-        template <class List> static bool emit(scene::detail::SeatLayoutTable &table, unsigned maximum)
+        template <class List> static bool emitList(scene::detail::SeatLayoutTable &table, unsigned maximum)
         {
           // createRoot, completeWindow and declareScope insert these scaffolds.
           return reservation::detail::Emitter<List>::emit(table) && table.scale(maximum)
