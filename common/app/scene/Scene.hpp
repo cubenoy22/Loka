@@ -404,6 +404,13 @@ namespace loka
         {
           return director_;
         }
+        /** Published menu snapshot; borrows root-owned State/Emitter endpoints.
+            Null before complete composition and after detach. */
+        const MenuBarDefinition *menuBar() const
+        {
+          return this->menuBar_.get();
+        }
+
         size_t liveNodeCount() const
         {
           return countLiveNodes(rootNode_);
@@ -587,6 +594,7 @@ namespace loka
         loka::core::OwnedDef<NodeDefinitionBase> rootDefinition_;
         SceneFocus focus_;
         Node *rootNode_;
+        loka::core::OwnedDef<MenuBarDefinition> menuBar_;
         IPlatformController *platformController_;
         Window *window_;
         Scene *retiredNextScene_;
@@ -858,6 +866,7 @@ namespace loka
               return;
             }
           }
+          this->menuBar_.reset(boundary->composition().menuBar_.take());
           if (publish)
             platformController_->onChange(rootNode_, NODE_DIRTY_INITIAL, true);
           composed_ = true;
@@ -1035,7 +1044,6 @@ namespace loka
         void detachComposition()
         {
           loka::core::NextTickTracker::RunScope run(this->nextTickTracker_);
-          this->notifyComposeEvent(COMPOSE_EVENT_DETACH);
           this->teardownComposition();
           this->clearMountedUpdateState();
           // A request made during the walk can survive the window. Its next
@@ -1050,6 +1058,11 @@ namespace loka
 #ifdef LOKA_LIFECYCLE_AUDIT
           assert(!this->isBorrowOpen());
 #endif
+          // Revoke projection borrows before any app detach hook or release.
+          if (platformController_)
+            platformController_->releaseMenu();
+          this->menuBar_.reset();
+          this->notifyComposeEvent(COMPOSE_EVENT_DETACH);
           if (!rootNode_)
           {
             this->focus_.disconnectAll();

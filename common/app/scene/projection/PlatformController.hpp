@@ -174,6 +174,10 @@ namespace loka
         // Destroy platform-owned UI resources.
         virtual void destroy() = 0;
 
+        /** Synchronously revoke menu commands and value subscriptions before
+            Scene root detach. Production rails adopt this door in N2. */
+        virtual void releaseMenu() {}
+
         /** Completes the detach line for every context owned by a retired
             subtree without forcing a full scene rebuild. Terminal fact
             delivery must hide, unbind, remove native event routes, and queue

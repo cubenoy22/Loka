@@ -2399,6 +2399,7 @@ namespace loka
         }
 
       private:
+        friend class Scene;
         using ComposableNode::beginComposition;
 
         /** Reject an incomplete initial capture before any factory runs.
