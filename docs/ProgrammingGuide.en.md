@@ -657,10 +657,15 @@ bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
 construction, so earlier handler writes cannot enroll them in the turn clock.
 Their seat writes and ordinary tracker guards keep synchronous transactions.
 Window retains a joining ledger; bootstrap uses the standalone bracket before
-any turn. Flow's `onSuccess` state assignment joins through `StateTrackerGuard`,
-so a following step or `finally` can still read the previous derived value until
-the tail. Flow's other brackets, dialog transport, and Menu's own NextTick remain
-unchanged. Cleanup writes do not reopen a closing clock.
+any turn. Flow's run bracket and its `onSuccess` state assignment join the active
+clock too. Step writes keep source values and direct observers synchronous, but
+a following step or `finally` can still read the previous derived value until
+the tail. Outside a turn, or when enrollment is refused (including standalone
+ledgers), the run bracket ends at PENDING or terminal cleanup before `finally`.
+Public resume starts a fresh bracket; an internal flow-success continuation
+shares the original bracket without opening another level. Dialog transport
+and Menu's own NextTick remain unchanged. Cleanup writes do not reopen a closing
+clock.
 
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
