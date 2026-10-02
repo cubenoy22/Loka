@@ -23,11 +23,12 @@ error with its own **Reload MAIN.JS** button, so fixing the file does not requir
 relaunching. Stage Classic with:
 
 ```sh
-scripts/mame-dev-disk.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS example/SmirkyCard/VIEWER.JS
+scripts/mame-dev-disk-app.sh --build-and-prepare SmirkyCard
 ```
 
-`mame-boot-disk.sh` takes the same application binary followed by `MAIN.JS` and
-`MINES.JS` (and `VIEWER.JS`) as plain-data arguments.
+It builds the app and puts it on the dev disk together with every card script
+listed in [disk-scripts.txt](disk-scripts.txt). `scripts/mame-boot-disk.sh --all`
+reads the same list. To ship a new card file, add its name to that list.
 
 `open(name)` loads a sibling script into a fresh engine and shows its `first`
 card. MAIN.JS links to `./MINES.JS` and `./VIEWER.JS`; each links back to
