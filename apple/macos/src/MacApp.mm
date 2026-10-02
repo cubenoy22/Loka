@@ -140,7 +140,10 @@ void MacApp::run()
 
   startInvalidationFlushTimer();
   [NSApp activateIgnoringOtherApps:YES];
-  [NSApp run];
+  {
+    loka::core::Operation::Regime regime;
+    [NSApp run];
+  }
   stopInvalidationFlushTimer();
 }
 
