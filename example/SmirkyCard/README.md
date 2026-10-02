@@ -303,8 +303,20 @@ runner; its ordinary module-level generator and New Game behavior are unchanged.
 configuration, including the [expected audit](tests/MINES.audit).
 The standalone audit is not registered in `scenarios.txt`: that file also controls
 the approved MAME golden cells. Until its registration policy is decided, compare
-LOG.TXT directly with the expected audit (`cmp`), rather than using
-`verify-standalone-audit.sh`.
+LOG.TXT directly with the expected audit rather than using
+`verify-standalone-audit.sh`. After building the 68K runner, run:
+
+```sh
+tests/toolbox/run-standalone.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCardStandaloneFlow68K.bin --expect example/SmirkyCard/tests/MINES.audit
+```
+
+The launcher reads `.env-mame` (or `MAME_ENV_FILE`), boots a fresh template copy,
+and retrieves LOG.TXT under `build/mame-standalone/<app name>/`, wiped per run.
+It allows 90 emulated seconds for the app's own quit (`LOKA_RUN_WAIT` overrides)
+and compares the original audit bytes. Elapsed time alone does not prove success.
+Finder Tabs default to the staged item count; `LOKA_TAB_COUNT` overrides that for
+diagnosis. `LOKA_LAUNCH_WAIT` overrides the 90-second boot wait. Do not run the
+same app concurrently: its work directory is shared.
 
 ## SimpleViewer.JS card
 
@@ -345,6 +357,14 @@ For Classic, enable SmirkyCard and build
 `:Desktop Folder:Images:` folder. Launch the runner application. Both JS sources
 are baked in; it needs no MAIN.JS, VIEWER.JS, VIEWER.FLOW.JS, or LokaTest.cfg
 sidecar. It writes LOG.TXT beside itself and quits on the terminal record.
+With `Sun.pict` extracted from the boot template to `build/fixtures/Sun.pict`, run:
+
+```sh
+tests/toolbox/run-standalone.sh build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyViewStandaloneFlow68K.bin build/fixtures/Sun.pict --expect example/SmirkyCard/tests/VIEWER.audit
+```
+
+The same launcher settings described for MINES apply; the application and picture
+produce two Finder Tabs automatically.
 For the Sun fixture, the result records are:
 
 ```text
