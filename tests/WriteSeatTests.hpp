@@ -28,4 +28,10 @@ void testBootstrapVisibilityCommitsBeforeReadInsideTurn();
 void testFlowOnSuccessJoinsTurn();
 void testMenuStateToggledInHandlerRebuildsMenuInSameTail();
 void testStandaloneLedgerRefusesTheClock();
+void testFlowRunBracketJoinsTurn();
+void testFlowRunBracketOutsideClockKeepsLegacy();
+void testFlowPendingAndResumeInsideTurn();
+void testFlowRunBracketOnStandaloneLedgerStaysSynchronous();
+void testFlowFinallyReadsOldDerivedInsideTurn();
+void testFlowRunBracketAbstractTrackerEndsOnce();
 #endif
