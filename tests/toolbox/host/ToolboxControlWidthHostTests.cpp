@@ -197,10 +197,13 @@ namespace
     {
       // The real context doors used by the scene's non-wrapped text-change
       // and redrawTextHit entries; the full scene controller is not host-built.
+      LOKA_VERIFY(ToolboxTextContextAccess::known(*context));
       { StateTrackerGuard guard(root.tracker()); root.title.set(String::Literal("\xC3\xA9")); }
       toolbox_host::reset();
       unsigned reads = toolbox_host::scriptReads;
       LOKA_VERIFY(context->visibleWidth() == 4);
+      // A successful source change keeps the paint history of the last painted value.
+      LOKA_VERIFY(ToolboxTextContextAccess::known(*context));
       LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
       context->repaint();
       LOKA_VERIFY(toolbox_host::draws[0].bytes == "\x8E");
@@ -227,6 +230,12 @@ namespace
       context->repaint();
       LOKA_VERIFY(toolbox_host::draws.empty());
       loka::core::testing::allowLokaAllocRaw();
+      // Paint-only recovery: a refused build keeps placement, so the next
+      // text change repaints through the same doors without a layout pass.
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String::Literal("ok")); }
+      toolbox_host::reset();
+      context->repaint();
+      LOKA_VERIFY(!toolbox_host::draws.empty() && toolbox_host::draws[0].bytes == "ok");
       offer = seat(1000);
       context->layout(&controller, offer);
       LOKA_VERIFY(ToolboxTextContextAccess::ready(*context));

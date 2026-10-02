@@ -323,11 +323,16 @@ bool ToolboxTextContext::reconcileProjection()
   const loka::core::String &value = this->text_->get();
   if (this->projection_.matches(value))
     return true;
+  // Geometry ranges index the old bytes; paint history stays, because it
+  // records the logical value last painted and drives exact damage (#518).
   this->measurement_ = loka::app::MeasurementResult<Constraint, Extent>();
-  this->presented_.invalidate();
   if (!this->projection_.build(value))
   {
-    this->clearMeasurement();
+    // Revoke readiness and history but keep placement: the scene's
+    // non-wrapped text-change and redrawTextHit paths only measure and
+    // repaint, so a later successful build must still have a rect to paint.
+    this->projection_.clear();
+    this->presented_.invalidate();
     return false;
   }
   return true;
