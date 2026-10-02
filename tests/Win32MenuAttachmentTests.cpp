@@ -22,11 +22,6 @@ namespace
   public:
     MenuApp() : Win32App(0, GetModuleHandleW(NULL), SW_SHOW) {}
     virtual ~MenuApp() {}
-    virtual void applyMenuBar(Window *window)
-    {
-      std::fprintf(stderr, "DIAG applyMenuBar window=%p active=%p\n", (void *)window, (void *)this->activeWindow());
-      Win32App::applyMenuBar(window);
-    }
     void own(Window *window)
     {
       if (!this->group_)
@@ -250,27 +245,24 @@ void testWin32TwoWindowsOwnTheirMenus()
 {
   NullPlatformContext context;
   MenuApp app;
-  Win32Window a(&context, props()), b(&context, props());
   int callsA = 0, callsB = 0;
   EmitterState emitterA, emitterB;
   emitterA.deferBind(&count, &callsA);
   emitterB.deferBind(&count, &callsB);
+  // Window-owned bars: until N2a wires the Scene source, resolveMenuBar
+  // prefers WindowProps::menuBar, so each Window legitimately has its own.
+  // (The App default is one bar shared by whichever Window is active.)
+  MenuBarDefinition barA = bar("A", &emitterA), barB = bar("B", &emitterB);
+  Win32Window a(&context, props().menuBar(barA)), b(&context, props().menuBar(barB));
   a.setApp(&app);
   b.setApp(&app);
   show(a, true);
   show(b, true);
-  MenuBarDefinition barA = bar("A", &emitterA), barB = bar("B", &emitterB);
   // Exercise the production apply path: B's projection used to detach A.
-  std::fprintf(stderr, "DIAG a=%p b=%p\n", (void *)&a, (void *)&b);
   app.setActiveWindow(&a);
-  app.setDefaultMenuBar(&barA);
   HMENU menuA = GetMenu(a.hwnd());
   LOKA_VERIFY(menuA);
-  std::fprintf(stderr, "DIAG after barA: GetMenu(a)=%p menuA=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), (void *)menuA, IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
   app.setActiveWindow(&b);
-  std::fprintf(stderr, "DIAG after active b: GetMenu(a)=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
-  app.setDefaultMenuBar(&barB);
-  std::fprintf(stderr, "DIAG after barB: GetMenu(a)=%p IsMenu=%d GetMenu(b)=%p\n", (void *)GetMenu(a.hwnd()), IsMenu(menuA) ? 1 : 0, (void *)GetMenu(b.hwnd()));
   HMENU menuB = GetMenu(b.hwnd());
   LOKA_VERIFY(menuB && menuB != menuA);
   LOKA_VERIFY(GetMenu(a.hwnd()) == menuA && IsMenu(menuA));
