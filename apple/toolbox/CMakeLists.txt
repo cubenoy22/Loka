@@ -13,6 +13,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxOperatorNew.cpp
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
+  src/ToolboxMenuAttachment.cpp
   src/ToolboxByteSource.cpp
   src/ToolboxNativeImage.cpp
   src/PictParser.cpp
