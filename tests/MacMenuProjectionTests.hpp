@@ -3,4 +3,11 @@
 
 void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget();
 
+void testMacMenuAttachmentProjectsOnceForEqualBar();
+void testMacMenuAttachmentDisconnectStripsTargetAndAction();
+void testMacSceneDetachReleasesMenu();
+void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction();
+void testMacMenuAttachmentCloneRefusalClearsBaseline();
+void testMacMenuAttachmentDispatchMayDisconnect();
+
 #endif // LOKA_TESTS_MAC_MENU_PROJECTION_TESTS_HPP

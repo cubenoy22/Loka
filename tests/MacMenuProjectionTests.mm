@@ -1,66 +1,348 @@
 #include "MacMenuProjectionTests.hpp"
-
 #include "support/TestVerify.hpp"
-
+#include "MacApp.hpp"
+#include "MacWindow.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+#include "core/util/StateTrackerGuard.hpp"
 #include <AppKit/AppKit.h>
-#include <cstdio>
+#include <objc/runtime.h>
 
-#include "MacMenuProjection.hpp"
-
-@interface LokaMenuProjectionTestTarget : NSObject
+// Test-only association observes the real target's destruction without adding
+// an injected target or lifetime getter to the production attachment.
+@interface LokaMenuTargetReleaseWitness : NSObject
 {
   bool *released_;
-  bool *detachedBeforeRelease_;
+  bool *detached_;
 }
-- (id)initWithReleased:(bool *)released detachedBeforeRelease:(bool *)detachedBeforeRelease;
+- (id)initWithReleased:(bool *)released detached:(bool *)detached;
 @end
-
-@implementation LokaMenuProjectionTestTarget
-- (id)initWithReleased:(bool *)released detachedBeforeRelease:(bool *)detachedBeforeRelease
+@implementation LokaMenuTargetReleaseWitness
+- (id)initWithReleased:(bool *)released detached:(bool *)detached
 {
   self = [super init];
   if (self)
   {
     released_ = released;
-    detachedBeforeRelease_ = detachedBeforeRelease;
+    detached_ = detached;
   }
   return self;
 }
-
 - (void)dealloc
 {
   *released_ = true;
-  *detachedBeforeRelease_ = [NSApp mainMenu] == nil;
+  *detached_ = [NSApp mainMenu] == nil;
   [super dealloc];
 }
 @end
 
-void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget()
+namespace
 {
-  [NSApplication sharedApplication];
-  [NSApp setMainMenu:nil];
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::core;
+  typedef loka::dsl::testing::SceneTestAccess SceneAccess;
 
-  bool targetReleased = false;
-  bool detachedBeforeTargetRelease = false;
-  LokaMenuProjectionTestTarget *target =
-      [[LokaMenuProjectionTestTarget alloc] initWithReleased:&targetReleased
-                                       detachedBeforeRelease:&detachedBeforeTargetRelease];
+  struct CocoaHost
   {
-    MacMenuProjection projection((void *)target);
-    NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Loka test menu"];
-    NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Action" action:nil keyEquivalent:@""];
-    [item setTarget:target];
-    [menu addItem:item];
-    [item release];
+    NSAutoreleasePool *pool;
+    CocoaHost() : pool([[NSAutoreleasePool alloc] init])
+    {
+      [NSApplication sharedApplication];
+      [NSApp setMainMenu:nil];
+    }
+    ~CocoaHost() { [this->pool drain]; }
+  };
 
-    projection.install((void *)menu);
-    [menu release];
-    LOKA_VERIFY([NSApp mainMenu] != nil);
+  MenuBarDefinition bar(bool checked = false)
+  {
+    MenuBarDefinition result;
+    MenuDefinition menu = Menu("File") << MenuItem("Run").attr(MenuItemAttr().checked(checked));
+    menu.opaqueChildren(true);
+    result << menu;
+    return result;
   }
 
+  NSMenuItem *commandItem()
+  {
+    NSMenu *menu = [NSApp mainMenu];
+    LOKA_VERIFY(menu && [menu numberOfItems] > 0);
+    NSMenu *sub = [[menu itemAtIndex:0] submenu];
+    LOKA_VERIFY(sub && [sub numberOfItems] > 0);
+    NSMenuItem *item = [sub itemAtIndex:0];
+    // The fixture nests its command to exercise recursive stripping too.
+    if ([item submenu])
+      item = [[item submenu] itemAtIndex:0];
+    return item;
+  }
+
+  struct Observer
+  {
+    Observer() : attachment(0), item(nil), tag(0), calls(0), detaches(0), disconnectInAction(false) {}
+    MacMenuAttachment *attachment;
+    NSMenuItem *item;
+    int tag;
+    int calls;
+    int detaches;
+    bool disconnectInAction;
+  };
+  Observer *observer = 0;
+
+  class Root : public BoundaryNodeFor<Root>
+  {
+  public:
+    explicit Root(const BoundaryPropsFor<Root> &props) : BoundaryNodeFor<Root>(props)
+    {
+      this->state(this->enabled_, true);
+      this->state(this->checked_, false);
+    }
+    virtual void declareBindings(BindingToken &token)
+    {
+      token.action(this->clicked_, this, &Root::clicked);
+    }
+    virtual void composeNode(NodeComposition &c)
+    {
+      MenuBarDefinition offered;
+      offered << (Menu("File") << (MenuItem("Nested") << MenuItem("Run")
+          .enabled(this->enabled_.state())
+          .attr(MenuItemAttr().checked(this->checked_.state())).onClick(&this->clicked_)));
+      LOKA_VERIFY(c.menuBar(offered));
+    }
+    virtual void detachNode(NodeComposition &)
+    {
+      ++observer->detaches;
+      LOKA_VERIFY([observer->item target] == nil);
+      LOKA_VERIFY([observer->item action] == NULL);
+      LOKA_VERIFY([observer->item tag] == 0);
+      LOKA_VERIFY(!observer->attachment->dispatch(observer->tag));
+    }
+    void toggle()
+    {
+      StateTrackerGuard guard(this->tracker());
+      this->enabled_.set(!this->enabled_.get());
+      this->checked_.set(!this->checked_.get());
+    }
+  private:
+    void clicked()
+    {
+      ++observer->calls;
+      if (observer->disconnectInAction)
+        observer->attachment->disconnect();
+    }
+    NodeState<bool> enabled_;
+    NodeState<bool> checked_;
+    EmitterState clicked_;
+  };
+
+  WindowProps sceneProps()
+  {
+    WindowProps props;
+    props.frame(50, 50, 320, 240).visible(true).scene(new Scene(Boundary<Root>()));
+    return props;
+  }
+
+  class TestApp : public MacApp
+  {
+  public:
+    TestApp() : MacApp(0) {}
+    virtual void quit() {}
+    void own(MacWindow *window)
+    {
+      this->group_ = new AppComponentGroup(std::vector<AppComponent *>(1, window));
+      window->setApp(this);
+    }
+    void retire() { this->retireComponents(); }
+  };
+
+  struct Mounted
+  {
+    Observer observation;
+    NullPlatformContext platform;
+    TestApp app;
+    MacWindow *window;
+    Mounted()
+    {
+      observer = &this->observation;
+      this->observation.attachment = &this->app.menuAttachment();
+      this->window = new MacWindow(&this->platform, sceneProps());
+      this->app.own(this->window);
+      LOKA_VERIFY(this->window->scene()->menuBar());
+      LOKA_VERIFY(this->app.menuAttachment().project(this->window->scene()->menuBar(), this->window->scene()));
+      this->observation.item = [commandItem() retain];
+      this->observation.tag = static_cast<int>([this->observation.item tag]);
+      LOKA_VERIFY(this->observation.tag != 0);
+    }
+    ~Mounted()
+    {
+      this->app.retire();
+      [this->observation.item release];
+      observer = 0;
+    }
+    Root *root()
+    {
+      return static_cast<Root *>(SceneAccess::rootBoundary(*this->window->scene()));
+    }
+  };
+}
+
+void testMacMenuAttachmentProjectsOnceForEqualBar()
+{
+  CocoaHost host;
+  TestApp app;
+  MenuBarDefinition first = bar(), equal = bar(), changed = bar(true);
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
+  NSMenu *installed = [[NSApp mainMenu] retain];
+  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0));
+  LOKA_VERIFY([NSApp mainMenu] == installed);
+  // Opacity is composition policy, not projection equality (N2b).
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY([NSApp mainMenu] != installed);
+  [installed release];
+  installed = [[NSApp mainMenu] retain];
+  Scene other((Boundary<Root>()));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, &other));
+  LOKA_VERIFY([NSApp mainMenu] != installed);
+  [installed release];
+  app.menuAttachment().releaseFrom(&other);
+}
+
+void testMacMenuAttachmentDisconnectStripsTargetAndAction()
+{
+  CocoaHost host;
+  Mounted fixture;
+  Observer &o = fixture.observation;
+  NSMenu *installed = [NSApp mainMenu];
+  id target = [o.item target];
+  SEL action = [o.item action];
+  LOKA_VERIFY(target != nil && action != NULL);
+  LOKA_VERIFY(o.attachment->dispatch(o.tag));
+  LOKA_VERIFY(o.calls == 1);
+  LOKA_VERIFY([o.item isEnabled] && [o.item state] == 0);
+  fixture.root()->toggle();
+  LOKA_VERIFY(![o.item isEnabled] && [o.item state] != 0);
+  Scene other((Boundary<Root>()));
+  o.attachment->releaseFrom(&other);
+  LOKA_VERIFY([o.item target] == target && [o.item action] == action);
+  LOKA_VERIFY([o.item tag] == o.tag);
+  fixture.root()->toggle();
+  LOKA_VERIFY([o.item isEnabled] && [o.item state] == 0);
+  LOKA_VERIFY(o.attachment->dispatch(o.tag));
+  LOKA_VERIFY(o.calls == 2);
+
+  o.attachment->releaseFrom(fixture.window->scene());
+  LOKA_VERIFY([NSApp mainMenu] == installed);
+  LOKA_VERIFY([o.item target] == nil && [o.item action] == NULL && [o.item tag] == 0);
+  LOKA_VERIFY(!o.attachment->dispatch(o.tag));
+  LOKA_VERIFY(o.calls == 2);
+  fixture.root()->toggle();
+  LOKA_VERIFY([o.item isEnabled] && [o.item state] == 0);
+  // Reinstall uses the same numeric IDs, but the tracking-retained old item
+  // must stay inert even after replacement commands become dispatchable.
+  LOKA_VERIFY(o.attachment->project(fixture.window->scene()->menuBar(), fixture.window->scene()));
+  LOKA_VERIFY([o.item target] == nil && [o.item action] == NULL && [o.item tag] == 0);
+  LOKA_VERIFY(o.attachment->dispatch(static_cast<int>([commandItem() tag])));
+  LOKA_VERIFY(o.calls == 3);
+}
+
+void testMacSceneDetachReleasesMenu()
+{
+  CocoaHost host;
+  Mounted fixture;
+  LOKA_VERIFY(fixture.observation.attachment->dispatch(fixture.observation.tag));
+  LOKA_VERIFY(fixture.observation.calls == 1);
+  SceneAccess::unmount(*fixture.window->scene());
+  LOKA_VERIFY(fixture.observation.detaches == 1);
+  LOKA_VERIFY(!fixture.observation.attachment->dispatch(fixture.observation.tag));
+  LOKA_VERIFY(fixture.observation.calls == 1);
+}
+
+namespace
+{
+  class ShutdownWindow : public MacWindow
+  {
+  public:
+    explicit ShutdownWindow(PlatformContext *platform) : MacWindow(platform, sceneProps()) {}
+    virtual ~ShutdownWindow()
+    {
+      // Fail before touching a dead attachment if MacApp omitted retireComponents.
+      LOKA_VERIFY([NSApp mainMenu] != nil);
+      LOKA_VERIFY([observer->item target] != nil);
+    }
+  };
+}
+
+void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction()
+{
+  CocoaHost host;
+  Observer observation;
+  observer = &observation;
+  NullPlatformContext platform;
+  {
+    TestApp app;
+    observation.attachment = &app.menuAttachment();
+    ShutdownWindow *window = new ShutdownWindow(&platform);
+    app.own(window);
+    LOKA_VERIFY(app.menuAttachment().project(window->scene()->menuBar(), window->scene()));
+    observation.item = [commandItem() retain];
+    observation.tag = static_cast<int>([observation.item tag]);
+    LOKA_VERIFY(app.menuAttachment().dispatch(observation.tag));
+    LOKA_VERIFY(observation.calls == 1);
+  }
+  LOKA_VERIFY(observation.detaches == 1);
+  LOKA_VERIFY([NSApp mainMenu] == nil);
+  LOKA_VERIFY([observation.item target] == nil && [observation.item action] == NULL);
+  [observation.item release];
+  observer = 0;
+}
+
+void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget()
+{
+  CocoaHost host;
+  bool targetReleased = false;
+  bool detachedBeforeTargetRelease = false;
+  static char witnessKey;
+  {
+    TestApp app;
+    MenuBarDefinition offered = bar();
+    LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
+    id target = [commandItem() target];
+    LOKA_VERIFY(target != nil);
+    LokaMenuTargetReleaseWitness *witness = [[LokaMenuTargetReleaseWitness alloc]
+        initWithReleased:&targetReleased detached:&detachedBeforeTargetRelease];
+    objc_setAssociatedObject(target, &witnessKey, witness, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    [witness release];
+    LOKA_VERIFY(!targetReleased && [NSApp mainMenu] != nil);
+  }
   LOKA_VERIFY([NSApp mainMenu] == nil);
   LOKA_VERIFY(targetReleased);
   LOKA_VERIFY(detachedBeforeTargetRelease);
+}
 
-  std::printf("testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget passed\n");
+void testMacMenuAttachmentCloneRefusalClearsBaseline()
+{
+  CocoaHost host;
+  TestApp app;
+  MenuBarDefinition first = bar(), changed = bar(true);
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
+  loka::app::testing::failMenuBarDefinitionClones(1);
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
+  loka::app::testing::allowMenuBarDefinitionClones();
+  NSMenu *installed = [[NSApp mainMenu] retain];
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY([NSApp mainMenu] != installed);
+  [installed release];
+  LOKA_VERIFY(!app.menuAttachment().project(&changed, 0));
+  LOKA_VERIFY(app.menuAttachment().project(0, 0));
+  LOKA_VERIFY([NSApp mainMenu] == nil);
+}
+
+void testMacMenuAttachmentDispatchMayDisconnect()
+{
+  CocoaHost host;
+  Mounted fixture;
+  fixture.observation.disconnectInAction = true;
+  LOKA_VERIFY(fixture.observation.attachment->dispatch(fixture.observation.tag));
+  LOKA_VERIFY(fixture.observation.calls == 1);
+  LOKA_VERIFY(!fixture.observation.attachment->dispatch(fixture.observation.tag));
 }
