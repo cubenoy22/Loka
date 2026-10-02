@@ -8,6 +8,7 @@
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
 #include <Quickdraw.h>
+#include "platform/ToolboxPascalText.hpp"
 
 class ToolboxScenePlatformController;
 class ToolboxPlainTextLines;
@@ -62,7 +63,7 @@ public:
 
   void updateData(loka::core::State<loka::core::String> *text);
   void updateRect(const Rect &rect, short textX, short textY);
-  short visibleWidth() const;
+  short visibleWidth();
   loka::core::State<loka::core::String> *liveTextState() const
   {
     return this->node_ ? ToolboxLiveTextSource(this->text_, this->node_->props.ownsText) : 0;
@@ -107,6 +108,9 @@ private:
   /** Capture local data and report whether existing controller rows need refresh. */
   bool captureProps();
   void paint(bool erase);
+  /** Reconcile the complete logical source before any width or paint entry. */
+  bool reconcileProjection();
+  ToolboxNativeText projection_;
   /** Revoke both measurement and its placement before refusal can be painted. */
   void clearMeasurement();
   loka::app::TextNode *node_;

@@ -346,8 +346,8 @@ namespace
       toolbox_host::draws.clear();
       context.repaint();
       LOKA_VERIFY(toolbox_host::draws.size() == 2);
-      LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(254, 'a'));
-      LOKA_VERIFY(toolbox_host::draws[1].bytes == "\xc3\xa9Z");
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(254, 'a') + "\x8E");
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == "Z");
       LOKA_VERIFY(longDefinition.applyPropsToNode(node));
 
       // Each new fallible allocation refuses atomically, including after a hit.
