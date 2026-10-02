@@ -2,6 +2,8 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
+#include "app/nodes/nestable/Grid.hpp"
+#include "app/nodes/ImageView.hpp"
 #include <cstring>
 
 namespace
@@ -57,14 +59,140 @@ namespace
     if (!refuses) LOKA_VERIFY(sibling->offer.y == SHRT_MAX);
   }
 
+  class HeightProbe : public ImageViewNode
+  {
+  public:
+    unsigned calls;
+    LayoutState offer;
+    explicit HeightProbe(int height) : ImageViewNode(ImageViewProps().size(10, height)), calls(0) {}
+    virtual IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
+    virtual short layoutProjected(IPlatformController *, LayoutState &state)
+    {
+      ++this->calls;
+      this->offer = state;
+      return 10;
+    }
+  };
+
+  void offsetRangePin(ToolboxScenePlatformController &controller, bool refuses)
+  {
+    StackNode column((StackProps(STACK_AXIS_COLUMN)));
+    StackNode *row = new StackNode(StackProps(STACK_AXIS_ROW).alignVertical(VERTICAL_ALIGNMENT_BOTTOM));
+    HeightProbe *child = new HeightProbe(1);
+    row->addChild(child);
+    row->addChild(new HeightProbe(20));
+    column.addChild(row);
+    Probe *sibling = new Probe(0);
+    column.addChild(sibling);
+    ProjectionParentScope scope;
+    LOKA_VERIFY(controller.projectionParentScopes_.current().deriveScrolled(
+        0, 0, 0, loka::core::Frame(0, 0, 80, 80), scope));
+    ProjectionParentScopeGuard guard(controller.projectionParentScopes_, scope);
+    LOKA_VERIFY(guard.isActive());
+    LayoutState state;
+    state.width = 80; state.spacing = -1;
+    state.y = static_cast<short>(SHRT_MAX - 19 + (refuses ? 1 : 0));
+    LayoutNode(&column, state, &controller, 0);
+    std::printf("row offset: child calls=%u child Y=%d sibling calls=%u\n",
+                child->calls, child->offer.y, sibling->calls);
+    std::fflush(stdout);
+    LOKA_VERIFY(controller.projectionParentScopes_.current().hasShortRangeRefusal() == refuses);
+    LOKA_VERIFY(child->calls == (refuses ? 0u : 1u));
+    LOKA_VERIFY(sibling->calls == (refuses ? 0u : 1u));
+    if (!refuses) LOKA_VERIFY(sibling->offer.y == SHRT_MAX);
+  }
+
+  void handlerRangePin(ToolboxScenePlatformController &controller, bool handler,
+                       const char *kind, bool refuses)
+  {
+    StackNode column((StackProps(STACK_AXIS_COLUMN)));
+    const bool row = std::strncmp(kind, "row", 3) == 0;
+    const bool largeAdvance = std::strcmp(kind, "row-advance") == 0;
+    NestableNode *subject = row
+        ? static_cast<NestableNode *>(new StackNode(
+            StackProps(STACK_AXIS_ROW).alignVertical(VERTICAL_ALIGNMENT_TOP)))
+        : static_cast<NestableNode *>(new GridNode(GridProps(2, 1)));
+    Probe *child = new Probe(0);
+    Probe *sibling = new Probe(0);
+    subject->addChild(child);
+    column.addChild(subject);
+    column.addChild(sibling);
+    LOKA_VERIFY((controller.registry.find(subject) != 0) == handler);
+    ProjectionParentScope scope;
+    LOKA_VERIFY(controller.projectionParentScopes_.current().deriveScrolled(
+        0, 0, 0, loka::core::Frame(0, 0, 80, 80), scope));
+    ProjectionParentScopeGuard guard(controller.projectionParentScopes_, scope);
+    LOKA_VERIFY(guard.isActive());
+    LayoutState state;
+    state.width = 80; state.height = 20; state.lineHeight = 20; state.spacing = 5;
+    if (largeAdvance) { state.lineHeight = 30000; state.spacing = 10000; }
+    const int advance = largeAdvance ? 40000 : row ? 25 : 20;
+    state.y = static_cast<short>(SHRT_MAX - advance + (refuses ? 1 : 0));
+    LayoutNode(&column, state, &controller, 0);
+    const bool refused = controller.projectionParentScopes_.current().hasShortRangeRefusal();
+    std::printf("%s range: refused=%d child calls=%u sibling calls=%u sibling Y=%d\n",
+                kind, refused, child->calls, sibling->calls, sibling->offer.y);
+    std::fflush(stdout);
+    LOKA_VERIFY(refused == refuses);
+    LOKA_VERIFY(sibling->calls == (refuses ? 0u : 1u));
+    if (!largeAdvance) LOKA_VERIFY(state.y >= 0);
+    if (!row) LOKA_VERIFY(child->calls == (refuses ? 0u : 1u));
+    if (!refuses) LOKA_VERIFY(sibling->offer.y == SHRT_MAX);
+  }
+
+  void bandRangePin(ToolboxScenePlatformController &controller, bool refuses)
+  {
+    // Empty selection still reports the cached full extent. No child can cause
+    // this refusal: the Column adds the retained total to its new origin.
+    StackNode column((StackProps(STACK_AXIS_COLUMN)));
+    loka::app::layout::StackSpans spans;
+    // A text-kind probe preserves the production band eligibility rule.
+    class TextProbe : public Probe
+    {
+    public:
+      TextProbe() : Probe(0) {}
+      virtual NodeKind kind() const { return NODE_KIND_TEXT; }
+    };
+    column.addChild(new TextProbe());
+    LOKA_VERIFY(spans.begin(1));
+    LOKA_VERIFY(spans.append(0, 20));
+    LOKA_VERIFY(spans.finish());
+    const loka::app::layout::LazyWindow range = {0, 0};
+    ProjectionParentScope scope;
+    LOKA_VERIFY(controller.projectionParentScopes_.current().deriveScrolled(
+        0, 0, 0, loka::core::Frame(0, 0, 80, 80), scope));
+    ProjectionParentScopeGuard guard(controller.projectionParentScopes_, scope);
+    LOKA_VERIFY(guard.isActive());
+    LayoutState state;
+    state.y = static_cast<short>(SHRT_MAX - 20 + (refuses ? 1 : 0));
+    LayoutNode(&column, state, &controller, 0, &range, &spans);
+    Probe sibling(0);
+    LayoutNode(&sibling, state, &controller, 0);
+    const bool refused = controller.projectionParentScopes_.current().hasShortRangeRefusal();
+    std::printf("band range: refused=%d sibling calls=%u Y=%d\n", refused, sibling.calls, state.y);
+    std::fflush(stdout);
+    LOKA_VERIFY(refused == refuses);
+    LOKA_VERIFY(sibling.calls == (refuses ? 0u : 1u));
+    LOKA_VERIFY(state.y >= 0);
+    if (!refuses) LOKA_VERIFY(state.y == SHRT_MAX);
+  }
+
 }
 int main(int argc, char **argv)
 {
-  LOKA_VERIFY(argc == 3);
+  LOKA_VERIFY(argc == 3 || argc == 4);
   ToolboxScenePlatformController controller;
   const bool handler = std::strcmp(argv[1], "handler") == 0;
   if (handler) RegisterToolboxPlatformLayoutHandlers(controller.registry);
   const char *mode = argv[2];
+  if (argc == 4)
+  {
+    const bool refuses = std::strcmp(argv[3], "scroll-refusal") == 0;
+    if (std::strcmp(mode, "band") == 0) bandRangePin(controller, refuses);
+    else if (std::strcmp(mode, "row-offset") == 0) offsetRangePin(controller, refuses);
+    else handlerRangePin(controller, handler, mode, refuses);
+    return 0;
+  }
   if (std::strcmp(mode, "scroll-refusal") == 0 || std::strcmp(mode, "scroll-limit") == 0)
   {
     scrollRangePin(controller, handler, std::strcmp(mode, "scroll-refusal") == 0);

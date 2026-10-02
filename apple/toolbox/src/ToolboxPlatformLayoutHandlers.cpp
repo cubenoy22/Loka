@@ -149,6 +149,12 @@ namespace
           const unsigned last = band ? first + range->count : count;
           if (!band && spans)
             spans->begin(count);
+          // Every cached start is nonnegative and bounded by total(). Check
+          // the full advance before narrowing either the start or the result.
+          if (band && traversal->refuseLayoutResultY(state.y + spans->total()))
+          {
+            return 0;
+          }
           short width = 0;
           short currentY = static_cast<short>(state.y + (band && first < count ? spans->start(first) : 0));
           unsigned index = 0;
@@ -238,78 +244,88 @@ namespace
                            const loka::app::layout::LazyWindow * = 0,
                            loka::app::layout::StackSpans * = 0)
     {
-      loka::app::GridNode *grid = node ? node->asGridNode() : 0;
-      if (!grid || !traversal)
-      {
-        return 0;
-      }
-
-      const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
-      const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
-      const short gap = 0;
-      short availableWidth = state.width;
-      if (availableWidth > 0)
-      {
-        availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
-        if (availableWidth < 0)
-        {
-          availableWidth = 0;
-        }
-      }
-      short availableHeight = state.height;
-      if (availableHeight > 0)
-      {
-        availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
-        if (availableHeight < 0)
-        {
-          availableHeight = 0;
-        }
-      }
-      const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
-      const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
-      short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
-      short maxY = state.y;
-      if (loka::app::scene::INestable *nestable = grid->asNestable())
-      {
-        const size_t childCount = nestable->childrenCount();
-        const size_t maxCount = static_cast<size_t>(rows * cols);
-        size_t index = 0;
-        loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
-        for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
-        {
-          const short row = static_cast<short>(index / cols);
-          const short col = static_cast<short>(index % cols);
-          loka::app::scene::LayoutState cellState = state;
-          cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
-          cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
-          cellState.width = cellWidth;
-          cellState.height = cellHeight;
-          const int width = DispatchTraversalLayoutChild(traversal, child, cellState);
-          if (width > maxWidth)
-          {
-            maxWidth = static_cast<short>(width);
-          }
-          const short childResultY = traversal->layoutResultY();
-          if (childResultY > maxY)
-          {
-            maxY = childResultY;
-          }
-        }
-      }
-      if (cellHeight > 0)
-      {
-        short totalHeight = static_cast<short>(cellHeight * rows + gap * (rows > 0 ? rows - 1 : 0));
-        short bottom = static_cast<short>(state.y + totalHeight);
-        if (bottom > maxY)
-        {
-          maxY = bottom;
-        }
-      }
-      traversal->setLayoutResultY(maxY);
-      return maxWidth;
+      return ComputeToolboxGridLayout(node ? node->asGridNode() : 0, state, traversal);
     }
   };
 } // namespace
+
+int ComputeToolboxGridLayout(loka::app::GridNode *grid,
+                             const loka::app::scene::LayoutState &state,
+                             loka::app::scene::IPlatformLayoutTraversal *traversal)
+{
+  if (!grid || !traversal)
+  {
+    return 0;
+  }
+
+  const short rows = grid->props.rows > 0 ? grid->props.rows : 1;
+  const short cols = grid->props.cols > 0 ? grid->props.cols : 1;
+  const short gap = 0;
+  short availableWidth = state.width;
+  if (availableWidth > 0)
+  {
+    availableWidth = static_cast<short>(availableWidth - gap * (cols - 1));
+    if (availableWidth < 0)
+    {
+      availableWidth = 0;
+    }
+  }
+  short availableHeight = state.height;
+  if (availableHeight > 0)
+  {
+    availableHeight = static_cast<short>(availableHeight - gap * (rows - 1));
+    if (availableHeight < 0)
+    {
+      availableHeight = 0;
+    }
+  }
+  const short cellWidth = cols > 0 ? static_cast<short>(availableWidth / cols) : 0;
+  const short cellHeight = rows > 0 ? static_cast<short>(availableHeight / rows) : 0;
+  short maxWidth = static_cast<short>(cellWidth * cols + gap * (cols > 0 ? cols - 1 : 0));
+  const int bottom = state.y + (cellHeight > 0 ? cellHeight * rows + gap * (rows - 1) : 0);
+  // Positive-height cell origins lie between state.y and bottom. Check first.
+  if (traversal->refuseLayoutResultY(bottom))
+  {
+    return 0;
+  }
+  short maxY = state.y;
+  if (loka::app::scene::INestable *nestable = grid->asNestable())
+  {
+    const size_t childCount = nestable->childrenCount();
+    const size_t maxCount = static_cast<size_t>(rows * cols);
+    size_t index = 0;
+    loka::dsl::CompositionCursor<loka::app::scene::Node> it(nestable->childrenHead(), childCount);
+    for (loka::app::scene::Node *child = it.next(); child && index < maxCount; child = it.next(), ++index)
+    {
+      const short row = static_cast<short>(index / cols);
+      const short col = static_cast<short>(index % cols);
+      loka::app::scene::LayoutState cellState = state;
+      cellState.x = static_cast<short>(state.x + col * (cellWidth + gap));
+      cellState.y = static_cast<short>(state.y + row * (cellHeight + gap));
+      cellState.width = cellWidth;
+      cellState.height = cellHeight;
+      const int width = DispatchTraversalLayoutChild(traversal, child, cellState);
+      if (width > maxWidth)
+      {
+        maxWidth = static_cast<short>(width);
+      }
+      const short childResultY = traversal->layoutResultY();
+      if (childResultY > maxY)
+      {
+        maxY = childResultY;
+      }
+    }
+  }
+  if (cellHeight > 0)
+  {
+    if (bottom > maxY)
+    {
+      maxY = static_cast<short>(bottom);
+    }
+  }
+  traversal->setLayoutResultY(maxY);
+  return maxWidth;
+}
 
 int ComputeToolboxBoxLayout(loka::app::BoxNode *box,
                             const loka::app::scene::LayoutState &state,
@@ -342,7 +358,7 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   }
 
   short rowStartX = state.x;
-  short maxHeight = 0;
+  int maxHeight = 0;
   const short lineHeight = state.lineHeight > 0 ? state.lineHeight : ToolboxLayoutMetrics::kDefaultLineHeight;
   const short controlAscent = static_cast<short>(lineHeight - ToolboxLayoutMetrics::kControlAscentInset);
   const short controlHeight = static_cast<short>(controlAscent + ToolboxLayoutMetrics::kControlDescent);
@@ -400,7 +416,12 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
         }
       }
       // Every child receives its painted box top, including text controls.
-      rowState.y = static_cast<short>(state.y + offset);
+      const int childY = state.y + offset;
+      if (traversal->refuseLayoutResultY(childY))
+      {
+        return 0;
+      }
+      rowState.y = static_cast<short>(childY);
       rowState.height = childHeight;
     }
     DispatchTraversalLayoutChild(traversal, child, rowState);
@@ -418,9 +439,14 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   {
     // An aligned row's extent is the painted box it measured; child advances
     // include spacing and need not equal their painted heights.
-    maxHeight = static_cast<short>(rowHeight + state.spacing);
+    maxHeight = rowHeight + state.spacing;
   }
-  traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight));
+  const int resultY = state.y + maxHeight;
+  if (traversal->refuseLayoutResultY(resultY))
+  {
+    return 0;
+  }
+  traversal->setLayoutResultY(static_cast<short>(resultY));
   return static_cast<short>(rowStartX - state.x);
 }
 
