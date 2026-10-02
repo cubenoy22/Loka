@@ -65,15 +65,31 @@ namespace loka
     class Operation
     {
     public:
+      /** Declares the rail run-loop interval in which joining writes require an
+          Operation turn. Bootstrap and shutdown remain outside this scope.
+          Main-thread only; nested declarations are a contract violation. */
+      class Regime
+      {
+      public:
+        Regime();
+        ~Regime();
+      private:
+        Regime(const Regime &);
+        Regime &operator=(const Regime &);
+      };
+
       explicit Operation(const OperationBudget &budget = OperationBudget());
       ~Operation();
       /** Refuses standalone ledgers before checking transaction phase.
           Opens an idle joining ledger, or recognizes one already in this clock.
           May be called during work rounds, never during cleanup or after close. */
       OpenResult open(StateTracker *tracker);
-      /** The single active-clock door for write seats and guards. No clock returns
-          OPEN_NO_CLOCK so the caller uses legacy begin/end. Cleanup returns
-          OPEN_REFUSED_CLOSING so the caller writes without a route. A clock
+      /** The single active-clock door for write seats and guards. After honoring
+          an active clock's cleanup/refusal, null/non-Push and standalone trackers
+          are refused before answering OPEN_NO_CLOCK.
+          An eligible tracker without a clock returns OPEN_NO_CLOCK for legacy
+          begin/end, and asserts in debug if a rail Regime requires a turn.
+          Cleanup returns OPEN_REFUSED_CLOSING so the caller writes without a route. A clock
           whose settle was refused returns OPEN_CLOCK_REFUSED for a ledger it
           does not hold (the caller keeps its own transaction) and
           OPEN_ALREADY_OPEN for one it does. Otherwise forwards to open without
@@ -100,6 +116,8 @@ namespace loka
 
       enum Phase { OPEN, DRIVING, CLOSING, CLOSED };
       static Operation *active_;
+      static Regime *regime_;
+      static bool regimeDeclared();
       Operation *const outer_;
       PushStateTracker *head_;
       PushStateTracker *tail_;

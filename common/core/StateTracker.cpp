@@ -29,6 +29,23 @@ namespace loka
     }
 
     Operation *Operation::active_ = 0;
+    Operation::Regime *Operation::regime_ = 0;
+
+    Operation::Regime::Regime()
+    {
+      assert(!Operation::regimeDeclared() && "Operation::Regime declarations must not nest");
+      Operation::regime_ = this;
+    }
+
+    Operation::Regime::~Regime()
+    {
+      Operation::regime_ = 0;
+    }
+
+    bool Operation::regimeDeclared()
+    {
+      return Operation::regime_ != 0;
+    }
 
     Operation::Operation(const OperationBudget &budget)
         : outer_(Operation::active_), head_(0), tail_(0), cursor_(0), frontier_(0),
@@ -73,16 +90,25 @@ namespace loka
 
     OpenResult Operation::openActive(StateTracker *tracker)
     {
-      if (!Operation::active_)
-        return OPEN_NO_CLOCK;
-      if (Operation::active_->phase_ == CLOSING)
+      if (Operation::active_ && Operation::active_->phase_ == CLOSING)
         return OPEN_REFUSED_CLOSING;
-      if (Operation::active_->status_ != OPERATION_SETTLED)
+      if (Operation::active_ && Operation::active_->status_ != OPERATION_SETTLED)
       {
         // No further work round will run in this clock: a new ledger keeps its
         // own transaction; one already held stays held (its intake was refused).
         PushStateTracker *const ledger = tracker ? tracker->asPushTracker() : 0;
         return ledger && ledger->op_ == Operation::active_ ? OPEN_ALREADY_OPEN : OPEN_CLOCK_REFUSED;
+      }
+      PushStateTracker *const ledger = tracker ? tracker->asPushTracker() : 0;
+      if (!ledger)
+        return OPEN_REFUSED_NOT_PUSH;
+      if (ledger->policy_ == LEDGER_STANDALONE)
+        return OPEN_REFUSED_STANDALONE;
+      if (!Operation::active_)
+      {
+        assert(!Operation::regimeDeclared()
+               && "Open an Operation turn on the rail path that reached this write");
+        return OPEN_NO_CLOCK;
       }
       return Operation::active_->open(tracker);
     }

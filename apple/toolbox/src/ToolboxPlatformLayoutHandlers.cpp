@@ -418,9 +418,9 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   {
     // An aligned row's extent is the painted box it measured; child advances
     // include spacing and need not equal their painted heights.
-    maxHeight = rowHeight;
+    maxHeight = static_cast<short>(rowHeight + state.spacing);
   }
-  traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight + state.spacing));
+  traversal->setLayoutResultY(static_cast<short>(state.y + maxHeight));
   return static_cast<short>(rowStartX - state.x);
 }
 
