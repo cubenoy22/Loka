@@ -101,7 +101,11 @@ case "$key" in
     SmirkyCard)
         target=LokaSmirkyCard${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/SmirkyCard/LokaSmirkyCard${suffix}.bin
-        data=(example/SmirkyCard/MAIN.JS example/SmirkyCard/MINES.JS example/SmirkyCard/VIEWER.JS)
+        # Manifest readers in mame-*-disk* and SmirkyCard/CMakeLists.txt stay parallel.
+        while IFS=$' \t\r' read -r script || [ -n "$script" ]; do
+            case "$script" in ''|\#*) continue ;; esac
+            data+=("example/SmirkyCard/$script")
+        done < "$workspace_dir/example/SmirkyCard/disk-scripts.txt"
         ;;
     MineSweeper)
         target=LokaMine${suffix}_APPL

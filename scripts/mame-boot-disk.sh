@@ -76,12 +76,14 @@ if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
   if [ -f "$SCRAPBOOK_ASSETS" ]; then
     PLAIN_DATA_PATHS+=("$SCRAPBOOK_ASSETS")
   fi
-  for script in MAIN.JS MINES.JS VIEWER.JS; do
+  # Manifest readers in mame-*-disk* and SmirkyCard/CMakeLists.txt stay parallel.
+  while IFS=$' \t\r' read -r script || [ -n "$script" ]; do
+    case "$script" in ''|\#*) continue ;; esac
     smirkycard_script="$PROJECT_DIR/example/SmirkyCard/$script"
     if [ -f "$smirkycard_script" ]; then
       PLAIN_DATA_PATHS+=("$smirkycard_script")
     fi
-  done
+  done < "$PROJECT_DIR/example/SmirkyCard/disk-scripts.txt"
 elif [ $# -ge 1 ]; then
   MACBINARY_PATHS+=("$1")
   shift

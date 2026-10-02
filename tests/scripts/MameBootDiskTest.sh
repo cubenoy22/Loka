@@ -115,6 +115,8 @@ for app in \
   touch "$ALL_PROJECT/build/retro68/68k/Release/example/$app"
 done
 touch "$ALL_PROJECT/example/ScrapbookUI/ASSETS.LRP" "$ALL_PROJECT/example/SmirkyCard/MAIN.JS" "$ALL_PROJECT/example/SmirkyCard/MINES.JS" "$ALL_PROJECT/example/SmirkyCard/VIEWER.JS"
+cp "$REPO_DIR/example/SmirkyCard/disk-scripts.txt" "$ALL_PROJECT/example/SmirkyCard/"
+run_all() {
 MAME_BOOT_DISK_TEST_LOG="$SANDBOX/all-apps.log" \
 MAME_ENV_FILE="$SANDBOX/missing.env" \
 MAME_MACHINE="macplus" \
@@ -123,12 +125,28 @@ MAME_HOMEPATH="$SANDBOX/home" \
 MAME_BOOT_HDA="$SANDBOX/all-apps.hd" \
 RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
   /bin/bash "$ALL_PROJECT/scripts/mame-boot-disk.sh" --all >/dev/null
+}
+run_all
 grep -Fx "hcopy <-m> <$ALL_PROJECT/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
   fail "all-apps did not copy SmirkyCard"
 for script in MAIN.JS MINES.JS VIEWER.JS; do
   grep -Fx "hcopy <-r> <$ALL_PROJECT/example/SmirkyCard/$script> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
     fail "all-apps did not copy SmirkyCard $script"
 done
+
+# Adding a fourth card needs only a manifest edit; absent entries remain optional.
+printf '\r\n  # extra cards\r\n\r\n  ABSENT.JS  \r\n  FOURTH.JS  ' >> "$ALL_PROJECT/example/SmirkyCard/disk-scripts.txt"
+touch "$ALL_PROJECT/example/SmirkyCard/FOURTH.JS"
+: > "$SANDBOX/all-apps.log"
+run_all
+[ "$(grep -c '^hcopy <-r>' "$SANDBOX/all-apps.log")" -eq 5 ] || fail "extended manifest must copy five existing assets"
+for script in MAIN.JS MINES.JS VIEWER.JS FOURTH.JS; do
+  grep -Fx "hcopy <-r> <$ALL_PROJECT/example/SmirkyCard/$script> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
+    fail "extended manifest omitted $script"
+done
+if grep -F 'ABSENT.JS' "$SANDBOX/all-apps.log" >/dev/null; then
+  fail "boot disk copied an absent optional card"
+fi
 
 # A fresh boot copy must carry the same .source record mame-run.sh writes
 # (resolved template path + sha256), or the next launch refreshes the copy
