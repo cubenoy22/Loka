@@ -1,4 +1,5 @@
 #include "app/nodes/nestable/LazyView.hpp"
+#include "app/reservation/SeatNodes.hpp"
 using namespace loka::app::scene;
 class Probe;
 struct Props : NodePropsBase<Props>
@@ -27,6 +28,7 @@ public:
 };
 void pin(loka::core::ObservableList<Props> &list, NodeComposition &c)
 {
-  c.declare(loka::app::LazyColumn(list, loka::app::reservation::SeatNodes<
-      loka::app::reservation::Nodes<Probe, 1> >(), 4));
+  loka::app::reservation::SeatNodes<loka::app::reservation::Nodes<Probe, 1> > nodes;
+  (void)nodes;
+  c.declare(loka::app::LazyRow(list, nodes, 4));
 }

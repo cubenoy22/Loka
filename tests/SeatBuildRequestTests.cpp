@@ -14,43 +14,7 @@ using namespace loka::app;
 using namespace loka::app::scene;
 using namespace loka::app::scene::detail;
 
-namespace loka
-{
-  namespace dsl
-  {
-    namespace testing
-    {
-      class SeatBuildRequestAccess
-      {
-      public:
-        static const SeatReservation *firstReservation(BoundaryNode &owner)
-        {
-          return owner.branchSeats_.plans()[0].seat()->seatReservation();
-        }
-        static const SeatReservation *nestedReservation(BoundaryNode &owner)
-        {
-          return owner.branchSeats_.plans()[0].seat()->declaredBranchSeats()->plans()[0].seat()->seatReservation();
-        }
-        static unsigned scopeReferences(const SeatReservation &seat)
-        {
-          return (seat.request().source_ != 0 ? 1u : 0u) + (seat.request().position_.parent != 0 ? 1u : 0u);
-        }
-        static bool remove(BoundaryNode &owner, const SeatReservation &seat, Node *node, int order)
-        {
-          return owner.seatReservations_.removeSeatChild(seat.request(), &owner, node, order);
-        }
-        static bool install(BoundaryNode &owner, const SeatReservation &seat, Node *node)
-        {
-          return owner.seatReservations_.installSeatChild(seat.request(), node);
-        }
-        static void park(BoundaryNode &owner, Node *node)
-        {
-          owner.parkBranch(BoundaryParkedBranchKey(9002, 0, 0, 0), node, 0);
-        }
-      };
-    } // namespace testing
-  } // namespace dsl
-} // namespace loka
+#include "support/SeatBuildRequestAccess.hpp"
 
 namespace
 {
@@ -162,7 +126,7 @@ namespace
   }
   void replace(Owner &owner, const SeatReservation &seat, Node *node)
   {
-    seat.request().retire(node);
+    seat.request().mark(); seat.request().recordReturn(node);
     retire(owner, node);
   }
 } // namespace
@@ -655,4 +619,29 @@ void testSeatBuildRequestNestedAttachPreservesHeldOwner()
     (void)ordinaryParent;
   }
   attachHoldScenario = 0;
+}
+
+void testSeatBuildRequestMergedClassReturnBarrier()
+{
+  Counts counts;
+  Owner owner;
+  NodePartition *bank = owner.installPartitionFixture(table(8));
+  require(bank != 0);
+  const SeatReservation &seat = request(owner, *bank, 4);
+  int key = 0, model = 0;
+  Build a(counts, key, model, 1), b(counts, key, model, 1), c(counts, key, model, 1);
+  seat.request().mark(); require(seat.request().admit(seat.layoutTable(), a));
+  seat.request().mark(); require(seat.request().admit(seat.layoutTable(), b));
+  seat.request().recordReturn(a.root);
+  retire(owner, a.root);
+  seat.request().mark();
+  require(bank->buildCapacity(seat.layoutTable().layouts(), seat.layoutTable().count()) == NodePartition::BUILD_AVAILABLE);
+  require(!seat.request().admit(seat.layoutTable(), c));
+  require(counts.builds == 2 && seat.request().waiting());
+  key = 7;
+  owner.drainRetiredSubtreesAtNextTrackerRun();
+  require(seat.request().admit(seat.layoutTable(), c));
+  require(counts.builds == 3 && counts.key == 7);
+  retire(owner, b.root); retire(owner, c.root);
+  owner.drainRetiredSubtreesAtNextTrackerRun();
 }

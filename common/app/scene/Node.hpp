@@ -1073,6 +1073,12 @@ namespace loka
         virtual NodeDefinitionBase *scopedBranchDefinition() const = 0;
       };
 
+      /** Props-specific lifetime compatibility, including generic definitions and clones. */
+      template <typename NodeT, typename PropsT> struct NodePropsCompatibility
+      {
+        static bool accepts(const NodeT *, const PropsT &) { return true; }
+      };
+
       template <typename NodeT, typename PropsT> struct NodePropsApplier
       {
         static bool apply(NodeT *node, const PropsT &props)
@@ -1419,7 +1425,8 @@ namespace loka
         }
         virtual bool isCompatibleWithNode(const Node *node) const
         {
-          return node && node->propsTypeId() == PropsT::staticTypeId();
+          return node && node->propsTypeId() == PropsT::staticTypeId()
+              && NodePropsCompatibility<NodeT, PropsT>::accepts(static_cast<const NodeT *>(node), this->props);
         }
         virtual NodeKind nodeKind() const
         {

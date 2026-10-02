@@ -138,7 +138,8 @@ namespace
         // LazyView selects in content coordinates; ScrollView translates once.
         composition.declare(Box().size(316, 192)
                             << (ScrollView(this->offset_)
-                                << LazyColumn(*this->props.model).cells(300, 64).viewport(*this->viewport_.state())));
+                                << LazyColumn(*this->props.model, reservation::SeatNodes<reservation::Nodes<Paragraph, 1,
+                                    reservation::Nodes<AttributedTextNode, 1> > >(), 6).cells(300, 64).viewport(*this->viewport_.state())));
       }
     }
 

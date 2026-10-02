@@ -253,10 +253,11 @@ namespace
     typedef ShortComponent NodeType;
     bool operator<(const PropsBase &) const { return false; }
   };
+  unsigned coldRefusalConstructions = 0;
   class ShortComponent : public ComponentNodeWithProps<ShortProps>
   {
   public:
-    explicit ShortComponent(const ShortProps &props) : ComponentNodeWithProps<ShortProps>(props) {}
+    explicit ShortComponent(const ShortProps &props) : ComponentNodeWithProps<ShortProps>(props) { ++coldRefusalConstructions; }
     virtual void composeChildren(NodeComposition &composition)
     { composition.declare(Fragment() << Fragment()); }
   };
@@ -295,6 +296,14 @@ namespace
       LOKA_VERIFY(strictHeapAttempts == 0);
       const loka::app::scene::detail::SeatReservation *seat = static_cast<ShortOwner *>(owner)->installedReservation();
       LOKA_VERIFY(seat);
+      const unsigned before = coldRefusalConstructions;
+      for (unsigned turn = 0; turn != 5; ++turn)
+      {
+        loka::dsl::testing::SceneTestAccess::flushInvalidation(scene);
+      }
+      // Cold replay is shared with Keyed: drain-only never retries, while an
+      // external update may retry the refused mount by design (#704 M5).
+      LOKA_VERIFY(coldRefusalConstructions == before && !scene.hasPendingInvalidation());
       owner->drainRetiredSubtreesAtNextTrackerRun();
       const loka::app::scene::detail::NodePartition::BuildCapacity returned =
           seat->partition().buildCapacity(seat->layoutTable().layouts(), seat->layoutTable().count());
@@ -536,7 +545,7 @@ namespace
     }
     // The root travels inside its arena parent's snapshot, not as a separately
     // queued partition root. The request must complete from that generation drain.
-    pending.retire(generationRoot);
+    pending.mark(); pending.recordReturn(generationRoot);
     Node *detached = owner->detachChildren();
     LOKA_VERIFY(detached == parent);
     ComponentContext context;

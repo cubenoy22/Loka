@@ -10,7 +10,11 @@ namespace loka
       {
 
         void *NodeBuildTicket::consumeAndAllocate(const NodeSlotLayout &layout)
-        { return this->partition_.consumeBuildSlot(layout); }
+        {
+          void *storage = this->partition_.consumeBuildSlot(layout);
+          if (!storage) this->result_ = LAYOUT_REFUSED;
+          return storage;
+        }
 
         void *NodePartition::consumeBuildSlot(const NodeSlotLayout &layout)
         {
