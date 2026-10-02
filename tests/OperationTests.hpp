@@ -36,4 +36,11 @@ void testWithdrawDuringRoundKeepsDriverSafe();
 void testOpenActiveWithoutClockReportsNoClock();
 void testOpenActiveDuringClosingIsRefused();
 
+void testRegimeNoClockSeatWriteAsserts();
+void testRegimeNoClockGuardAsserts();
+void testRegimeNestedDeclarationAsserts();
+void testRegimeInsideTurnSeatJoins();
+void testRegimeStandaloneLedgerWithoutClockStaysSynchronous();
+void testOpenActiveOrderWithClock();
+
 #endif

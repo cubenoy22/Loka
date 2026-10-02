@@ -218,6 +218,9 @@ void ToolboxApp::run()
   unsigned long lastTick = TickCount();
   activationPhase_ = ACTIVATION_FOREGROUND;
   running_ = true;
+  // The run loop is the clock regime: a joining write without an Operation
+  // turn is a defect here and a legacy fallback everywhere else (#1057 C5).
+  loka::core::Operation::Regime regime;
   while (running_)
   {
     if (activationPhase_ == ACTIVATION_FOREGROUND)

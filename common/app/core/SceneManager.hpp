@@ -176,6 +176,10 @@ private:
   bool applyPendingWork();
   bool applyReplacement();
   void installScene(loka::app::scene::Scene *scene);
+  /** Publishes retirement and unmounts the Scene under the seat transaction. */
+  void retireScene(loka::app::scene::Scene *scene);
+  /** Close admission retires the current Scene before Window reclamation. */
+  void retireCurrentScene();
 
   /** Seat-owned last-request-wins value; no Scene pointer can dangle here. */
   enum SceneRequest { REQUEST_NONE, REQUEST_DETACH, REQUEST_REARM };

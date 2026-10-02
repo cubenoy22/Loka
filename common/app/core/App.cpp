@@ -262,6 +262,16 @@ void App::admitAndApplyWindows()
   }
   for (size_t i = 0; i < admitted.size(); ++i)
     this->pendingReclaim_.remember(admitted[i]);
+  // Detach is observable work and belongs before the turn closes. Reclaim
+  // keeps the Window alive until then. Mirror drainWindowClosures' busy skip.
+  const size_t closeCount = this->pendingWindowClosures_.size();
+  for (size_t i = 0; i < closeCount; ++i)
+  {
+    Window *window = this->pendingWindowClosures_[i];
+    loka::app::scene::Scene *scene = window->scene();
+    if (scene && !scene->isBusy())
+      window->retireSceneForClose();
+  }
   this->flushingWindowWork_ = false;
 }
 

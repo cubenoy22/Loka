@@ -1,8 +1,14 @@
 -- Boot, launch the app on the LokaDev disk with the keyboard, then take a
--- screen snapshot as verification evidence and exit. Keyboard sequence and
+-- screen snapshot as verification evidence and exit (or wait without a snapshot
+-- for a self-quitting standalone application). Keyboard sequence and
 -- Lua 5.4 cautions follow scripts/mame-find-base.lua.
 
 local BOOT_WAIT = tonumber(os.getenv("LOKA_LAUNCH_WAIT") or "90")
+local STANDALONE = os.getenv("LOKA_STANDALONE") == "1"
+local RUN_WAIT = tonumber(os.getenv("LOKA_RUN_WAIT") or "90")
+if STANDALONE then
+    assert(RUN_WAIT and RUN_WAIT > 0 and RUN_WAIT < math.huge, "LOKA_RUN_WAIT must be finite and positive")
+end
 local SETTLE_TIMEOUT = tonumber(os.getenv("LOKA_SETTLE_TIMEOUT") or "30")
 local SETTLE_SAMPLE_WAIT = 0.5
 local SETTLE_STABLE_SAMPLES = 3
@@ -98,22 +104,35 @@ emu.wait(5)
 -- it cycles the Finder selection. Empirically (per-tab snapshot diagnostics,
 -- 2026-07-31) the first Tab in the freshly opened LokaDev window lands on
 -- LokaTestsToolbox68K, then cycles ASSETS.LRP -> LokaTest.cfg -> app again.
--- The scenario runner owns the per-example navigation fact beside the files
+-- The shell runner owns the navigation fact beside the files
 -- it stages and exports LOKA_TAB_COUNT; callers may override it for diagnosis.
 local tabKey = keyByName("Tab")
 local tabCount = assert(tonumber(os.getenv("LOKA_TAB_COUNT")),
-    "LOKA_TAB_COUNT must be set by the scenario runner")
+    "LOKA_TAB_COUNT must be set by the runner")
 assert(tabCount > 0 and tabCount == math.floor(tabCount),
     "LOKA_TAB_COUNT must be a positive integer")
 for _ = 1, tabCount do
     tap(tabKey)
 end
 emu.wait(1)
-local screen = findScreen()
-local video = manager.machine.video
-local baselineFrame, baselineWidth, baselineHeight = captureSnapshotPixels(video)
-local baselineSignal = completionSignalPixels(baselineFrame, baselineWidth, baselineHeight)
+local screen, video, baselineFrame, baselineWidth, baselineHeight, baselineSignal
+if not STANDALONE then
+    screen = findScreen()
+    video = manager.machine.video
+    baselineFrame, baselineWidth, baselineHeight = captureSnapshotPixels(video)
+    baselineSignal = completionSignalPixels(baselineFrame, baselineWidth, baselineHeight)
+end
 commandKey:set_value(1); tap(oKey); commandKey:clear_value()
+if STANDALONE then
+    -- These apps have no screen completion marker. Allow a bounded interval
+    -- for their own quit; the shell retrieves LOG.TXT only after MAME exits.
+    -- Elapsed time alone is not success: --expect checks the complete audit.
+    say("standalone opened; waiting %s emulated seconds", RUN_WAIT)
+    emu.wait(RUN_WAIT)
+    say("standalone wait complete")
+    manager.machine:exit()
+    return
+end
 
 -- Completion transport: reading a marker from the development HFS disk while
 -- the guest owns it would add unsafe cross-mount coordination. After the

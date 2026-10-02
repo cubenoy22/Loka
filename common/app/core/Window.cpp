@@ -2,6 +2,11 @@
 #include "app/FocusPublisher.hpp"
 #include "app/scene/Scene.hpp"
 
+void Window::retireSceneForClose()
+{
+  this->sceneManager_.retireCurrentScene();
+}
+
 void Window::unmountSceneForTeardown(loka::app::scene::Scene &scene)
 {
   scene.unmount();
