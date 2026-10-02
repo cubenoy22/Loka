@@ -183,7 +183,6 @@ public:
   ToolboxPopupMenuContext() : items_(0), selectedIndex_(0), onChange_(0), enabled_(0), boundary_(0) {}
   short menuId() const { return 2000; }
   short clampIndex(int value) const { return static_cast<short>(value); }
-  static void copyToPascalString(const loka::core::String &, Str255 &out) { out[0] = 0; }
   bool handleMouseDown(const Point &, ToolboxScenePlatformController *);
 };
 #else
@@ -449,6 +448,7 @@ namespace toolbox_host
     std::string bytes;
   };
   extern std::vector<Draw> draws;
+  extern std::vector<std::string> pascalDraws, windowTitles;
   extern int erases, widths, measures, fonts, metrics;
   /** Remaining NewRgn calls to refuse with a null handle (Classic memory pressure). */
   extern int failRegions;

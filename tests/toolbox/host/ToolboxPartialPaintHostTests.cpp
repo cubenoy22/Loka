@@ -101,6 +101,20 @@ int main(int argc, char **argv)
   if (id == "edit") context = new ToolboxEditTextContext(node->asEditTextNode(), &controller);
   LOKA_VERIFY(context);
   node->setContext(context);
+  if (std::strcmp(mode, "cell-encoding") == 0)
+  {
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("Open\xE2\x80\xA6 \xC3\xA9")); }
+    LayoutState natural = Seat(); natural.width = 0;
+    toolbox_host::reset();
+    Str255 expected = {7, 'O', 'p', 'e', 'n', 0xC9, ' ', 0x8E};
+    LOKA_VERIFY(context->layout(&controller, natural) == StringWidth(expected));
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::pascalDraws.size() == 1);
+    LOKA_VERIFY(toolbox_host::pascalDraws[0] == std::string("Open\xC9 \x8E", 7));
+    Access::unmount(scene);
+    std::puts("Cell encoding pin passed");
+    return 0;
+  }
   toolbox_host::reset();
   LayoutState seat = Seat();
   context->layout(&controller, seat);
