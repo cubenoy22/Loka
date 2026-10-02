@@ -1,0 +1,51 @@
+#ifndef LOKA_TEST_TOOLBOX_BOX_LAYOUT_HOST_HPP
+#define LOKA_TEST_TOOLBOX_BOX_LAYOUT_HOST_HPP
+
+// Compile production dispatch with inert non-Box platform neighbors.
+#define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
+#define LOKA_TOOLBOX_RECT_SURFACE_CONTEXT_HPP
+#include "app/scene/projection/PlatformController.hpp"
+#include "app/scene/projection/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/ProjectionParentScope.hpp"
+#include "app/RectSurface.hpp"
+#include "support/TestVerify.hpp"
+#include <climits>
+
+class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
+{
+public:
+  loka::app::scene::PlatformLayoutHandlerRegistry registry;
+  loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &this->registry; }
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
+  // Mirror ToolboxScenePlatformController::refuseNarrowingInScrollScope;
+  // dispatch and Box layout below are the unmodified production bodies.
+  bool refuseNarrowingInScrollScope(int resultY)
+  {
+    if (this->projectionParentScopes_.activeDepth() == 0) return false;
+    loka::app::scene::ProjectionParentScope &scope = this->projectionParentScopes_.current();
+    if (scope.hasShortRangeRefusal()) return true;
+    if (resultY >= SHRT_MIN && resultY <= SHRT_MAX) return false;
+    scope.markShortRangeRefused();
+    return true;
+  }
+  loka::app::scene::BoundaryNode *activeLayoutBoundary() { return 0; }
+  void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *) {}
+  bool restoreProjectedLayoutState(loka::app::scene::LayoutState &) { return true; }
+  bool projectLayoutState(loka::app::scene::LayoutState &) { return true; }
+  void recordRectSurfaceExtent(loka::app::RectSurfaceNode *, const loka::core::Frame &) { LOKA_VERIFY(false); }
+  short layoutScrollView(loka::app::ScrollViewNode *, loka::app::scene::LayoutState &,
+                        loka::app::scene::BoundaryNode *) { LOKA_VERIFY(false); return 0; }
+  void renderScrollView(loka::app::ScrollViewNode *) { LOKA_VERIFY(false); }
+  virtual void onChange(loka::app::scene::Node *, loka::app::scene::NodeDirtyFlags, bool) {}
+  virtual void synchronize() {}
+  virtual bool hasPendingSync() const { return false; }
+  virtual void destroy() {}
+};
+class ToolboxRectSurfaceContext : public loka::app::scene::NodeContext
+{
+public:
+  void setBoundary(loka::app::scene::BoundaryNode *) { LOKA_VERIFY(false); }
+};
+inline void EnsureToolboxRectSurfaceContext(loka::app::RectSurfaceNode *, ToolboxScenePlatformController *)
+{ LOKA_VERIFY(false); }
+#endif

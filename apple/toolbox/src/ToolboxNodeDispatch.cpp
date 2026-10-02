@@ -61,6 +61,12 @@ namespace
       return width;
     }
 
+    virtual bool refuseLayoutResultY(int y)
+    {
+      return this->controller_ ? this->controller_->refuseNarrowingInScrollScope(y)
+                               : loka::app::scene::IPlatformLayoutTraversal::refuseLayoutResultY(y);
+    }
+
     virtual void setLayoutResultY(short y)
     {
       layoutResultY_ = y;
@@ -241,36 +247,9 @@ namespace
       }
       if (!usedHandler)
       {
-        short padding = static_cast<short>(box->props.padding);
-        const bool hasFixedSize = box->props.hasFixedSize();
-        loka::app::scene::LayoutState childState = state;
-        childState.x = static_cast<short>(state.x + padding);
-        childState.y = static_cast<short>(state.y + padding);
-        if (hasFixedSize)
-        {
-          childState.width = box->props.effectiveWidth();
-          childState.height = box->props.height;
-        }
-        if (childState.width > 0)
-        {
-          childState.width = static_cast<short>(childState.width - padding * 2);
-          if (childState.width < 0)
-          {
-            childState.width = 0;
-          }
-        }
-        if (childState.height > 0)
-        {
-          childState.height = static_cast<short>(childState.height - padding * 2);
-          if (childState.height < 0)
-          {
-            childState.height = 0;
-          }
-        }
-        short childWidth = LayoutChildren(box->asNestable(), childState, controller, activeBoundary);
-        width = hasFixedSize ? box->props.effectiveWidth() : static_cast<short>(childWidth + padding * 2);
-        state.y = hasFixedSize ? static_cast<short>(state.y + box->props.height)
-                               : static_cast<short>(childState.y + padding);
+        ToolboxLayoutTraversal traversal(controller, activeBoundary);
+        width = static_cast<short>(ComputeToolboxBoxLayout(box, state, &traversal));
+        state.y = traversal.layoutResultY();
       }
       if (boundary)
       {
