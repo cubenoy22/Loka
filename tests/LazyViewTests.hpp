@@ -18,5 +18,14 @@ void testLazyViewPropsReselectAndReplaceBorrow();
 void testLazyViewParkedReattachReselects();
 void testLazyViewCanceledQueuedWindowRefreshesContent();
 void testLazyViewCanceledRefusedWindowRefreshesContent();
+void testLazyViewPartitionReuseAndQuietDrain();
+void testLazyViewWaitingLatestKeyAndDrainWake();
+void testLazyViewLateRefusalKeepsBindingsAndReturnsSlots();
+void testLazyViewPendingWindowRecoversFromMaximumRefusal();
+void testLazyViewOversizedStructureKeepsIdentity();
+void testLazyViewMaximumRefusalSettles();
+void testLazyViewClassRefusalSettles();
+void testLazyViewRecipeCompatibilityAndClones();
+void testLazyViewPartitionReuseWithinTurn();
 void testLazyViewSeatGuardOrders();
 #endif

@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
@@ -109,7 +110,7 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
   EraseRect(&drawRect);
   FrameRect(&drawRect);
   Str255 text;
-  if (!ToolboxBuildPascalText(current, text))
+  if (!ToolboxEncodePascal(current, text))
     return;
   if (text[0] != 0)
   {

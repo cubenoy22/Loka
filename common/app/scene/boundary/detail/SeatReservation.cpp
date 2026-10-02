@@ -45,16 +45,38 @@ namespace loka
           return normalized != 0;
         }
 
-        const SeatReservation *SeatReservations::install(SeatLayoutTable table)
+        bool SeatLayoutTable::scale(size_t multiplicity)
+        {
+          if (!multiplicity) return false;
+          SeatLayoutTable scaled;
+          for (size_t i = 0; i < this->count_; ++i)
+          {
+            size_t count = 0;
+            const NodeSlotLayout &layout = this->layouts_[i];
+            if (!NodeSlotLayout::multiply(layout.count(), multiplicity, count))
+              return false;
+            if (!scaled.append(NodeSlotLayout(layout.size(), layout.alignment(), count))) return false;
+          }
+          *this = scaled;
+          return true;
+        }
+
+        const SeatReservation *SeatReservations::install(SeatLayoutTable table, SeatReplacementPolicy policy)
         {
           size_t bytes = 0;
-          if (!table.normalize() || !NodePartition::reservationBytes(table.layouts(), table.count(), 0, bytes))
-            return 0;
+          if (!table.normalize()) return 0;
+          SeatLayoutTable backing(table);
+          switch (policy)
+          {
+          case RETIRE_BEFORE_BUILD: break;
+          case PRESERVE_INSTALLED: if (!backing.scale(2)) return 0; break;
+          }
+          if (!NodePartition::reservationBytes(backing.layouts(), backing.count(), 0, bytes)) return 0;
           void *storage = core::LokaAllocRaw(sizeof(SeatReservation), site());
           if (!storage)
             return 0;
-          SeatReservation *reservation = new (storage) SeatReservation(table, bytes);
-          if (!reservation->partition_.boot(table.layouts(), table.count()))
+          SeatReservation *reservation = new (storage) SeatReservation(table, bytes, policy);
+          if (!reservation->partition_.boot(backing.layouts(), backing.count()))
           {
             reservation->~SeatReservation();
             core::LokaFreeRaw(reservation, site());
@@ -115,7 +137,7 @@ namespace loka
           request.position_.parent = parent;
           request.position_.index = index;
           request.position_.order = order;
-          request.retire(outgoing);
+          request.recordReturn(outgoing);
           return true;
         }
 
@@ -157,6 +179,20 @@ namespace loka
                                                             &ReturnedGenerationNode, this))
             return;
           NodeArena::destroyRetiredGeneration(generation, &ReturnedGenerationNode, this);
+        }
+
+        void SeatReservations::recordRetiringRoot(Node *node)
+        {
+          NodePartition *bank = node ? node->partitionOwner() : 0;
+          if (!bank) return;
+          for (SeatReservation *r = this->head_; r; r = r->next_)
+            if (&r->partition_ == bank && r->policy_ == PRESERVE_INSTALLED)
+            {
+              NodePartition::Resident *resident = bank->resident(node);
+              if (!resident || resident->owner) return;
+              r->request_.recordReturn(node);
+              return;
+            }
         }
 
         void SeatReservations::returnedNode(Node *node)

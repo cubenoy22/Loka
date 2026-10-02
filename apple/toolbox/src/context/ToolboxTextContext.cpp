@@ -172,7 +172,7 @@ namespace
                     short availableWidth, const loka::app::BlockStyle &block)
   {
     Str255 text;
-    if (!ToolboxBuildPascalText(value, text))
+    if (!ToolboxBuildLegacyTextPascal(value, text))
     {
       return false;
     }
@@ -192,12 +192,12 @@ namespace
     {
       return std::string();
     }
-    if (measure.measure(value) <= maxWidth)
+    if (measure.measureLegacyText(value) <= maxWidth)
     {
       return utf8;
     }
 
-    const short ellipsisWidth = measure.measure(loka::core::String::Literal("..."));
+    const short ellipsisWidth = measure.measureLegacyText(loka::core::String::Literal("..."));
     if (ellipsisWidth >= maxWidth)
     {
       return std::string("...");
@@ -207,7 +207,7 @@ namespace
     while (!prefix.empty())
     {
       std::string candidate = prefix + "...";
-      if (measure.measure(loka::core::String(candidate)) <= maxWidth)
+      if (measure.measureLegacyText(loka::core::String(candidate)) <= maxWidth)
       {
         return candidate;
       }
@@ -363,7 +363,8 @@ short ToolboxTextContext::visibleWidth() const
     return 0;
   }
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
-  short width = this->controller()->measureTextWidth(this->text_->get(), descriptor);
+  ToolboxTextMeasureScope measure(*this->controller(), descriptor);
+  short width = measure.measureLegacyText(this->text_->get());
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
   {
@@ -472,7 +473,7 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     TextGeometry geometry;
     short measuredWidth = 0;
     if (!ResolveTextGeometry(style, state, value, this->wrapMode_, this->truncationMode_, measure, geometry)
-        || !measure.measure(value, measuredWidth))
+        || !measure.measureLegacyText(value, measuredWidth))
     {
       controller->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();

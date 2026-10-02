@@ -28,22 +28,22 @@ namespace loka
         class SeatReservations;
         class SeatBuildRequest;
 
-        /** Stack-local node-storage access, issued only after the outgoing root's
-            complete storage-owner return and a current class-capacity check.
+        /** Stack-local node-storage access after return obligations and class capacity
+            permit admission. An installed generation may remain linked.
             The synchronous build consumes its full ticket before another admission. */
-        class ReturnedSeatStorage
+        class AdmittedSeatStorage
         {
         public:
           bool build(const SeatLayoutTable &demand, NodeBuildOperation &operation);
 
         private:
           friend class NodePartition;
-          explicit ReturnedSeatStorage(NodePartition &bank)
+          explicit AdmittedSeatStorage(NodePartition &bank)
               : bank_(bank)
           {
           }
-          ReturnedSeatStorage(const ReturnedSeatStorage &);
-          ReturnedSeatStorage &operator=(const ReturnedSeatStorage &);
+          AdmittedSeatStorage(const AdmittedSeatStorage &);
+          AdmittedSeatStorage &operator=(const AdmittedSeatStorage &);
           NodePartition &bank_;
         };
 
@@ -86,14 +86,15 @@ namespace loka
           {
             return this->outgoing_ != 0;
           }
-          /** Called at destructive retirement, before unlinking the old generation. */
-          void retire(Node *outgoing)
+          /** Records identity only; demand is driven by the source, not retirement. */
+          void recordReturn(Node *outgoing)
           {
             assert(!this->outgoing_ && "a seat cannot replace a still-retiring occupant");
             if (!this->outgoing_)
               this->outgoing_ = outgoing;
-            this->mark();
           }
+          /** A declaration error cannot heal by polling; a source change rearms it. */
+          void refuse() { if (this->phase_ != CANCELLED) this->phase_ = REFUSED; }
           /** False means waiting or refusal; it never grants partial entitlement. */
           bool admit(const SeatLayoutTable &demand, NodeBuildOperation &operation);
 #ifdef TEST_BUILD
@@ -128,6 +129,7 @@ namespace loka
           {
             IDLE,
             WAITING,
+            REFUSED,
             CANCELLED
           };
           SeatBuildRequest(const SeatBuildRequest &);

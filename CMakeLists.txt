@@ -436,6 +436,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     apple/toolbox/src/context/ToolboxTextEditorContext.cpp
     apple/toolbox/src/context/ToolboxAttributedTextContext.cpp
     apple/toolbox/src/context/ToolboxAttributedTextTable.cpp
+    apple/toolbox/src/platform/ToolboxPascalText.cpp
+    apple/toolbox/src/platform/ToolboxMacRoman.cpp
     apple/toolbox/src/context/ToolboxLayoutUtil.cpp
     apple/toolbox/src/context/ToolboxProjectedNodeContext.cpp
     apple/toolbox/src/ToolboxBuiltInSupport.cpp)
@@ -458,6 +460,18 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxTextEditorTests)
   set_target_properties(LokaToolboxTextEditorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxTextEditorTests COMMAND LokaToolboxTextEditorTests)
+
+  add_executable(LokaToolboxPascalTextTests tests/toolbox/host/ToolboxPascalTextHostTests.cpp
+    apple/toolbox/src/platform/ToolboxHfsName.cpp ${_editor_host_sources})
+  target_include_directories(LokaToolboxPascalTextTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxPascalTextTests PRIVATE -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
+  target_link_libraries(LokaToolboxPascalTextTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxPascalTextTests)
+  set_target_properties(LokaToolboxPascalTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_pascal_case codec malformed truncation script failure hfs)
+    add_test(NAME testToolboxPascal_${_pascal_case} COMMAND LokaToolboxPascalTextTests ${_pascal_case})
+  endforeach()
+
 
   add_executable(LokaToolboxFocusTests tests/toolbox/host/ToolboxFocusHostTests.cpp ${_editor_host_sources})
   target_include_directories(LokaToolboxFocusTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
@@ -510,7 +524,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxControlWidthTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxControlWidthTests)
   set_target_properties(LokaToolboxControlWidthTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_control_width_case column-button column-edit column-popup natural row-title natural-title equal-title clipped-title)
+  foreach(_control_width_case encoding-button encoding-popup encoding-text column-button column-edit column-popup natural row-title natural-title equal-title clipped-title)
     add_test(NAME testToolboxControlWidth_${_control_width_case} COMMAND LokaToolboxControlWidthTests ${_control_width_case})
   endforeach()
 
@@ -525,7 +539,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxPartialPaintTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxPartialPaintTests)
   set_target_properties(LokaToolboxPartialPaintTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_partial_paint_case cell text text-repaint button button-repaint popup popup-repaint attributed edit edit-refused)
+  foreach(_partial_paint_case cell-encoding cell text text-repaint button button-repaint popup popup-repaint attributed edit edit-refused)
     add_test(NAME testToolboxPartialPaint_${_partial_paint_case} COMMAND LokaToolboxPartialPaintTests ${_partial_paint_case})
   endforeach()
 

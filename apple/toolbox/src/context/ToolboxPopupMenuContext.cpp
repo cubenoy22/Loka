@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "context/ToolboxPaintSupport.hpp"
@@ -35,22 +36,9 @@ namespace
 
   bool DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      return false;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
     Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
-    }
+    if (!ToolboxEncodePascal(value, text))
+      return false;
     MoveTo(x, y);
     DrawString(text);
     return true;
@@ -150,26 +138,6 @@ short ToolboxPopupMenuContext::clampIndex(int index) const
     return static_cast<short>(items_->size() - 1);
   }
   return static_cast<short>(index);
-}
-
-void ToolboxPopupMenuContext::copyToPascalString(const loka::core::String &value, Str255 out) const
-{
-  std::string utf8;
-  if (!loka::platform::CollectUtf8(value, utf8))
-  {
-    out[0] = 0;
-    return;
-  }
-  std::size_t length = utf8.size();
-  if (length > 255)
-  {
-    length = 255;
-  }
-  out[0] = static_cast<unsigned char>(length);
-  if (length > 0)
-  {
-    std::memcpy(out + 1, utf8.data(), length);
-  }
 }
 
 void ToolboxPopupMenuContext::draw()

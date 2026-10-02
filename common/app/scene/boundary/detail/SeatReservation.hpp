@@ -14,6 +14,9 @@ namespace loka
       namespace detail
       {
 
+        /** Replacement lifetime, fixed when the Boundary installs the seat. */
+        enum SeatReplacementPolicy { RETIRE_BEFORE_BUILD, PRESERVE_INSTALLED };
+
         /** Bounded installation workspace. Completed copies expose only layout facts.
             The bound applies to emitted leaves, before equal-layout normalization. */
         class SeatLayoutTable
@@ -29,6 +32,7 @@ namespace loka
           }
           bool append(const NodeSlotLayout &layout);
           bool normalize();
+          bool scale(size_t multiplicity);
           const NodeSlotLayout *layouts() const
           {
             return this->layouts_;
@@ -50,6 +54,7 @@ namespace loka
         class SeatReservation
         {
         public:
+          SeatReplacementPolicy replacementPolicy() const { return this->policy_; }
           SeatBuildRequest &request() const { return this->request_; }
           const SeatLayoutTable &layoutTable() const
           {
@@ -64,8 +69,8 @@ namespace loka
 
         private:
           friend class SeatReservations;
-          SeatReservation(const SeatLayoutTable &table, size_t bytes)
-              : table_(table),
+          SeatReservation(const SeatLayoutTable &table, size_t bytes, SeatReplacementPolicy policy)
+              : policy_(policy), table_(table),
                 bytes_(bytes),
                 partition_(),
                 next_(0)
@@ -75,6 +80,7 @@ namespace loka
           SeatReservation(const SeatReservation &);
           SeatReservation &operator=(const SeatReservation &);
           mutable SeatBuildRequest request_;
+          const SeatReplacementPolicy policy_;
           const SeatLayoutTable table_;
           const size_t bytes_;
           mutable NodePartition partition_;
@@ -92,7 +98,7 @@ namespace loka
           }
           ~SeatReservations();
           bool empty() const { return this->head_ == 0; }
-          const SeatReservation *install(SeatLayoutTable table);
+          const SeatReservation *install(SeatLayoutTable table, SeatReplacementPolicy policy = RETIRE_BEFORE_BUILD);
 
 #ifdef TEST_BUILD
           /** Internal fixture installation using the same cold storage door. */
@@ -107,6 +113,8 @@ namespace loka
               supplied and fits, legacy walk otherwise) and then clears the outgoing
               obligations of this landlord's requests that pointed into it. */
           void reclaimGeneration(NodeArena::RetiredNodeGeneration &generation, ReclaimScratch *scratch);
+          /** One return obligation per generation, never per discarded descendant. */
+          void recordRetiringRoot(Node *node);
           void returnedNode(Node *node);
           void cancelRequests();
           /** Abandons initial candidate borrows while retaining cold banks for

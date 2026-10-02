@@ -108,7 +108,8 @@ namespace
     for (unsigned short i = 0; i < n; ++i)
       LOKA_VERIFY(list.insert(i, CounterItem()) == EDIT_OK);
     NullScenePlatformController platform;
-    Scene scene(LazyColumn(list).cells(200, 20).viewport(viewport));
+    Scene scene(LazyColumn(list, reservation::SeatNodes<reservation::Nodes<CounterItemNode, 1,
+        reservation::Nodes<TextNode, 1> > >(), 8).cells(200, 20).viewport(viewport));
     scene.mount(&platform);
     LayoutState bounds;
     bounds.width = 200;

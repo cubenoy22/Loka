@@ -26,10 +26,20 @@ namespace loka
           return staticTypeId();
         }
       };
+      namespace detail
+      {
+        /** Generic LazyScope keeps its existing unreserved internal route. */
+        struct UnreservedScope
+        {
+          bool prepare() { return true; }
+          const SeatReservation *reservation() const { return 0; }
+          template <class K> bool accepts(const K &) const { return true; }
+        };
+      }
       /** A keyed branch whose runtime root owns and declares its arm. The key
           must outlive the seat; props are copied values. Replacement uses the
           same plan, publication, and retirement protocol as Keyed. */
-      template <class K, class NodeT>
+      template <class K, class NodeT, class Reservation = detail::UnreservedScope>
       class LazyScopeDefinition : public NodeDefinitionBase, public IBranchSeatDefinition
       {
         /** The committed key belongs to the declaration it describes. */
@@ -52,9 +62,11 @@ namespace loka
         };
 
       public:
-        LazyScopeDefinition(loka::core::State<K> &key, const typename NodeT::Props &props)
+        LazyScopeDefinition(loka::core::State<K> &key, const typename NodeT::Props &props,
+                            const Reservation &reservation = Reservation())
             : props_(&key),
               nodeProps_(props),
+              reservation_(reservation),
               declaration_()
         {
           // This conversion is an always-on C++98 inheritance constraint.
@@ -66,6 +78,7 @@ namespace loka
               IBranchSeatDefinition(other),
               props_(other.props_.state),
               nodeProps_(other.nodeProps_),
+              reservation_(other.reservation_),
               declaration_()
         {
 #ifdef LOKA_LIFECYCLE_AUDIT
@@ -73,6 +86,9 @@ namespace loka
             std::abort();
 #endif
         }
+
+        virtual bool prepareSeatReservation() { return this->reservation_.prepare(); }
+        virtual const detail::SeatReservation *seatReservation() const { return this->reservation_.reservation(); }
 
         virtual Node *create() const
         {
@@ -169,6 +185,11 @@ namespace loka
         {
           if (!context.boundary())
             return 0;
+          if (!this->reservation_.accepts(this->props_.state->get()))
+          {
+            if (this->seatReservation()) this->seatReservation()->request().refuse();
+            return 0;
+          }
           loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
           if (!candidate.isSet())
             return 0;
@@ -196,9 +217,17 @@ namespace loka
       private:
         LazyScopeProps<K, NodeT> props_;
         const typename NodeT::Props nodeProps_;
+        Reservation reservation_;
         loka::core::OwnedDef<BranchSeatDeclaration> declaration_;
         LazyScopeDefinition &operator=(const LazyScopeDefinition &);
       };
+
+      template <class K, class PropsT, class Reservation>
+      inline LazyScopeDefinition<K, typename PropsT::NodeType, Reservation>
+      LazyScope(loka::core::State<K> &key, const PropsT &props, const Reservation &reservation)
+      {
+        return LazyScopeDefinition<K, typename PropsT::NodeType, Reservation>(key, props, reservation);
+      }
 
       template <class K, class PropsT>
       inline LazyScopeDefinition<K, typename PropsT::NodeType> LazyScope(loka::core::State<K> &key, const PropsT &props)

@@ -40,6 +40,7 @@ void MeasureText(short, const void *, void *);
 short TextWidth(const void *, short, short);
 short StringWidth(const unsigned char *);
 void DrawString(const unsigned char *);
+void SetWTitle(GrafPtr, const unsigned char *);
 void DrawText(const void *, short, short);
 void MoveTo(short, short);
 void SetRect(Rect *, short, short, short, short);

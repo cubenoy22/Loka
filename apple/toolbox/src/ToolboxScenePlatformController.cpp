@@ -1,3 +1,4 @@
+#include "platform/ToolboxPascalText.hpp"
 #include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxPropsRefresh.hpp"
 #include "ToolboxDirtyReplay.hpp"
@@ -69,7 +70,7 @@ namespace
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
     Str255 text;
-    if (!ToolboxBuildPascalText(value, text))
+    if (!ToolboxEncodePascal(value, text))
     {
       return;
     }
