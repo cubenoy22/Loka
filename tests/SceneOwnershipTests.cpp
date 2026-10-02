@@ -2433,3 +2433,23 @@ void testSceneRearmCommitsBeforeReadInsideTurn()
     LOKA_VERIFY(edit && edit->getContext());
   }
 }
+
+void testSceneManagerLedgerNeverEnrolls()
+{
+  using namespace loka::core;
+  typedef loka::app::testing::SceneManagerTestAccess ManagerAccess;
+  WindowCreatingPlatformContext context;
+  NullWindow window(&context, WindowProps().scene(new Scene(new loka::app::EditTextDefinition())));
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  SceneManager &manager = *window.sceneManager();
+  const PushStateTracker &tracker = ManagerAccess::tracker(manager);
+  Scene *installed = window.scene();
+  Operation turn;
+  ManagerAccess::writeCurrentScene(manager);
+  LOKA_VERIFY(tracker.phase() == TRACKER_IDLE);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(tracker) == 0);
+  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
+  LOKA_VERIFY(window.scene() == installed);
+  LOKA_VERIFY(turn.close().rounds == 0);
+}

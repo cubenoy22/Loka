@@ -9,7 +9,7 @@ namespace loka
   namespace core
   {
     /** A transaction that joins the active clock when its ledger can enroll.
-        Inside a turn the callback is not invoked; owners that need a post-commit
+        When joined to a turn the callback is not invoked; owners that need a post-commit
         callback use StandaloneTransactionGuard or observe the State.
         Refused enrollment retains the legacy begin/end bracket. */
     struct StateTrackerGuard
@@ -34,6 +34,7 @@ namespace loka
           return;
         case OPEN_REFUSED_BUSY:
         case OPEN_REFUSED_CLOSING:
+        case OPEN_REFUSED_STANDALONE:
         case OPEN_NO_CLOCK:
         case OPEN_CLOCK_REFUSED:
         case OPEN_REFUSED_NOT_PUSH:
@@ -64,7 +65,9 @@ namespace loka
 
     /** A bounded preparation transaction that must commit before its owner
         reads the result (commit-before-read). It does not join the clock.
-        Owners: menu composition, Scene installation, bootstrap.
+        For menu composition and Scene installation, its owner's ledger is
+        LEDGER_STANDALONE, so no earlier write in the turn can have enrolled it.
+        Bootstrap uses this bracket before any turn on a joining Window ledger.
         Its begin/end and callback mechanism mirrors the OWNED policy above. */
     struct StandaloneTransactionGuard
     {

@@ -215,7 +215,8 @@ namespace
     Count commits, direct;
     PushStateTracker tracker;
     NodeState<int> seat;
-    SeatLedger() : source(1), derived(&source, new SeatDouble(source)), seat(&source, &tracker)
+    SeatLedger(LedgerPolicy policy = LEDGER_JOINS)
+        : source(1), derived(&source, new SeatDouble(source)), tracker(policy), seat(&source, &tracker)
     {
       this->tracker.addState(&this->source);
       this->tracker.addState(&this->derived);
@@ -642,6 +643,34 @@ void testGuardCallbackFiresOnlyOutsideTurn()
   }
 }
 
+void testStandaloneLedgerRefusesTheClock()
+{
+  SeatLedger f(LEDGER_STANDALONE);
+  Operation turn;
+  LOKA_VERIFY(turn.open(&f.tracker) == OPEN_REFUSED_STANDALONE);
+  LOKA_VERIFY(Operation::openActive(&f.tracker) == OPEN_REFUSED_STANDALONE);
+  f.seat.writeSeat().set(4);
+  LOKA_VERIFY(f.derived.get() == 8 && f.commits.calls == 1);
+  LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(f.tracker) == 0);
+  Count callback;
+  {
+    StateTrackerGuard guard(&f.tracker, &Count::hit, &callback);
+    LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1);
+    LOKA_VERIFY(turn.open(&f.tracker) == OPEN_REFUSED_STANDALONE);
+    LOKA_VERIFY(Operation::openActive(&f.tracker) == OPEN_REFUSED_STANDALONE);
+    f.source.set(5);
+  }
+  LOKA_VERIFY(f.derived.get() == 10 && f.commits.calls == 2 && callback.calls == 1);
+  LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(f.tracker) == 0);
+  std::vector<StateBase *> states;
+  MutableState<int> source(0);
+  states.push_back(&source);
+  PushStateTracker fromStates(states, LEDGER_STANDALONE);
+  LOKA_VERIFY(turn.open(&fromStates) == OPEN_REFUSED_STANDALONE);
+  LOKA_VERIFY(SeatClockAccess::empty(turn));
+  LOKA_VERIFY(turn.close().rounds == 0);
+}
+
 void testStandaloneGuardCommitsBeforeReadInsideTurn()
 {
   for (unsigned clocked = 0; clocked != 2; ++clocked)
@@ -709,6 +738,17 @@ namespace
       composition << Menu("Prepared");
     }
   };
+  class HandlerMenu : public MenuBoundary
+  {
+  public:
+    MutableState<bool> value;
+    NodeState<bool> checked;
+    HandlerMenu() : value(false), checked(&this->value, this->tracker())
+    { this->tracker()->asPushTracker()->addState(&this->value); }
+    virtual ~HandlerMenu() { this->tracker()->asPushTracker()->removeState(&this->value); }
+    virtual void composeMenu(MenuComposition &composition)
+    { composition << Menu(this->checked.get() ? "Checked" : "Unchecked"); }
+  };
   class BootstrapApp : public WindowAdmissionTestApp
   {
   public:
@@ -734,6 +774,29 @@ void testMenuCompositionCommitsBeforeReadInsideTurn()
     if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
   }
 }
+void testMenuStateToggledInHandlerRebuildsMenuInSameTail()
+{
+  HandlerMenu menu;
+  MenuBarDefinition bar;
+  MenuComposition composition(&bar);
+  Operation turn;
+  menu.checked.set(true);
+  composition.declare(menu);
+  composition.finish();
+  PushStateTracker &tracker = *menu.tracker()->asPushTracker();
+  std::printf("S2 before settle: depth=%u dirty=%d clockEmpty=%d\n",
+              SeatAccess::depth(tracker), tracker.peekDirty(), SeatClockAccess::empty(turn));
+  std::fflush(stdout);
+  LOKA_VERIFY(tracker.peekDirty());
+  std::vector<size_t> indices;
+  composition.takeDirtyMenuIndices(indices);
+  LOKA_VERIFY(indices.size() == 1 && indices[0] == 0);
+  composition.acknowledgeDirtyBoundaries();
+  LOKA_VERIFY(!tracker.peekDirty());
+  LOKA_VERIFY(!tracker.consumeDirty());
+  LOKA_VERIFY(SeatClockAccess::empty(turn));
+}
+
 void testBootstrapVisibilityCommitsBeforeReadInsideTurn()
 {
   for (unsigned clocked = 0; clocked != 2; ++clocked)

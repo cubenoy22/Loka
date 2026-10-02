@@ -4,7 +4,7 @@
 #include "core/util/StateTrackerGuard.hpp"
 
 SceneManager::SceneManager()
-    : request_(REQUEST_NONE), currentScene_(0), desired_(0), applying_(0), tracker_(), retiredScenes_(), window_(0)
+    : request_(REQUEST_NONE), currentScene_(0), desired_(0), applying_(0), tracker_(loka::core::LEDGER_STANDALONE), retiredScenes_(), window_(0)
 {
 #ifdef TEST_BUILD
   this->lastPrepareRefusal_ = 0;

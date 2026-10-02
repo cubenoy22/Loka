@@ -636,7 +636,7 @@ It is the reason Loka can avoid treating the whole UI as one undifferentiated
 tree. State updates should be made inside a tracker transaction so the framework
 can see what changed and decide what to update.
 
-`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an idle
+`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an eligible idle
 owner ledger joins `Operation`: source values and direct observers remain
 synchronous, but derived values, the dirty summary, and Scene projection wait
 for the turn's settle/apply. Reading an owner-derived value immediately after
@@ -653,7 +653,11 @@ observe the State or use `StandaloneTransactionGuard` for post-commit work.
 
 `StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
 commit-before-read preparation: menu composition, Scene installation/rearm, and
-bootstrap. Flow's `onSuccess` state assignment joins through `StateTrackerGuard`,
+bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
+construction, so earlier handler writes cannot enroll them in the turn clock.
+Their seat writes and ordinary tracker guards keep synchronous transactions.
+Window retains a joining ledger; bootstrap uses the standalone bracket before
+any turn. Flow's `onSuccess` state assignment joins through `StateTrackerGuard`,
 so a following step or `finally` can still read the previous derived value until
 the tail. Flow's other brackets, dialog transport, and Menu's own NextTick remain
 unchanged. Cleanup writes do not reopen a closing clock.

@@ -42,6 +42,7 @@ namespace loka
       OPEN_OK,
       OPEN_ALREADY_OPEN,
       OPEN_REFUSED_BUSY,
+      OPEN_REFUSED_STANDALONE,
       OPEN_REFUSED_NOT_PUSH,
       OPEN_NO_CLOCK,
       OPEN_REFUSED_CLOSING,
@@ -66,7 +67,8 @@ namespace loka
     public:
       explicit Operation(const OperationBudget &budget = OperationBudget());
       ~Operation();
-      /** Opens an idle ledger, or recognizes a ledger already in this clock.
+      /** Refuses standalone ledgers before checking transaction phase.
+          Opens an idle joining ledger, or recognizes one already in this clock.
           May be called during work rounds, never during cleanup or after close. */
       OpenResult open(StateTracker *tracker);
       /** The single active-clock door for write seats and guards. No clock returns

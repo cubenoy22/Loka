@@ -14,10 +14,11 @@ namespace loka
       template <typename T> class NodeState;
 
       /** Input-write door carrying the state owner's tracker.
-          Inside a turn the owner ledger joins the clock; the write's derived
+          Inside a turn an eligible owner ledger joins the clock; the write's derived
           values, dirty summary and Scene projection complete at the turn's
           settle/apply, not when set returns. Source value and direct observers
-          are synchronous as before. */
+          are synchronous as before. Standalone ledgers keep the synchronous
+          begin/set/end bracket. */
       template <typename T> class WriteSeat
       {
       public:
@@ -54,6 +55,7 @@ namespace loka
           case loka::core::OPEN_REFUSED_CLOSING:
             this->state_->set(value, forceUpdate);
             return;
+          case loka::core::OPEN_REFUSED_STANDALONE:
           case loka::core::OPEN_NO_CLOCK:
           case loka::core::OPEN_CLOCK_REFUSED:
           case loka::core::OPEN_REFUSED_NOT_PUSH:

@@ -588,14 +588,15 @@ void allocpin::RunLazyViewPageFlipAllocPin()
     EndCapture();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
     // Measured ceilings for the host pool simulation, including the reclaim clock.
-    // One replacement ledger now carries Operation's two borrowed clock links.
-    const unsigned long clockLinks = 2 * sizeof(void *);
+    // One replacement ledger carries two borrowed clock links plus the
+    // construction policy (one pointer-aligned slot in the host layout).
+    const unsigned long clockLedgerStorage = 3 * sizeof(void *);
 #ifdef LOKA_LIFECYCLE_AUDIT
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10768 : 9768) + clockLinks);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10768 : 9768) + clockLedgerStorage);
 #else
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10352 : 9392) + clockLinks);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10352 : 9392) + clockLedgerStorage);
 #endif
 #endif
     rows(f, f.view.get().y == 0 ? 9 : 10);

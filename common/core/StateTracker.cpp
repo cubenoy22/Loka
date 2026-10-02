@@ -54,6 +54,8 @@ namespace loka
       PushStateTracker *ledger = tracker->asPushTracker();
       if (!ledger)
         return OPEN_REFUSED_NOT_PUSH;
+      if (ledger->policy_ == LEDGER_STANDALONE)
+        return OPEN_REFUSED_STANDALONE;
       if (ledger->op_ == this)
         return OPEN_ALREADY_OPEN;
       if (ledger->phase() != TRACKER_IDLE)
@@ -204,8 +206,9 @@ namespace loka
       }
     }
 
-    PushStateTracker::PushStateTracker()
-        : phase_(TRACKER_IDLE),
+    PushStateTracker::PushStateTracker(LedgerPolicy policy)
+        : policy_(policy),
+          phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
           reentrantDepth_(0),
@@ -223,8 +226,9 @@ namespace loka
     {
     }
 
-    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states)
-        : phase_(TRACKER_IDLE),
+    PushStateTracker::PushStateTracker(const std::vector<StateBase *> &states, LedgerPolicy policy)
+        : policy_(policy),
+          phase_(TRACKER_IDLE),
           pendingDirty_(false),
           depth_(0),
           reentrantDepth_(0),

@@ -26,4 +26,6 @@ void testGuardedBlocksProjectOnceAtTail();
 void testMenuCompositionCommitsBeforeReadInsideTurn();
 void testBootstrapVisibilityCommitsBeforeReadInsideTurn();
 void testFlowOnSuccessJoinsTurn();
+void testMenuStateToggledInHandlerRebuildsMenuInSameTail();
+void testStandaloneLedgerRefusesTheClock();
 #endif
