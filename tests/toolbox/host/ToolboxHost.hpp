@@ -448,7 +448,7 @@ namespace toolbox_host
     std::string bytes;
   };
   extern std::vector<Draw> draws;
-  extern std::vector<std::string> pascalDraws, windowTitles, widthPayloads;
+  extern std::vector<std::string> pascalDraws, windowTitles, widthPayloads, measurePayloads;
   extern int erases, widths, measures, fonts, metrics;
   /** Remaining NewRgn calls to refuse with a null handle (Classic memory pressure). */
   extern int failRegions;

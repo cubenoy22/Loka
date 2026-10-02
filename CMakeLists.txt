@@ -459,6 +459,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     apple/toolbox/src/context/ToolboxProjectedNodeContext.cpp
     apple/toolbox/src/ToolboxBuiltInSupport.cpp)
   target_include_directories(LokaToolboxAttributedTextTests PRIVATE
+    example/SmirkyCard/src
     tests/toolbox/host tests apple/toolbox/src)
   target_compile_options(LokaToolboxAttributedTextTests PRIVATE
     -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
@@ -469,6 +470,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   add_executable(LokaToolboxTextEditorTests tests/toolbox/host/ToolboxTextEditorHostTests.cpp)
   get_target_property(_editor_host_sources LokaToolboxAttributedTextTests SOURCES)
+  target_sources(LokaToolboxAttributedTextTests PRIVATE example/SmirkyCard/src/SmirkyMarkup.cpp)
   list(REMOVE_ITEM _editor_host_sources tests/toolbox/host/ToolboxAttributedTextHostTests.cpp)
   target_sources(LokaToolboxTextEditorTests PRIVATE ${_editor_host_sources})
   target_include_directories(LokaToolboxTextEditorTests PRIVATE tests/toolbox/host tests apple/toolbox/src)

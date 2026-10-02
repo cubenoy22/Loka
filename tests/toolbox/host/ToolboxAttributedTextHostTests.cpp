@@ -7,7 +7,11 @@
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include <cstdio>
+#include <map>
+#include <cstdlib>
 #include "platform/String.hpp"
+#include "SmirkyMarkup.hpp"
+#include <Script.h>
 
 namespace loka
 {
@@ -41,6 +45,51 @@ using namespace loka::app::scene;
 using loka::testing::ToolboxAttributedTextContextAccess;
 namespace
 {
+  std::map<void *, std::size_t> allocations;
+  std::size_t liveBytes = 0, peakBytes = 0;
+  void *CountAlloc(std::size_t size, const loka::core::LokaAllocationSite &)
+  {
+    void *p = std::malloc(size);
+    if (p)
+    {
+      allocations[p] = size;
+      liveBytes += size;
+      if (liveBytes > peakBytes) peakBytes = liveBytes;
+    }
+    return p;
+  }
+  void CountFree(void *p, const loka::core::LokaAllocationSite &)
+  {
+    LOKA_VERIFY(allocations.count(p) == 1);
+    liveBytes -= allocations[p];
+    allocations.erase(p);
+    std::free(p);
+  }
+  void MemoryPin()
+  {
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    const AttributedString word = Styled(loka::core::String(std::string("a ") + std::string(9000, 'x')), TextStyle());
+    loka::core::LokaAllocSetBackend(CountAlloc, CountFree);
+    {
+      ToolboxAttributedTextTable table;
+      LOKA_VERIFY(table.build(word, BlockStyle().wrap(TEXT_WRAP_WORD), 40, controller));
+      std::printf("9002 ASCII units: table sizeof=%lu gate held=%lu peak=%lu\n",
+          static_cast<unsigned long>(sizeof(table)), static_cast<unsigned long>(liveBytes),
+          static_cast<unsigned long>(peakBytes));
+      // Host table budget: retaining a second document buffer or restoring the
+      // synthetic decoder exceeds these independently measured limits.
+      if (sizeof(std::size_t) == 8 && sizeof(TextBreakCharacter) == 32)
+      {
+        LOKA_VERIFY(liveBytes < 400000);
+        LOKA_VERIFY(peakBytes < 420000);
+      }
+      else
+        std::puts("[skip] x86_64 table-memory budget; sizes differ on this host");
+    }
+    LOKA_VERIFY(liveBytes == 0);
+    loka::core::LokaAllocSetBackend(0, 0);
+  }
   LayoutState Seat(short width)
   {
     LayoutState s;
@@ -60,6 +109,165 @@ namespace
     std::printf("[pin] %s\n", name);
     std::fflush(stdout);
   }
+  void EncodingPins()
+  {
+    Pin("AttributedNativeStyleWrapAndMalformedMarkup");
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+    ToolboxAttributedTextTable table;
+    toolbox_host::systemScript = smRoman;
+    const char markup[] = "<b>\xc3\xa9\xc0\xaf" "A</b><i>\n\x80" "B\r\n\t\0Z</i>";
+    AttributedString value;
+    LOKA_VERIFY(smirkycard::ParseSmirkyMarkup(markup, sizeof(markup) - 1, TextStyle(), value));
+    toolbox_host::reset();
+    const unsigned before = toolbox_host::scriptReads;
+    LOKA_VERIFY(table.build(value, BlockStyle(), 80, controller));
+    LOKA_VERIFY(toolbox_host::scriptReads == before + 1);
+    LOKA_VERIFY(toolbox_host::measurePayloads.size() == 2);
+    LOKA_VERIFY(toolbox_host::measurePayloads[0] == std::string("\x8e??A", 4));
+    LOKA_VERIFY(toolbox_host::measurePayloads[1] == std::string("\n?B\r\n\t\0Z", 8));
+    LOKA_VERIFY(table.lines().lineCount() == 3); // CRLF is one break; LF before malformed byte survives.
+    LOKA_VERIFY(table.lines().fragment(0).start == 0 && table.lines().fragment(0).end == 4);
+    LOKA_VERIFY(table.lines().line(0).width == 20);
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 80));
+    LOKA_VERIFY(toolbox_host::draws.size() == 3);
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string("\x8e??A", 4));
+    LOKA_VERIFY(toolbox_host::draws[0].face == bold);
+    LOKA_VERIFY(toolbox_host::draws[1].bytes == "?B" && toolbox_host::draws[1].face == italic);
+    LOKA_VERIFY(toolbox_host::draws[2].bytes == std::string("\t\0Z", 3));
+    LOKA_VERIFY(table.build(value, BlockStyle().wrap(TEXT_WRAP_CHAR), 5, controller));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 5));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 5));
+    LOKA_VERIFY(toolbox_host::scriptReads == before + 1); // One projection, width and paint reuse.
+    std::puts("projection codec entries: initial=1 width-only=0 repeated-paint=0 (system-script sample counter)");
+
+    Pin("AttributedSegmentsNeverJoinMalformedUnits");
+    const AttributedString split = Styled("\xc3", Bold) + Styled("\xa9", Bold) + Styled("\xc3\xa9", Italic);
+    toolbox_host::reset();
+    LOKA_VERIFY(table.build(split, BlockStyle(), 80, controller));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 80));
+    LOKA_VERIFY(toolbox_host::draws.size() == 2);
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "??");
+    LOKA_VERIFY(toolbox_host::draws[1].bytes == "\x8e");
+    LOKA_VERIFY(table.lines().fragment(1).start == 2 && table.lines().fragment(1).end == 3);
+
+    Pin("AttributedProjectionIdentityIncludesSegmentBoundaries");
+    const AttributedString joined = Styled("\xc3\xa9", Bold) + Styled("\xc3\xa9", Italic);
+    LOKA_VERIFY(joined == split); // Logical equality deliberately ignores equal-style boundaries.
+    toolbox_host::reset();
+    LOKA_VERIFY(table.build(joined, BlockStyle(), 80, controller));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 80));
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "\x8e");
+    LOKA_VERIFY(toolbox_host::draws[1].bytes == "\x8e");
+
+    Pin("AttributedNativeBatchBoundaryAndLargeOffsets");
+    std::string utf8;
+    for (int i = 0; i < 40000; ++i) utf8 += "\xc3\xa9";
+    toolbox_host::reset();
+    LOKA_VERIFY(table.build(Styled(loka::core::String(utf8), Bold), BlockStyle(), 0, controller));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 0));
+    LOKA_VERIFY(toolbox_host::draws.size() == 7);
+    LOKA_VERIFY(toolbox_host::measurePayloads.size() == toolbox_host::draws.size());
+    std::string painted;
+    for (std::size_t i = 0; i < toolbox_host::draws.size(); ++i)
+    {
+      LOKA_VERIFY(toolbox_host::draws[i].bytes == toolbox_host::measurePayloads[i]);
+      LOKA_VERIFY(toolbox_host::draws[i].length == (i == 6 ? 682 : 6553));
+      painted += toolbox_host::draws[i].bytes;
+    }
+    LOKA_VERIFY(painted == std::string(40000, static_cast<char>(0x8e)));
+
+    Pin("AttributedNative255WrapAndEllipsis");
+    const BlockStyle wrap = BlockStyle().wrap(TEXT_WRAP_CHAR);
+    const AttributedString edge = Styled(loka::core::String(std::string(254, 'a') + "\xc3\xa9" "z"), Bold);
+    LOKA_VERIFY(table.build(edge, wrap, 1275, controller));
+    LOKA_VERIFY(table.lines().lineCount() == 2);
+    LOKA_VERIFY(table.lines().fragment(0).end == 255);
+    toolbox_host::reset();
+    LOKA_VERIFY(table.draw(0, 0, controller, wrap, 1275));
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(254, 'a') + "\x8e");
+    LOKA_VERIFY(table.build(Styled(loka::core::String(utf8.substr(0, 510)), Bold), wrap, 1275, controller));
+    LOKA_VERIFY(table.lines().lineCount() == 1 && table.lines().fragment(0).end == 255);
+    toolbox_host::reset();
+    LOKA_VERIFY(table.draw(0, 0, controller, wrap, 1275));
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(255, static_cast<char>(0x8e)));
+    const BlockStyle dots = BlockStyle().truncation(TEXT_TRUNCATION_ELLIPSIS);
+    LOKA_VERIFY(table.build(Styled("\xc3\xa9\xc3\xa9\xc3\xa9", Bold), dots, 25, controller));
+    toolbox_host::reset();
+    LOKA_VERIFY(table.draw(0, 0, controller, dots, 25));
+    LOKA_VERIFY(toolbox_host::draws.size() == 1); // Fits exactly; no truncation.
+    LOKA_VERIFY(table.build(Styled("\xc3\xa9\xc3\xa9\xc3\xa9xxx", Bold), dots, 25, controller));
+    toolbox_host::reset();
+    LOKA_VERIFY(table.draw(0, 0, controller, dots, 25));
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "\x8e\x8e" && toolbox_host::draws[1].bytes == "...");
+
+    Pin("AttributedNonRomanAsciiFallback");
+    toolbox_host::systemScript = 1;
+    toolbox_host::reset();
+    LOKA_VERIFY(table.build(Styled("\xc3\xa9" "A", Bold), BlockStyle(), 80, controller));
+    LOKA_VERIFY(table.draw(0, 0, controller, BlockStyle(), 80));
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "?A");
+    toolbox_host::systemScript = smRoman;
+  }
+
+  void PaintRecoveryPins()
+  {
+    Pin("AttributedPaintOnlySourceChangeHistoryAndRefusalRecovery");
+    ToolboxWindow window;
+    ToolboxScenePlatformController controller(&window);
+    LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
+    AttributedTextNode *node = new AttributedTextNode(AttributedText(Styled("old", Bold)).props);
+    LayoutState seat = Seat(80);
+    ToolboxAttributedTextContext *context = static_cast<ToolboxAttributedTextContext *>(
+        controller.nodeHandlerRegistry_.find(node)->ensureContext(node, &controller, seat));
+    LOKA_VERIFY(context);
+    context->layout(&controller, seat);
+    context->render(&controller);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    node->props = AttributedText(Styled("\xc3\xa9" "AB", Bold)).props;
+    context->onPropsApplied();
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    seat = Seat(80);
+    context->layout(&controller, seat);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+    LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
+    node->props = AttributedText(Styled("\xc3\xa9" "CD", Bold)).props;
+    // A live-source update need not invoke onPropsApplied before paint.
+    toolbox_host::reset();
+    context->render(&controller); // No layout between logical update and paint.
+    LOKA_VERIFY(toolbox_host::draws.size() == 1 && toolbox_host::draws[0].bytes == "\x8e" "CD");
+    const unsigned encoded = toolbox_host::scriptReads;
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::scriptReads == encoded);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    const Rect placement = ToolboxAttributedTextContextAccess::rect(*context);
+    node->props = AttributedText(Styled(loka::core::String(std::string(100, 'x')), Bold)).props;
+    context->onPropsApplied();
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+    toolbox_host::reset();
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::draws.empty());
+    LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
+    LOKA_VERIFY(!ToolboxAttributedTextContextAccess::table(*context).valid());
+    Rect refused = ToolboxAttributedTextContextAccess::rect(*context);
+    LOKA_VERIFY(EqualRect(&placement, &refused));
+    loka::core::testing::allowLokaAllocRaw();
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::draws.size() == 1 && toolbox_host::draws[0].bytes == std::string(100, 'x'));
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    Pin("AttributedIntrinsicPaintReusesGeometry");
+    seat = Seat(0);
+    context->layout(&controller, seat);
+    const int measured = toolbox_host::measures;
+    context->render(&controller);
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::measures == measured);
+    context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    delete node;
+    controller.retired.clear();
+  }
 } // namespace
 
 
@@ -68,6 +276,10 @@ namespace
 
 int main(int argc, char **argv)
 {
+  if (argc > 1 && std::string(argv[1]) == "encoding") { EncodingPins(); return 0; }
+  if (argc > 1 && std::string(argv[1]) == "paint-recovery") { PaintRecoveryPins(); return 0; }
+  if (argc == 1) { EncodingPins(); PaintRecoveryPins(); MemoryPin(); }
+  if (argc > 1 && std::string(argv[1]) == "memory") { MemoryPin(); return 0; }
   if (argc > 1 && std::string(argv[1]) == "scroll-band") { ScrollViewPins(); return 0; }
   ScrollViewPins();
   if (argc > 1 && std::string(argv[1]) == "measurement-plain") { MeasurementPins(true, false); return 0; }
@@ -173,6 +385,7 @@ int main(int argc, char **argv)
     LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
     context->render(&controller);
     LOKA_VERIFY(toolbox_host::erases == 2);
+    LOKA_VERIFY(table.valid()); // Paint-only retry rebuilt after refusal.
     seat = Seat(30);
     context->layout(&controller, seat);
     LOKA_VERIFY(table.valid());
@@ -249,7 +462,7 @@ int main(int argc, char **argv)
     LOKA_VERIFY(toolbox_host::draws[1].face == italic);
     LOKA_VERIFY(window.port.txFace == italic);
   }
-  Pin("ToolboxAttributedTextLongJoinedBufferAndUtf8Ranges");
+  Pin("ToolboxAttributedTextLongNativeBufferAndRanges");
   window.port.txFace = 0;
   {
     ToolboxAttributedTextTable projected;
@@ -262,13 +475,13 @@ int main(int argc, char **argv)
     LOKA_VERIFY(toolbox_host::draws[0].length == 320);
     LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(160, 'a') + std::string(160, 'b'));
     const AttributedString unicode = Styled("\xC3\xA9", Bold) + Styled("\xE3\x81\x82", Italic);
-    LOKA_VERIFY(projected.build(unicode, BlockStyle().wrap(TEXT_WRAP_CHAR), 10, controller));
+    LOKA_VERIFY(projected.build(unicode, BlockStyle().wrap(TEXT_WRAP_CHAR), 5, controller));
     LOKA_VERIFY(projected.lines().lineCount() == 2);
     toolbox_host::reset();
     projected.draw(0, 0, controller, BlockStyle(), 0);
     LOKA_VERIFY(toolbox_host::draws.size() == 2);
-    LOKA_VERIFY(toolbox_host::draws[0].bytes == "\xC3\xA9");
-    LOKA_VERIFY(toolbox_host::draws[1].bytes == "\xE3\x81\x82");
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "\x8E");
+    LOKA_VERIFY(toolbox_host::draws[1].bytes == "?");
     LOKA_VERIFY(projected.build(unicode, BlockStyle().wrap(TEXT_WRAP_NONE), 10, controller));
     LOKA_VERIFY(projected.lines().lineCount() == 1);
   }
@@ -334,7 +547,7 @@ int main(int argc, char **argv)
     LOKA_VERIFY(projected.height() == 58);
     const AttributedString longText = Styled(loka::core::String(std::string(100, 'x')), Bold);
     LOKA_VERIFY(projected.build(longText, BlockStyle(), 40, controller));
-    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 3);
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
     LOKA_VERIFY(!projected.build(longText, BlockStyle(), 40, controller));
     LOKA_VERIFY(!projected.valid());
   }
