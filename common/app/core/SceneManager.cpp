@@ -19,9 +19,8 @@ SceneManager::~SceneManager()
   loka::app::scene::Scene *current = this->currentScene_.get();
   if (current)
   {
-    current->setWindow(0);
-    current->updateAttached(false);
-    current->updateLifecycle(ON_DETACH);
+    if (current->getLifecycleState()->get() != ON_DETACH)
+      this->retireScene(current);
     this->retiredScenes_.retire(current);
   }
   this->retiredScenes_.retire(this->desired_);
@@ -148,6 +147,22 @@ bool SceneManager::applyReplacement()
   return true;
 }
 
+void SceneManager::retireScene(loka::app::scene::Scene *scene)
+{
+  loka::core::StandaloneTransactionGuard guard(&this->tracker_);
+  scene->setWindow(0);
+  scene->updateAttached(false);
+  scene->updateLifecycle(ON_DETACH);
+  scene->unmount();
+}
+
+void SceneManager::retireCurrentScene()
+{
+  loka::app::scene::Scene *current = this->currentScene_.get();
+  if (current)
+    this->retireScene(current);
+}
+
 void SceneManager::installScene(loka::app::scene::Scene *next)
 {
   loka::app::scene::Scene *old = this->currentScene_.get();
@@ -155,10 +170,7 @@ void SceneManager::installScene(loka::app::scene::Scene *next)
     loka::core::StandaloneTransactionGuard guard(&this->tracker_);
     if (old)
     {
-      old->setWindow(0);
-      old->updateAttached(false);
-      old->updateLifecycle(ON_DETACH);
-      old->unmount();
+      this->retireScene(old);
       // #920: outgoing detach observers can destroy the prepared Scene's rail.
       if (next->platformController_ && !this->window_->hasLiveScenePlatform())
       {

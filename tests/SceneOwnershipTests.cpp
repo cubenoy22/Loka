@@ -1207,11 +1207,15 @@ namespace
       if (count->scene->getLifecycleState()->get() == ON_ATTACH)
         ++count->attaches;
       if (count->scene->getLifecycleState()->get() == ON_DETACH)
+      {
         ++count->detaches;
+        count->detachClocks.push_back(loka::core::Operation::hasActive());
+      }
     }
     loka::app::scene::Scene *scene;
     int attaches;
     int detaches;
+    std::vector<bool> detachClocks;
   };
 
   /** Stack-owned callback inputs; all referenced scenes belong to the Window. */
@@ -1504,14 +1508,16 @@ void testSceneReplacementPreservesAppliedOnPrepareRefusal()
   LOKA_VERIFY(window->scene() == oldCount.scene);
   LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*window->scene()) == root);
   refusal = false;
-  admission.flush();
+  admission.operationLoop();
   LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::lastPrepareRefusal(*window->sceneManager()) == 0);
   LOKA_VERIFY(window->scene() == next);
   LOKA_VERIFY(next->getAttachedState()->get());
   LOKA_VERIFY(loka::dsl::testing::SceneTestAccess::rootNode(*next) != 0);
   LOKA_VERIFY(!window->sceneManager()->hasPendingReplacement());
   LOKA_VERIFY(oldCount.detaches == 1);
+  LOKA_VERIFY(oldCount.detachClocks.size() == 1 && oldCount.detachClocks[0]);
   admission.flush();
+  LOKA_VERIFY(oldCount.detaches == 1);
   LOKA_VERIFY(loka::app::testing::SceneManagerTestAccess::retiredSceneCount(*window->sceneManager()) == 0);
 
   // Supersession moves the refused identity into the pool; the observation
@@ -2543,6 +2549,31 @@ namespace
       return WindowProps().scene(new loka::app::scene::Scene(Root(CloseTurnProps(owner))));
     }
   };
+  /** Observations outlive the Window; the Scene borrow is used only by callbacks. */
+  struct CloseTurnFacts
+  {
+    loka::app::scene::Scene &scene;
+    std::vector<bool> lifecycle;
+    std::vector<bool> attached;
+    explicit CloseTurnFacts(loka::app::scene::Scene &value) : scene(value) {}
+    static void lifecycleChanged(void *data)
+    {
+      CloseTurnFacts &facts = *static_cast<CloseTurnFacts *>(data);
+      if (facts.scene.getLifecycleState()->get() == ON_DETACH)
+      {
+        facts.lifecycle.push_back(loka::core::Operation::hasActive());
+        std::fprintf(stderr, "C5 P7: lifecycle count=%lu active=%d\n",
+                     static_cast<unsigned long>(facts.lifecycle.size()), facts.lifecycle.back() ? 1 : 0);
+      }
+    }
+    static void attachedChanged(void *data)
+    {
+      CloseTurnFacts &facts = *static_cast<CloseTurnFacts *>(data);
+      if (!facts.scene.getAttachedState()->get())
+        facts.attached.push_back(loka::core::Operation::hasActive());
+    }
+  };
+
   struct CloseTurnAction
   {
     WindowAdmissionTestApp &app;
@@ -2635,5 +2666,30 @@ void testWindowCloseTwoAdmissionsDetachOnceReclaimLater()
   LOKA_VERIFY(owner.destructions.empty());
   app.reclaimWindows();
   LOKA_VERIFY(owner.detaches.size() == 1);
+  LOKA_VERIFY(owner.destructions.size() == 1 && !owner.destructions[0]);
+}
+
+void testWindowCloseRetirementFactsRunInsideTurn()
+{
+  WindowCreatingPlatformContext context;
+  CloseTurnOwner owner;
+  CloseTurnWindow *window = new CloseTurnWindow(context, owner);
+  WindowAdmissionTestApp app(*window);
+  app.operationLoop();
+  CloseTurnFacts facts(*window->scene());
+  facts.scene.getLifecycleState()->bind(&CloseTurnFacts::lifecycleChanged, &facts, false);
+  facts.scene.getAttachedState()->bind(&CloseTurnFacts::attachedChanged, &facts, false);
+  loka::core::Operation turn;
+  app.requestWindowClose(window);
+  app.admitAndApplyWindows();
+  const bool retiredAtAdmission = facts.lifecycle.size() == 1 && facts.attached.size() == 1
+      && facts.scene.getWindow() == 0 && !facts.scene.getAttachedState()->get()
+      && facts.scene.getLifecycleState()->get() == ON_DETACH;
+  app.admitAndApplyWindows();
+  turn.close();
+  app.reclaimWindows();
+  LOKA_VERIFY(facts.lifecycle.size() == 1 && facts.lifecycle[0]);
+  LOKA_VERIFY(facts.attached.size() == 1 && facts.attached[0]);
+  LOKA_VERIFY(retiredAtAdmission);
   LOKA_VERIFY(owner.destructions.size() == 1 && !owner.destructions[0]);
 }

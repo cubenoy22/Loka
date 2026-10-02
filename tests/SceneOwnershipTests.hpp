@@ -64,4 +64,5 @@ void testWindowCloseDetachHookRunsInsideTurn();
 void testWindowCloseRequestCommitsAtTurnTail();
 void testWindowCloseFocusClearsInsideTurn();
 void testWindowCloseTwoAdmissionsDetachOnceReclaimLater();
+void testWindowCloseRetirementFactsRunInsideTurn();
 #endif // LOKA_SCENE_OWNERSHIP_TESTS_HPP

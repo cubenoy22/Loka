@@ -270,7 +270,7 @@ void App::admitAndApplyWindows()
     Window *window = this->pendingWindowClosures_[i];
     loka::app::scene::Scene *scene = window->scene();
     if (scene && !scene->isBusy())
-      window->unmountSceneForTeardown(*scene);
+      window->retireSceneForClose();
   }
   this->flushingWindowWork_ = false;
 }
