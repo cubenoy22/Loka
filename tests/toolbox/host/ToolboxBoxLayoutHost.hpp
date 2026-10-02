@@ -6,6 +6,7 @@
 #define LOKA_TOOLBOX_RECT_SURFACE_CONTEXT_HPP
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
+#include "app/scene/projection/ProjectionParentScope.hpp"
 #include "app/RectSurface.hpp"
 #include "support/TestVerify.hpp"
 #include <climits>
@@ -15,7 +16,18 @@ class ToolboxScenePlatformController : public loka::app::scene::IPlatformControl
 public:
   loka::app::scene::PlatformLayoutHandlerRegistry registry;
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &this->registry; }
-  bool refuseNarrowingInScrollScope(int) { return false; }
+  loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
+  // Mirror ToolboxScenePlatformController::refuseNarrowingInScrollScope;
+  // dispatch and Box layout below are the unmodified production bodies.
+  bool refuseNarrowingInScrollScope(int resultY)
+  {
+    if (this->projectionParentScopes_.activeDepth() == 0) return false;
+    loka::app::scene::ProjectionParentScope &scope = this->projectionParentScopes_.current();
+    if (scope.hasShortRangeRefusal()) return true;
+    if (resultY >= SHRT_MIN && resultY <= SHRT_MAX) return false;
+    scope.markShortRangeRefused();
+    return true;
+  }
   loka::app::scene::BoundaryNode *activeLayoutBoundary() { return 0; }
   void setActiveLayoutBoundary(loka::app::scene::BoundaryNode *) {}
   bool restoreProjectedLayoutState(loka::app::scene::LayoutState &) { return true; }

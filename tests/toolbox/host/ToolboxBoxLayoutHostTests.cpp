@@ -12,14 +12,51 @@ namespace
   {
   public:
     LayoutState offer;
+    unsigned calls;
+    const short advance;
+    explicit Probe(short height = 7) : calls(0), advance(height) {}
     virtual IProjectedLayoutNode *asProjectedLayoutNode() { return this; }
     virtual short layoutProjected(IPlatformController *, LayoutState &state)
     {
+      ++this->calls;
       this->offer = state;
-      state.y = static_cast<short>(state.y + 7);
+      state.y = static_cast<short>(state.y + this->advance);
       return 23;
     }
   };
+
+  void scrollRangePin(ToolboxScenePlatformController &controller, bool handler, bool refuses)
+  {
+    StackNode column((StackProps(STACK_AXIS_COLUMN)));
+    BoxNode *box = new BoxNode(BoxProps().setPadding(10));
+    Probe *child = new Probe(0);
+    Probe *sibling = new Probe(0);
+    box->addChild(child);
+    column.addChild(box);
+    column.addChild(sibling);
+    LOKA_VERIFY((controller.registry.find(box) != 0) == handler);
+    ProjectionParentScope scrollScope;
+    LOKA_VERIFY(controller.projectionParentScopes_.current().deriveScrolled(
+        0, 0, 0, loka::core::Frame(0, 0, 80, 80), scrollScope));
+    ProjectionParentScopeGuard guard(controller.projectionParentScopes_, scrollScope);
+    LOKA_VERIFY(guard.isActive());
+    LayoutState state;
+    state.width = 80; state.height = 80;
+    // Child Y remains representable; only the Box's bottom padding overflows.
+    state.y = static_cast<short>(SHRT_MAX - (refuses ? 15 : 20));
+    LayoutNode(&column, state, &controller, 0);
+    const bool refused = controller.projectionParentScopes_.current().hasShortRangeRefusal();
+    std::printf("scroll range: refused=%d child calls=%u sibling calls=%u sibling Y=%d\n",
+                refused, child->calls, sibling->calls, sibling->offer.y);
+    std::fflush(stdout);
+    LOKA_VERIFY(child->calls == 1);
+    LOKA_VERIFY(child->offer.y == SHRT_MAX - (refuses ? 5 : 10));
+    LOKA_VERIFY(refused == refuses);
+    LOKA_VERIFY(sibling->calls == (refuses ? 0u : 1u));
+    LOKA_VERIFY(state.y >= 0);
+    if (!refuses) LOKA_VERIFY(sibling->offer.y == SHRT_MAX);
+  }
+
 }
 int main(int argc, char **argv)
 {
@@ -28,6 +65,11 @@ int main(int argc, char **argv)
   const bool handler = std::strcmp(argv[1], "handler") == 0;
   if (handler) RegisterToolboxPlatformLayoutHandlers(controller.registry);
   const char *mode = argv[2];
+  if (std::strcmp(mode, "scroll-refusal") == 0 || std::strcmp(mode, "scroll-limit") == 0)
+  {
+    scrollRangePin(controller, handler, std::strcmp(mode, "scroll-refusal") == 0);
+    return 0;
+  }
   const bool nested = std::strcmp(mode, "nested") == 0;
   const bool fixed = std::strcmp(mode, "fixed") == 0;
   const bool empty = std::strcmp(mode, "empty") == 0;

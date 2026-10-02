@@ -436,7 +436,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxBoxLayoutTests)
   set_target_properties(LokaToolboxBoxLayoutTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   foreach(_box_path handler fallback)
-    foreach(_box_case normal nested fixed empty small equal zero negative)
+    foreach(_box_case normal nested fixed empty small equal zero negative scroll-refusal scroll-limit)
       add_test(NAME testToolboxBox_${_box_path}_${_box_case}
         COMMAND LokaToolboxBoxLayoutTests ${_box_path} ${_box_case})
     endforeach()

@@ -323,6 +323,10 @@ int ComputeToolboxBoxLayout(loka::app::BoxNode *box,
   // Common BoxLayout owns padding, clamping and child advancement on every rail.
   const int resultY = loka::app::layout::computeBoxLayoutResultY(
       box, state, &adapter, &ToolboxBoxTraversal::layoutChild);
+  if (traversal->refuseLayoutResultY(resultY))
+  {
+    return 0;
+  }
   traversal->setLayoutResultY(static_cast<short>(resultY));
   return box->props.hasFixedSize() ? box->props.effectiveWidth()
                                   : static_cast<short>(adapter.maxWidth + box->props.padding * 2);

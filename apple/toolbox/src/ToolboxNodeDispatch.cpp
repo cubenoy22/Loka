@@ -61,6 +61,12 @@ namespace
       return width;
     }
 
+    virtual bool refuseLayoutResultY(int y)
+    {
+      return this->controller_ ? this->controller_->refuseNarrowingInScrollScope(y)
+                               : loka::app::scene::IPlatformLayoutTraversal::refuseLayoutResultY(y);
+    }
+
     virtual void setLayoutResultY(short y)
     {
       layoutResultY_ = y;
