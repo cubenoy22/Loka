@@ -44,7 +44,10 @@ namespace loka
       OPEN_REFUSED_BUSY,
       OPEN_REFUSED_NOT_PUSH,
       OPEN_NO_CLOCK,
-      OPEN_REFUSED_CLOSING
+      OPEN_REFUSED_CLOSING,
+      /** The active clock refused an earlier settle; it runs no further work
+          round, so a ledger not yet enrolled keeps its own transaction. */
+      OPEN_CLOCK_REFUSED
     };
 
     /** Main-thread stack clock borrowing ledgers until close. Nested clocks join
@@ -55,8 +58,8 @@ namespace loka
         a contract violation. Nested tracker guards
         must end before settlement. Completion turns collect, settle, apply, close,
         then reclaim; collection turns only collect, settle and close. Fair rounds
-        visit the ledgers present at each round's start. Production turns do not
-        yet open ledgers. */
+        visit the ledgers present at each round's start. WriteSeat enrolls its
+        owner ledger through openActive; legacy guards keep their own brackets. */
     class Operation
     {
     public:
@@ -67,8 +70,11 @@ namespace loka
       OpenResult open(StateTracker *tracker);
       /** The single active-clock door for write seats and guards. No clock returns
           OPEN_NO_CLOCK so the caller uses legacy begin/end. Cleanup returns
-          OPEN_REFUSED_CLOSING so the caller writes without a route. Otherwise
-          forwards to open without exposing the active clock pointer. */
+          OPEN_REFUSED_CLOSING so the caller writes without a route. A clock
+          whose settle was refused returns OPEN_CLOCK_REFUSED for a ledger it
+          does not hold (the caller keeps its own transaction) and
+          OPEN_ALREADY_OPEN for one it does. Otherwise forwards to open without
+          exposing the active clock pointer. */
       static OpenResult openActive(StateTracker *tracker);
       /** Checkpoint with routes and ledger levels retained. The shared budget,
           first refusal and work-round count survive every checkpoint. */

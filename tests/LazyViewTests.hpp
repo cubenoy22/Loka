@@ -18,4 +18,5 @@ void testLazyViewPropsReselectAndReplaceBorrow();
 void testLazyViewParkedReattachReselects();
 void testLazyViewCanceledQueuedWindowRefreshesContent();
 void testLazyViewCanceledRefusedWindowRefreshesContent();
+void testLazyViewSeatGuardOrders();
 #endif

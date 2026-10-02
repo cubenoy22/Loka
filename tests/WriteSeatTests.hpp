@@ -5,4 +5,16 @@ void testWriteSeatJoinsOpenTracker();
 void testWriteSeatRawAndInvalid();
 void testWriteSeatPropsIdentity();
 void testNullInputDoorLifetime();
+void testSeatInsideTurnEnrollsOwnerAndSettlesAtTail();
+void testSeatOutsideClockKeepsLegacyTransaction();
+void testSeatUnderLegacyGuardWritesOnly();
+void testSeatFirstNestedGuardCommitsAtTail();
+void testSeatDuringCleanupWritesWithoutRoute();
+void testSeatAfterRefusedSettleKeepsLegacyTransaction();
+void testSeatAbstractTrackerKeepsLegacyTransaction();
+void testTwoSeatsOneHandlerProjectOnce();
+void testTwoSeatsWithoutClockProjectTwice();
+void testThreeSeatOwnersTwoScenesSeeEveryCommit();
+void testSeatOwnerDestroyedDuringApplyLeavesClock();
+void testFlowStepSeatGuardOrders();
 #endif

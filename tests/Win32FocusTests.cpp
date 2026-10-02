@@ -473,7 +473,10 @@ namespace
     {
       LOKA_VERIFY(!this->fallbackFired_);
       LOKA_VERIFY(this->replies_ == 1);
-      LOKA_VERIFY(!completionTailEditor(&this->root_));
+      // PR C1: close commits the Seat after Win32's second admission, so the
+      // editor is still present and its removal is pending after this tail.
+      LOKA_VERIFY(completionTailEditor(&this->root_) != 0);
+      LOKA_VERIFY(this->scene_.hasPendingInvalidation());
       LOKA_VERIFY(!this->scene_.isBorrowOpen());
       LOKA_VERIFY(!this->scene_.focus().isPublishing());
     }
@@ -532,7 +535,9 @@ namespace
   }
 }
 
-void testWin32FocusCompletionTailFlush()
+// The real Win32 pump is a clocked turn since #1073; the no-clock baseline for
+// this completion ordering is the Null pin testFocusSeatCompletionProjectsNextTurn.
+static void runWin32FocusCompletionTail()
 {
   ActivationRefusal refusal;
   NullPlatformContext context;
@@ -549,8 +554,8 @@ void testWin32FocusCompletionTailFlush()
   SetFocus(window.hwnd());
   if (GetActiveWindow() != window.hwnd())
   {
-    skipWithoutActivation("testWin32FocusCompletionTailFlush",
-                          "the focus completion and same-iteration retirement checks",
+    skipWithoutActivation("testWin32FocusCompletionTailClock",
+                          "the focus completion and admission-timing checks",
                           "the initial editor attachment was verified.");
     return;
   }
@@ -576,8 +581,15 @@ void testWin32FocusCompletionTailFlush()
   completionTailPrevious = 0;
   window.setApp(0);
   probe.verify();
+  // PR C1: the Seat write made by focus completion settled at close, after the
+  // tail's second admission; the next eligible tail removes the editor.
+  admission.operationLoop();
+  LOKA_VERIFY(!completionTailEditor(&root));
+  LOKA_VERIFY(!scene.hasPendingInvalidation());
 }
 
+
+void testWin32FocusCompletionTailClock() { runWin32FocusCompletionTail(); }
 
 void testWin32FocusPostedRequest()
 {

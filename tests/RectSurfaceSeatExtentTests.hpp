@@ -19,4 +19,5 @@ void testRectSurfaceDetachedRetainedDuringDeliveryPublishesNoExtent();
 void testRectSurfaceRetireFactDuringDeliveryPublishesNoExtent();
 void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow();
 
+void testSeatRailFactSettlesAtCloseAndProjectsNextAdmission();
 #endif // LOKA_TESTS_RECT_SURFACE_SEAT_EXTENT_TESTS_HPP

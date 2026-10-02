@@ -75,6 +75,13 @@ namespace loka
         return OPEN_NO_CLOCK;
       if (Operation::active_->phase_ == CLOSING)
         return OPEN_REFUSED_CLOSING;
+      if (Operation::active_->status_ != OPERATION_SETTLED)
+      {
+        // No further work round will run in this clock: a new ledger keeps its
+        // own transaction; one already held stays held (its intake was refused).
+        PushStateTracker *const ledger = tracker ? tracker->asPushTracker() : 0;
+        return ledger && ledger->op_ == Operation::active_ ? OPEN_ALREADY_OPEN : OPEN_CLOCK_REFUSED;
+      }
       return Operation::active_->open(tracker);
     }
 
