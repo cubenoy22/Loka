@@ -9,6 +9,7 @@ namespace loka
   {
     class StackNode;
     class BoxNode;
+    class GridNode;
   }
 } // namespace loka
 
@@ -21,6 +22,11 @@ int ComputeToolboxBoxLayout(loka::app::BoxNode *box,
 int ComputeToolboxRowLayout(loka::app::StackNode *row,
                             const loka::app::scene::LayoutState &state,
                             loka::app::scene::IPlatformLayoutTraversal *traversal);
+
+/** Applies Toolbox Grid layout through the supplied traversal. */
+int ComputeToolboxGridLayout(loka::app::GridNode *grid,
+                             const loka::app::scene::LayoutState &state,
+                             loka::app::scene::IPlatformLayoutTraversal *traversal);
 
 /**
   Applies a registered Toolbox layout handler and commits both of its result

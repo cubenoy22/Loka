@@ -442,6 +442,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     endforeach()
   endforeach()
 
+  foreach(_range_case scroll-refusal scroll-limit)
+    foreach(_range_path handler fallback)
+      foreach(_range_kind row row-advance row-offset grid)
+        add_test(NAME testToolboxResult_${_range_kind}_${_range_path}_${_range_case}
+          COMMAND LokaToolboxBoxLayoutTests ${_range_path} ${_range_kind} ${_range_case})
+      endforeach()
+    endforeach()
+    add_test(NAME testToolboxResult_band_handler_${_range_case}
+      COMMAND LokaToolboxBoxLayoutTests handler band ${_range_case})
+  endforeach()
+
   # Production QuickDraw projection against a deterministic host OS fixture.
   add_executable(LokaToolboxAttributedTextTests
     tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
