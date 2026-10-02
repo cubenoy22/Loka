@@ -1,6 +1,7 @@
 #include "Win32MenuAttachmentTests.hpp"
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
+#include "Win32ScenePlatformController.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "platform/Win32DisplayScale.hpp"
@@ -223,7 +224,7 @@ void testWin32SceneDetachReleasesMenu()
   HMENU installed = GetMenu(f.window.hwnd());
   LOKA_VERIFY(f.window.menuAttachment().dispatch(f.observation.command));
   LOKA_VERIFY(f.observation.calls == 1);
-  f.window.scene()->unmount();
+  loka::dsl::testing::SceneTestAccess::unmount(*f.window.scene());
   LOKA_VERIFY(f.observation.detaches == 1);
   LOKA_VERIFY(!f.window.menuAttachment().dispatch(f.observation.command));
   LOKA_VERIFY(GetMenu(f.window.hwnd()) == installed);
