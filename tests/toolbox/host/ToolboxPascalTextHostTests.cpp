@@ -2,6 +2,7 @@
 #include "platform/ToolboxHfsName.hpp"
 #include "platform/String.hpp"
 #include "support/TestVerify.hpp"
+#include "support/LokaAllocFailure.hpp"
 #include <Script.h>
 #include <cstdio>
 #include <cstring>
@@ -123,6 +124,48 @@ namespace
     Str63 name;
     LOKA_VERIFY(!loka::toolbox::CopyStringToHfsName(source, name));
     LOKA_VERIFY(name[0] == 0);
+    // The capped label door streams into Str255: a refused projection table
+    // must not turn a long menu or popup label into an empty one.
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+    LOKA_VERIFY(ToolboxEncodePascal(String(std::string(300, 'x')), out));
+    LOKA_VERIFY(out[0] == 255 && out[1] == 'x' && out[255] == 'x');
+    loka::core::testing::allowLokaAllocRaw();
+  }
+
+  void counted()
+  {
+    const std::string input = std::string("\xC0\xAF" "A\n\x80" "B\0\r\n\t", 10) + "\xC3\xA9";
+    const std::string expected = std::string("??A\n?B\0\r\n\t", 10) + "\x8E";
+    std::size_t at = 0;
+    for (std::size_t i = 0; i < expected.size(); ++i)
+    {
+      const ToolboxTextUnit unit = ToolboxNextTextUnit(input.data() + at, input.size() - at, true);
+      LOKA_VERIFY(unit.native == static_cast<unsigned char>(expected[i]));
+      LOKA_VERIFY(unit.scalar == (i == 10 ? 0xE9UL : static_cast<unsigned char>(expected[i])));
+      LOKA_VERIFY(unit.consumed == (i == 10 ? 2U : 1U));
+      at += unit.consumed;
+    }
+    LOKA_VERIFY(at == input.size());
+    ToolboxNativeText native;
+    LOKA_VERIFY(native.build(String(input)));
+    LOKA_VERIFY(native.size() == expected.size());
+    LOKA_VERIFY(std::memcmp(native.data(), expected.data(), expected.size()) == 0);
+    for (std::size_t end = native.size(); end;)
+    {
+      const std::size_t previous = native.previous(end);
+      LOKA_VERIFY(native.next(previous) == end);
+      end = previous;
+    }
+    std::string longInput;
+    for (unsigned i = 0; i < 33000; ++i) longInput += "\xC3\xA9";
+    LOKA_VERIFY(native.build(String(longInput)));
+    LOKA_VERIFY(native.size() == 33000);
+    LOKA_VERIFY(native.data()[32999] == 0x8E);
+    LOKA_VERIFY(native.cappedEnd(255) == 255);
+    native.clear();
+    LOKA_VERIFY(!native.valid());
+    LOKA_VERIFY(native.build(String::Literal("")));
+    LOKA_VERIFY(native.valid() && native.size() == 0);
   }
 
   void hfs()
@@ -189,6 +232,7 @@ int main(int argc, char **argv)
   else if (std::strcmp(argv[1], "truncation") == 0) truncation();
   else if (std::strcmp(argv[1], "script") == 0) script();
   else if (std::strcmp(argv[1], "failure") == 0) failure();
+  else if (std::strcmp(argv[1], "counted") == 0) counted();
   else if (std::strcmp(argv[1], "hfs") == 0) hfs();
   else LOKA_VERIFY(false);
   std::puts("Pascal text pin passed");

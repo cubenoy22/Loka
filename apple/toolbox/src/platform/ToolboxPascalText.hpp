@@ -3,12 +3,49 @@
 
 #include <Quickdraw.h>
 #include "core/String.hpp"
+#include "app/layout/TextLineBreaker.hpp"
 
-/** Projects a short logical label to at most 255 native bytes.
-    Reads the system script once: Roman uses System 7 MacRoman, others ASCII.
-    Unmappable scalars and each malformed byte become '?'. Returns false only
-    when UTF-8 collection fails, leaving out[0] zero; substitution/truncation
-    are usable projections. Plain Text remains on its legacy path until T1b. */
+/** One strict UTF-8 scalar, or one malformed byte represented by '?'.
+    consumed counts input bytes; native is the T1 Roman/ASCII projection. */
+struct ToolboxTextUnit
+{
+  unsigned long scalar;
+  std::size_t consumed;
+  unsigned char native;
+};
+
+/** Read one unit from a nonempty counted input; never join malformed bytes. */
+ToolboxTextUnit ToolboxNextTextUnit(const char *input, std::size_t remaining, bool roman);
+
+/** Owned, counted native projection. Presence certifies the complete logical
+    snapshot. Geometry is deliberately outside this value. Boundary queries
+    use native byte offsets; callers must not infer character counts from them.
+    The system script is sampled once per build (Roman, otherwise ASCII). */
+class ToolboxNativeText
+{
+public:
+  bool build(const loka::core::String &value);
+  void clear();
+  bool valid() const { return this->bytes_.valid(); }
+  bool matches(const loka::core::String &value) const
+  { return this->valid() && this->source_.equals(value); }
+  std::size_t size() const { return this->bytes_.size(); }
+  const unsigned char *data() const { return this->size() ? &this->bytes_[0] : 0; }
+  /** Adjacent unit boundaries, given a boundary within the completed value. */
+  std::size_t next(std::size_t offset) const;
+  std::size_t previous(std::size_t end) const;
+  /** Largest whole-unit prefix within a native-byte budget. */
+  std::size_t cappedEnd(std::size_t budget) const;
+  /** Copy an already bounded native range to a Pascal scratch buffer. */
+  void copyPascal(std::size_t start, std::size_t end, Str255 out) const;
+
+private:
+  loka::app::detail::TextMeasureTable<unsigned char> bytes_;
+  loka::core::String source_;
+};
+
+/** Capped door over the counted projection, at most 255 native bytes.
+    Collection/allocation refusal leaves out[0] zero. */
 bool ToolboxEncodePascal(const loka::core::String &value, Str255 out);
 
 #endif
