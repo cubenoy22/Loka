@@ -9,4 +9,5 @@ void testSeatReservationCancelUnconstructed();
 void testSeatReservationAggregateSubstitution();
 void testSeatReservationKeyedColdInstall();
 void testSeatReservationMineSweeperColdBacking();
+void testSeatReservationPreservedBackingAndScaling();
 #endif

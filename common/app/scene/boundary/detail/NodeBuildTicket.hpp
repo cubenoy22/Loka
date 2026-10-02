@@ -42,16 +42,19 @@ namespace loka
           }
 
           Node *create(NodeDefinitionBase &definition, Node *owner);
+          bool layoutRefused() const { return this->result_ == LAYOUT_REFUSED; }
           NodePartition &partition() const { return this->partition_; }
 
         private:
           friend class NodePartition;
           friend class ::loka::app::scene::BoundaryNode;
-          explicit NodeBuildTicket(NodePartition &partition) : partition_(partition) {}
+          explicit NodeBuildTicket(NodePartition &partition) : partition_(partition), result_(READY) {}
           NodeBuildTicket(const NodeBuildTicket &);
           NodeBuildTicket &operator=(const NodeBuildTicket &);
           void *consumeAndAllocate(const NodeSlotLayout &layout);
+          enum Result { READY, LAYOUT_REFUSED };
           NodePartition &partition_;
+          Result result_;
 
         };
 

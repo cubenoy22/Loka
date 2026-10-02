@@ -1549,7 +1549,8 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
-      c.declare(LazyColumn(this->list).cells(200, 20).viewport(*this->viewport.state()));
+      c.declare(LazyColumn(this->list, reservation::SeatNodes<reservation::Nodes<FocusItem, 1,
+          reservation::Nodes<EditTextNode, 1> > >(), 8).cells(200, 20).viewport(*this->viewport.state()));
     }
   };
   bool hasFocusKey(Node *node, Focus<int> &focus, int key)

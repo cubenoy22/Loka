@@ -57,7 +57,9 @@ namespace lazylist
                                            << Button("Insert top", &this->insert_).TEST_ID("LazyList.Insert")
                                            << Button("Move first to end", &this->move_).TEST_ID("LazyList.Move")))
                              << (Box().size(kCellWidth, kViewportHeight)
-                                 << (ScrollView(this->scrollOffset_) << LazyColumn(this->props.model->cards)
+                                 << (ScrollView(this->scrollOffset_) << LazyColumn(this->props.model->cards, reservation::SeatNodes<reservation::Nodes<CardNode, 1,
+                                      reservation::Nodes<StackNode, 1, reservation::Nodes<TextNode, 1,
+                                      reservation::Nodes<ButtonNode, 1> > > > >(), 12)
                                                                             .cells(kCellWidth, kCellHeight)
                                                                             .wrap(1)
                                                                             .viewport(this->props.model->viewport())))

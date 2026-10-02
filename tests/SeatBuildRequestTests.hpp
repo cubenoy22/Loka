@@ -8,4 +8,5 @@ void testSeatBuildRequestParkedAndNestedOccupancy();
 void testSeatBuildRequestSerialConsumption();
 void testSeatBuildRequestKeyedNoEventAdmission();
 void testSeatBuildRequestNestedAttachPreservesHeldOwner();
+void testSeatBuildRequestMergedClassReturnBarrier();
 #endif

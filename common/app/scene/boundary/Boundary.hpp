@@ -630,9 +630,10 @@ namespace loka
 #endif
 
         /** Cold seat installation belongs to this Boundary, independent of arm replacement. */
-        const detail::SeatReservation *installSeatReservation(const detail::SeatLayoutTable &table)
+        const detail::SeatReservation *installSeatReservation(const detail::SeatLayoutTable &table,
+                                                               detail::SeatReplacementPolicy policy = detail::RETIRE_BEFORE_BUILD)
         {
-          return this->seatReservations_.install(table);
+          return this->seatReservations_.install(table, policy);
         }
 
         NodeArena *nodeArena()
@@ -694,6 +695,7 @@ namespace loka
           const detail::SeatReservation *reservation = plan.seat()->seatReservation();
           if (!reservation)
             return this->materializeAdmittedSeat(context, plan, parent, registrations);
+          reservation->request().observe(plan.dirtySource);
           ColdSeatBuild build(*this, context, plan, parent, registrations);
           reservation->partition().build(reservation->layoutTable().layouts(),
                                                 reservation->layoutTable().count(), build);
@@ -1976,11 +1978,11 @@ namespace loka
           return true;
         }
 
-        /** One serial admitted Keyed build; the ticket lives through ATTACH. */
-        class WaitingSeatBuild : public detail::NodeBuildOperation
+        /** One serial admitted seat build; the ticket lives through ATTACH. */
+        class AdmittedSeatBuild : public detail::NodeBuildOperation
         {
         public:
-          WaitingSeatBuild(BoundaryNode &owner, ComponentContext &context,
+          AdmittedSeatBuild(BoundaryNode &owner, ComponentContext &context,
                            const BoundaryBranchSeatPlanEntry &plan,
                            const BoundaryBranchSeatRuntimeEntry &runtime)
               : owner_(owner), context_(context), plan_(plan), runtime_(runtime) {}
@@ -1990,7 +1992,12 @@ namespace loka
             ComponentContext context(this->context_);
             context.setNodeStorage(&storage);
             context.setOwner(this->runtime_.parent);
-            return this->owner_.replaceSeatBranch(context, this->plan_, this->runtime_, false, false);
+            const bool built = this->owner_.replaceSeatBranch(context, this->plan_, this->runtime_, false, false);
+            const detail::SeatReservation *reservation = this->plan_.seat()->seatReservation();
+            if (ticket.layoutRefused() && reservation->replacementPolicy() == detail::PRESERVE_INSTALLED
+                && !reservation->request().waiting())
+              reservation->request().refuse();
+            return built;
           }
         private:
           BoundaryNode &owner_;
@@ -2031,7 +2038,7 @@ namespace loka
             this->noteLocalStructureWork();
             return true;
           }
-          WaitingSeatBuild build(*this, context, plan, runtime);
+          AdmittedSeatBuild build(*this, context, plan, runtime);
           request.admit(reservation.layoutTable(), build);
           return true;
         }
@@ -2046,7 +2053,21 @@ namespace loka
           }
           const detail::SeatReservation *reservation = mutablePlan.seat()->seatReservation();
           if (reservation && reservation->request().enabled())
-            return this->applyWaitingKeyedSeat(context, mutablePlan, runtime, *reservation);
+          {
+            switch (reservation->replacementPolicy())
+            {
+            case detail::RETIRE_BEFORE_BUILD:
+              return this->applyWaitingKeyedSeat(context, mutablePlan, runtime, *reservation);
+            case detail::PRESERVE_INSTALLED:
+              if (!mutablePlan.seat()->needsBranchDeclaration()) reservation->request().settle();
+              else
+              {
+                AdmittedSeatBuild build(*this, context, mutablePlan, runtime);
+                reservation->request().admit(reservation->layoutTable(), build);
+              }
+              return true;
+            }
+          }
           if (!runtime.active)
           {
             return false;

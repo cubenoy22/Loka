@@ -192,7 +192,7 @@ clock. Cancellation does not discard the outgoing node-return obligation.
 Admission visits valid requests serially in the existing scope/seat order. The
 bank checks current free class counts and the outgoing obligation. Unavailable
 capacity pending known returns waits without partial entitlement; an unsupported
-envelope asserts and refuses. `ReturnedSeatStorage` authorizes the subsequent
+envelope asserts and refuses. `AdmittedSeatStorage` authorizes the subsequent
 build. Node return includes registered provider dependents, parked descendants,
 unpublished residents and complete owned nested-landlord destruction. The bounded
 reclaim paths report completion for every destroyed node; bounded generation
@@ -215,8 +215,7 @@ its own snapshot identities; bounded completion uses its existing planned rows.
 
 This route certifies Keyed node storage, not non-node State, Flow, Held or String
 storage and not whole-cycle zero acquisition. Those returns remain named later
-slices. LazyFlex window-bank routing, Show item entitlements and
-Conditional/Match retained-arm routing remain separate follow-ups, with no
+slices. Show and Conditional/Match retained-arm routing remain separate follow-ups, with no
 permanent app-facing bypass. Later transitions through those doors still use their
 existing routes; descendants materialized as part of a strict Keyed build consume
 that build's declared envelope.
@@ -267,8 +266,50 @@ already moved ScrollView offset, that old window may be stale or vacant; no
 old-offset/pixel atomicity is promised. The full-list extent still follows current
 list size. A pending declaration requests layout through the existing Scene
 after-run door, so retry needs no fresh scroll and does not spin the current
-scheduler drain. The seat's committed-key mismatch is the pending fact; there is
-no extra retry flag. The kernel is unchanged.
+scheduler drain. The reserved seat's request phase determines whether the after-run poll asks
+for another run. A terminal warm declaration refusal settles until a key change.
+Cold mount keeps the shared Keyed replay policy: drain-only does not retry;
+an external update may retry by design.
+
+### LazyView reserved generations (#704)
+
+`LazyColumn`, `LazyRow`, direct `LazyView`, and `LazyViewProps` require a typed
+per-item recipe and positive maximum M. The surviving LazyView Boundary owns
+one seat reservation with immutable one-build quota E: M item recipes plus one
+generation root, Fragment and WindowCanvas. A temporary doubled table boots the
+backing with 2E slots; the stored table and every build ticket still grant E.
+Recipe identity and M participate in generic definition compatibility, including
+clones and custom LazyView-derived nodes. Changing either requires a new Boundary.
+
+The warmed zero-node-upstream claim covers **only the outer generation allocation
+domain**. Nested Boundary residents and nested seats are excluded from both this
+claim and preserve-installed failure handling; the nested Boundary node itself
+uses an outer slot. A LazyView remounted inside an outer generation obtains a new
+bank. States, definition clones, ItemIndex, strings and native allocations are
+also outside the node-storage certificate.
+
+The closed replacement policy keeps Keyed's `RETIRE_BEFORE_BUILD` behavior and
+single E backing. LazyView uses `PRESERVE_INSTALLED`: WAITING demand, no outstanding
+root return, and free E capacity admit one strict candidate while the installed
+generation stays linked. Candidate B ATTACHes before A synchronously DETACHes at
+commit. Warm-up must cover the observed-state A+B peak. Incomplete candidates
+use the same discard doors; the installed generation and bindings survive.
+
+A shared retirement helper records only the old or discarded generation root,
+never descendants, as the request's single return obligation. Recording does not
+mark demand. Detach remains synchronous; slots return only after child-first
+reclaim. The existing drain tail wakes waiting demand without a fresh State event.
+Unknown/exhausted classes have no heap fallback, and terminal warm refusals do
+not poll themselves. Window selection refuses counts above M before publishing;
+direct declaration repeats the check before constructing a generation.
+
+Costs: recipe emission walks its own at-most-32 leaves once at installation;
+normalization is quadratic in those leaves. Admission examines its own class
+free lists up to E slots. Reclaim walks E residents against 2E backing rows,
+O(M²) for a fixed item recipe; no foreign Boundary rows are searched. Two envelopes
+remain resident for the Boundary lifetime. These are structural costs, not native
+runtime timing claims. Pins live in LazyViewTests, SeatBuildRequestTests,
+SeatReservationTests and the C++98 compile pairs.
 
 Selection is bounded in total list size N for fixed window size K. Declaration,
 indexing, projection, and retirement visit O(K) owned residents; existing generic

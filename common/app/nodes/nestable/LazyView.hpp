@@ -2,6 +2,8 @@
 #define LOKA_APP_NODES_NESTABLE_LAZY_VIEW_HPP
 
 #include <new>
+#include <functional>
+#include "app/reservation/SeatNodes.hpp"
 #include "app/nodes/nestable/Canvas.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/boundary/LazyScopeDefinition.hpp"
@@ -120,15 +122,84 @@ namespace loka
       }
     };
 
+    template <class T> class LazyGenerationNode;
+    namespace lazy_view_detail
+    {
+      template <class T> class WindowCanvasNode;
+      /** Immutable recipe value: library-static emitter, no captured application context. */
+      template <class T> class WindowRecipe
+      {
+      public:
+        template <class List> WindowRecipe(reservation::SeatNodes<List>, unsigned maximum)
+            : emit_(&emit<List>), maximum_(maximum)
+        {
+          typedef reservation::Nodes<LazyGenerationNode<T>, 1,
+              reservation::Nodes<FragmentNode, 1, reservation::Nodes<WindowCanvasNode<T>, 1, List> > > Full;
+          reservation::detail::validate<Full>();
+          assert(maximum && "LazyView needs a positive maximum window");
+        }
+        bool accepts(unsigned count) const
+        {
+          const bool accepted = this->maximum_ && count <= this->maximum_;
+          assert(accepted && "LazyView window exceeds its declared maximum");
+          return accepted;
+        }
+        bool emit(scene::detail::SeatLayoutTable &table) const
+        { return this->maximum_ && this->emit_(table, this->maximum_); }
+        bool operator==(const WindowRecipe &other) const
+        { return this->emit_ == other.emit_ && this->maximum_ == other.maximum_; }
+        bool operator<(const WindowRecipe &other) const
+        { return this->emit_ != other.emit_ ? std::less<Emitter>()(this->emit_, other.emit_) : this->maximum_ < other.maximum_; }
+      private:
+        typedef bool (*Emitter)(scene::detail::SeatLayoutTable &, unsigned);
+        template <class List> static bool emit(scene::detail::SeatLayoutTable &table, unsigned maximum)
+        {
+          // createRoot, completeWindow and declareScope insert these scaffolds.
+          return reservation::detail::Emitter<List>::emit(table) && table.scale(maximum)
+              && table.append(scene::detail::NodeSlotLayout::of<LazyGenerationNode<T> >(1))
+              && table.append(scene::detail::NodeSlotLayout::of<FragmentNode>(1))
+              && table.append(scene::detail::NodeSlotLayout::of<WindowCanvasNode<T> >(1));
+        }
+        Emitter emit_;
+        unsigned maximum_;
+      };
+      /** Definition-side installation borrow, like Keyed's MemberDeclarer.
+          An uncommitted clone never inherits another instruction's installation. */
+      template <class T> class WindowReservation
+      {
+      public:
+        WindowReservation(scene::BoundaryNode &owner, const WindowRecipe<T> &recipe)
+            : owner_(owner), recipe_(recipe), reservation_(0) {}
+        WindowReservation(const WindowReservation &other)
+            : owner_(other.owner_), recipe_(other.recipe_), reservation_(0) {}
+        bool prepare()
+        {
+          if (this->reservation_) return true;
+          scene::detail::SeatLayoutTable table;
+          if (!this->recipe_.emit(table)) return false;
+          this->reservation_ = this->owner_.installSeatReservation(table, scene::detail::PRESERVE_INSTALLED);
+          return this->reservation_ != 0;
+        }
+        const scene::detail::SeatReservation *reservation() const { return this->reservation_; }
+        bool accepts(const LazyViewKey &key) const { return this->recipe_.accepts(key.window.count); }
+      private:
+        WindowReservation &operator=(const WindowReservation &);
+        scene::BoundaryNode &owner_;
+        const WindowRecipe<T> recipe_;
+        const scene::detail::SeatReservation *reservation_;
+      };
+    }
     template <class T> class LazyViewNode;
     /** Props own policy; list and viewport are read-only borrows from an ancestor. */
     template <class T> struct LazyViewProps : scene::NodePropsBase<LazyViewProps<T> >
     {
       typedef LazyViewProps<T> TypeTag;
       typedef LazyViewNode<T> NodeType;
+      template <class List>
       LazyViewProps(const loka::core::ObservableList<T> &source,
+                    reservation::SeatNodes<List> nodes, unsigned maximum,
                     const layout::LazyLayout &policy = layout::FixedGrid(1, 1))
-          : list(&source),
+          : recipe(nodes, maximum), list(&source),
             layout(policy),
             viewport(0)
       {
@@ -138,6 +209,7 @@ namespace loka
         if (rhs.propsTypeId() != this->propsTypeId())
           return false;
         const LazyViewProps &other = static_cast<const LazyViewProps &>(rhs);
+        if (!(this->recipe == other.recipe)) return this->recipe < other.recipe;
         if (this->list != other.list)
           return this->list < other.list;
         if (this->viewport != other.viewport)
@@ -154,6 +226,7 @@ namespace loka
           return this->layout.wrap < other.layout.wrap;
         return this->layout.margin < other.layout.margin;
       }
+      lazy_view_detail::WindowRecipe<T> recipe;
       const loka::core::ObservableList<T> *list;
       layout::LazyLayout layout;
       loka::core::State<loka::core::Frame> *viewport;
@@ -368,7 +441,8 @@ namespace loka
       {
         Base::composeWithContext(context, event);
         scene::IBranchSeatDefinition *seat = this->generationSeat();
-        if (event != scene::COMPOSE_EVENT_DETACH && seat && seat->needsBranchDeclaration() && this->getScene())
+        if (event != scene::COMPOSE_EVENT_DETACH && seat && seat->seatReservation()
+            && seat->seatReservation()->request().waiting() && this->getScene())
           this->getScene()->requestLayoutAfterRun();
       }
 
@@ -390,7 +464,8 @@ namespace loka
           return;
         c.declare(
             scene::LazyScope(*this->selection_.state(),
-                             LazyGenerationProps<T>(&this->props, this->selection_.state(), this->viewport_.state())));
+                             LazyGenerationProps<T>(&this->props, this->selection_.state(), this->viewport_.state()),
+                             lazy_view_detail::WindowReservation<T>(*this, this->props.recipe)));
       }
 
     private:
@@ -411,6 +486,11 @@ namespace loka
             this->props.list->capacity() > LOKA_LAZYFLEX_MAX_ITEMS ? empty : policy.indicesIn(viewport);
         loka::core::StateTrackerGuard guard(this->asStateOwner()->tracker());
         this->viewport_.set(viewport);
+        if (!this->props.recipe.accepts(window.count))
+        {
+          if (seat && seat->seatReservation()) seat->seatReservation()->request().refuse();
+          return;
+        }
         this->selection_.set(LazyViewKey(window, this->props.list->revision().get().structure));
         // Returning to the installed key cancels replacement. Replay content
         // skipped while pending; the guard still refuses a different key.
@@ -439,11 +519,22 @@ namespace loka
       scene::NodeState<LazyViewKey> selection_;
     };
 
+    namespace scene
+    {
+      template <class NodeT, class T> struct NodePropsCompatibility<NodeT, LazyViewProps<T> >
+      {
+        static bool accepts(const NodeT *node, const LazyViewProps<T> &props)
+        { return node->props.recipe == props.recipe; }
+      };
+    }
+
     template <class T> struct LazyView : scene::BoundaryDefinition<LazyViewProps<T>, LazyViewNode<T> >
     {
       typedef scene::BoundaryDefinition<LazyViewProps<T>, LazyViewNode<T> > Base;
-      LazyView(const loka::core::ObservableList<T> &list, const layout::LazyLayout &policy)
-          : Base(LazyViewProps<T>(list, policy))
+      template <class List>
+      LazyView(const loka::core::ObservableList<T> &list, const layout::LazyLayout &policy,
+               reservation::SeatNodes<List> nodes, unsigned maximum)
+          : Base(LazyViewProps<T>(list, nodes, maximum, policy))
       {
       }
       LazyView &viewport(loka::core::State<loka::core::Frame> &value)
@@ -455,8 +546,10 @@ namespace loka
     /** Axis defaults for the fixed-grid policy, with no extra runtime box. */
     template <class T> struct LazyGrid : LazyView<T>
     {
-      LazyGrid(const loka::core::ObservableList<T> &list, StackAxis axis)
-          : LazyView<T>(list, layout::FixedGrid(1, 1, 1, 0, axis))
+      template <class List>
+      LazyGrid(const loka::core::ObservableList<T> &list, StackAxis axis,
+               reservation::SeatNodes<List> nodes, unsigned maximum)
+          : LazyView<T>(list, layout::FixedGrid(1, 1, 1, 0, axis), nodes, maximum)
       {
       }
       LazyGrid &cells(short width, short height)
@@ -481,13 +574,15 @@ namespace loka
         return *this;
       }
     };
-    template <class T> inline LazyGrid<T> LazyColumn(const loka::core::ObservableList<T> &list)
+    template <class T, class List> inline LazyGrid<T> LazyColumn(const loka::core::ObservableList<T> &list,
+                                                               reservation::SeatNodes<List> nodes, unsigned maximum)
     {
-      return LazyGrid<T>(list, STACK_AXIS_COLUMN);
+      return LazyGrid<T>(list, STACK_AXIS_COLUMN, nodes, maximum);
     }
-    template <class T> inline LazyGrid<T> LazyRow(const loka::core::ObservableList<T> &list)
+    template <class T, class List> inline LazyGrid<T> LazyRow(const loka::core::ObservableList<T> &list,
+                                                               reservation::SeatNodes<List> nodes, unsigned maximum)
     {
-      return LazyGrid<T>(list, STACK_AXIS_ROW);
+      return LazyGrid<T>(list, STACK_AXIS_ROW, nodes, maximum);
     }
   } // namespace app
 } // namespace loka

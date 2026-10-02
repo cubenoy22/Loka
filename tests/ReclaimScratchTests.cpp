@@ -186,8 +186,8 @@ namespace
       rootRequest = requests.install(table);
       tailRequest = requests.install(table);
       LOKA_VERIFY(rootRequest && tailRequest);
-      rootRequest->request().retire(nodes[0]);
-      tailRequest->request().retire(nodes[count - 1]);
+      rootRequest->request().mark(); rootRequest->request().recordReturn(nodes[0]);
+      tailRequest->request().mark(); tailRequest->request().recordReturn(nodes[count - 1]);
     }
     ComponentContext context;
     if (door == BOUNDARY)
