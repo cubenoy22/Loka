@@ -515,6 +515,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_test(NAME LokaToolboxPaintFoldTests COMMAND LokaToolboxPaintFoldTests)
 
   add_executable(LokaToolboxControlWidthTests tests/toolbox/host/ToolboxControlWidthHostTests.cpp
+    tests/toolbox/host/ToolboxRowSpacingHostTests.cpp
     apple/toolbox/src/context/ToolboxButtonContext.cpp
     apple/toolbox/src/context/ToolboxEditTextContext.cpp
     apple/toolbox/src/context/ToolboxPopupMenuContext.cpp ${_editor_host_sources})
@@ -524,7 +525,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxControlWidthTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxControlWidthTests)
   set_target_properties(LokaToolboxControlWidthTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_control_width_case encoding-button encoding-popup encoding-text column-button column-edit column-popup natural row-title natural-title equal-title clipped-title)
+  foreach(_control_width_case spacing-unaligned spacing-aligned spacing-column encoding-button encoding-popup encoding-text column-button column-edit column-popup natural row-title natural-title equal-title clipped-title)
     add_test(NAME testToolboxControlWidth_${_control_width_case} COMMAND LokaToolboxControlWidthTests ${_control_width_case})
   endforeach()
 
