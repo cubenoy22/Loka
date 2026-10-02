@@ -17,6 +17,7 @@
 #include "core/State.hpp"
 #include "core/StateTracker.hpp"
 #include "core/util/StateTrackerGuard.hpp"
+#include "core/util/ScopedPtr.hpp"
 
 using namespace loka::core;
 using namespace loka::app;
@@ -214,7 +215,8 @@ namespace
     Count commits, direct;
     PushStateTracker tracker;
     NodeState<int> seat;
-    SeatLedger() : source(1), derived(&source, new SeatDouble(source)), seat(&source, &tracker)
+    SeatLedger(LedgerPolicy policy = LEDGER_JOINS)
+        : source(1), derived(&source, new SeatDouble(source)), tracker(policy), seat(&source, &tracker)
     {
       this->tracker.addState(&this->source);
       this->tracker.addState(&this->derived);
@@ -283,7 +285,7 @@ void testSeatUnderLegacyGuardWritesOnly()
   SeatLedger f;
   Operation turn;
   {
-    StateTrackerGuard guard(&f.tracker);
+    StandaloneTransactionGuard guard(&f.tracker);
     f.seat.set(4);
     LOKA_VERIFY(Operation::openActive(&f.tracker) == OPEN_REFUSED_BUSY);
     LOKA_VERIFY(SeatClockAccess::empty(turn));
@@ -303,7 +305,7 @@ void testSeatFirstNestedGuardCommitsAtTail()
   {
     StateTrackerGuard guard(&f.tracker);
     f.seat.set(4);
-    LOKA_VERIFY(SeatAccess::depth(f.tracker) == 2);
+    LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1);
   }
   LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1 && f.commits.calls == 0 && f.derived.get() == 2);
   turn.close();
@@ -555,20 +557,543 @@ namespace
 }
 void testFlowStepSeatGuardOrders()
 {
-  for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+    {
+      SeatLedger owner;
+      int input = 5;
+      // Bounded one-shot chain; the owner outlives every step invocation.
+      loka::dsl::FlowChain<int, int> flow =
+          loka::dsl::Flow() | loka::dsl::Step(1, GuardedSeatStep(owner)).input(&input);
+      ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      if (seatFirst) owner.seat.set(2);
+      LOKA_VERIFY(flow.run());
+      LOKA_VERIFY(owner.source.get() == 5);
+      LOKA_VERIFY(owner.derived.get() == (clocked ? 2 : 10));
+      LOKA_VERIFY(owner.commits.calls == (clocked ? 0 : (seatFirst ? 2 : 1)));
+      if (turn.get()) turn->close();
+      LOKA_VERIFY(owner.derived.get() == 10 && owner.commits.calls == (clocked || !seatFirst ? 1 : 2));
+    }
+}
+
+void testGuardInsideTurnJoinsAndSettlesAtTail()
+{
+  SeatLedger f;
+  Operation turn;
+  for (int value = 2; value <= 3; ++value)
   {
-    SeatLedger owner;
-    int input = 5;
-    // Bounded one-shot chain; the owner outlives every step invocation.
-    loka::dsl::FlowChain<int, int> flow =
-        loka::dsl::Flow() | loka::dsl::Step(1, GuardedSeatStep(owner)).input(&input);
-    Operation turn;
-    if (seatFirst) owner.seat.set(2);
-    LOKA_VERIFY(flow.run());
-    LOKA_VERIFY(owner.source.get() == 5);
-    LOKA_VERIFY(owner.derived.get() == (seatFirst ? 2 : 10));
-    LOKA_VERIFY(owner.commits.calls == (seatFirst ? 0 : 1));
-    turn.close();
-    LOKA_VERIFY(owner.derived.get() == 10 && owner.commits.calls == 1);
+    {
+      StateTrackerGuard guard(&f.tracker);
+      f.source.set(value);
+      LOKA_VERIFY(f.source.get() == value && f.direct.calls == value - 1);
+      LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1);
+    }
+    LOKA_VERIFY(f.derived.get() == 2 && f.commits.calls == 0);
+    LOKA_VERIFY(f.tracker.phase() == TRACKER_PRECOMMIT && !f.tracker.peekDirty());
   }
+  turn.close();
+  LOKA_VERIFY(f.derived.get() == 6 && f.commits.calls == 1);
+  LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(f.tracker) == 0);
+}
+
+void testGuardOutsideClockKeepsLegacyBracket()
+{
+  SeatLedger f;
+  for (int value = 2; value <= 3; ++value)
+  {
+    {
+      StateTrackerGuard guard(&f.tracker);
+      f.source.set(value);
+      LOKA_VERIFY(f.direct.calls == value - 1);
+    }
+    LOKA_VERIFY(f.derived.get() == value * 2 && f.commits.calls == value - 1);
+    LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE);
+  }
+}
+
+void testGuardOnBusyLedgerNestsLegacyLevel()
+{
+  SeatLedger f;
+  StandaloneTransactionGuard outer(&f.tracker);
+  Operation turn;
+  {
+    StateTrackerGuard guard(&f.tracker);
+    f.source.set(4);
+    LOKA_VERIFY(SeatAccess::depth(f.tracker) == 2);
+  }
+  LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1 && f.commits.calls == 0);
+  LOKA_VERIFY(SeatClockAccess::empty(turn));
+  turn.close();
+}
+
+void testGuardCallbackFiresOnlyOutsideTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    SeatLedger f;
+    Count callback;
+    ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+    {
+      StateTrackerGuard guard(&f.tracker, &Count::hit, &callback);
+      f.source.set(4);
+    }
+    LOKA_VERIFY(callback.calls == (clocked ? 0 : 1));
+    if (turn.get()) turn->close();
+    LOKA_VERIFY(f.commits.calls == 1 && callback.calls == (clocked ? 0 : 1));
+  }
+}
+
+void testStandaloneLedgerRefusesTheClock()
+{
+  SeatLedger f(LEDGER_STANDALONE);
+  Operation turn;
+  LOKA_VERIFY(turn.open(&f.tracker) == OPEN_REFUSED_STANDALONE);
+  LOKA_VERIFY(Operation::openActive(&f.tracker) == OPEN_REFUSED_STANDALONE);
+  f.seat.writeSeat().set(4);
+  LOKA_VERIFY(f.derived.get() == 8 && f.commits.calls == 1);
+  LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(f.tracker) == 0);
+  Count callback;
+  {
+    StateTrackerGuard guard(&f.tracker, &Count::hit, &callback);
+    LOKA_VERIFY(SeatAccess::depth(f.tracker) == 1);
+    LOKA_VERIFY(turn.open(&f.tracker) == OPEN_REFUSED_STANDALONE);
+    LOKA_VERIFY(Operation::openActive(&f.tracker) == OPEN_REFUSED_STANDALONE);
+    f.source.set(5);
+  }
+  LOKA_VERIFY(f.derived.get() == 10 && f.commits.calls == 2 && callback.calls == 1);
+  LOKA_VERIFY(f.tracker.phase() == TRACKER_IDLE && SeatAccess::depth(f.tracker) == 0);
+  std::vector<StateBase *> states;
+  MutableState<int> source(0);
+  states.push_back(&source);
+  PushStateTracker fromStates(states, LEDGER_STANDALONE);
+  LOKA_VERIFY(turn.open(&fromStates) == OPEN_REFUSED_STANDALONE);
+  LOKA_VERIFY(SeatClockAccess::empty(turn));
+  LOKA_VERIFY(turn.close().rounds == 0);
+}
+
+void testStandaloneGuardCommitsBeforeReadInsideTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    SeatLedger f;
+    Count callback;
+    ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+    {
+      StandaloneTransactionGuard guard(&f.tracker, &Count::hit, &callback);
+      f.source.set(4);
+    }
+    LOKA_VERIFY(f.tracker.peekDirty() && f.derived.get() == 8 && callback.calls == 1);
+    LOKA_VERIFY(f.tracker.consumeDirty());
+    LOKA_VERIFY(!f.tracker.peekDirty());
+    if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
+  }
+}
+
+namespace
+{
+  void guardedToggle(void *data)
+  {
+    SeatScene &f = *static_cast<SeatScene *>(data);
+    const unsigned before = f.platform.applies;
+    {
+      StateTrackerGuard guard(f.root().tracker());
+      f.root().shown.set(true);
+    }
+    if (Operation::hasActive())
+      LOKA_VERIFY(f.platform.applies == before && !f.root().visible.get());
+    else
+      LOKA_VERIFY(f.platform.applies == before + 1 && f.root().visible.get());
+    {
+      StateTrackerGuard guard(f.root().tracker());
+      f.root().allowed.set(false);
+    }
+    if (Operation::hasActive()) LOKA_VERIFY(f.platform.applies == before);
+  }
+}
+void testGuardedBlocksProjectOnceAtTail()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    SeatScene f;
+    const unsigned before = f.platform.applies;
+    if (clocked) f.app.operationLoop(&guardedToggle, &f);
+    else guardedToggle(&f);
+    LOKA_VERIFY(f.platform.applies == before + (clocked ? 1 : 2));
+    LOKA_VERIFY(!f.root().visible.get());
+  }
+}
+
+#include "app/Menu.hpp"
+namespace
+{
+  class PreparingMenu : public MenuBoundary
+  {
+  public:
+    MutableState<int> value;
+    PreparingMenu() : value(0) { this->tracker()->asPushTracker()->addState(&this->value); }
+    virtual ~PreparingMenu() { this->tracker()->asPushTracker()->removeState(&this->value); }
+    virtual void composeMenu(MenuComposition &composition)
+    {
+      this->value.set(1);
+      composition << Menu("Prepared");
+    }
+  };
+  class HandlerMenu : public MenuBoundary
+  {
+  public:
+    MutableState<bool> value;
+    NodeState<bool> checked;
+    HandlerMenu() : value(false), checked(&this->value, this->tracker())
+    { this->tracker()->asPushTracker()->addState(&this->value); }
+    virtual ~HandlerMenu() { this->tracker()->asPushTracker()->removeState(&this->value); }
+    virtual void composeMenu(MenuComposition &composition)
+    { composition << Menu(this->checked.get() ? "Checked" : "Unchecked"); }
+  };
+  class BootstrapApp : public WindowAdmissionTestApp
+  {
+  public:
+    explicit BootstrapApp(Window &window) : WindowAdmissionTestApp(window) {}
+    using App::projectInitialVisibilityChunks;
+  };
+}
+void testMenuCompositionCommitsBeforeReadInsideTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    PreparingMenu menu;
+    MenuBarDefinition bar;
+    MenuComposition composition(&bar);
+    ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+    composition.declare(menu);
+    std::vector<size_t> indices;
+    composition.takeDirtyMenuIndices(indices);
+    LOKA_VERIFY(indices.size() == 1 && indices[0] == 0);
+    LOKA_VERIFY(menu.tracker()->asPushTracker()->peekDirty());
+    composition.acknowledgeDirtyBoundaries();
+    LOKA_VERIFY(!menu.tracker()->asPushTracker()->peekDirty());
+    if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
+  }
+}
+void testMenuStateToggledInHandlerRebuildsMenuInSameTail()
+{
+  HandlerMenu menu;
+  MenuBarDefinition bar;
+  MenuComposition composition(&bar);
+  Operation turn;
+  menu.checked.set(true);
+  composition.declare(menu);
+  composition.finish();
+  PushStateTracker &tracker = *menu.tracker()->asPushTracker();
+  std::printf("S2 before settle: depth=%u dirty=%d clockEmpty=%d\n",
+              SeatAccess::depth(tracker), tracker.peekDirty(), SeatClockAccess::empty(turn));
+  std::fflush(stdout);
+  LOKA_VERIFY(tracker.peekDirty());
+  std::vector<size_t> indices;
+  composition.takeDirtyMenuIndices(indices);
+  LOKA_VERIFY(indices.size() == 1 && indices[0] == 0);
+  composition.acknowledgeDirtyBoundaries();
+  LOKA_VERIFY(!tracker.peekDirty());
+  LOKA_VERIFY(!tracker.consumeDirty());
+  LOKA_VERIFY(SeatClockAccess::empty(turn));
+}
+
+void testBootstrapVisibilityCommitsBeforeReadInsideTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    NullPlatformContext context;
+    NullWindow window(&context, WindowProps());
+    BootstrapApp app(window);
+    app.flush();
+    SeatAccess::InvalidationProbe commits;
+    commits.install(*window.getTracker()->asPushTracker());
+    ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+    app.projectInitialVisibilityChunks();
+    LOKA_VERIFY(commits.calls == 1 && window.getTracker()->phase() == TRACKER_IDLE);
+    if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
+  }
+}
+
+namespace
+{
+  struct GuardFlowStep
+  {
+    typedef int In;
+    typedef int Out;
+    bool &ready;
+    explicit GuardFlowStep(bool &value) : ready(value) {}
+    loka::dsl::StepRunStatus run(const int &input, int &out, loka::dsl::FlowError &) const
+    {
+      if (!this->ready) return loka::dsl::FLOW_STEP_PENDING;
+      out = input;
+      return loka::dsl::FLOW_STEP_SUCCEEDED;
+    }
+  };
+  struct GuardFlowRead
+  {
+    SeatLedger &owner;
+    int calls, value;
+    explicit GuardFlowRead(SeatLedger &ledger) : owner(ledger), calls(0), value(0) {}
+    static void finally(void *data)
+    {
+      GuardFlowRead &self = *static_cast<GuardFlowRead *>(data);
+      ++self.calls;
+      self.value = self.owner.derived.get();
+    }
+  };
+}
+void testFlowOnSuccessJoinsTurn()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned path = 0; path != 3; ++path)
+    {
+      SeatLedger owner;
+      GuardFlowRead read(owner);
+      bool ready = path == 0;
+      int input = 5;
+      loka::dsl::FlowChain<int, int> flow = loka::dsl::Flow()
+          | loka::dsl::Step(1, GuardFlowStep(ready)).input(&input)
+                .onSuccess(&owner.source, &owner.tracker);
+      flow.onFinally(&GuardFlowRead::finally, &read);
+      ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      if (path)
+      {
+        LOKA_VERIFY(flow.runResult() == loka::dsl::FLOW_RUN_PENDING);
+        LOKA_VERIFY(read.calls == 0 && owner.source.get() == 1 && owner.derived.get() == 2);
+        LOKA_VERIFY(owner.commits.calls == 0);
+        if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
+        ready = true;
+        if (path == 2) flow.cancel();
+        LOKA_VERIFY(flow.resumeResult(1) == (path == 2 ? loka::dsl::FLOW_RUN_CANCELED : loka::dsl::FLOW_RUN_SUCCEEDED));
+      }
+      else LOKA_VERIFY(flow.runResult() == loka::dsl::FLOW_RUN_SUCCEEDED);
+      LOKA_VERIFY(read.calls == 1 && read.value == (clocked || path == 2 ? 2 : 10));
+      LOKA_VERIFY(owner.source.get() == (path == 2 ? 1 : 5));
+      LOKA_VERIFY(owner.derived.get() == (clocked || path == 2 ? 2 : 10));
+      if (turn.get()) turn->close();
+      LOKA_VERIFY(owner.derived.get() == (path == 2 ? 2 : 10));
+      LOKA_VERIFY(owner.commits.calls == (path == 2 ? 0 : 1));
+    }
+}
+
+namespace
+{
+  struct BracketFlowStep
+  {
+    typedef int In;
+    typedef int Out;
+    SeatLedger &owner;
+    loka::dsl::StepRunStatus &status;
+    int &calls;
+    BracketFlowStep(SeatLedger &ledger, loka::dsl::StepRunStatus &result, int &count)
+        : owner(ledger), status(result), calls(count) {}
+    loka::dsl::StepRunStatus run(const int &input, int &out, loka::dsl::FlowError &) const
+    {
+      LOKA_VERIFY(SeatAccess::depth(this->owner.tracker) == 1);
+      LOKA_VERIFY(this->owner.tracker.phase() == TRACKER_PRECOMMIT);
+      ++this->calls;
+      // Raw step write: only the Flow run bracket supplies its transaction.
+      this->owner.source.set(input);
+      out = input;
+      return this->status;
+    }
+  };
+
+  void verifyFlowRunBracket(bool clocked, LedgerPolicy policy)
+  {
+    using namespace loka::dsl;
+    const StepRunStatus statuses[] = { FLOW_STEP_PENDING, FLOW_STEP_SUCCEEDED, FLOW_STEP_FAILED };
+    const FlowRunResult results[] = { FLOW_RUN_PENDING, FLOW_RUN_SUCCEEDED, FLOW_RUN_FAILED };
+    for (unsigned path = 0; path != 3; ++path)
+    {
+      SeatLedger owner(policy);
+      GuardFlowRead read(owner);
+      StepRunStatus status = statuses[path];
+      int input = 5, calls = 0;
+      bool loading = false;
+      FlowChain<int, int> flow = Flow() | Step(1, BracketFlowStep(owner, status, calls)).input(&input);
+      flow.withTracker(&owner.tracker).trackLoading(&loading).onFinally(&GuardFlowRead::finally, &read);
+      ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      const bool joined = clocked && policy == LEDGER_JOINS;
+      for (int run = 1; run <= 2; ++run)
+      {
+        LOKA_VERIFY(flow.runResult() == results[path]);
+        LOKA_VERIFY(calls == run && owner.source.get() == input && owner.direct.calls == run);
+        LOKA_VERIFY(owner.derived.get() == (joined ? 2 : input * 2));
+        LOKA_VERIFY(owner.commits.calls == (joined ? 0 : run));
+        LOKA_VERIFY(SeatAccess::depth(owner.tracker) == (joined ? 1u : 0u));
+        LOKA_VERIFY(loading == (path == 0));
+        LOKA_VERIFY(read.calls == (path == 0 ? 0 : run));
+        if (path != 0) LOKA_VERIFY(read.value == (joined ? 2 : input * 2));
+        if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn) == !joined);
+        ++input;
+      }
+      if (turn.get())
+      {
+        LOKA_VERIFY(turn->settle().status == OPERATION_SETTLED);
+        LOKA_VERIFY(owner.derived.get() == 12 && owner.commits.calls == (joined ? 1 : 2));
+        LOKA_VERIFY(SeatAccess::depth(owner.tracker) == (joined ? 1u : 0u));
+        LOKA_VERIFY(turn->close().status == OPERATION_SETTLED);
+      }
+      LOKA_VERIFY(SeatAccess::depth(owner.tracker) == 0 && owner.tracker.phase() == TRACKER_IDLE);
+      LOKA_VERIFY(!owner.source.trackerOwner());
+      LOKA_VERIFY(owner.commits.calls == (joined ? 1 : 2));
+    }
+  }
+}
+
+void testFlowRunBracketJoinsTurn()
+{
+  verifyFlowRunBracket(true, LEDGER_JOINS);
+}
+
+void testFlowRunBracketOutsideClockKeepsLegacy()
+{
+  verifyFlowRunBracket(false, LEDGER_JOINS);
+}
+
+void testFlowRunBracketOnStandaloneLedgerStaysSynchronous()
+{
+  verifyFlowRunBracket(false, LEDGER_STANDALONE);
+  verifyFlowRunBracket(true, LEDGER_STANDALONE);
+}
+
+void testFlowPendingAndResumeInsideTurn()
+{
+  using namespace loka::dsl;
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned cancel = 0; cancel != 2; ++cancel)
+    {
+      SeatLedger owner;
+      GuardFlowRead read(owner);
+      StepRunStatus status = FLOW_STEP_PENDING;
+      int input = 5, calls = 0;
+      bool loading = false;
+      FlowChain<int, int> flow = Flow() | Step(1, BracketFlowStep(owner, status, calls)).input(&input);
+      flow.withTracker(&owner.tracker).trackLoading(&loading).onFinally(&GuardFlowRead::finally, &read);
+      {
+        ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+        LOKA_VERIFY(flow.runResult() == FLOW_RUN_PENDING);
+        LOKA_VERIFY(calls == 1 && loading && read.calls == 0 && owner.source.get() == 5);
+        LOKA_VERIFY(owner.derived.get() == (clocked ? 2 : 10));
+        LOKA_VERIFY(SeatAccess::depth(owner.tracker) == (clocked ? 1u : 0u));
+        if (turn.get())
+        {
+          LOKA_VERIFY(!SeatClockAccess::empty(*turn));
+          LOKA_VERIFY(turn->settle().status == OPERATION_SETTLED);
+          LOKA_VERIFY(SeatAccess::depth(owner.tracker) == 1);
+        }
+        LOKA_VERIFY(owner.derived.get() == 10 && owner.commits.calls == 1);
+      }
+      LOKA_VERIFY(SeatAccess::depth(owner.tracker) == 0 && !owner.source.trackerOwner());
+      input = 7;
+      status = FLOW_STEP_SUCCEEDED;
+      if (cancel) flow.cancel();
+      {
+        // Public resume is a fresh segment, joining this later turn.
+        ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+        LOKA_VERIFY(flow.resumeResult(1) == (cancel ? FLOW_RUN_CANCELED : FLOW_RUN_SUCCEEDED));
+        LOKA_VERIFY(calls == (cancel ? 1 : 2) && !loading && read.calls == 1);
+        LOKA_VERIFY(owner.source.get() == (cancel ? 5 : 7));
+        LOKA_VERIFY(owner.derived.get() == (clocked || cancel ? 10 : 14));
+        LOKA_VERIFY(read.value == (clocked || cancel ? 10 : 14));
+        LOKA_VERIFY(owner.commits.calls == (clocked || cancel ? 1 : 2));
+        LOKA_VERIFY(SeatAccess::depth(owner.tracker) == (clocked ? 1u : 0u));
+        if (turn.get())
+        {
+          LOKA_VERIFY(!SeatClockAccess::empty(*turn));
+          LOKA_VERIFY(turn->settle().status == OPERATION_SETTLED);
+        }
+        LOKA_VERIFY(owner.derived.get() == (cancel ? 10 : 14));
+        LOKA_VERIFY(owner.commits.calls == (cancel ? 1 : 2));
+      }
+      LOKA_VERIFY(SeatAccess::depth(owner.tracker) == 0 && !owner.source.trackerOwner());
+    }
+}
+
+namespace
+{
+  struct BracketHookObservation
+  {
+    SeatLedger &owner;
+    const bool clocked;
+    int calls;
+    static void begin(void *, void *) {}
+    static void end(void *, void *data)
+    {
+      BracketHookObservation &self = *static_cast<BracketHookObservation *>(data);
+      ++self.calls;
+      // Both the inner and outer execution hooks see the released bracket.
+      LOKA_VERIFY(self.owner.derived.get() == (self.clocked ? 2 : 14));
+      LOKA_VERIFY(SeatAccess::depth(self.owner.tracker) == (self.clocked ? 1u : 0u));
+    }
+  };
+
+  struct BracketContinuation
+  {
+    loka::dsl::StepRunStatus &status;
+    int &input;
+    loka::dsl::StepRunStatus next;
+    int calls;
+    static void advance(void *data)
+    {
+      BracketContinuation &self = *static_cast<BracketContinuation *>(data);
+      ++self.calls;
+      self.status = self.next;
+      self.input = 7;
+    }
+  };
+}
+
+void testFlowFinallyReadsOldDerivedInsideTurn()
+{
+  using namespace loka::dsl;
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned pending = 0; pending != 2; ++pending)
+    {
+      SeatLedger owner;
+      GuardFlowRead read(owner);
+      StepRunStatus status = FLOW_STEP_SUCCEEDED;
+      int input = 5, calls = 0;
+      bool loading = false;
+      BracketContinuation continuation = {status, input, pending ? FLOW_STEP_PENDING : FLOW_STEP_FAILED, 0};
+      BracketHookObservation hooks = {owner, clocked != 0, 0};
+      FlowChain<int, int> flow = Flow() | Step(1, BracketFlowStep(owner, status, calls)).input(&input);
+      flow.withTracker(&owner.tracker).trackLoading(&loading)
+          .onSuccess(&BracketContinuation::advance, &continuation, 1)
+          .onFinally(&GuardFlowRead::finally, &read);
+      flow.setExecutionHooks(&BracketHookObservation::begin, &BracketHookObservation::end, &hooks);
+      ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      // The internal continuation must share the original bracket: no extra
+      // begin, and its release precedes finally even outside a clock.
+      LOKA_VERIFY(flow.runResult() == (pending ? FLOW_RUN_PENDING : FLOW_RUN_FAILED));
+      LOKA_VERIFY(calls == 2 && continuation.calls == 1 && hooks.calls == 2 && owner.source.get() == 7);
+      LOKA_VERIFY(loading == (pending != 0) && read.calls == (pending ? 0 : 1));
+      if (!pending) LOKA_VERIFY(read.value == (clocked ? 2 : 14));
+      LOKA_VERIFY(owner.derived.get() == (clocked ? 2 : 14));
+      LOKA_VERIFY(owner.commits.calls == (clocked ? 0 : 1));
+      LOKA_VERIFY(SeatAccess::depth(owner.tracker) == (clocked ? 1u : 0u));
+      if (turn.get()) LOKA_VERIFY(turn->close().status == OPERATION_SETTLED);
+      LOKA_VERIFY(owner.derived.get() == 14 && owner.commits.calls == 1);
+      LOKA_VERIFY(SeatAccess::depth(owner.tracker) == 0);
+    }
+}
+
+void testFlowRunBracketAbstractTrackerEndsOnce()
+{
+  using namespace loka::dsl;
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned pending = 0; pending != 2; ++pending)
+    {
+      AbstractSeatTracker tracker;
+      bool ready = !pending;
+      int input = 5;
+      FlowChain<int, int> flow = Flow() | Step(1, GuardFlowStep(ready)).input(&input);
+      flow.withTracker(&tracker);
+      ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      LOKA_VERIFY(flow.runResult() == (pending ? FLOW_RUN_PENDING : FLOW_RUN_SUCCEEDED));
+      // Explicit release plus destructor must consume only one owned level.
+      LOKA_VERIFY(tracker.begins == 1 && tracker.ends == 1);
+      if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
+    }
 }

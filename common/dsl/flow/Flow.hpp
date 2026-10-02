@@ -60,6 +60,60 @@ namespace loka
 
     namespace flow_detail
     {
+      /** A run transaction released at PENDING or terminal, before finally.
+          Internal success continuations borrow the original bracket. */
+      class RunBracket
+      {
+      public:
+        explicit RunBracket(loka::core::StateTracker *tracker)
+            : tracker_(tracker), mode_(open(tracker))
+        {
+          if (this->mode_ == OWNED)
+            this->tracker_->begin();
+        }
+
+        ~RunBracket() { this->release(); }
+
+        void release()
+        {
+          loka::core::StateTracker *tracker = this->tracker_;
+          this->tracker_ = 0;
+          if (tracker && this->mode_ == OWNED)
+            tracker->end();
+        }
+
+      private:
+        enum Mode { NONE, JOINED, OWNED };
+        loka::core::StateTracker *tracker_;
+        const Mode mode_;
+
+        static Mode open(loka::core::StateTracker *tracker)
+        {
+          using namespace loka::core;
+          if (!tracker)
+            return NONE;
+          // Mirrors StateTrackerGuard's enrollment policy; release timing is
+          // Flow-specific because finally runs after the owned bracket ends.
+          switch (Operation::openActive(tracker))
+          {
+          case OPEN_OK:
+          case OPEN_ALREADY_OPEN:
+            return JOINED;
+          case OPEN_REFUSED_BUSY:
+          case OPEN_REFUSED_CLOSING:
+          case OPEN_REFUSED_STANDALONE:
+          case OPEN_NO_CLOCK:
+          case OPEN_CLOCK_REFUSED:
+          case OPEN_REFUSED_NOT_PUSH:
+            return OWNED;
+          }
+          return OWNED;
+        }
+
+        RunBracket(const RunBracket &);
+        RunBracket &operator=(const RunBracket &);
+      };
+
       template <typename A, typename B> struct IsSame
       {
         enum
@@ -222,7 +276,12 @@ namespace loka
       }
 
       /** Applies a successful output to borrowed State within its owner's
-          borrowed tracker transaction. Both must outlive Flow execution. */
+          borrowed tracker transaction. Inside a rail turn that transaction
+          joins the turn's clock (core::Operation), so the State and its
+          tracker must outlive the turn in which the Flow ran, not only the
+          execution; an owner that must die earlier unregisters its States
+          first, which lets its empty ledger leave the clock. Outside a turn
+          the bracket closes before onSuccess returns, as before. */
       StepSpec &onSuccess(loka::core::MutableState<Out> *state, loka::core::StateTracker *tracker)
       {
         assert(state != 0 && "StepSpec::onSuccess requires a target state");
@@ -569,12 +628,9 @@ namespace loka
 
       // --- Methods moved from FlowChain ---
 
-      void terminalCleanup() const
+      void terminalCleanup(flow_detail::RunBracket &bracket) const
       {
-        if (this->tracker_ != 0)
-        {
-          this->tracker_->end();
-        }
+        bracket.release();
         if (this->finallyFn_ != 0)
         {
           this->finallyFn_(this->finallyUser_);
@@ -605,7 +661,7 @@ namespace loka
           this->steps_[i]->resetRunObservations();
         }
         RunPinScope runPinScope(this);
-        return this->runCoreFromIndex(startIndex, false);
+        return this->runCoreFromIndex(startIndex);
       }
 
       FlowRunResult runPinnedFromStepId(int stepId) const
@@ -691,12 +747,10 @@ namespace loka
         }
       }
 
-      // `resumedSegment` is true only for the internal flow-level success
-      // resume: the segment continues the same logical run, so entry must not
-      // re-begin the tracker or re-raise the loading state — the run's single
-      // begin already happened and terminalCleanup() fires once, at the
-      // segment's own terminal.
-      FlowRunResult runCoreFromIndex(std::size_t startIndex, bool resumedSegment) const
+      // Only internal flow-level success continuation borrows a bracket.
+      // Public run/resume and trigger entry create a fresh one after the hook.
+      FlowRunResult runCoreFromIndex(std::size_t startIndex,
+                                     flow_detail::RunBracket *continuation = 0) const
       {
         // Snapshot the hook fields once: begin/end stay paired even if the
         // hooks are cleared mid-run (e.g. the owning FlowSlot disowns the
@@ -737,6 +791,15 @@ namespace loka
           return FLOW_RUN_FAILED;
         }
 
+        if (continuation)
+          return this->runSegmentFromIndex(startIndex, true, *continuation);
+        flow_detail::RunBracket bracket(this->tracker_);
+        return this->runSegmentFromIndex(startIndex, false, bracket);
+      }
+
+      FlowRunResult runSegmentFromIndex(std::size_t startIndex, bool resumedSegment,
+                                       flow_detail::RunBracket &bracket) const
+      {
         const void *current = 0;
         if (startIndex == 0 && this->triggerInputBuffer_)
         {
@@ -749,10 +812,6 @@ namespace loka
         FlowError error;
         if (!resumedSegment)
         {
-          if (this->tracker_ != 0)
-          {
-            this->tracker_->begin();
-          }
           if (this->loadingState_ != 0)
           {
             *this->loadingState_ = true;
@@ -767,12 +826,12 @@ namespace loka
           {
             this->cancelRequested_ = false;
             this->settleCancelOnSteps();
-            this->terminalCleanup();
+            this->terminalCleanup(bracket);
             return FLOW_RUN_CANCELED;
           }
           if (++iterations > MAX_ITERATIONS)
           {
-            this->terminalCleanup();
+            this->terminalCleanup(bracket);
             return FLOW_RUN_FAILED;
           }
           bool stepHandled = false;
@@ -789,7 +848,7 @@ namespace loka
               std::size_t jumpIndex = 0;
               if (!this->findStepIndex(stepSuccessResumeStepId, jumpIndex))
               {
-                this->terminalCleanup();
+                this->terminalCleanup(bracket);
                 return FLOW_RUN_FAILED;
               }
               i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
@@ -799,10 +858,7 @@ namespace loka
 
           if (stepStatus == FLOW_STEP_PENDING)
           {
-            if (this->tracker_ != 0)
-            {
-              this->tracker_->end();
-            }
+            bracket.release();
             return FLOW_RUN_PENDING;
           }
 
@@ -829,14 +885,14 @@ namespace loka
             std::size_t jumpIndex = 0;
             if (!this->findStepIndex(jumpStepId, jumpIndex))
             {
-              this->terminalCleanup();
+              this->terminalCleanup(bracket);
               return FLOW_RUN_FAILED;
             }
             i = (jumpIndex == 0) ? static_cast<std::size_t>(-1) : (jumpIndex - 1);
             continue;
           }
 
-          this->terminalCleanup();
+          this->terminalCleanup(bracket);
           return stepHandled || flowHandled ? FLOW_RUN_SUCCEEDED : FLOW_RUN_FAILED;
         }
 
@@ -856,16 +912,16 @@ namespace loka
           std::size_t jumpIndex = 0;
           if (!this->findStepIndex(flowSuccessResumeStepId, jumpIndex))
           {
-            this->terminalCleanup();
+            this->terminalCleanup(bracket);
             return FLOW_RUN_FAILED;
           }
           // No terminalCleanup() here: the resumed segment continues the same
           // logical run, and its own terminal fires the flow-level finally,
           // tracker end, and loading=false exactly once.
-          return this->runCoreFromIndex(jumpIndex, true);
+          return this->runCoreFromIndex(jumpIndex, &bracket);
         }
 
-        this->terminalCleanup();
+        this->terminalCleanup(bracket);
         return FLOW_RUN_SUCCEEDED;
       }
 
@@ -926,7 +982,7 @@ namespace loka
         // Trigger callbacks hold only the impl pointer, so lifetime still
         // needs pinning here; use the run pin rather than refs_ so callback
         // code can cancel the active impl without tripping copy-on-write.
-        FlowRunResult result = self->runCoreFromIndex(0, false);
+        FlowRunResult result = self->runCoreFromIndex(0);
         if (result != FLOW_RUN_PENDING)
         {
           self->triggerRunning_ = false;

@@ -116,7 +116,20 @@ void testSceneFlushIsRefusedWhileClockSettles()
   f.app.reclaimWindows();
 }
 
-void testEmptyTurnKeepsLegacySynchronousFlush()
+void testGuardWithoutClockKeepsSynchronousFlush()
+{
+  TurnFixture f;
+  const unsigned before = f.controller.applies;
+  {
+    StateTrackerGuard guard(&f.ledger);
+    f.value.set(1);
+  }
+  LOKA_VERIFY(f.probe.calls == 1 && !f.probe.settling && f.probe.flushed);
+  LOKA_VERIFY(f.controller.applies == before + 1);
+  LOKA_VERIFY(!f.window.scene()->hasPendingInvalidation());
+}
+
+void testGuardEnrollsEmptyTurnAndDefersFlush()
 {
   TurnFixture f;
   const unsigned before = f.controller.applies;
@@ -125,11 +138,14 @@ void testEmptyTurnKeepsLegacySynchronousFlush()
     StateTrackerGuard guard(&f.ledger);
     f.value.set(1);
   }
-  LOKA_VERIFY(f.probe.calls == 1 && !f.probe.settling && f.probe.flushed);
+  LOKA_VERIFY(f.probe.calls == 0 && f.controller.applies == before);
+  turn.settle();
+  LOKA_VERIFY(f.probe.calls == 1 && f.probe.settling && !f.probe.flushed);
+  f.app.admitAndApplyWindows();
   LOKA_VERIFY(f.controller.applies == before + 1);
   LOKA_VERIFY(!f.window.scene()->hasPendingInvalidation());
   const OperationOutcome outcome = turn.close();
-  LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 0);
+  LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 1);
 }
 
 void testApplyTimeWriteSettlesAtCloseAndProjectsNextTurn()

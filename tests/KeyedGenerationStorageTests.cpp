@@ -1337,7 +1337,9 @@ void testRetiredGenerationReclaimedByRefreshLeavesClock()
   loka::dsl::testing::SceneTestAccess::runCountingRefreshes(scene, refreshes);
   LOKA_VERIFY(refreshes > firstRefreshes);
   LOKA_VERIFY(lifetime.constructed == 2 && lifetime.destroyed == 1);
-  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
+  // C2: the retired generation withdraws; the root guard also enrolled its ledger.
+  LOKA_VERIFY(Operation::openActive(root->tracker()) == OPEN_ALREADY_OPEN);
   const OperationOutcome outcome = turn.close();
+  LOKA_VERIFY(loka::core::testing::OperationTestAccess::empty(turn));
   LOKA_VERIFY(outcome.status == OPERATION_SETTLED);
 }

@@ -1,7 +1,8 @@
 #ifndef LOKA_TESTS_TURN_CLOCK_TESTS_HPP
 #define LOKA_TESTS_TURN_CLOCK_TESTS_HPP
 void testSceneFlushIsRefusedWhileClockSettles();
-void testEmptyTurnKeepsLegacySynchronousFlush();
+void testGuardWithoutClockKeepsSynchronousFlush();
+void testGuardEnrollsEmptyTurnAndDefersFlush();
 void testApplyTimeWriteSettlesAtCloseAndProjectsNextTurn();
 void testCompletionTurnLeavesNoActiveClock();
 void testInputInvocationInsideTurnDoesNotOpenClock();

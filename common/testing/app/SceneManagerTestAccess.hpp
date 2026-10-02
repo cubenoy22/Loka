@@ -2,6 +2,7 @@
 #define LOKA_APP_TESTING_SCENE_MANAGER_TEST_ACCESS_HPP
 
 #include "app/core/SceneManager.hpp"
+#include "app/scene/state/NodeState.hpp"
 
 namespace loka
 {
@@ -21,6 +22,14 @@ namespace loka
         static const ::loka::core::PushStateTracker &tracker(const SceneManager &manager)
         {
           return manager.tracker_;
+        }
+
+        /** Exercises a seat write on the manager's actual registered Scene fact. */
+        static void writeCurrentScene(SceneManager &manager)
+        {
+          loka::app::scene::NodeState<loka::app::scene::Scene *> current(
+              &manager.currentScene_, &manager.tracker_);
+          current.set(manager.currentScene_.get(), true);
         }
 
         /** Number of scenes waiting in the Window retirement pool. */

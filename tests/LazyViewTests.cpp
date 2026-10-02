@@ -1,3 +1,4 @@
+#include "core/util/ScopedPtr.hpp"
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
 #include "support/UpstreamGaugePin.hpp"
 #endif
@@ -587,14 +588,15 @@ void allocpin::RunLazyViewPageFlipAllocPin()
     EndCapture();
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
     // Measured ceilings for the host pool simulation, including the reclaim clock.
-    // One replacement ledger now carries Operation's two borrowed clock links.
-    const unsigned long clockLinks = 2 * sizeof(void *);
+    // One replacement ledger carries two borrowed clock links plus the
+    // construction policy (one pointer-aligned slot in the host layout).
+    const unsigned long clockLedgerStorage = 3 * sizeof(void *);
 #ifdef LOKA_LIFECYCLE_AUDIT
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10768 : 9768) + clockLinks);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10768 : 9768) + clockLedgerStorage);
 #else
     upstreamPinCheck(
-        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10352 : 9392) + clockLinks);
+        "LazyView", upstreamBefore, upstreamPinSnapshot(), capture == 0 ? 31 : 28, (capture == 0 ? 10352 : 9392) + clockLedgerStorage);
 #endif
 #endif
     rows(f, f.view.get().y == 0 ? 9 : 10);
@@ -736,27 +738,28 @@ void testLazyViewCanceledRefusedWindowRefreshesContent()
 void testLazyViewSeatGuardOrders()
 {
   typedef loka::core::testing::PushStateTrackerTestAccess Access;
-  for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
-  {
-    Access::InvalidationProbe commits;
-    Fixture f;
-    LazyViewNode<CardProps> *flex = f.flex();
-    PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
-    NodeState<int> earlier;
-    StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
-    commits.install(owner);
-    Operation turn;
-    if (seatFirst) earlier.set(1);
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
     {
-      StateTrackerGuard viewportGuard(&f.tracker);
-      f.view.set(Frame(0, 200, 200, 160));
+      Access::InvalidationProbe commits;
+      Fixture f;
+      LazyViewNode<CardProps> *flex = f.flex();
+      PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
+      NodeState<int> earlier;
+      StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
+      loka::core::ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      if (seatFirst) earlier.set(1);
+      commits.install(owner);
+      {
+        StateTrackerGuard viewportGuard(&f.tracker);
+        f.view.set(Frame(0, 200, 200, 160));
+      }
+      // C2: either write order joins; without a clock selection still commits here.
+      LOKA_VERIFY(Access::depth(owner) == clocked);
+      LOKA_VERIFY(commits.calls == (clocked ? 0 : 1));
+      if (turn.get()) turn->close();
+      LOKA_VERIFY(commits.calls == 1);
+      f.drain();
+      LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
     }
-    // selectWindow's own guard is first, or nested under the earlier Seat.
-    LOKA_VERIFY(Access::depth(owner) == seatFirst);
-    LOKA_VERIFY(commits.calls == (seatFirst ? 0 : 1));
-    turn.close();
-    LOKA_VERIFY(commits.calls == 1);
-    f.drain();
-    LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
-  }
 }
