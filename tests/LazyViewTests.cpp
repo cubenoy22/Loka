@@ -1,3 +1,4 @@
+#include "core/util/ScopedPtr.hpp"
 #ifdef LOKA_UPSTREAM_GAUGE_PIN
 #include "support/UpstreamGaugePin.hpp"
 #endif
@@ -1055,6 +1056,7 @@ void testLazyViewRecipeCompatibilityAndClones()
   OwnedDef<NodeDefinitionBase> clone(valid.clone());
   LOKA_VERIFY(clone.isSet() && clone->isCompatibleWithNode(f.flex()));
 }
+#include "testing/core/StateTrackerTestAccess.hpp"
 void testLazyViewPartitionReuseWithinTurn()
 {
   Fixture f;
@@ -1066,6 +1068,46 @@ void testLazyViewPartitionReuseWithinTurn()
   f.page(200); // Reclaim A while the rail turn remains open.
   f.page(0);
   LOKA_VERIFY(f.flex()->childrenHead() == a && a->partitionOwner() == bank);
-  // #1079 adds seat-write enrolment; whichever branch lands second extends this pin.
+  // #1079 (seat writes join the active clock) landed first, so this pin carries
+  // the enrolment half: a seat write in the generation rebuilt into the reused
+  // slot enrolls its live ledger, which the clock settles and releases at close.
+  CardNode *card = f.r.cards[0];
+  LOKA_VERIFY(card != 0);
+  card->toggle.set(true);
+  StateTracker *ledger = card->toggle.state()->trackerOwner();
+  LOKA_VERIFY(ledger != 0 && ledger->asPushTracker() != 0);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(*ledger->asPushTracker()) == 1);
+  LOKA_VERIFY(Operation::openActive(ledger) == OPEN_ALREADY_OPEN);
   LOKA_VERIFY(turn.close().status == OPERATION_SETTLED);
+  LOKA_VERIFY(card->toggle.get() && ledger->phase() == TRACKER_IDLE);
+  LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(*ledger->asPushTracker()) == 0);
+}
+
+void testLazyViewSeatGuardOrders()
+{
+  typedef loka::core::testing::PushStateTrackerTestAccess Access;
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+    {
+      Access::InvalidationProbe commits;
+      Fixture f;
+      LazyViewNode<CardProps> *flex = f.flex();
+      PushStateTracker &owner = *flex->asStateOwner()->tracker()->asPushTracker();
+      NodeState<int> earlier;
+      StateBatchBase::CreateImmediateState(flex->asStateOwner(), earlier, 0);
+      loka::core::ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+      if (seatFirst) earlier.set(1);
+      commits.install(owner);
+      {
+        StateTrackerGuard viewportGuard(&f.tracker);
+        f.view.set(Frame(0, 200, 200, 160));
+      }
+      // C2: either write order joins; without a clock selection still commits here.
+      LOKA_VERIFY(Access::depth(owner) == clocked);
+      LOKA_VERIFY(commits.calls == (clocked ? 0 : 1));
+      if (turn.get()) turn->close();
+      LOKA_VERIFY(commits.calls == 1);
+      f.drain();
+      LOKA_VERIFY(f.r.cards[10] && !f.r.cards[0]);
+    }
 }

@@ -636,6 +636,37 @@ It is the reason Loka can avoid treating the whole UI as one undifferentiated
 tree. State updates should be made inside a tracker transaction so the framework
 can see what changed and decide what to update.
 
+`NodeState::set()` uses the owner's `WriteSeat`. Inside a rail turn, an eligible idle
+owner ledger joins `Operation`: source values and direct observers remain
+synchronous, but derived values, the dirty summary, and Scene projection wait
+for the turn's settle/apply. Reading an owner-derived value immediately after
+`set()` can therefore read the previous value. Multiple collect-time writes
+share the tail projection; intermediate Show/Keyed structures are not projected.
+Writes during apply or focus completion settle at close and leave their
+commit-driven projection pending for the next eligible admission.
+
+Outside a turn, an idle owner's Seat still begins, writes, and ends a transaction
+before returning. `StateTrackerGuard` joins the active clock too, regardless of
+whether a Seat or guard writes first. It retains begin/end when enrollment is
+refused or no clock is active. Its optional callback is not invoked when joined;
+observe the State or use `StandaloneTransactionGuard` for post-commit work.
+
+`StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
+commit-before-read preparation: menu composition, Scene installation/rearm, and
+bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
+construction, so earlier handler writes cannot enroll them in the turn clock.
+Their seat writes and ordinary tracker guards keep synchronous transactions.
+Window retains a joining ledger; bootstrap uses the standalone bracket before
+any turn. Flow's run bracket and its `onSuccess` state assignment join the active
+clock too. Step writes keep source values and direct observers synchronous, but
+a following step or `finally` can still read the previous derived value until
+the tail. Outside a turn, or when enrollment is refused (including standalone
+ledgers), the run bracket ends at PENDING or terminal cleanup before `finally`.
+Public resume starts a fresh bracket; an internal flow-success continuation
+shares the original bracket without opening another level. Dialog transport
+and Menu's own NextTick remain unchanged. Cleanup writes do not reopen a closing
+clock.
+
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
 

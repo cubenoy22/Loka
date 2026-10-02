@@ -204,6 +204,8 @@ namespace
   class OwnedApp : public App
   {
   public:
+    using App::admitAndApplyWindows;
+    using App::reclaimWindows;
     OwnedApp()
         : App(0)
     {
@@ -696,4 +698,111 @@ void testOpenFileDialogTransportEnrollmentRefusalRetriesOnAdmission()
   }
   LOKA_VERIFY(g_enrollmentLive == 0);
   loka::core::LokaAllocSetBackend(0, 0);
+}
+
+namespace
+{
+  void hideDialogOnResult(void *) { g_owner->shown_.set(false); }
+}
+void testDialogSeatClockEligibility()
+{
+  for (unsigned clock = 0; clock != 2; ++clock)
+  {
+    Fixture f(true);
+    int emits = 0;
+    g_owner->result_.bind(&hideDialogOnResult, 0, false);
+    g_owner->emitter_.bind(&countEvent, &emits, false);
+    g_context->produce();
+    if (clock)
+    {
+      loka::core::Operation turn;
+      f.app.admitAndApplyWindows();
+      LOKA_VERIFY(emits == 1 && g_context && !g_owner->shown_.get());
+      turn.settle();
+      f.app.admitAndApplyWindows();
+      turn.close();
+      f.app.reclaimWindows();
+    }
+    else
+    {
+      f.app.admitAndApplyWindows();
+      LOKA_VERIFY(emits == 0);
+      f.app.flush();
+    }
+    LOKA_VERIFY(!g_context);
+    g_owner->result_.unbind(&hideDialogOnResult, 0);
+    g_owner->emitter_.unbind(&countEvent, &emits);
+  }
+}
+void testDialogSeatClockCancellationStillSuppresses()
+{
+  Fixture f;
+  int emits = 0;
+  g_owner->result_.bind(&cancelObserver, 0, false);
+  g_owner->emitter_.bind(&countEvent, &emits, false);
+  g_context->produce();
+  loka::core::Operation turn;
+  f.app.admitAndApplyWindows();
+  LOKA_VERIFY(emits == 0 && g_owner->result_.get().kind == FileChooserResult::RESULT_FILE);
+  turn.close();
+  f.app.flush();
+  LOKA_VERIFY(Access::census(f.window.dialogResults()) == 0);
+  g_owner->result_.unbind(&cancelObserver, 0);
+  g_owner->emitter_.unbind(&countEvent, &emits);
+}
+
+void testDialogSeatClockDeadTokenStillSuppresses()
+{
+  NullWindow window(0, WindowProps());
+  WindowAdmissionTestApp app(window);
+  loka::core::MutableState<FileChooserResult> result;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&result);
+  NodeState<FileChooserResult> channel(&result, &tracker);
+  loka::core::EmitterState *emitter = new loka::core::EmitterState();
+  int emits = 0;
+  emitter->bind(&countEvent, &emits, false);
+  channel.bind(&destroyEmitter, &emitter, false);
+  Transport::Registration *registration =
+      window.dialogResults().reserve(OpenFileDialogProps().result(channel).onResult(emitter));
+  Transport::ReturnPort port(registration);
+  LOKA_VERIFY(port.seal(FileChooserResult::Canceled()) == &window);
+  loka::core::Operation turn;
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(!emitter && emits == 0 && channel.get().kind == FileChooserResult::RESULT_CANCELED);
+  turn.close();
+  app.reclaimWindows();
+  app.flush();
+  delete registration;
+  channel.unbind(&destroyEmitter, &emitter);
+}
+void testDialogSeatClockWindowCloseStillSuppresses()
+{
+  int deaths = 0, emits = 0;
+  OwnedApp app;
+  DeathWindow *window = new DeathWindow(deaths);
+  app.adopt(window);
+  loka::core::MutableState<FileChooserResult> result;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&result);
+  NodeState<FileChooserResult> channel(&result, &tracker);
+  loka::core::EmitterState emitter;
+  emitter.bind(&countEvent, &emits, false);
+  CloseProbe probe = { &app, window, &deaths };
+  channel.bind(&CloseProbe::close, &probe, false);
+  Transport::Registration *registration =
+      window->dialogResults().reserve(OpenFileDialogProps().result(channel).onResult(&emitter));
+  Transport::ReturnPort port(registration);
+  LOKA_VERIFY(port.seal(FileChooserResult::Canceled()) == window);
+  {
+    loka::core::Operation turn;
+    app.admitAndApplyWindows();
+    LOKA_VERIFY(deaths == 0 && emits == 0 && app.pending());
+    turn.close();
+    app.reclaimWindows();
+  }
+  app.flush();
+  LOKA_VERIFY(deaths == 1 && emits == 0);
+  delete registration;
+  channel.unbind(&CloseProbe::close, &probe);
 }

@@ -69,13 +69,18 @@ namespace loka
       virtual ~StateTracker() {}
     };
 
+    /** A standalone ledger never joins the clock: its owner commits before it
+        reads the result (menu composition, Scene installation). It is the bridge
+        until those owners become DSL seats with Boundary ledgers. */
+    enum LedgerPolicy { LEDGER_JOINS, LEDGER_STANDALONE };
+
     class PushStateTracker : public StateTracker LOKA_AUDITED_AS(PushStateTracker)
     {
     public:
       typedef void (*InvalidateFn)(void *);
       typedef std::vector<StateBase *> StateList;
-      PushStateTracker(const std::vector<StateBase *> &states);
-      PushStateTracker();
+      PushStateTracker(const std::vector<StateBase *> &states, LedgerPolicy policy = LEDGER_JOINS);
+      PushStateTracker(LedgerPolicy policy = LEDGER_JOINS);
       /** Begins a transaction. A guard opened while this tracker is settling
           joins the running transaction; its writes land in the current phase's
           intake and are drained by the settlement already in progress. */
@@ -143,6 +148,9 @@ namespace loka
       {
         return this;
       }
+      /** An empty ledger may be destroyed while enrolled and withdraws quietly.
+          A ledger with registered States must outlive Operation close. Destroying
+          the stepping ledger from its own callback remains a contract violation. */
       ~PushStateTracker();
 
     private:
@@ -232,6 +240,7 @@ namespace loka
         bool anyDirty;
       };
 
+      const LedgerPolicy policy_;
       TrackerTransaction transaction_;
       /// dependents: dependency graph from a source state to dependent states.
       DependencyMap dependents;

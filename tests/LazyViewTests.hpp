@@ -27,4 +27,5 @@ void testLazyViewMaximumRefusalSettles();
 void testLazyViewClassRefusalSettles();
 void testLazyViewRecipeCompatibilityAndClones();
 void testLazyViewPartitionReuseWithinTurn();
+void testLazyViewSeatGuardOrders();
 #endif

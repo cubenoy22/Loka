@@ -33,4 +33,5 @@ void testFocusForeignRow();
 void testFocusAppReenumeratesMultipleRemovals();
 void testFocusAppVisitedSpill();
 void testFocusPublishedContext();
+void testFocusSeatCompletionProjectsNextTurn();
 #endif

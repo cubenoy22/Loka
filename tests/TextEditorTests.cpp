@@ -1,3 +1,4 @@
+#include "core/util/ScopedPtr.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
 #include "support/TextEditorStateOwner.hpp"
@@ -2952,29 +2953,43 @@ void testPlatformOperationPumps()
 
 void testPlatformOperationFocusTail()
 {
-  using namespace loka::app::testing;
-  NullPlatformContext context;
-  SettlementProbePresenter platform;
-  WindowProps props;
-  props.scene(new Scene(Boundary<SettlementProbeRoot>()));
-  NullWindow window(&context, props, &platform);
-  WindowAdmissionTestApp app(window);
-  app.flush();
-  Scene &scene = *window.scene();
-  SettlementProbeRoot &root = *static_cast<SettlementProbeRoot *>(
-      loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
-  TextEditorNode *node = settlementProbeFind(&root);
-  LOKA_VERIFY(node && node->getContext());
-  SettlementProbeObserver observer(root, platform, true);
-  platform.focusScene = &scene;
-  platform.focusInput = static_cast<NullTextEditorContext *>(node->getContext());
-  platform.focusCursor = LineCursor(root.lines.at(0).id, 1);
-  const unsigned applies = platform.applies;
-  app.operationLoop();
-  LOKA_VERIFY(observer.replies == 2);
-  LOKA_VERIFY(platform.applies > applies);
-  LOKA_VERIFY(!scene.focus().isPublishing() && !platform.borrowPhase().open());
-  LOKA_VERIFY(!settlementProbeFind(&root));
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+  {
+    using namespace loka::app::testing;
+    NullPlatformContext context;
+    SettlementProbePresenter platform;
+    WindowProps props;
+    props.scene(new Scene(Boundary<SettlementProbeRoot>()));
+    NullWindow window(&context, props, &platform);
+    WindowAdmissionTestApp app(window);
+    app.flush();
+    Scene &scene = *window.scene();
+    SettlementProbeRoot &root = *static_cast<SettlementProbeRoot *>(
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    TextEditorNode *node = settlementProbeFind(&root);
+    LOKA_VERIFY(node && node->getContext());
+    SettlementProbeObserver observer(root, platform, true);
+    platform.focusScene = &scene;
+    platform.focusInput = static_cast<NullTextEditorContext *>(node->getContext());
+    platform.focusCursor = LineCursor(root.lines.at(0).id, 1);
+    const unsigned applies = platform.applies;
+    if (clocked) app.operationLoop();
+    else
+    {
+      WindowTestAccess::reconcileFocus(window);
+      app.flush();
+    }
+    LOKA_VERIFY(observer.replies == 2);
+    if (clocked)
+    {
+      LOKA_VERIFY(platform.applies == applies);
+      LOKA_VERIFY(scene.hasPendingInvalidation() && settlementProbeFind(&root));
+      app.operationLoop();
+    }
+    LOKA_VERIFY(platform.applies > applies);
+    LOKA_VERIFY(!scene.focus().isPublishing() && !platform.borrowPhase().open());
+    LOKA_VERIFY(!settlementProbeFind(&root));
+  }
 }
 
 void testPlatformOperationMount()
@@ -3086,4 +3101,58 @@ void testNullInputDoorNestedSettlement()
   LOKA_VERIFY(!fixture.platform.borrowPhase().open());
   LOKA_VERIFY(Input::type(*fixture.context, 'y') == EDITOR_OK);
   LOKA_VERIFY(!fixture.platform.borrowPhase().open());
+}
+
+namespace
+{
+  struct SeatDocumentCommit
+  {
+    PushStateTracker &tracker;
+    StateBase *cursor;
+    StateBase *revision;
+    unsigned cursorCommits, listCommits;
+    SeatDocumentCommit(Fixture &f)
+        : tracker(f.tracker), cursor(f.cursor.state()),
+          revision(const_cast<State<ListRevision> *>(&f.lines.revision())), cursorCommits(0), listCommits(0) {}
+    static void count(void *data)
+    {
+      SeatDocumentCommit &self = *static_cast<SeatDocumentCommit *>(data);
+      const PushStateTracker::StateList &dirty = self.tracker.committedDirtyStates();
+      for (size_t i = 0; i < dirty.size(); ++i)
+      {
+        if (dirty[i] == self.cursor) ++self.cursorCommits;
+        if (dirty[i] == self.revision) ++self.listCommits;
+      }
+    }
+  };
+}
+void testTextEditorSeatGuardOrders()
+{
+  for (unsigned clocked = 0; clocked != 2; ++clocked)
+    for (unsigned seatFirst = 0; seatFirst != 2; ++seatFirst)
+      for (unsigned replace = 0; replace != 2; ++replace)
+      {
+        Fixture f;
+        SeatDocumentCommit probe(f);
+        f.tracker.setInvalidateCallback(&SeatDocumentCommit::count, &probe);
+        MutableState<int> earlier(0);
+        f.tracker.addState(&earlier);
+        NodeState<int> earlierSeat(&earlier, &f.tracker);
+        loka::core::ScopedPtr<Operation> turn(clocked ? new Operation : 0);
+        if (seatFirst) earlierSeat.set(1);
+        TextEditorDocument &document = loka::app::testing::TextEditorAccess::document(f.node);
+        const LineCursor before = f.cursor.state()->get();
+        if (replace)
+          LOKA_VERIFY(document.applyReplace(before, before, "x", 1) == EDITOR_OK);
+        else
+          LOKA_VERIFY(document.moveCaret(LineCursor(before.line, 3)) == EDITOR_OK);
+        LOKA_VERIFY(f.cursor.state()->get() == LineCursor(before.line, 3));
+        LOKA_VERIFY(probe.cursorCommits == (clocked ? 0u : 1u));
+        LOKA_VERIFY(probe.listCommits == (replace && !clocked ? 1u : 0u));
+        LOKA_VERIFY(loka::core::testing::PushStateTrackerTestAccess::depth(f.tracker) == clocked);
+        if (turn.get()) turn->close();
+        LOKA_VERIFY(probe.cursorCommits == 1 && probe.listCommits == replace);
+        f.tracker.setInvalidateCallback(0, 0);
+        f.tracker.removeState(&earlier);
+      }
 }

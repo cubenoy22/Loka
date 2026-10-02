@@ -131,7 +131,7 @@ void App::projectInitialVisibilityChunks()
       loka::core::StateTracker *tracker = win->getTracker();
       if (tracker)
       {
-        loka::core::StateTrackerGuard _(tracker);
+        loka::core::StandaloneTransactionGuard _(tracker);
         win->visibilityState().set(true, true);
       }
     }

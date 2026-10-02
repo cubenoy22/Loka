@@ -24,9 +24,11 @@ public:
   using App::hasPendingWindowAdmission;
   void flush() { this->flushWindowInvalidations(); }
   /** Null model of Win32App::flushIterationTail(): two admissions, one reclaim. */
-  void operationLoop()
+  void operationLoop(void (*collect)(void *) = 0, void *data = 0)
   {
     loka::core::Operation turn;
+    if (collect)
+      collect(data);
     this->flushMenuInvalidation();
     turn.settle();
     this->admitAndApplyWindows();

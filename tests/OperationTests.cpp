@@ -174,7 +174,9 @@ namespace
 
   void destroyOpenLedger()
   {
+    MutableState<int> state(0);
     PushStateTracker *tracker = new PushStateTracker;
+    tracker->addState(&state);
     Operation operation;
     LOKA_VERIFY(operation.open(tracker) == OPEN_OK);
     delete tracker;
@@ -199,7 +201,7 @@ namespace
     Ledger ledger;
     Operation operation;
     LOKA_VERIFY(operation.open(&ledger.tracker) == OPEN_OK);
-    StateTrackerGuard guard(&ledger.tracker);
+    StandaloneTransactionGuard guard(&ledger.tracker);
     operation.close();
   }
 
@@ -431,7 +433,36 @@ void testOperationWriteDuringCloseIsUnmarked()
   verifyClosed(b);
 }
 
-void testOperationRejectsLedgerDestructionWhileOpen()
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+namespace
+{
+  // #1078 bot P2: a rowless ledger deleting itself from its own cleanup callback
+  // is still a contract violation; the driver resumes into the freed object.
+  void deleteSelfFromCleanup(void *data)
+  {
+    delete static_cast<PushStateTracker *>(data);
+  }
+  void destroySteppingLedger()
+  {
+    PushStateTracker *ledger = new PushStateTracker;
+    Operation operation;
+    LOKA_VERIFY(operation.open(ledger) == OPEN_OK);
+    Access::defer(*ledger, &deleteSelfFromCleanup, ledger);
+    operation.close();
+  }
+}
+#endif
+
+void testSteppingLedgerCannotDestroyItselfEvenWithoutRows()
+{
+#if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
+  expectAssert(&destroySteppingLedger);
+#else
+  std::printf("[skip] stepping-ledger death pin requires Linux debug without ASan.\n");
+#endif
+}
+
+void testLedgerWithRowsCannotBeDestroyedWhileOpen()
 {
 #if defined(__linux__) && !defined(__SANITIZE_ADDRESS__) && !defined(NDEBUG)
   expectAssert(&destroyOpenLedger);
@@ -490,10 +521,10 @@ void testOperationRefusesNonPushAndBusyLedgers()
   Ledger busy, available;
   StateTrackerGuard guard(&busy.tracker);
   Operation operation;
-  LOKA_VERIFY(operation.open(&mock) == OPEN_REFUSED_NOT_PUSH);
-  LOKA_VERIFY(operation.open(&busy.tracker) == OPEN_REFUSED_BUSY);
-  LOKA_VERIFY(operation.open(&available.tracker) == OPEN_OK);
-  LOKA_VERIFY(operation.open(&available.tracker) == OPEN_ALREADY_OPEN);
+  LOKA_VERIFY(Operation::openActive(&mock) == OPEN_REFUSED_NOT_PUSH);
+  LOKA_VERIFY(Operation::openActive(&busy.tracker) == OPEN_REFUSED_BUSY);
+  LOKA_VERIFY(Operation::openActive(&available.tracker) == OPEN_OK);
+  LOKA_VERIFY(Operation::openActive(&available.tracker) == OPEN_ALREADY_OPEN);
   LOKA_VERIFY(Access::depth(available.tracker) == 1);
   assert(mock.begins == 0 && mock.ends == 0);
   const OperationOutcome outcome = operation.close();
@@ -758,4 +789,169 @@ void testSettleThenCloseShareOneBudgetAndKeepFirstRefusal()
     LOKA_VERIFY(loop.calls == 4 && loop.cleanupCalls == 4);
     verifyClosed(ledger);
   }
+}
+
+void testEmptyLedgerLeavesClockOnDestruction()
+{
+  for (int position = 0; position != 4; ++position)
+  {
+    Ledger a, b, appended;
+    MutableState<int> state(0);
+    PushStateTracker *empty = new PushStateTracker;
+    empty->addState(&state);
+    Operation turn;
+    if (position == 0 || position == 3)
+      LOKA_VERIFY(Operation::openActive(empty) == OPEN_OK);
+    if (position != 3)
+    {
+      LOKA_VERIFY(Operation::openActive(&a.tracker) == OPEN_OK);
+      if (position == 1)
+        LOKA_VERIFY(Operation::openActive(empty) == OPEN_OK);
+      LOKA_VERIFY(Operation::openActive(&b.tracker) == OPEN_OK);
+      if (position == 2)
+        LOKA_VERIFY(Operation::openActive(empty) == OPEN_OK);
+    }
+    LOKA_VERIFY(state.trackerOwner() == empty);
+    empty->removeState(&state);
+    LOKA_VERIFY(state.trackerOwner() == 0);
+    delete empty;
+    if (position == 3)
+      LOKA_VERIFY(testing::OperationTestAccess::empty(turn));
+    LOKA_VERIFY(Operation::openActive(&appended.tracker) == OPEN_OK);
+    if (position != 3)
+    {
+      a.source.set(1);
+      b.source.set(1);
+    }
+    appended.source.set(1);
+    const OperationOutcome outcome = turn.close();
+    LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 1);
+    LOKA_VERIFY(a.invalidations == (position == 3 ? 0 : 1));
+    LOKA_VERIFY(b.invalidations == (position == 3 ? 0 : 1));
+    LOKA_VERIFY(appended.invalidations == 1);
+    LOKA_VERIFY(testing::OperationTestAccess::empty(turn));
+    verifyClosed(a);
+    verifyClosed(b);
+    verifyClosed(appended);
+  }
+}
+
+namespace
+{
+  struct WithdrawDuringRound
+  {
+    PushStateTracker *victim;
+    Ledger *appended;
+    bool appendFirst;
+    int calls;
+    void append()
+    {
+      LOKA_VERIFY(Operation::openActive(&this->appended->tracker) == OPEN_OK);
+      this->appended->source.set(1);
+    }
+    static void invoke(void *data)
+    {
+      WithdrawDuringRound &probe = *static_cast<WithdrawDuringRound *>(data);
+      ++probe.calls;
+      if (probe.appendFirst)
+        probe.append();
+      delete probe.victim;
+      probe.victim = 0;
+      if (!probe.appendFirst)
+        probe.append();
+    }
+  };
+}
+
+void testWithdrawDuringRoundKeepsDriverSafe()
+{
+  // Cursor, frontier, earlier member (neither), and cursor == frontier.
+  // Appending on either side of withdrawal must still wait for a new round.
+  for (int position = 0; position != 4; ++position)
+    for (int appendFirst = 0; appendFirst != 2; ++appendFirst)
+    {
+      Ledger a, b, appended;
+      PushStateTracker *victim = new PushStateTracker;
+      WithdrawDuringRound probe = { victim, &appended, appendFirst != 0, 0 };
+      a.tracker.setInvalidateCallback(&WithdrawDuringRound::invoke, &probe);
+      Operation turn;
+      if (position == 2)
+        LOKA_VERIFY(Operation::openActive(victim) == OPEN_OK);
+      LOKA_VERIFY(Operation::openActive(&a.tracker) == OPEN_OK);
+      if (position == 0 || position == 3)
+        LOKA_VERIFY(Operation::openActive(victim) == OPEN_OK);
+      if (position != 3)
+        LOKA_VERIFY(Operation::openActive(&b.tracker) == OPEN_OK);
+      if (position == 1)
+        LOKA_VERIFY(Operation::openActive(victim) == OPEN_OK);
+      a.source.set(1);
+      if (position != 3)
+        b.source.set(1);
+      const OperationOutcome outcome = turn.close();
+      LOKA_VERIFY(outcome.status == OPERATION_SETTLED && outcome.rounds == 2);
+      LOKA_VERIFY(probe.calls == 1 && probe.victim == 0);
+      LOKA_VERIFY(b.invalidations == (position == 3 ? 0 : 1));
+      LOKA_VERIFY(appended.invalidations == 1);
+      LOKA_VERIFY(testing::OperationTestAccess::empty(turn));
+      verifyClosed(a);
+      verifyClosed(b);
+      verifyClosed(appended);
+    }
+}
+
+void testOpenActiveWithoutClockReportsNoClock()
+{
+  Ledger ledger;
+  LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_NO_CLOCK);
+  verifyClosed(ledger);
+  {
+    Operation turn;
+    Operation nested;
+    LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_OK);
+    LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_ALREADY_OPEN);
+    LOKA_VERIFY(Access::depth(ledger.tracker) == 1);
+  }
+  LOKA_VERIFY(Operation::openActive(&ledger.tracker) == OPEN_NO_CLOCK);
+  verifyClosed(ledger);
+}
+
+namespace
+{
+  struct ClosingOpen
+  {
+    Ledger *target;
+    Ledger *idle;
+    int calls;
+    static void invoke(void *data)
+    {
+      ClosingOpen &probe = *static_cast<ClosingOpen *>(data);
+      ++probe.calls;
+      LOKA_VERIFY(Operation::openActive(&probe.target->tracker) == OPEN_REFUSED_CLOSING);
+      LOKA_VERIFY(Operation::openActive(&probe.idle->tracker) == OPEN_REFUSED_CLOSING);
+      LOKA_VERIFY(probe.target->source.trackerOwner() == 0);
+      probe.target->source.set(9);
+    }
+  };
+}
+
+void testOpenActiveDuringClosingIsRefused()
+{
+  Ledger a, b, idle;
+  ClosingOpen probe = { &b, &idle, 0 };
+  Operation turn(OperationBudget(0));
+  LOKA_VERIFY(Operation::openActive(&a.tracker) == OPEN_OK);
+  LOKA_VERIFY(Operation::openActive(&b.tracker) == OPEN_OK);
+  Access::defer(a.tracker, &ClosingOpen::invoke, &probe);
+  const OperationOutcome outcome = turn.close();
+  LOKA_VERIFY(outcome.status == OPERATION_REFUSED_CHAIN_LIMIT && outcome.rounds == 0);
+  LOKA_VERIFY(probe.calls == 1 && b.source.get() == 9);
+  const bool transactionDirty = b.tracker.transactionDirty();
+  const bool pendingDirty = b.tracker.peekDirty();
+  LOKA_VERIFY(!transactionDirty && !pendingDirty);
+  LOKA_VERIFY(Access::currentDirtyCount(b.tracker) == 0);
+  LOKA_VERIFY(Access::nextDirtyCount(b.tracker) == 0);
+  LOKA_VERIFY(a.invalidations == 0 && b.invalidations == 0);
+  verifyClosed(a);
+  verifyClosed(b);
+  verifyClosed(idle);
 }

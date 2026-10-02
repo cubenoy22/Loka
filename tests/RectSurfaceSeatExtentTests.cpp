@@ -691,3 +691,90 @@ void testRectSurfaceExtentLedgerCancelDuringDeliveryKeepsNextRow()
   LOKA_VERIFY(extents[1].get() == loka::core::Frame(0, 0, 2, 2));
   LOKA_VERIFY(extents[2].get() == loka::core::Frame(0, 0, 3, 3));
 }
+
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "platform/null/NullWindow.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+namespace
+{
+  using namespace loka::core;
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  class RailFactRoot : public BoundaryNodeFor<RailFactRoot>
+  {
+    struct Width : DerivedState<int>::EvalFn
+    {
+      const NodeState<Frame> &fact;
+      explicit Width(const NodeState<Frame> &value) : fact(value) {}
+      virtual int operator()() { return this->fact.get().width + 100; }
+    };
+  public:
+    NodeState<Frame> extent;
+    DerivedNodeState<int> width;
+    explicit RailFactRoot(const BoundaryPropsFor<RailFactRoot> &p) : BoundaryNodeFor<RailFactRoot>(p)
+    {
+      this->state(this->extent, Frame(0, 0, 0, 0));
+      this->derived(this->width, this->extent, new Width(this->extent));
+    }
+    virtual void composeNode(NodeComposition &c) { c.declare(Box().width(this->width.state())); }
+  };
+  class RailFactPresenter : public NullScenePlatformController
+  {
+  public:
+    Node *layoutRoot;
+    unsigned applies;
+    RailFactPresenter() : layoutRoot(0), applies(0) {}
+    virtual bool canSkipGlobalChangeForBoundaryLocalPaint() const { return false; }
+    virtual void beginApplyCycle()
+    {
+      ++this->applies;
+      if (this->layoutRoot)
+        this->projectLayoutForTesting(this->layoutRoot, layoutState(0, 0, 50, 20));
+    }
+  };
+}
+void testSeatRailFactSettlesAtCloseAndProjectsNextAdmission()
+{
+  NullPlatformContext context;
+  RailFactPresenter platform;
+  NullWindow window(&context, WindowProps().scene(new Scene(Boundary<RailFactRoot>())), &platform);
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  Scene &scene = *window.scene();
+  RailFactRoot &root = *static_cast<RailFactRoot *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+  RectSurfaceProps props;
+  props.size(50, 20).laidOutExtent(root.extent);
+  LayoutSequence sequence;
+  ChangeCount publications;
+  root.extent.bind(&RecordExtentPublication, &sequence, false);
+  root.extent.bind(&ChangeCount::Increment, &publications, false);
+  StackNode row((StackProps(STACK_AXIS_ROW)));
+  RectSurfaceNode *surface = new RectSurfaceNode(props);
+  row.addChild(surface);
+  row.addChild(new LayoutTailNode(&sequence));
+  platform.layoutRoot = &row;
+  const unsigned before = platform.applies;
+  Operation turn;
+  scene.requestInvalidate();
+  turn.settle();
+  app.admitAndApplyWindows();
+  // The Null layout pass (including its tail) completed before fact delivery.
+  LOKA_VERIFY(surface->getContext() && sequence.tail > 0 && sequence.publication > sequence.tail);
+  LOKA_VERIFY(root.extent.get() == Frame(0, 0, 50, 20) && root.width.get() == 100);
+  LOKA_VERIFY(publications.value == 1 && platform.applies == before + 1);
+  app.admitAndApplyWindows();
+  LOKA_VERIFY(platform.applies == before + 1 && root.width.get() == 100);
+  turn.close();
+  LOKA_VERIFY(root.width.get() == 150 && scene.hasPendingInvalidation());
+  app.reclaimWindows();
+  app.operationLoop();
+  LOKA_VERIFY(platform.applies == before + 2 && !scene.hasPendingInvalidation());
+  LOKA_VERIFY(publications.value == 1); // Equal extent did not re-enroll or loop.
+  app.operationLoop();
+  LOKA_VERIFY(platform.applies == before + 2 && publications.value == 1);
+  root.extent.unbind(&RecordExtentPublication, &sequence);
+  root.extent.unbind(&ChangeCount::Increment, &publications);
+  platform.layoutRoot = 0;
+}

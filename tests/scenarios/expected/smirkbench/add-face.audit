@@ -43,8 +43,8 @@ surface.rects	71,72,24,24;201,205,24,24
 test	SmirkBench
 text.value	Faces: 2
 tick	4
-total.boundary_applies	2
-total.collector_visits	16
+total.boundary_applies	1
+total.collector_visits	8
 total.control_draws	2
 step id=5 due_tick=5 tick=5 status=succeeded error_kind=0 error_code=0 name=surface-tick
 step id=6 due_tick=6 tick=6 status=succeeded error_kind=0 error_code=0 name=surface-tick
@@ -71,7 +71,7 @@ surface.rects	61,82,24,24;216,200,24,24
 test	SmirkBench
 text.value	Faces: 2
 tick	10
-total.boundary_applies	7
-total.collector_visits	56
+total.boundary_applies	6
+total.collector_visits	48
 total.control_draws	2
 terminal status=succeeded

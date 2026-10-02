@@ -1743,3 +1743,47 @@ void testFocusPostD1RetiresObservation()
   LOKA_VERIFY(!f.weight.getContext() && !f.height.props.focus_.requested());
   LOKA_VERIFY(!(f.facts.first.state()->get() != Fact::none()));
 }
+
+void testFocusSeatCompletionProjectsNextTurn()
+{
+  for (unsigned clock = 0; clock != 2; ++clock)
+  {
+    NullPlatformContext context;
+    ReadController platform;
+    WindowProps props;
+    props.scene(new Scene(Boundary<PostScreen>()));
+    FocusWindow window(&context, props, &platform);
+    WindowAdmissionTestApp app(window);
+    app.flush();
+    Scene &scene = *window.scene();
+    PostScreen &screen = *static_cast<PostScreen *>(loka::dsl::testing::SceneTestAccess::rootBoundary(scene));
+    screen.focus.state()->bind(&PostScreen::hide, &screen, false);
+    if (clock)
+    {
+      Operation turn;
+      turn.settle();
+      app.admitAndApplyWindows();
+      app.reconcileFocus();
+      LOKA_VERIFY(!screen.shown.get() && screen.focus.state()->get().is(FOCUS_HEIGHT));
+      // C1: second admission precedes close and cannot consume this commit.
+      app.admitAndApplyWindows();
+      LOKA_VERIFY(screen.focus.state()->get().is(FOCUS_HEIGHT));
+      turn.close();
+      LOKA_VERIFY(scene.hasPendingInvalidation());
+      LOKA_VERIFY(screen.focus.state()->get().is(FOCUS_HEIGHT));
+      app.reclaimWindows();
+      app.operationLoop();
+    }
+    else
+    {
+      app.admitAndApplyWindows();
+      app.reconcileFocus();
+      app.admitAndApplyWindows();
+      app.reclaimWindows();
+    }
+    LOKA_VERIFY(!screen.shown.get());
+    LOKA_VERIFY(!(screen.focus.state()->get() != Fact::none()));
+    LOKA_VERIFY(!scene.hasPendingInvalidation());
+    screen.focus.state()->unbind(&PostScreen::hide, &screen);
+  }
+}

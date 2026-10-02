@@ -13,6 +13,7 @@ namespace loka
       /** Clock identity and phase probes, kept out of the application API. */
       struct OperationTestAccess
       {
+        static bool empty(const Operation &clock) { return !clock.head_ && !clock.tail_; }
         static Operation *active() { return Operation::active_; }
         static bool isOpen(const Operation &clock) { return clock.phase_ == Operation::OPEN; }
       };
@@ -46,6 +47,8 @@ namespace loka
             if (self->callback) self->callback(self->data);
           }
         };
+
+        static bool hasRegisteredStates(const PushStateTracker &tracker) { return tracker.statesHead_ != 0; }
 
         static size_t currentDirtyCount(const PushStateTracker &tracker)
         {
