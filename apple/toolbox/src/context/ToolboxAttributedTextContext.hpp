@@ -46,6 +46,8 @@ private:
   friend class loka::testing::ToolboxAttributedTextContextAccess;
   virtual void retireNativeProjection();
   bool reconcileProjection(short width, bool rebuildGeometry);
+  /** The width layout places the built geometry at for a constraint. */
+  short placedWidth(short constraint) const;
   loka::app::AttributedTextNode *node_;
   ToolboxAttributedTextTable table_;
   ToolboxCompositionReplay::Registration replay_;

@@ -71,6 +71,11 @@ void ToolboxAttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycle
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
 
+short ToolboxAttributedTextContext::placedWidth(short constraint) const
+{
+  return constraint > 0 ? constraint : this->table_.width();
+}
+
 bool ToolboxAttributedTextContext::reconcileProjection(short width, bool rebuildGeometry)
 {
   if (!this->controller() || !this->node_ || !this->node_->props.text_)
@@ -117,7 +122,7 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
     this->presented_.invalidate();
     return 0;
   }
-  const short width = state.width > 0 ? state.width : this->table_.width();
+  const short width = this->placedWidth(state.width);
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
@@ -157,8 +162,17 @@ ToolboxAttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuer
 
 void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController *)
 {
-  if (!this->reconcileProjection(this->rect_.right - this->rect_.left, false))
+  // A paint-only rebuild keeps the last layout constraint (an intrinsic 0
+  // stays unbounded) instead of the placement width derived from it.
+  const short placementWidth = static_cast<short>(this->rect_.right - this->rect_.left);
+  short constraint = placementWidth;
+  this->table_.queryConstraint(constraint);
+  if (!this->reconcileProjection(constraint, false))
     return;
+  // Geometry layout would place differently waits for layout: paint what
+  // fits, but never certify the value as presented.
+  const bool fits = this->placedWidth(constraint) == placementWidth
+      && this->table_.height() == this->rect_.bottom - this->rect_.top;
   // Layout already intersected the placement with the projection clip: an
   // empty paint rect owes no pixels, so leave before switching the port or
   // allocating clip regions (the resident-Column scroll cost, S1 lane).
@@ -182,7 +196,7 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
                                          *this->controller(),
                                          this->node_->props.blockStyle_,
                                          this->rect_.right - this->rect_.left);
-  if (painted && completes)
+  if (painted && completes && fits)
     this->presented_.commit(this->table_.value(), ToolboxPaintScope());
 }
 

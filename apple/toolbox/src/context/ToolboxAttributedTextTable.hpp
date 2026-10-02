@@ -40,6 +40,11 @@ public:
   {
     return this->measurement_.reusable(width);
   }
+  /** The width constraint the completed geometry was built for, if any. */
+  bool queryConstraint(short &width) const
+  {
+    return this->valid() && this->measurement_.queryConstraint(width);
+  }
   short height() const
   {
     return this->valid() ? this->measurement_.extent().height : 0;

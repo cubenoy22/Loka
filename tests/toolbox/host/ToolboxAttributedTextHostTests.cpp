@@ -256,6 +256,8 @@ namespace
     loka::core::testing::allowLokaAllocRaw();
     context->render(&controller);
     LOKA_VERIFY(toolbox_host::draws.size() == 1 && toolbox_host::draws[0].bytes == std::string(100, 'x'));
+    // One unbreakable word stays one line at the 80-pixel constraint, so the
+    // rebuild matches the placement layout would give it and is certified.
     LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
     Pin("AttributedPaintOnlyEqualValueRebuildUnderPartialClip");
     // Split malformed segments and the joined scalar compare equal but draw
@@ -279,6 +281,21 @@ namespace
     context->render(&controller);
     context->render(&controller);
     LOKA_VERIFY(toolbox_host::measures == measured);
+    Pin("AttributedPaintOnlyRebuildKeepsIntrinsicConstraint");
+    // An intrinsic layout placed "a"; the live value grows before the next
+    // layout. The rebuild stays unbounded and, outgrowing the placement, is
+    // painted but not certified as presented.
+    node->props = AttributedText(Styled("a", Bold)).props;
+    context->onPropsApplied();
+    seat = Seat(0);
+    context->layout(&controller, seat);
+    context->render(&controller);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    const Rect small = ToolboxAttributedTextContextAccess::rect(*context);
+    node->props = AttributedText(Styled("abcdef", Bold)).props;
+    context->render(&controller);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::table(*context).width() > small.right - small.left);
+    LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
     context->onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
     delete node;
     controller.retired.clear();
