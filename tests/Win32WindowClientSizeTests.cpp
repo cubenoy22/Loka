@@ -540,9 +540,9 @@ void testWin32WindowDestructionDestroysNativeWindow()
   printf("==== [testWin32WindowDestructionDestroysNativeWindow] PASSED ====\n");
 }
 
-void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle()
+void testWin32AppDestructionLeavesWindowOwnedMenu()
 {
-  printf("\n==== [testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle] start ====\n");
+  printf("\n==== [testWin32AppDestructionLeavesWindowOwnedMenu] start ====\n");
   loka::app::MenuBarDefinition menuBar;
   menuBar << (loka::app::Menu("File") << loka::app::MenuItem("Quit"));
   WindowProps props;
@@ -569,20 +569,20 @@ void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle()
       frameNotifications = 0;
     }
 
-    // App teardown may alter native menu ownership but must publish no State.
+    // The fixture owns the Window beyond the App: its native menu stays put.
     LOKA_VERIFY(frameNotifications == 0);
     assertLogicalClientSize(hwnd, 257, 163);
     const HMENU attachedMenu = GetMenu(hwnd);
-    LOKA_VERIFY(attachedMenu == NULL);
+    LOKA_VERIFY(attachedMenu == menu);
     const BOOL menuRemaining = IsMenu(menu);
-    LOKA_VERIFY(!menuRemaining);
+    LOKA_VERIFY(menuRemaining);
   }
 
   const BOOL windowRemaining = IsWindow(hwnd);
   LOKA_VERIFY(windowRemaining);
   window.frameState().deferUnbind(&CountFrameNotification, &frameNotifications);
   setWindowVisibility(window, false);
-  printf("==== [testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle] PASSED ====\n");
+  printf("==== [testWin32AppDestructionLeavesWindowOwnedMenu] PASSED ====\n");
 }
 
 void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification()

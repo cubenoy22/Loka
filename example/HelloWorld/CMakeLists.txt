@@ -70,6 +70,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32ScenePlatformController.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BuiltInSupport.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32App.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32MenuAttachment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32Window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32RetirableContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BitmapCapture.cpp
@@ -92,6 +93,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ThreadModalScopeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32EditTextBridgeTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FocusTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32MenuAttachmentTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32TextEditorTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32OpenFileDialogTransportTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
