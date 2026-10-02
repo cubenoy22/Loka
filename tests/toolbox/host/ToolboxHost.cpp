@@ -10,7 +10,7 @@ namespace toolbox_host
   ControlCalls controlCalls;
   std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<Draw> draws;
-  std::vector<std::string> pascalDraws, windowTitles;
+  std::vector<std::string> pascalDraws, windowTitles, widthPayloads;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
@@ -21,6 +21,7 @@ namespace toolbox_host
   {
     draws.clear();
     pascalDraws.clear();
+    widthPayloads.clear();
     erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
   }
@@ -95,8 +96,10 @@ void MeasureText(short count, const void *, void *charLocs)
   for (int i = 0; i <= count; ++i)
     positions[i] = static_cast<short>(i * (port->txSize / 3 + ((port->txFace & bold) ? 1 : 0)));
 }
-short TextWidth(const void *, short, short length)
+short TextWidth(const void *bytes, short offset, short length)
 {
+  assert(offset >= 0 && length >= 0);
+  toolbox_host::widthPayloads.push_back(std::string(static_cast<const char *>(bytes) + offset, length));
   ++toolbox_host::widths;
   return static_cast<short>(length * (port->txSize / 3 + ((port->txFace & bold) ? 1 : 0)));
 }

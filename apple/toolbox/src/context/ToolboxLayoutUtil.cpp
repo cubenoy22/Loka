@@ -16,27 +16,6 @@ namespace
   }
 }
 
-bool ToolboxBuildLegacyTextPascal(const loka::core::String &value, Str255 text)
-{
-  std::string utf8;
-  if (!loka::platform::CollectUtf8(value, utf8))
-  {
-    text[0] = 0;
-    return false;
-  }
-  std::size_t length = utf8.size();
-  if (length > 255)
-  {
-    length = 255;
-  }
-  text[0] = static_cast<unsigned char>(length);
-  if (length > 0)
-  {
-    std::memcpy(text + 1, utf8.data(), length);
-  }
-  return true;
-}
-
 ToolboxTextMeasureScope::ToolboxTextMeasureScope(
     const ToolboxScenePlatformController &controller,
     const ToolboxTextFontDescriptor &descriptor)
@@ -84,24 +63,6 @@ bool ToolboxTextMeasureScope::measure(const loka::core::String &value, short &wi
     return false;
   Str255 text;
   if (!ToolboxEncodePascal(value, text))
-    return false;
-  width = StringWidth(text);
-  return true;
-}
-
-short ToolboxTextMeasureScope::measureLegacyText(const loka::core::String &value) const
-{
-  short width = 0;
-  this->measureLegacyText(value, width);
-  return width;
-}
-
-bool ToolboxTextMeasureScope::measureLegacyText(const loka::core::String &value, short &width) const
-{
-  if (!this->valid())
-    return false;
-  Str255 text;
-  if (!ToolboxBuildLegacyTextPascal(value, text))
     return false;
   width = StringWidth(text);
   return true;

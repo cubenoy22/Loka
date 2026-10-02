@@ -5,9 +5,12 @@
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "support/TestVerify.hpp"
+#include "support/LokaAllocFailure.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include <cstdio>
 #include <cstring>
+#include "support/LifecycleFactTestAccess.hpp"
+#include "platform/String.hpp"
 
 void testToolboxRowSpacing(const char *mode);
 
@@ -66,6 +69,177 @@ namespace
     }
   };
 }
+namespace loka { namespace testing {
+  class ToolboxTextContextAccess
+  {
+  public:
+    static bool ready(const ToolboxTextContext &c) { return c.projection_.valid(); }
+    static bool known(const ToolboxTextContext &c) { return c.presented_.isKnown(); }
+  };
+} }
+
+namespace
+{
+  class RefusingPlainString : public loka::platform::String
+  {
+  public:
+    virtual bool appendUtf8(std::string &out) const { out += "partial"; return false; }
+  };
+
+  void plainPins(ToolboxScenePlatformController &controller, Scene &scene, WidthNode &root,
+                 const char *mode)
+  {
+    using loka::testing::ToolboxTextContextAccess;
+    const bool wraps = std::strcmp(mode, "encoding-wrap") == 0;
+    const bool ellipsis = std::strcmp(mode, "encoding-ellipsis") == 0;
+    Node *node = lookup(scene, wraps ? "wrapped" : ellipsis ? "ellipsis" : "text");
+    ToolboxTextContext *context = new ToolboxTextContext(node->asTextNode(), &controller);
+    node->setContext(context);
+    const std::string sources[] = {
+      "\xC0\xAF" "A", "\n\x80" "B", "\xE2\x28\xA1", "A\x80" "B",
+      std::string("\0\r\n\t", 4), std::string(254, 'a') + "\xC3\xA9",
+      std::string(), "\xC3\xA9"
+    };
+    const std::string expected[] = {
+      "??A", "\n?B", "?(?", "A?B", std::string("\0\r\n\t", 4),
+      std::string(254, 'a') + "\x8E", std::string(), "\x8E"
+    };
+    for (unsigned test = 0; test < sizeof(sources) / sizeof(sources[0]); ++test)
+    {
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String(sources[test])); }
+      LayoutState offer = seat(wraps ? 2000 : 0);
+      toolbox_host::reset();
+      const unsigned reads = toolbox_host::scriptReads;
+      context->layout(&controller, offer);
+      LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+      context->render(&controller);
+      std::string drawn;
+      for (std::size_t i = 0; i < toolbox_host::draws.size(); ++i)
+        drawn += toolbox_host::draws[i].bytes;
+      std::string wanted = expected[test];
+      if (wraps)
+      {
+        if (test == 1) { wanted = "?B"; LOKA_VERIFY(toolbox_host::draws.size() == 2); }
+        if (test == 4) { wanted = std::string("\0\t", 2); LOKA_VERIFY(toolbox_host::draws.size() == 3); }
+      }
+      LOKA_VERIFY(drawn == wanted);
+      if (!wraps)
+      {
+        bool measured = false;
+        for (std::size_t i = 0; i < toolbox_host::widthPayloads.size(); ++i)
+          if (toolbox_host::widthPayloads[i] == wanted) measured = true;
+        LOKA_VERIFY(measured);
+      }
+      LOKA_VERIFY(ToolboxTextContextAccess::ready(*context));
+      context->repaint();
+      context->visibleWidth();
+      offer = seat(wraps ? 1800 : 2000);
+      offer.inputs = NODE_DIRTY_NONE;
+      context->layout(&controller, offer);
+      context->repaint();
+      LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+    }
+    std::string repeated;
+    for (unsigned i = 0; i < 255; ++i) repeated += "\xC3\xA9";
+    { StateTrackerGuard guard(root.tracker()); root.title.set(String(repeated)); }
+    LayoutState exact = seat(wraps ? 2000 : 0);
+    toolbox_host::reset();
+    context->layout(&controller, exact);
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::draws.size() == 1);
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(255, static_cast<char>(0x8E)));
+    repeated += "\xC3\xA9";
+    { StateTrackerGuard guard(root.tracker()); root.title.set(String(repeated)); }
+    LayoutState offer = seat(wraps ? 2000 : 0);
+    toolbox_host::reset();
+    const short width = context->layout(&controller, offer);
+    context->render(&controller);
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(255, static_cast<char>(0x8E)));
+    LOKA_VERIFY(wraps || width == 1020);
+    if (wraps)
+    {
+      LOKA_VERIFY(toolbox_host::draws.size() == 2);
+      LOKA_VERIFY(toolbox_host::draws[1].bytes == "\x8E");
+      // A native start beyond signed-short range must rebase the pointer.
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String(std::string(33000, 'a') + "Z")); }
+      offer = seat(2000);
+      toolbox_host::reset();
+      context->layout(&controller, offer);
+      context->render(&controller);
+      LOKA_VERIFY(toolbox_host::draws.size() == 130);
+      LOKA_VERIFY(toolbox_host::draws.back().bytes == std::string(105, 'a') + "Z");
+      bool measuredTail = false;
+      for (std::size_t i = 0; i < toolbox_host::widthPayloads.size(); ++i)
+        if (toolbox_host::widthPayloads[i] == std::string(105, 'a') + "Z") measuredTail = true;
+      LOKA_VERIFY(measuredTail);
+    }
+    else if (ellipsis)
+    {
+      offer = seat(1016);
+      toolbox_host::reset();
+      context->layout(&controller, offer);
+      context->render(&controller);
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == std::string(251, static_cast<char>(0x8E)) + "...");
+      const std::string malformed[] = {"A\x80" "BCDEF", "\xC0\xAF" "BCDEF", "\xC3\xA9" "BCDEFG"};
+      const std::string prefixes[] = {"A?", "??", "\x8E" "B"};
+      for (unsigned i = 0; i < 3; ++i)
+      {
+        { StateTrackerGuard guard(root.tracker()); root.title.set(String(malformed[i])); }
+        offer = seat(20);
+        toolbox_host::reset();
+        context->layout(&controller, offer);
+        context->render(&controller);
+        LOKA_VERIFY(toolbox_host::draws[0].bytes == prefixes[i] + "...");
+        LOKA_VERIFY(context->visibleWidth() == 20);
+      }
+    }
+    else
+    {
+      // The real context doors used by the scene's non-wrapped text-change
+      // and redrawTextHit entries; the full scene controller is not host-built.
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String::Literal("\xC3\xA9")); }
+      toolbox_host::reset();
+      unsigned reads = toolbox_host::scriptReads;
+      LOKA_VERIFY(context->visibleWidth() == 4);
+      LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+      context->repaint();
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "\x8E");
+      LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String::Literal("\xE2\x80\xA6")); }
+      toolbox_host::reset();
+      context->repaint();
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "\xC9");
+      LOKA_VERIFY(toolbox_host::scriptReads == reads + 2);
+      const String refused(Managed<loka::platform::String>::Wrap(new RefusingPlainString()));
+      { StateTrackerGuard guard(root.tracker()); root.title.set(refused); }
+      toolbox_host::reset();
+      LOKA_VERIFY(context->visibleWidth() == 0);
+      context->repaint();
+      LOKA_VERIFY(toolbox_host::draws.empty());
+      LOKA_VERIFY(!ToolboxTextContextAccess::ready(*context));
+      LOKA_VERIFY(!ToolboxTextContextAccess::known(*context));
+      { StateTrackerGuard guard(root.tracker()); root.title.set(String(std::string(100, 'x'))); }
+      loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+      offer = seat(1000);
+      LOKA_VERIFY(context->layout(&controller, offer) == 0);
+      LOKA_VERIFY(!ToolboxTextContextAccess::ready(*context));
+      loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+      context->repaint();
+      LOKA_VERIFY(toolbox_host::draws.empty());
+      loka::core::testing::allowLokaAllocRaw();
+      offer = seat(1000);
+      context->layout(&controller, offer);
+      LOKA_VERIFY(ToolboxTextContextAccess::ready(*context));
+      LifecycleFactTestAccess::MarkSubtreeRetired(node);
+      LifecycleFactTestAccess::DeliverFacts(node);
+      LOKA_VERIFY(context->visibleWidth() == 0);
+      context->repaint();
+      LOKA_VERIFY(!ToolboxTextContextAccess::ready(*context));
+    }
+    std::puts("Plain projection pins passed");
+  }
+}
+
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
@@ -81,6 +255,12 @@ int main(int argc, char **argv)
   typedef loka::dsl::testing::SceneTestAccess Access;
   Access::updateAttached(scene, true);
   WidthNode *root = static_cast<WidthNode *>(Access::rootBoundary(scene));
+  if (std::strcmp(mode, "encoding-plain") == 0 || std::strcmp(mode, "encoding-wrap") == 0
+      || std::strcmp(mode, "encoding-ellipsis") == 0)
+  {
+    plainPins(controller, scene, *root, mode);
+    return 0;
+  }
   Node *button = lookup(scene, "button"), *edit = lookup(scene, "edit"), *popup = lookup(scene, "popup");
   Node *rowButton = lookup(scene, "row-button");
   button->setContext(new ToolboxButtonContext(button->asButtonNode(), &controller));
@@ -148,12 +328,12 @@ int main(int argc, char **argv)
       text->setContext(new ToolboxTextContext(text->asTextNode(), &controller));
       LayoutState offer = seat(0);
       toolbox_host::reset();
-      LOKA_VERIFY(text->context->layout(&controller, offer) == TextWidth("Open\xE2\x80\xA6 \xC3\xA9", 0, 10));
+      LOKA_VERIFY(text->context->layout(&controller, offer) == TextWidth("Open\xC9 \x8E", 0, 7));
       text->context->render(&controller);
       LOKA_VERIFY(!toolbox_host::draws.empty());
-      LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open\xE2\x80\xA6 \xC3\xA9");
+      LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open\xC9 \x8E");
       LOKA_VERIFY(static_cast<ToolboxTextContext *>(text->context)->visibleWidth()
-          == TextWidth("Open\xE2\x80\xA6 \xC3\xA9", 0, 10));
+          == TextWidth("Open\xC9 \x8E", 0, 7));
     }
     Node *ellipsis = lookup(scene, "ellipsis");
     ellipsis->setContext(new ToolboxTextContext(ellipsis->asTextNode(), &controller));
@@ -162,7 +342,7 @@ int main(int argc, char **argv)
     ellipsis->context->layout(&controller, narrow);
     ellipsis->context->render(&controller);
     LOKA_VERIFY(toolbox_host::draws.size() == 1);
-    LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open...");
+    LOKA_VERIFY(toolbox_host::draws[0].bytes == "Open\xC9 \x8E");
   }
   else if (std::strncmp(mode, "column-", 7) == 0)
   {
