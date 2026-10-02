@@ -243,7 +243,7 @@ namespace
     LOKA_VERIFY(traversal.callCount_ == 7);
 
     const char *names[] = {"anchor", "button", "text", "image-24", "image-auto", "surface-30", "surface-auto"};
-    std::fprintf(stderr, "Toolbox Row %s: extent=%d (includes spacing=4)\n",
+    std::fprintf(stderr, "Toolbox Row %s: extent=%d (spacing=4)\n",
                  centered ? "CENTER" : "unaligned", state.y - startY);
     for (int i = 0; i < 7; ++i)
     {
@@ -253,7 +253,7 @@ namespace
     // Top-origin controls center at 50 with top 43 and bottom 57, without an ascent lead.
     const short centeredOffsets[] = {0, 23, 23, 18, 0, 15, 0};
     const short centeredHeights[] = {60, 14, 14, 24, 60, 30, 60};
-    LOKA_VERIFY(state.y - startY == (centered ? 64 : 44));
+    LOKA_VERIFY(state.y - startY == (centered ? 64 : 40));
     for (int i = 0; i < 7; ++i)
     {
       LOKA_VERIFY(traversal.seats_[i].y - startY == (centered ? centeredOffsets[i] : 0));

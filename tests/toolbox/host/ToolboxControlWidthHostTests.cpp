@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 
+void testToolboxRowSpacing(const char *mode);
+
 namespace
 {
   using namespace loka::app;
@@ -68,6 +70,11 @@ int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
   const char *mode = argv[1];
+  if (std::strncmp(mode, "spacing-", 8) == 0)
+  {
+    testToolboxRowSpacing(mode);
+    return 0;
+  }
   ToolboxWindow window; ToolboxScenePlatformController controller(&window);
   Scene scene((Boundary<WidthNode>(WidthProps())));
   scene.mount(&controller);
