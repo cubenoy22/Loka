@@ -257,6 +257,21 @@ namespace
     context->render(&controller);
     LOKA_VERIFY(toolbox_host::draws.size() == 1 && toolbox_host::draws[0].bytes == std::string(100, 'x'));
     LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    Pin("AttributedPaintOnlyEqualValueRebuildUnderPartialClip");
+    // Split malformed segments and the joined scalar compare equal but draw
+    // "??" versus the e-acute byte: a paint-only rebuild under a partial clip
+    // must not certify the unpainted remainder as current.
+    node->props = AttributedText(Styled("\xc3", Bold) + Styled("\xa9", Bold)).props;
+    context->render(&controller);
+    LOKA_VERIFY(ToolboxAttributedTextContextAccess::known(*context));
+    node->props = AttributedText(Styled("\xc3\xa9", Bold)).props;
+    {
+      Rect partial = ToolboxAttributedTextContextAccess::paintRect(*context);
+      partial.right = static_cast<short>(partial.left + (partial.right - partial.left) / 2);
+      ToolboxPaintClip clip(partial);
+      context->render(&controller);
+    }
+    LOKA_VERIFY(!ToolboxAttributedTextContextAccess::known(*context));
     Pin("AttributedIntrinsicPaintReusesGeometry");
     seat = Seat(0);
     context->layout(&controller, seat);

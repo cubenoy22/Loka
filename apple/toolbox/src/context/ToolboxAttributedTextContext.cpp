@@ -83,7 +83,14 @@ bool ToolboxAttributedTextContext::reconcileProjection(short width, bool rebuild
   if (!rebuildGeometry && this->table_.valid() && this->table_.matches(value))
     return true;
   if (this->table_.build(value, this->node_->props.blockStyle_, width, *this->controller()))
+  {
+    // A rebuild under a logically equal value can still change pixels (font
+    // metrics, wrapping, or segment boundaries splitting malformed bytes), so
+    // equal-value history becomes unknown on every path that rebuilds.
+    if (this->presented_.isKnown() && value == this->presented_.value())
+      this->presented_.invalidate();
     return true;
+  }
   this->presented_.invalidate();
   return false;
 }
@@ -120,10 +127,9 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
   if (!toolbox->intersectWithProjectionClip(rect, paintRect))
     SetRect(&paintRect, 0, 0, 0, 0);
   // Keep the previous logical paint value on source changes: exact damage
-  // compares it with the new projection. Equal-value geometry changes still
-  // need unknown history because font metrics or wrapping may change pixels.
-  if ((!reused && this->presented_.isKnown() && value == this->presented_.value())
-      || !EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
+  // compares it with the new projection. reconcileProjection already made
+  // equal-value rebuilds unknown; a moved placement does the same here.
+  if (!EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
     this->presented_.invalidate();
   this->rect_ = rect;
   this->paintRect_ = paintRect;
