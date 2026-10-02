@@ -317,6 +317,16 @@ namespace loka
         return result;
       }
 
+      bool NodeComposition::isSceneRootDeclaration() const
+      {
+        // Owner distinguishes the root Boundary from components declaring
+        // inside it; parentBoundary distinguishes nested Boundaries.
+        // Standalone captures have no Scene and cannot declare its bar.
+        BoundaryNode *boundary = this->context_ ? this->context_->boundary() : 0;
+        return boundary && this->context_->owner() == boundary &&
+               this->context_->scene() && !boundary->parentBoundary();
+      }
+
       void NodeComposition::noteCaptureRefusal()
       {
         if (this->context_ && this->context_->boundary())
