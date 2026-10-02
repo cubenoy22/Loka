@@ -300,8 +300,9 @@ never descendants, as the request's single return obligation. Recording does not
 mark demand. Detach remains synchronous; slots return only after child-first
 reclaim. The existing drain tail wakes waiting demand without a fresh State event.
 Unknown/exhausted classes have no heap fallback, and terminal warm refusals do
-not poll themselves. Window selection refuses counts above M before publishing;
-direct declaration repeats the check before constructing a generation.
+not poll themselves. Window selection always publishes the window and structure
+revision as facts, including counts above M. Declaration refuses an over-M key
+before constructing a generation; the same wall covers cold and direct entry.
 
 Costs: recipe emission walks its own at-most-32 leaves once at installation;
 normalization is quadratic in those leaves. Admission examines its own class

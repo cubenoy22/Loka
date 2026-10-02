@@ -21,6 +21,8 @@ void testLazyViewCanceledRefusedWindowRefreshesContent();
 void testLazyViewPartitionReuseAndQuietDrain();
 void testLazyViewWaitingLatestKeyAndDrainWake();
 void testLazyViewLateRefusalKeepsBindingsAndReturnsSlots();
+void testLazyViewPendingWindowRecoversFromMaximumRefusal();
+void testLazyViewOversizedStructureKeepsIdentity();
 void testLazyViewMaximumRefusalSettles();
 void testLazyViewClassRefusalSettles();
 void testLazyViewRecipeCompatibilityAndClones();

@@ -1040,8 +1040,9 @@ for direct `LazyViewProps` construction. Declare the item node and all of its
 Component children; the library adds the generation, Fragment and Canvas.
 Recipe and maximum are fixed for a view Boundary lifetime. An incompatible props
 value requires a new Boundary; geometry, list and viewport can still change.
-The maximum includes margin rows. Oversized selection asserts in Debug and is
-refused in Release before publication; it never grows the reservation.
+The maximum includes margin rows. Selection always publishes its key. Declaring
+an oversized window asserts in Debug and refuses in Release before constructing
+a generation; it never grows the reservation.
 
 
 See [LazyList](../example/LazyList/README.md) for a paged card view with content edits, structural edits, and compile-time capacity builds.

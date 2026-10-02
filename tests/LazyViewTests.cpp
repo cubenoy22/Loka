@@ -867,14 +867,32 @@ namespace
     Fixture f(32, 20, false, false, false, false, false, 9);
     Node *old = f.flex()->childrenHead(); // Exact M admitted on the first page.
     State<LazyViewKey> *key = static_cast<State<LazyViewKey> *>(SeatAccess::firstCondition(*f.flex()));
-    const LazyViewKey installed = key->get();
-    select(f, 200); // Ten rows including margin; selection must refuse first.
+    select(f, 200); // Publish ten rows; declaration refuses before constructing.
     f.drain();
-    LOKA_VERIFY(f.flex()->childrenHead() == old && f.r.constructions[9] == 0 && key->get() == installed);
+    LOKA_VERIFY(f.flex()->childrenHead() == old && f.r.constructions[9] == 0 && key->get().window.count == 10);
     LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+    const int updates = f.r.updates;
+    for (int turn = 0; turn != 5; ++turn) f.scene.flushInvalidation();
+    LOKA_VERIFY(f.r.updates == updates && !f.scene.hasPendingInvalidation());
     select(f, 220, 120);
     f.drain();
     LOKA_VERIFY(f.flex()->childrenHead() != old);
+  }
+  void oversizedStructureKeepsIdentity()
+  {
+    Fixture f(32, 20, false, false, false, false, false, 9);
+    Node *installed = f.flex()->childrenHead();
+    CardNode *retained[9];
+    for (int i = 0; i != 9; ++i) retained[i] = f.r.cards[i];
+    select(f, 0, 400);
+    f.drain();
+    { StateTrackerGuard guard(&f.tracker);
+      LOKA_VERIFY(f.list.remove(f.list.at(0).id) == EDIT_OK); }
+    f.drain();
+    LOKA_VERIFY(f.flex()->childrenHead() == installed);
+    for (int i = 0; i != 9; ++i)
+      LOKA_VERIFY(retained[i] && retained[i]->props.number == i);
+    LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
   }
   void classRefusal(int kind)
   {
@@ -990,6 +1008,28 @@ namespace
 #endif
   }
 }
+void testLazyViewPendingWindowRecoversFromMaximumRefusal()
+{
+  Fixture f(32, 20, false, false, false, false, false, 9);
+  SeatAccess::holdRetirement(*f.flex(), true);
+  select(f, 200, 20);
+  f.scene.flushInvalidation();
+  Node *installed = f.flex()->childrenHead();
+  LOKA_VERIFY(seat(f).request().retiring());
+  select(f, 300, 20); // C waits for the old root's return.
+  f.scene.flushInvalidation();
+  select(f, 0, 400); // Oversized fact must not erase C's next notification.
+  f.scene.flushInvalidation();
+  select(f, 300, 20);
+  f.scene.flushInvalidation();
+  LOKA_VERIFY(f.flex()->childrenHead() == installed);
+  SeatAccess::holdRetirement(*f.flex(), false);
+  f.drain();
+  LOKA_VERIFY(f.flex()->childrenHead() != installed && f.r.cards[14]);
+  LOKA_VERIFY(!seat(f).request().waiting() && !f.scene.hasPendingInvalidation());
+}
+void testLazyViewOversizedStructureKeepsIdentity()
+{ expectRefusal(&oversizedStructureKeepsIdentity, "LazyView window exceeds"); }
 void testLazyViewMaximumRefusalSettles() { expectRefusal(&maximumRefusal, "LazyView window exceeds"); expectRefusal(&directMaximumRefusal, "LazyView window exceeds"); }
 void testLazyViewClassRefusalSettles() { expectRefusal(&missingClass, "seat node declaration incomplete"); expectRefusal(&exhaustedClass, "seat node declaration incomplete"); expectRefusal(&newerKeyDuringRefusal, "seat node declaration incomplete"); expectRefusal(&coldClassRefusal, "seat node declaration incomplete"); }
 void testLazyViewRecipeCompatibilityAndClones()

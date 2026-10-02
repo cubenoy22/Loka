@@ -486,11 +486,6 @@ namespace loka
             this->props.list->capacity() > LOKA_LAZYFLEX_MAX_ITEMS ? empty : policy.indicesIn(viewport);
         loka::core::StateTrackerGuard guard(this->asStateOwner()->tracker());
         this->viewport_.set(viewport);
-        if (!this->props.recipe.accepts(window.count))
-        {
-          if (seat && seat->seatReservation()) seat->seatReservation()->request().refuse();
-          return;
-        }
         this->selection_.set(LazyViewKey(window, this->props.list->revision().get().structure));
         // Returning to the installed key cancels replacement. Replay content
         // skipped while pending; the guard still refuses a different key.
