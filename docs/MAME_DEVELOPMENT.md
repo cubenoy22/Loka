@@ -493,6 +493,35 @@ other machines and System versions are unverified. Applications observe the
 warped position through the normal `GetMouse`/event path, so this is the tool
 for reaching a control that keyboard navigation cannot.
 
+On a KanjiTalk boot disk the input method takes typed letters and Space;
+send Command-Space once to switch it to Roman input before typing.
+
+### Size an example's partition from a measurement
+
+`tests/toolbox/measure-example-heaps.sh [example ...]` runs each production
+68K example under a fixed workload. While it runs, it walks the application
+zone's block list from Lua (`tests/toolbox/mame-measure-heap.lua`). It reports
+the partition the example needs: the peak bytes the Memory Manager cannot
+reclaim (nonrelocatable, locked, and unpurgeable relocatable blocks) plus the
+partition's fixed part (stack, A5 world, zone header). It also prints the
+`Size.r` values that need gives: minimum = need × 1.1 rounded up to 32K,
+preferred = need × 1.5 rounded up to 64K.
+
+The zone's free bytes are not the measure. The heap fills with purgeable
+blocks up to whatever partition it is given, so About This Macintosh shows
+a nearly full bar even when there is plenty of headroom. The 2026-10-03 run
+(#1103) checked the formula against real boundaries:
+
+| Example | Measured need | Fails at | Runs at |
+|---|---|---|---|
+| HelloWorld | 392K | 384K | 416K |
+| LazyList | 432K | 416K | 448K |
+| MineSweeper | 437K | 432K | 440K |
+
+Below its need, an example quits silently or shows an empty window (#1107).
+Color depth does not change the application heap: 1-bit and 256 colors
+match byte for byte.
+
 ### Record the verification claim
 
 Runtime evidence should name the machine, the input sequence, and the observed

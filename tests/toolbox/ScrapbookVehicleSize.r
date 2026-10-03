@@ -1,11 +1,9 @@
-// SIZE partition override for the Retro68/Classic build.
-// SmirkBench owns one small fixed-capacity surface model.
-// Measured need (#1103, MAME maciix, 2026-10-03): 342.2K = peak live heap
-// 317892 B + stack/A5/zone 32472 B, under the workload in
-// tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
-// minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
-// Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
-// is appended after and overrides it.
+// The Scrapbook-based test vehicles (the scenario registry vehicle and the
+// standalone Flow application) carry the production package code plus every
+// registered scenario's audit and actuation vocabulary. Keep their partition
+// at its proven 512K minimum / 1024K preferred instead of following the
+// shipping example's measured budget (#1103), which is sized for the smaller
+// production binary.
 #include "Processes.r"
 
 resource 'SIZE' (-1) {
@@ -40,7 +38,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024,
 	1024 * 1024
 #else
-	576 * 1024,	/* preferred */
-	384 * 1024	/* minimum */
+	1024 * 1024,
+	512 * 1024
 #endif
 };

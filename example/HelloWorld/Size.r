@@ -1,8 +1,11 @@
-// SIZE partition override for the Retro68/Classic build (#135 follow-up).
-// Post-diet HelloWorld runs comfortably in 384K min / 512K preferred; this
-// replaces the toolchain's default 1024K/1024K template partition, which
-// Rez resource ordering guarantees (Retro68APPL.r's SIZE (-1) is Rezzed
-// first, this one is appended after and overrides it).
+// SIZE partition override for the Retro68/Classic build.
+// HelloWorld shows the most controls of the small samples.
+// Measured need (#1103, MAME maciix, 2026-10-03): 391.4K = peak live heap
+// 364832 B + stack/A5/zone 35992 B, under the workload in
+// tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
+// minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
+// Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
+// is appended after and overrides it.
 #include "Processes.r"
 
 resource 'SIZE' (-1) {
@@ -39,7 +42,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024,
 	1024 * 1024
 #else
-	512 * 1024,	/* preferred */
-	384 * 1024	/* minimum */
+	640 * 1024,	/* preferred */
+	448 * 1024	/* minimum */
 #endif
 };

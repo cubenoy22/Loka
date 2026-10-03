@@ -1,6 +1,11 @@
-// ScrapbookUI keeps one LRPK bag and one decoded PICT view resident. Give the
-// demo the same measured Classic image-viewer partition as SimpleViewer:
-// 512K minimum and 1024K preferred.
+// SIZE partition override for the Retro68/Classic build.
+// ScrapbookUI keeps one LRPK bag and one decoded PICT view resident.
+// Measured need (#1103, MAME maciix, 2026-10-03): 363.9K = peak live heap
+// 339596 B + stack/A5/zone 32988 B, under the workload in
+// tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
+// minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
+// Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
+// is appended after and overrides it.
 #include "Processes.r"
 
 resource 'SIZE' (-1) {
@@ -35,7 +40,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024,
 	1024 * 1024
 #else
-	1024 * 1024,
-	512 * 1024
+	576 * 1024,	/* preferred */
+	416 * 1024	/* minimum */
 #endif
 };

@@ -1,7 +1,7 @@
 // The scenario vehicle carries the production board plus audit and actuation
 // vocabulary. Keep its partition separate from the shipping example's measured
-// 384K/512K budget: a second registered tour crosses that partition during the
-// existing two-New-Game recomposition sequence.
+// budget (#1103): a second registered tour crossed the old 384K/512K partition
+// during the existing two-New-Game recomposition sequence.
 #include "Processes.r"
 
 resource 'SIZE' (-1) {
