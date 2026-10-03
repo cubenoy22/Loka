@@ -23,9 +23,6 @@ public:
                               std::size_t length,
                               loka::core::resource::Image &out) const;
 
-#if defined(LOKA_RETRO68)
-  static void registerChosenFileSpec(const loka::core::String &displayPath, const FSSpec &spec);
-#endif
 };
 
 #endif // LOKA_TOOLBOX_PLATFORM_CONTEXT_HPP

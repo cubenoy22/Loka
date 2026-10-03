@@ -1,3 +1,4 @@
+#include "platform/file/FileLocatorAccess.hpp"
 #include "core/resource/Blob.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "MyAppConfig.hpp"
@@ -3405,10 +3406,28 @@ namespace
   public:
     enum Mode { Success, ReadFailure, DecodeFailure, CapacityFailure, Navigate, ReleaseProbe, NoNativeWork };
     explicit HandlePlatform(Mode m) : mode(m), opens(0), decodes(0), capacityCalls(0), releases(0) {}
-    virtual bool openFile(const loka::file::File &, loka::platform::file::FileHandle &out) const
+    virtual bool openFile(const loka::file::File &file, loka::platform::file::FileHandle &out) const
     {
       ++opens;
-      out.displayPath = loka::core::String::Literal(mode == ReadFailure ? "_missing_handle_file" : "_handle_image.bin");
+      out = loka::platform::file::FileHandle();
+      if (file.base() == loka::file::File::BASE_REFUSED) return false;
+      const unsigned char *bytes = 0;
+      std::size_t size = 0;
+      if (loka::platform::file::FileLocatorAccess::query(file, bytes, size))
+      {
+        if (size != 1 || (bytes[0] != 1 && bytes[0] != 2)) return false;
+        out.displayPath = loka::core::String::Literal(mode == ReadFailure ? "_missing_handle_file"
+            : bytes[0] == 1 ? "_handle_image.bin" : "_handle_other.bin");
+      }
+      else
+      {
+        // Existing app-relative viewer fixture and ordinary path reads.
+        const loka::core::String path = file.base() == loka::file::File::BASE_APPLICATION
+            ? file.relativePath() : file.toString();
+        if (!path.equals(loka::core::String::Literal("Sun.pict"))
+            && !path.equals(loka::core::String::Literal("_handle_image.bin"))) return false;
+        out.displayPath = loka::core::String::Literal("_handle_image.bin");
+      }
       return true;
     }
     virtual bool queryLargestContiguousAllocation(std::size_t &out) const
@@ -3431,7 +3450,7 @@ namespace
       LOKA_VERIFY(offset == 0 && length == 3 && blob.bytes().size() == 3);
       if (mode == DecodeFailure)
         return false;
-      out = loka::core::resource::Image::FromNative(const_cast<HandlePlatform *>(this), 2, 3, release,
+      out = loka::core::resource::Image::FromNative(const_cast<HandlePlatform *>(this), blob.bytes()[0] == 't' ? 4 : 2, 3, release,
                                                    const_cast<HandlePlatform *>(this));
       if (mode == Navigate)
         smirkycard::testing::CardFlowAccess::navigate();
@@ -3489,6 +3508,15 @@ namespace
     LOKA_VERIFY(std::remove("_handle_image.bin") == 0);
   }
 
+  loka::file::File HandleChoice(unsigned char identity)
+  {
+    loka::file::File file;
+    LOKA_VERIFY(loka::platform::file::FileLocatorAccess::capture(
+        loka::core::String::Literal("_handle_image.bin"), loka::file::File::KIND_FILE,
+        &identity, 1, file));
+    return file;
+  }
+
   void checkHandleCase(const char *name, const char *declaration, const char *operation, const char *expected,
                        HandlePlatform::Mode mode = HandlePlatform::Success, bool contextMissing = false,
                        bool exhaust = false, bool details = false)
@@ -3520,7 +3548,7 @@ namespace
     WindowAdmissionTestApp admission(window);
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
     smirkycard::testing::CardFlowAccess::scene = window.scene();
-    smirkycard::testing::CardFlowAccess::writeFile(loka::app::FileChooserResult::File(loka::file::File::FromPath("_missing_handle_file")));
+    smirkycard::testing::CardFlowAccess::writeFile(loka::app::FileChooserResult::File(HandleChoice(1)));
     expectJs(runtime, operation, expected);
     if (mode == HandlePlatform::NoNativeWork)
       LOKA_VERIFY(context.opens == 0 && context.decodes == 0);
@@ -3534,7 +3562,7 @@ namespace
     {
       using loka::app::FileChooserResult;
       const FileChooserResult kinds[] = {FileChooserResult(),
-        FileChooserResult::File(loka::file::File::FromPath("_handle_image.bin")),
+        FileChooserResult::File(HandleChoice(1)),
         FileChooserResult::Folder(loka::file::File::FromPath("folder")),
         FileChooserResult::Canceled(), FileChooserResult::Error(17)};
       const char *facts[] = {"0:false:false:false:true", "1:true:false:false:true",
@@ -3546,6 +3574,20 @@ namespace
       }
       smirkycard::testing::CardFlowAccess::writeFile(kinds[1]);
       expectJs(runtime, "work=()=>{saved=c0.native.loadImage(fs.get().file);im.set(saved)};f.run();'ok'", "ok");
+      writeMain("_handle_other.bin", "two");
+      const loka::file::File first = HandleChoice(1), second = HandleChoice(2);
+      LOKA_VERIFY(first.toString().equals(second.toString()) && first != second);
+      smirkycard::testing::CardFlowAccess::writeFile(FileChooserResult::File(second));
+      expectJs(runtime, "f.run();'ok'", "ok");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image().width() == 4);
+      smirkycard::testing::CardFlowAccess::writeFile(FileChooserResult::File(first));
+      expectJs(runtime, "f.run();'ok'", "ok");
+      LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image().width() == 2);
+      // A readable same-display decoy must not rescue failed resolution/open.
+      smirkycard::testing::CardFlowAccess::writeFile(FileChooserResult::File(HandleChoice(3)));
+      expectJs(runtime, "work=()=>log.push(refuses(()=>c0.native.loadImage(fs.get().file)));f.run();log.pop()", "true");
+      smirkycard::testing::CardFlowAccess::writeFile(FileChooserResult::File(first));
+      LOKA_VERIFY(std::remove("_handle_other.bin") == 0);
       const loka::core::resource::Image prior = smirkycard::testing::CardFlowAccess::image();
       expectJs(runtime, "work=()=>log.push(refuses(()=>im.set(fs.get().file)));f.run();log.pop()", "true");
       LOKA_VERIFY(smirkycard::testing::CardFlowAccess::image() == prior);

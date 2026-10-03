@@ -6,7 +6,7 @@
 #include "MyAppConfig.hpp"
 #include "ObservedMainDefinition.hpp"
 #include "ScenarioDriverSupport.hpp"
-#include "ToolboxPlatformContext.hpp"
+#include "ToolboxFileChoice.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -220,11 +220,9 @@ namespace loka
           const OSErr sizeError = GetEOF(refNum, &bytes);
           const OSErr closeError = FSClose(refNum);
           if (sizeError != noErr || closeError != noErr || bytes < 0) return false;
-          // The production dialog hands the session a display path and
-          // registers its FSSpec beside it; take the same door so the
-          // projection sees a chosen file rather than a path-less item.
-          ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
-          const app::FileChooserResult result = app::FileChooserResult::File(chosen);
+          file::File captured;
+          if (!ToolboxCaptureChosenFile(handle.spec, captured)) return false;
+          const app::FileChooserResult result = app::FileChooserResult::File(captured);
           // Sample before the flow allocates. Record construction happens
           // afterwards so it cannot perturb the measured pre-load heap.
           const long freeBytes = FreeMem();

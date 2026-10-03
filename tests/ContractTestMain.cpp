@@ -45,6 +45,7 @@
 #include "NullMeasurementReuseTests.hpp"
 #include "ObservedLayoutInputsTests.hpp"
 #include "ApplicationFileTests.hpp"
+#include "FileLocatorTests.hpp"
 #ifdef _WIN32
 #include "Win32FocusTests.hpp"
 #include "Win32MenuAttachmentTests.hpp"

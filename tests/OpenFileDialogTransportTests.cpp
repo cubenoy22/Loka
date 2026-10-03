@@ -12,6 +12,7 @@
 #include <vector>
 #include <cstring>
 #include "core/LokaAlloc.hpp"
+#include "platform/file/FileLocatorAccess.hpp"
 
 #include "support/DialogResultTestAccess.hpp"
 
@@ -91,7 +92,14 @@ namespace
     void produce()
     {
       Transport::ReturnPort port(this->registration_);
-      LOKA_VERIFY(port.seal(FileChooserResult::File(loka::file::File("accepted-dialog-result.png"))) == g_window);
+      // The native producer owns no identity after return: transport must
+      // carry this entire File, not reconstruct it from its display text.
+      const unsigned char address[] = {0, 0xa7};
+      loka::file::File chosen;
+      LOKA_VERIFY(loka::platform::file::FileLocatorAccess::capture(
+          loka::core::String::Literal("accepted-dialog-result.png"), loka::file::File::KIND_FILE,
+          address, sizeof(address), chosen));
+      LOKA_VERIFY(port.seal(FileChooserResult::File(chosen)) == g_window);
     }
     OpenFileDialogPresentationPhase presentation_;
     OpenFileDialogNode *node_;
@@ -298,6 +306,13 @@ void testOpenFileDialogTransportRetainedDetachAndFreshReattach()
   g_context->produce();
   fixture.app.flush();
   LOKA_VERIFY(writes == 1 && emits == 1);
+  // Resolve the delivered value after the producer temporaries and queued
+  // envelope have gone. The fake rail's address is counted, including zero.
+  const loka::file::File delivered = g_owner->result_.get().item;
+  const unsigned char *address = 0;
+  std::size_t size = 0;
+  LOKA_VERIFY(loka::platform::file::FileLocatorAccess::query(delivered, address, size));
+  LOKA_VERIFY(size == 2 && address[0] == 0 && address[1] == 0xa7);
   fixture.app.flush();
   LOKA_VERIFY(writes == 1 && emits == 1 && Access::census(fixture.window.dialogResults()) == 0);
   g_owner->result_.unbind(&countEvent, &writes);

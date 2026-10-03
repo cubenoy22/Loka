@@ -436,6 +436,36 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxMemorySourceTests COMMAND LokaToolboxMemorySourceTests)
 
+  # Dedicated Classic file slice: never link common objects built without
+  # LOKA_RETRO68, which changes File and FileHandle definitions.
+  set(LOKA_TOOLBOX_FILE_COMMON_SOURCES ${LOKA_COMMON_SOURCES})
+  list(FILTER LOKA_TOOLBOX_FILE_COMMON_SOURCES EXCLUDE REGEX "/platform/GenericString\\.cpp$")
+  add_executable(LokaToolboxFileChoiceTests
+    tests/toolbox/host/ToolboxFileChoiceHostTests.cpp
+    tests/toolbox/host/ToolboxFileHost.cpp
+    apple/toolbox/src/ToolboxFileChoice.cpp
+    apple/toolbox/src/platform/ToolboxPascalText.cpp
+    apple/toolbox/src/ToolboxByteSource.cpp
+    apple/toolbox/src/ToolboxString.cpp
+    apple/toolbox/src/platform/ToolboxAppLocation.cpp
+    apple/toolbox/src/platform/ToolboxFileIO.cpp
+    apple/toolbox/src/platform/ToolboxHfsName.cpp
+    apple/toolbox/src/platform/ToolboxMacRoman.cpp
+    ${LOKA_TOOLBOX_FILE_COMMON_SOURCES}
+    tests/TestingHooks.cpp
+    apple/toolbox/src/context/ToolboxOpenFileDialogContext.cpp)
+
+  target_include_directories(LokaToolboxFileChoiceTests PRIVATE
+    tests/toolbox/host tests apple/toolbox/src common tools example/SimpleViewer/src)
+  target_compile_definitions(LokaToolboxFileChoiceTests PRIVATE LOKA_RETRO68=1)
+  target_compile_options(LokaToolboxFileChoiceTests PRIVATE -fno-exceptions -fno-rtti
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxFileChoiceHost.hpp)
+  loka_enable_warnings(LokaToolboxFileChoiceTests)
+  set_target_properties(LokaToolboxFileChoiceTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity)
+    add_test(NAME testToolboxFileChoice_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
+  endforeach()
+
   add_executable(LokaToolboxBoxLayoutTests
     tests/toolbox/host/ToolboxBoxLayoutHostTests.cpp
     apple/toolbox/src/ToolboxNodeDispatch.cpp
