@@ -144,11 +144,6 @@ namespace
     CheckedMenuBoundary *menu_;
   };
 
-  void CountCheckedMenuApply(void *userData, Window *)
-  {
-    ++*static_cast<int *>(userData);
-  }
-
   const loka::app::MenuDefinition *singleViewMenu(const loka::app::MenuBarDefinition *bar)
   {
     if (!bar || bar->menusCount() != 1)
@@ -211,10 +206,9 @@ void testMenuItemCheckedAttrProjectsValueAndState()
 void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
 {
   CheckedMenuConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountCheckedMenuApply, &applyCount);
+  MenuController controller(&config);
   controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
 
   const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
   LOKA_VERIFY(view != 0);
@@ -222,10 +216,9 @@ void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
   LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
   LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
   LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
-  const int initialApplyCount = applyCount;
 
   config.menu.setDisplayMode(2);
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
   view = singleViewMenu(controller.defaultMenuBar());
   LOKA_VERIFY(view != 0);
   LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
@@ -235,17 +228,15 @@ void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
   LOKA_VERIFY(!controller.diff().fullRebuild);
   LOKA_VERIFY(controller.diff().changedCount() == 1);
   LOKA_VERIFY(controller.diff().changedHead()->value == 0);
-  LOKA_VERIFY(applyCount == initialApplyCount + 1);
 }
 
 void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
 {
   CheckedMenuConfig config;
-  int applyCount = 0;
   {
-    MenuController controller(&config, &CountCheckedMenuApply, &applyCount);
+    MenuController controller(&config);
     controller.requestInvalidation();
-    LOKA_VERIFY(controller.flushInvalidation(0));
+    LOKA_VERIFY(controller.flushInvalidation());
     const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
     LOKA_VERIFY(view != 0);
     LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
@@ -256,8 +247,8 @@ void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
   config.menu.setDisplayMode(2);
   LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
 
-  MenuController replacement(&config, &CountCheckedMenuApply, &applyCount);
-  LOKA_VERIFY(replacement.flushInvalidation(0));
+  MenuController replacement(&config);
+  LOKA_VERIFY(replacement.flushInvalidation());
   const loka::app::MenuDefinition *view = singleViewMenu(replacement.defaultMenuBar());
   LOKA_VERIFY(view != 0);
   LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
@@ -268,10 +259,9 @@ void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
 void testMenuControllerOutlivedByBoundaryDoesNotTouchIt()
 {
   HeapCheckedMenuConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountCheckedMenuApply, &applyCount);
+  MenuController controller(&config);
   controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
 
   config.destroyMenu();
 }

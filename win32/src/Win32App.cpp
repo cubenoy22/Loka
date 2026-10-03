@@ -167,13 +167,13 @@ bool Win32App::handleMenuCommand(int commandId, Window *window)
   return true;
 }
 
-void Win32App::applyMenuBar(Window *activeWindow)
+void Win32App::projectMenu(Window *activeWindow, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source)
 {
   Win32Window *win = activeWindow ? activeWindow->asWin32Window() : 0;
   if (!win || !win->hwnd())
     return;
-  const loka::app::MenuBarDefinition *bar = this->resolveMenuBar(activeWindow);
   // A refused native swap keeps the pending diff so the next apply retries.
-  if (win->menuAttachment().project(bar, 0) != Win32MenuAttachment::PROJECT_REFUSED)
+  if (win->menuAttachment().project(bar, source) != Win32MenuAttachment::PROJECT_REFUSED)
     this->clearMenuDiff();
 }

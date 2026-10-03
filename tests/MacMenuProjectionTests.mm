@@ -149,6 +149,7 @@ namespace
   {
   public:
     TestApp() : MacApp(0) {}
+    using MacApp::projectMenu;
     virtual void quit() {}
     void own(MacWindow *window)
     {
@@ -210,6 +211,29 @@ void testMacMenuAttachmentProjectsOnceForEqualBar()
   app.menuAttachment().releaseFrom(&other);
 }
 
+void testMacMenuDoorSkipsProjectionDuringTracking()
+{
+  CocoaHost host;
+  TestApp app;
+  MenuBarDefinition first = bar(), changed = bar(true);
+  app.projectMenu(0, &first, 0);
+  NSMenu *installed = [[NSApp mainMenu] retain];
+  // Run the loop in the tracking mode AppKit uses while a menu is open; the
+  // door must leave the tracked graph alone and the next completion re-offers.
+  __block bool ran = false;
+  TestApp *door = &app;
+  MenuBarDefinition *offer = &changed;
+  CFRunLoopPerformBlock(CFRunLoopGetCurrent(), (CFStringRef)NSEventTrackingRunLoopMode, ^{
+    ran = true;
+    door->projectMenu(0, offer, 0);
+  });
+  [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.2]];
+  LOKA_VERIFY(ran);
+  LOKA_VERIFY([NSApp mainMenu] == installed);
+  app.projectMenu(0, &changed, 0);
+  LOKA_VERIFY([NSApp mainMenu] != installed);
+  [installed release];
+}
 void testMacMenuAttachmentDisconnectStripsTargetAndAction()
 {
   CocoaHost host;
@@ -352,6 +376,8 @@ void testMacMenuAttachmentCloneRefusalClearsBaseline()
   LOKA_VERIFY(app.menuAttachment().project(0, 0));
   LOKA_VERIFY([NSApp mainMenu] != before);
   [before release];
+  // Completion re-offers every tick: absent over absent is unchanged.
+  LOKA_VERIFY(!app.menuAttachment().project(0, 0));
 }
 
 void testMacMenuAttachmentDispatchMayDisconnect()

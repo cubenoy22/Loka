@@ -279,6 +279,9 @@ Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app:
     return PROJECT_UNCHANGED;
   if (!bar)
   {
+    // An absent offer with no installed HMENU is unchanged.
+    if (!this->menu_)
+      return PROJECT_UNCHANGED;
     if (!this->reset(DETACH_PRESERVING_CONTENT_FRAME))
       return PROJECT_REFUSED;
     this->disconnect();
