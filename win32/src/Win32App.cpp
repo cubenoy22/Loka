@@ -23,6 +23,19 @@ void Win32App::quit()
   PostQuitMessage(0);
 }
 
+void Win32App::TranslateOrDispatch(MSG &msg)
+{
+  HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
+  Win32Window *window = Win32Window::FromHwnd(root);
+  if (window && window->menuAttachment().translateAccelerator(msg))
+    return;
+  // Both consumed paths still reach the run loop's admission/completion tail.
+  if (root && IsDialogMessageW(root, &msg))
+    return;
+  TranslateMessage(&msg);
+  DispatchMessageW(&msg);
+}
+
 void Win32App::run()
 {
   App::run();
@@ -69,14 +82,7 @@ void Win32App::run()
           running = false;
           break;
         }
-        HWND root = msg.hwnd ? GetAncestor(msg.hwnd, GA_ROOT) : NULL;
-        // Dialog navigation still reaches the outer admission/completion tail.
-        if (root && IsDialogMessageW(root, &msg))
-        {
-          continue;
-        }
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        TranslateOrDispatch(msg);
       }
       if (!running)
       {

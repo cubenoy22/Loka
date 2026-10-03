@@ -6,6 +6,19 @@
 
 namespace
 {
+  // Deliberate platform-seam twin of ToolboxMenuAttachment.cpp's
+  // MenuShortcutForAction and MacMenuAttachment.mm:141: Win32 has NO default
+  // key for MENU_ACTION_QUIT_APP. Alt+F4 closes a window, not the application.
+  WORD MenuShortcutForAction(const loka::app::MenuItemDefinition *item)
+  {
+    if (!item->hasShortcut || !item->shortcutKey)
+      return 0;
+    unsigned char key = static_cast<unsigned char>(item->shortcutKey);
+    if (key >= 'a' && key <= 'z')
+      key = static_cast<unsigned char>(key - 'a' + 'A');
+    return (key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') ? key : 0;
+  }
+
   bool ApplyWindowMenuPreservingContentFrame(Win32Window *window, HMENU menu)
   {
     if (!window || !window->hwnd())
@@ -30,7 +43,7 @@ namespace
 } // namespace
 
 Win32MenuAttachment::Win32MenuAttachment(Win32Window &window)
-    : window_(window), menu_(NULL), nextCommandId_(1000), applied_(), source_(0)
+    : window_(window), menu_(NULL), accel_(NULL), nextCommandId_(1000), applied_(), source_(0)
 {
 }
 
@@ -62,6 +75,11 @@ bool Win32MenuAttachment::reset(DetachMode mode)
       this->menu_ = NULL;
     }
   }
+  if (this->accel_)
+  {
+    DestroyAcceleratorTable(this->accel_);
+    this->accel_ = NULL;
+  }
   return true;
 }
 
@@ -82,6 +100,11 @@ void Win32MenuAttachment::releaseFrom(const loka::app::scene::Scene *source)
 {
   if (this->source_ == source)
     this->disconnect();
+}
+
+bool Win32MenuAttachment::translateAccelerator(MSG &msg)
+{
+  return this->accel_ && TranslateAcceleratorW(this->window_.hwnd(), this->accel_, &msg) != 0;
 }
 
 bool Win32MenuAttachment::dispatch(int commandId)
@@ -158,7 +181,8 @@ void Win32MenuAttachment::clearMenuBindings()
   nextCommandId_ = 1000;
 }
 
-bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd)
+bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef,
+                                        HWND hwnd, std::vector<ACCEL> &accelerators)
 {
   if (!itemDef)
     return true;
@@ -192,7 +216,7 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
     HMENU subMenu = CreatePopupMenu();
     if (!subMenu)
       return false;
-    if (!this->buildMenuItems(subMenu, itemDef->childrenHead(), hwnd))
+    if (!this->buildMenuItems(subMenu, itemDef->childrenHead(), hwnd, accelerators))
     {
       DestroyMenu(subMenu);
       return false;
@@ -214,7 +238,18 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
     return true;
   }
 
-  int commandId = nextCommandId_++;
+  // ACCEL.cmd and WM_COMMAND both carry a 16-bit command id.
+  if (this->nextCommandId_ > 0xffff)
+    return false;
+  const int commandId = this->nextCommandId_++;
+  const WORD key = MenuShortcutForAction(itemDef);
+  if (key)
+  {
+    ACCEL accelerator = {FCONTROL | FVIRTKEY, key, static_cast<WORD>(commandId)};
+    accelerators.push_back(accelerator);
+    titleWide += L"\tCtrl+";
+    titleWide += static_cast<wchar_t>(key);
+  }
   if (!AppendMenuW(menu, flags, static_cast<UINT_PTR>(commandId), titleWide.c_str()))
     return false;
   Win32MenuAttachment::MenuCommand command;
@@ -257,12 +292,13 @@ void Win32MenuAttachment::bindMenuItemStates(HMENU menu,
   bindings_.push_back(binding);
 }
 
-bool Win32MenuAttachment::buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd)
+bool Win32MenuAttachment::buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead,
+                                         HWND hwnd, std::vector<ACCEL> &accelerators)
 {
   const loka::app::MenuItemDefinition *itemDef = itemsHead;
   while (itemDef)
   {
-    if (!this->buildMenuItem(menu, itemDef, hwnd))
+    if (!this->buildMenuItem(menu, itemDef, hwnd, accelerators))
       return false;
     itemDef = itemDef->nextInComposition;
   }
@@ -295,6 +331,7 @@ Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app:
   if (!next.menu_)
     return PROJECT_REFUSED;
   HWND hwnd = this->window_.hwnd();
+  std::vector<ACCEL> accelerators;
   loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(bar->menusHead(), bar->menusCount());
   for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next())
   {
@@ -307,7 +344,7 @@ Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app:
     HMENU subMenu = CreatePopupMenu();
     if (!subMenu)
       return PROJECT_REFUSED;
-    if (!next.buildMenuItems(subMenu, menuDef->itemsHead(), hwnd))
+    if (!next.buildMenuItems(subMenu, menuDef->itemsHead(), hwnd, accelerators))
     {
       DestroyMenu(subMenu);
       return PROJECT_REFUSED;
@@ -330,10 +367,17 @@ Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app:
     DestroyMenu(next.menu_);
     next.menu_ = NULL;
   }
+  if (!accelerators.empty())
+  {
+    next.accel_ = CreateAcceleratorTableW(&accelerators[0], static_cast<int>(accelerators.size()));
+    if (!next.accel_)
+      return PROJECT_REFUSED;
+  }
   if (!ApplyWindowMenuPreservingContentFrame(&this->window_, next.menu_))
     return PROJECT_REFUSED;
   this->disconnect();
   std::swap(this->menu_, next.menu_);
+  std::swap(this->accel_, next.accel_);
   this->commands_.swap(next.commands_);
   this->bindings_.swap(next.bindings_);
   std::swap(this->nextCommandId_, next.nextCommandId_);

@@ -346,6 +346,14 @@ void Win32Window::FrameChangedThunk(void *userData)
   self->applyNativeContentFrame(frame);
 }
 
+Win32Window *Win32Window::FromHwnd(HWND hwnd)
+{
+  wchar_t className[256];
+  if (!hwnd || !GetClassNameW(hwnd, className, 256) || lstrcmpW(className, kWndClassName) != 0)
+    return 0;
+  return reinterpret_cast<Win32Window *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+}
+
 LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   Win32Window *self = NULL;

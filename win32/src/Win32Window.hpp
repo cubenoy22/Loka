@@ -55,6 +55,9 @@ public:
       client frame and publishing no logical State. */
   bool detachMenuForTeardown(HMENU expectedMenu);
 
+  /** Borrows a Loka root; foreign window classes have no Window owner. */
+  static Win32Window *FromHwnd(HWND hwnd);
+
   static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
   virtual void onShow();

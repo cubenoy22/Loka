@@ -7,4 +7,10 @@ void testWin32SceneDetachReleasesMenu();
 void testWin32TwoWindowsOwnTheirMenus();
 void testWin32AppShutdownReleasesMenuBeforeAttachmentDestruction();
 
+void testWin32MenuAcceleratorTranslatesDeclaredShortcut();
+void testWin32QuitHasNoDefaultAccelerator();
+void testWin32MenuAcceleratorInertAfterRelease();
+void testWin32MenuAcceleratorSwapsWithProjection();
+void testWin32TwoWindowsOwnTheirAccelerators();
+void testWin32MenuAcceleratorPrecedesDialogAndDispatch();
 #endif
