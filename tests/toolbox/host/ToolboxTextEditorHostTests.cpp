@@ -1045,7 +1045,7 @@ int main(int argc, char **argv)
     GrafPtr previous;
     GetPort(&previous);
     SetPort(f.window.window());
-    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, hint);
+    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, hint).te;
     SetPort(previous);
     LOKA_VERIFY(edit && edit != editor);
     LOKA_VERIFY((**edit).txFont == 3 && (**edit).txSize == 12);
@@ -1060,7 +1060,7 @@ int main(int argc, char **argv)
     LOKA_VERIFY(f.controller.textEditBucket_.depth() == 1);
     // The ordinary record remains available only to another ordinary edit.
     SetPort(f.window.window());
-    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, hint) == edit);
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, hint).te == edit);
     SetPort(previous);
     f.controller.retireEditTextControl(&ordinary, hint);
     LOKA_VERIFY(f.controller.poolIntakeAuditFailCount_ == 0);
@@ -1084,13 +1084,13 @@ int main(int argc, char **argv)
     GrafPtr previous;
     GetPort(&previous);
     SetPort(f.window.window());
-    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT);
+    TEHandle edit = f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT).te;
     LOKA_VERIFY(edit && (**edit).text == "ordinary");
     {
       StateTrackerGuard guard(&f.tracker);
       text.set(String::FromPlatform(Managed<loka::platform::String>::Wrap(new RefusingUtf8())));
     }
-    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT).te == edit);
     std::printf("refused conversion installs \"%s\"\n", (**edit).text.c_str());
     std::fflush(stdout);
     LOKA_VERIFY((**edit).text == "ordinary" && (**edit).teLength == 8);
@@ -1098,7 +1098,7 @@ int main(int argc, char **argv)
       StateTrackerGuard guard(&f.tracker);
       text.set(String("next"));
     }
-    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT).te == edit);
     LOKA_VERIFY((**edit).text == "next");
     // The refused pass left the installed record untouched, so the original
     // value converts again and is installed (not skipped as already present).
@@ -1106,7 +1106,7 @@ int main(int argc, char **argv)
       StateTrackerGuard guard(&f.tracker);
       text.set(String("ordinary"));
     }
-    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT) == edit);
+    LOKA_VERIFY(f.controller.ensureEditTextControl(&ordinary, rect, &text, NATIVE_HINT_DEFAULT).te == edit);
     LOKA_VERIFY((**edit).text == "ordinary");
     SetPort(previous);
     f.controller.retireEditTextControl(&ordinary, NATIVE_HINT_DEFAULT);

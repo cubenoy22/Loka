@@ -64,6 +64,17 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "^Retro(PPC|Carbon)$")
   set(LOKA_CLASSIC_TARGET_SUFFIX "PPC")
 endif()
 
+# Size.r files keep the measured 68K partitions (#1103) apart from the
+# unmeasured PPC ones through this generated Rez include.
+if(LOKA_CLASSIC_MAC)
+  set(LOKA_CLASSIC_68K 0)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
+    set(LOKA_CLASSIC_68K 1)
+  endif()
+  configure_file(cmake/LokaClassicTarget.r.in "${CMAKE_BINARY_DIR}/rez/LokaClassicTarget.r" @ONLY)
+  list(APPEND REZ_INCLUDE_PATH "${CMAKE_BINARY_DIR}/rez")
+endif()
+
 if(TEST_BUILD)
   add_definitions(-DTEST_BUILD -DLOKA_DIAG=1)
 endif()
@@ -470,6 +481,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     apple/toolbox/src/context/ToolboxProjectedNodeContext.cpp
     apple/toolbox/src/ToolboxBuiltInSupport.cpp)
   target_include_directories(LokaToolboxAttributedTextTests PRIVATE
+    example/SmirkyCard/src
     tests/toolbox/host tests apple/toolbox/src)
   target_compile_options(LokaToolboxAttributedTextTests PRIVATE
     -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxHost.hpp)
@@ -480,6 +492,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   add_executable(LokaToolboxTextEditorTests tests/toolbox/host/ToolboxTextEditorHostTests.cpp)
   get_target_property(_editor_host_sources LokaToolboxAttributedTextTests SOURCES)
+  target_sources(LokaToolboxAttributedTextTests PRIVATE example/SmirkyCard/src/SmirkyMarkup.cpp)
   list(REMOVE_ITEM _editor_host_sources tests/toolbox/host/ToolboxAttributedTextHostTests.cpp)
   target_sources(LokaToolboxTextEditorTests PRIVATE ${_editor_host_sources})
   target_include_directories(LokaToolboxTextEditorTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
@@ -496,7 +509,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxPascalTextTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxPascalTextTests)
   set_target_properties(LokaToolboxPascalTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_pascal_case codec malformed truncation script failure hfs counted)
+  foreach(_pascal_case codec malformed truncation script failure hfs counted decode host-stubs)
     add_test(NAME testToolboxPascal_${_pascal_case} COMMAND LokaToolboxPascalTextTests ${_pascal_case})
   endforeach()
 

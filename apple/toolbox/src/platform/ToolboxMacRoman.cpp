@@ -34,3 +34,9 @@ bool ToolboxMacRomanEncode(unsigned long scalar, unsigned char &byte)
   }
   return false;
 }
+
+bool ToolboxMacRomanDecode(unsigned char byte, unsigned long &scalar)
+{
+  scalar = byte < 0x80 ? byte : kMacRomanCodepoints[byte - 0x80];
+  return true;
+}

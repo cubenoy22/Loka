@@ -334,7 +334,7 @@ namespace
       case EDIT_INPUT:
       {
         ToolboxEditTextContext *context = observe<ToolboxEditTextContext>(node);
-        LOKA_VERIFY(controller.ensureEditTextControl(context, rect, facts.textFact.state(), NATIVE_HINT_DEFAULT));
+        LOKA_VERIFY(controller.ensureEditTextControl(context, rect, facts.textFact.state(), NATIVE_HINT_DEFAULT).te);
         LOKA_VERIFY(ToolboxInputDoor::mouseDown(controller, point));
         facts.bind();
         LOKA_VERIFY(ToolboxInputDoor::keyDown(controller, 'x'));

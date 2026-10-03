@@ -1,16 +1,19 @@
 #include "ToolboxHost.hpp"
 #include "Script.h"
+#include "Sound.h"
 #include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <cstring>
 namespace toolbox_host
 {
   long systemScript = smRoman;
+  long keyboardScript = smRoman;
+  unsigned beeps = 0;
   unsigned scriptReads = 0;
   ControlCalls controlCalls;
   std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<Draw> draws;
-  std::vector<std::string> pascalDraws, windowTitles, widthPayloads;
+  std::vector<std::string> pascalDraws, windowTitles, widthPayloads, measurePayloads;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
@@ -22,15 +25,23 @@ namespace toolbox_host
     draws.clear();
     pascalDraws.clear();
     widthPayloads.clear();
+    measurePayloads.clear();
     erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
+    beeps = 0;
   }
 } // namespace toolbox_host
 long GetScriptManagerVariable(short selector)
 {
   if (selector == smSysScript)
+  {
     ++toolbox_host::scriptReads;
-  return toolbox_host::systemScript;
+    return toolbox_host::systemScript;
+  }
+  if (selector == smKeyScript)
+    return toolbox_host::keyboardScript;
+  assert(false);
+  return 0;
 }
 namespace
 {
@@ -89,8 +100,9 @@ void GetFontInfo(FontInfo *out)
   out->leading = 2;
   out->widMax = port->txSize / 3 + ((port->txFace & bold) ? 1 : 0);
 }
-void MeasureText(short count, const void *, void *charLocs)
+void MeasureText(short count, const void *bytes, void *charLocs)
 {
+  toolbox_host::measurePayloads.push_back(std::string(static_cast<const char *>(bytes), count));
   ++toolbox_host::measures;
   short *positions = static_cast<short *>(charLocs);
   for (int i = 0; i <= count; ++i)
@@ -181,6 +193,8 @@ void ClipRect(const Rect *rect)
 #include "context/ToolboxTextEditorContext.hpp"
 namespace toolbox_host
 {
+  void (*afterKey)(TEHandle) = 0;
+  unsigned corruptSets = 0, refuseReads = 0;
   int copied = 0, sets = 0, disposals = 0, failSets = 0, failNew = 0, updates = 0, selections = 0;
 }
 TEHandle TENew(const Rect *dest, const Rect *view)
@@ -237,11 +251,14 @@ void TESetText(const void *bytes, long length, TEHandle te)
     length = 0;
   }
   (**te).text.assign(static_cast<const char *>(bytes), length);
+  if (toolbox_host::corruptSets && length)
+  { --toolbox_host::corruptSets; (**te).text[0] ^= 1; }
   (**te).teLength = static_cast<short>(length);
   TECalText(te);
 }
 Handle TEGetText(TEHandle te)
 {
+  if (toolbox_host::refuseReads) { --toolbox_host::refuseReads; return 0; }
   (**te).data = const_cast<char *>((**te).text.data());
   return &(**te).data;
 }
@@ -272,6 +289,7 @@ void TEKey(char key, TEHandle te)
   t.selEnd = t.selStart;
   t.teLength = static_cast<short>(t.text.size());
   TECalText(te);
+  if (toolbox_host::afterKey) toolbox_host::afterKey(te);
 }
 void TEClick(Point p, bool, TEHandle te)
 {
@@ -314,6 +332,8 @@ void TEUpdate(const Rect *, TEHandle)
 {
   ++toolbox_host::updates;
 }
+signed char HGetState(Handle) { return 0; }
+void HSetState(Handle, signed char) {}
 void HLock(Handle) {}
 void HUnlock(Handle) {}
 void BlockMoveData(const void *source, void *dest, long length)

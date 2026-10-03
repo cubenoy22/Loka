@@ -404,25 +404,30 @@ void ToolboxApp::run()
     {
       ToolboxWindow *active = activeWindow() ? activeWindow()->asToolboxWindow() : 0;
       char key = static_cast<char>(event.message & charCodeMask);
+      // A Command key is a menu command, never text: it goes to MenuKey only,
+      // so a focused field cannot swallow it, and a plain key never reaches
+      // MenuKey (#1086). Option-only keys stay text. A held Command key's
+      // autoKey repeats are swallowed so a command runs once per press.
+      const bool command = (event.modifiers & cmdKey) != 0;
       bool handled = false;
 #if LOKA_RETRO68_DIAGNOSTICS
-      if (active && (event.modifiers & cmdKey) && (key == 'd' || key == 'D'))
+      if (active && command && (key == 'd' || key == 'D'))
       {
         active->requestDeferredDebugDump();
         handled = true;
       }
 #endif
-      if (!handled)
+      if (!command)
       {
         handled = active && active->handleKeyDown(key);
+        if (!handled)
+        {
+          handled = this->handleKeyPress(key);
+        }
       }
-      if (!handled)
+      else if (!handled && event.what == keyDown)
       {
-        handled = this->handleKeyPress(key);
-      }
-      if (!handled)
-      {
-        long choice = MenuKey(static_cast<char>(event.message & charCodeMask));
+        long choice = MenuKey(key);
         if (choice != 0)
         {
           short menuId = static_cast<short>(choice >> 16);

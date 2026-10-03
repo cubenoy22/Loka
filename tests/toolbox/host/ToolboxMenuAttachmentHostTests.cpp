@@ -7,6 +7,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "Script.h"
+#include "Sound.h"
 #include <cstdio>
 #include <cstring>
 
@@ -15,6 +16,7 @@ namespace toolbox_host
   std::vector<std::string> menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<MenuHandle> installedMenus;
   void (*afterMenuSet)() = 0;
+  unsigned beeps = 0;
   unsigned menuDraws = 0, menuClears = 0, menuDisposes = 0, menuValueWrites = 0;
 }
 long GetScriptManagerVariable(short) { return smRoman; }
@@ -25,6 +27,7 @@ namespace
 {
   void clearCalls()
   {
+    toolbox_host::beeps = 0;
     toolbox_host::menuTitles.clear();
     toolbox_host::menuAppends.clear();
     toolbox_host::menuInserts.clear();

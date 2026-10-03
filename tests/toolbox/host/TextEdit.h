@@ -36,6 +36,8 @@ void TEAutoView(bool, TEHandle);
 void TECalText(TEHandle);
 void TEScroll(short, short, TEHandle);
 void TEUpdate(const Rect *, TEHandle);
+signed char HGetState(Handle);
+void HSetState(Handle, signed char);
 void HLock(Handle);
 void HUnlock(Handle);
 void BlockMoveData(const void *, void *, long);
@@ -44,6 +46,8 @@ void OffsetRect(Rect *, short, short);
 void FrameRect(const Rect *);
 namespace toolbox_host
 {
+  extern void (*afterKey)(TEHandle);
+  extern unsigned corruptSets, refuseReads;
   extern int copied, sets, disposals, failSets, failNew, updates, selections;
   extern unsigned invalidations;
   extern GrafPtr activationPort, deactivationPort;

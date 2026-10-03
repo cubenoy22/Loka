@@ -1,3 +1,5 @@
+#include <Script.h>
+#include "ToolboxInputDoor.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "context/ToolboxAttributedTextContext.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -135,13 +137,13 @@ int main(int argc, char **argv)
     Draw(*context, controller, mode, control, installedLabel);
     const PaintAnswer refused = context->queryPaintDamage(query);
     std::printf("refused conversion: TE=%s lastText=%s answer=%d reason=%d damage=%dx%d\n",
-        (**te).text.c_str(), controller.editControls_[0].lastText.c_str(),
+        (**te).text.c_str(), "certificate",
         refused.kind, refused.reason, refused.damage.width, refused.damage.height);
     std::fflush(stdout);
-    LOKA_VERIFY((**te).text == "V" && controller.editControls_[0].lastText == "V");
+    LOKA_VERIFY((**te).text == "V" && controller.editControls_[0].installed.holds(String("V")));
     LOKA_VERIFY(refused.kind == PAINT_ANSWER_REFUSED && refused.reason == PAINT_REFUSED_HISTORY_UNKNOWN);
     // Replay also must not certify a logical value that the TE never installed.
-    static_cast<ToolboxEditTextContext *>(context)->repaint(te);
+    static_cast<ToolboxEditTextContext *>(context)->repaint(ToolboxEditPresentation(te, controller.editControls_[0].installed));
     LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
     { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("W")); }
     Draw(*context, controller, mode, control, installedLabel);
@@ -149,7 +151,7 @@ int main(int argc, char **argv)
     ExactEmpty(*context, query);
     // A successful conversion alone is not proof: replay may precede sync.
     { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("X")); }
-    static_cast<ToolboxEditTextContext *>(context)->repaint(te);
+    static_cast<ToolboxEditTextContext *>(context)->repaint(ToolboxEditPresentation(te, controller.editControls_[0].installed));
     LOKA_VERIFY((**te).text == "W");
     LOKA_VERIFY(context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
     // Concatenation exercises the non-borrowing conversion path, then empty
@@ -162,6 +164,43 @@ int main(int argc, char **argv)
     Draw(*context, controller, mode, control, installedLabel);
     LOKA_VERIFY((**te).text.empty());
     ExactEmpty(*context, query);
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("\xE6\xBC\xA2\xE5\xAD\x97")); }
+    Draw(*context, controller, mode, control, installedLabel);
+    LOKA_VERIFY((**te).text == "??");
+    ExactEmpty(*context, query);
+    ToolboxEditTextContext *edit = static_cast<ToolboxEditTextContext *>(context);
+    controller.editControls_[0].installed.revoke();
+    const int sets = toolbox_host::sets;
+    const std::size_t rows = controller.editControls_.size();
+    edit->repaint(ToolboxEditPresentation(te, controller.editControls_[0].installed));
+    LOKA_VERIFY(context->queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+    LOKA_VERIFY(toolbox_host::sets == sets && controller.editControls_.size() == rows);
+    // Repair from authoritative State records the outer chrome without any notification.
+    controller.activateEditControl(0);
+    { StateTrackerGuard guard(root.tracker()); root.text.set(String::Literal("caf\xC3\xA9")); }
+    controller.syncEditTextFromState(controller.editControls_[0]);
+    toolbox_host::systemScript = 1;
+    toolbox_host::failSets = 1;
+    controller.pendingDirtyRects_.clear();
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(controller, 'x'));
+    LOKA_VERIFY(!controller.editControls_[0].installed.holds(root.text.get()));
+    LOKA_VERIFY(context->queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+    LOKA_VERIFY(!controller.pendingDirtyRects_.empty());
+    LOKA_VERIFY(EqualRect(&controller.pendingDirtyRects_.back(), &edit->chromeRect()));
+    toolbox_host::systemScript = 0;
+    controller.syncEditTextFromState(controller.editControls_[0]);
+    const Rect partialRepair = {40, 10, 45, 30};
+    { ToolboxPaintClip clip(partialRepair);
+      edit->repaint(ToolboxEditPresentation(te, controller.editControls_[0].installed)); }
+    LOKA_VERIFY(context->queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
+    edit->repaint(ToolboxEditPresentation(te, controller.editControls_[0].installed));
+    ExactEmpty(*context, query);
+    // Draw fallback through the same Pascal encoding door as other leaves.
+    controller.retireEditTextControl(edit, NATIVE_HINT_EAGER_RELEASE);
+    toolbox_host::failNew = 1; toolbox_host::pascalDraws.clear();
+    edit->draw(&controller);
+    LOKA_VERIFY(toolbox_host::pascalDraws.size() == 1);
+    LOKA_VERIFY(toolbox_host::pascalDraws[0] == std::string("caf\x8E", 4));
     Access::unmount(scene);
     std::puts("Refused conversion paint pin passed");
     return 0;

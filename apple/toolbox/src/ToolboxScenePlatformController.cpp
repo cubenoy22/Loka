@@ -976,7 +976,8 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     // Replay borrows established TE placement; it never reprojects or changes
     // the registry after the viewport's projection scope has popped.
     if (binding.editor) binding.editor->repaint(binding.te);
-    else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(binding.te);
+    else static_cast<ToolboxEditTextContext *>(binding.ownerContext)->repaint(
+        ToolboxEditPresentation(binding.te, binding.installed));
   }
   drawControlsInRect(rect);
 }
