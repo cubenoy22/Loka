@@ -1,11 +1,14 @@
 #include "ToolboxHost.hpp"
 #include "Script.h"
+#include "Sound.h"
 #include "platform/StringUTF8.hpp"
 #include <algorithm>
 #include <cstring>
 namespace toolbox_host
 {
   long systemScript = smRoman;
+  long keyboardScript = smRoman;
+  unsigned beeps = 0;
   unsigned scriptReads = 0;
   ControlCalls controlCalls;
   std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
@@ -25,13 +28,20 @@ namespace toolbox_host
     measurePayloads.clear();
     erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
+    beeps = 0;
   }
 } // namespace toolbox_host
 long GetScriptManagerVariable(short selector)
 {
   if (selector == smSysScript)
+  {
     ++toolbox_host::scriptReads;
-  return toolbox_host::systemScript;
+    return toolbox_host::systemScript;
+  }
+  if (selector == smKeyScript)
+    return toolbox_host::keyboardScript;
+  assert(false);
+  return 0;
 }
 namespace
 {

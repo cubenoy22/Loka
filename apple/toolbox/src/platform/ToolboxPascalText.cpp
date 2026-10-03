@@ -132,3 +132,35 @@ bool ToolboxEncodePascal(const loka::core::String &value, Str255 out)
   out[0] = static_cast<unsigned char>(count);
   return true;
 }
+
+bool ToolboxDecodeNative(const unsigned char *bytes, std::size_t length, loka::core::String &out)
+{
+  const bool roman = GetScriptManagerVariable(smSysScript) == smRoman;
+  if (!bytes && length)
+    return false;
+  std::string utf8;
+  for (std::size_t i = 0; i < length; ++i)
+  {
+    unsigned long scalar = bytes[i];
+    if (roman)
+      ToolboxMacRomanDecode(bytes[i], scalar);
+    else if (bytes[i] >= 0x80)
+      return false;
+    // The Roman table contains only BMP scalars; ASCII uses the first branch.
+    if (scalar < 0x80)
+      utf8 += static_cast<char>(scalar);
+    else if (scalar < 0x800)
+    {
+      utf8 += static_cast<char>(0xC0 | (scalar >> 6));
+      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
+    }
+    else
+    {
+      utf8 += static_cast<char>(0xE0 | (scalar >> 12));
+      utf8 += static_cast<char>(0x80 | ((scalar >> 6) & 0x3F));
+      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
+    }
+  }
+  out = loka::core::String::Utf8(utf8.data(), utf8.size());
+  return true;
+}
