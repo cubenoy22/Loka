@@ -64,16 +64,15 @@ local function commandTap(name)
     command:clear_value()
 end
 
+local finderZone = nil
 local appZone = nil
 local peak = { live = 0, at = "none" }
+local tapSamples, tapDiscarded = 0, 0
 
--- Returns false once the application zone is gone (the app quit or aborted).
-local function walk(label, verbose)
-    local zone = mem:read_u32(0x2AA) -- ApplZone
-    if appZone and zone ~= appZone then
-        say("%s application zone gone (%08x -> %08x)", label, appZone, zone)
-        return false
-    end
+-- Sum one zone's blocks. Returns nil when the block list does not tile the
+-- zone exactly, which is what a walk sees in the middle of a Memory Manager
+-- operation.
+local function measureZone(zone)
     local bkLim = mem:read_u32(zone)
     local address = zone + ZONE_HEADER_BYTES
     local free, nonrel, locked, unlocked, purgeable, blocks = 0, 0, 0, 0, 0, 0
@@ -81,8 +80,8 @@ local function walk(label, verbose)
         local header = mem:read_u32(address)
         local tag = (header >> 30) & 3
         local size = header & 0xFFFFFF
-        if size < 8 or address + size > bkLim + 16 then
-            error(string.format("%s: corrupt block header %08x at %08x", label, header, address))
+        if size < 8 or address + size > bkLim then
+            return nil
         end
         if tag == 0 then
             free = free + size
@@ -97,21 +96,71 @@ local function walk(label, verbose)
             else
                 unlocked = unlocked + size
             end
+        else
+            return nil
         end
         blocks = blocks + 1
         address = address + size
     end
-    local live = nonrel + locked + unlocked
+    if address ~= bkLim then
+        return nil
+    end
+    return {
+        bkLim = bkLim, blocks = blocks, free = free, nonrel = nonrel, locked = locked,
+        unlocked = unlocked, purgeable = purgeable, live = nonrel + locked + unlocked,
+    }
+end
+
+local function notePeak(live, label)
     if live > peak.live then
         peak.live = live
         peak.at = label
     end
-    if verbose then
-        say("%s zone=%08x size=%d max=%d blocks=%d free=%d nonrel=%d locked=%d unlocked=%d purgeable=%d live=%d",
-            label, zone, bkLim - zone, mem:read_u32(0x130) - zone, blocks, free, nonrel, locked, unlocked,
-            purgeable, live)
+end
+
+-- The Process Manager swaps ApplZone on every context switch, so a sample can
+-- land while the Finder is current. Walk the application's own zone directly,
+-- and call the application gone only when its zone stays away from ApplZone.
+local function applicationAlive()
+    for _ = 1, 40 do
+        if mem:read_u32(0x2AA) == appZone then
+            return true
+        end
+        emu.wait(0.05)
     end
-    return true
+    return false
+end
+
+local function walk(label, verbose)
+    local m = measureZone(appZone)
+    if not m then
+        error(string.format("%s: zone %08x does not tile into blocks", label, appZone))
+    end
+    notePeak(m.live, label)
+    if verbose then
+        say("%s zone=%08x size=%d blocks=%d free=%d nonrel=%d locked=%d unlocked=%d purgeable=%d live=%d",
+            label, appZone, m.bkLim - appZone, m.blocks, m.free, m.nonrel, m.locked, m.unlocked,
+            m.purgeable, m.live)
+    end
+end
+
+-- Transient peaks: an allocation made and released inside one event never
+-- shows in a settled walk, so walk the zone on every write to its zcbFree
+-- (offset 12), which the Memory Manager updates on each allocation and
+-- release. Mid-operation walks that do not tile are discarded.
+local zoneTap = nil
+local tapLabel = "launch"
+local function tapZone(zone)
+    zoneTap = mem:install_write_tap(zone + 12, zone + 15, "loka-zcbfree", function(offset, data, mask)
+        local m = measureZone(zone)
+        if m then
+            tapSamples = tapSamples + 1
+            notePeak(m.live, tapLabel)
+        else
+            tapDiscarded = tapDiscarded + 1
+        end
+        return data
+    end)
 end
 
 local couple = 1
@@ -127,6 +176,7 @@ end
 local button = manager.machine.ioport.ports[":macadb:MOUSE0"].fields["Mouse Button 0"]
 
 local function sampledWait(seconds, label)
+    tapLabel = label
     local elapsed = 0
     while elapsed < seconds do
         emu.wait(0.25)
@@ -149,9 +199,28 @@ local ok, err = pcall(function()
         tap(key("tab"))
     end
     emu.wait(1)
+    finderZone = mem:read_u32(0x2AA)
     commandTap("o")
-    emu.wait(15)
-    appZone = mem:read_u32(0x2AA)
+    -- Watch the switch into the application's zone closely so the tap sees
+    -- its mount, then let the launch settle.
+    local waited = 0
+    while waited < 15 do
+        emu.wait(0.01)
+        waited = waited + 0.01
+        local zone = mem:read_u32(0x2AA)
+        if not zoneTap and zone ~= finderZone then
+            appZone = zone
+            tapZone(zone)
+            say("application zone %08x after %.2f s (Finder zone %08x)", zone, waited, finderZone)
+        end
+    end
+    if not appZone or not applicationAlive() then
+        error(string.format("the application is not running after launch (ApplZone %08x, Finder zone %08x)",
+            mem:read_u32(0x2AA), finderZone))
+    end
+    -- ApplLimit belongs to the current process, which applicationAlive just
+    -- confirmed is the application.
+    say("launched max=%d", mem:read_u32(0x130) - appZone)
     walk("launched", true)
     manager.machine.video:snapshot()
 
@@ -161,6 +230,7 @@ local ok, err = pcall(function()
     for op, first, second in (os.getenv("LOKA_STEPS") or ""):gmatch("(%a)%s*([^%s;]*)%s*([^;]*);") do
         index = index + 1
         local label = string.format("step%03d-%s", index, op)
+        tapLabel = label
         if op == "c" then
             warp(tonumber(first), tonumber(second))
             button:set_value(1)
@@ -182,9 +252,13 @@ local ok, err = pcall(function()
             error("unknown step " .. op)
         end
     end
-    if walk("end", true) then
+    if applicationAlive() then
+        walk("end", true)
         manager.machine.video:snapshot()
+        say("tap samples=%d discarded=%d", tapSamples, tapDiscarded)
         say("PEAK live=%d at=%s", peak.live, peak.at)
+    else
+        say("end application zone gone (ApplZone %08x)", mem:read_u32(0x2AA))
     end
     say("LOKA-MEASURE: complete")
 end)

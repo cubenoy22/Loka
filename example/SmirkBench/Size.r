@@ -1,12 +1,13 @@
 // SIZE partition override for the Retro68/Classic build.
 // SmirkBench owns one small fixed-capacity surface model.
-// Measured need (#1103, MAME maciix, 2026-10-03): 342.2K = peak live heap
-// 317892 B + stack/A5/zone 32472 B, under the workload in
+// Measured need (#1103, MAME maciix, 2026-10-03): 342.5K = peak live heap
+// 318288 B + stack/A5/zone 32472 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
-// minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
+// 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
 // Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
 // is appended after and overrides it.
 #include "Processes.r"
+#include "LokaClassicTarget.r"
 
 resource 'SIZE' (-1) {
 	reserved,
@@ -39,8 +40,13 @@ resource 'SIZE' (-1) {
 #if TARGET_API_MAC_CARBON
 	1024 * 1024,
 	1024 * 1024
-#else
+#elif LOKA_CLASSIC_68K
 	576 * 1024,	/* preferred */
+	384 * 1024	/* minimum */
+#else
+	/* PPC partitions are unmeasured: keep the values they had before the
+	   68K measurement (#1103). */
+	512 * 1024,	/* preferred */
 	384 * 1024	/* minimum */
 #endif
 };

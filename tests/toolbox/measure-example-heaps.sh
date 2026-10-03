@@ -13,8 +13,9 @@
 # and the values the Size.r files are set from: minimum = need x 1.1 rounded
 # up to 32K, preferred = need x 1.5 rounded up to 64K. The formula was checked
 # against real boundaries on 2026-10-03: HelloWorld (need 392K) dies at launch
-# in 384K and runs in 416K; LazyList (432K) dies in 416K and runs in 448K;
-# MineSweeper (437K) aborts in 432K and runs in 440K.
+# in 384K and runs in 416K; LazyList (434K) dies in 416K and runs in 448K;
+# MineSweeper (440K) aborts in 432K and runs in 440K. The values are for 68K
+# only; Size.r keeps the unmeasured PPC partitions in their own branch.
 #
 # The rail does not build. Build first:
 #   cmake --build --preset retro68-68k-release
@@ -96,9 +97,9 @@ measure() {
   sizer="$PROJECT_DIR/example/$dir/Size.r"
   local bin="$RELEASE/$dir/$app.bin"
   [ -f "$bin" ] || fail "missing $bin; build retro68-68k-release first"
-  # The non-Carbon preferred size is the first value after the last #else.
+  # The 68K preferred size is the first value in the LOKA_CLASSIC_68K branch.
   local preferred_k
-  preferred_k="$(awk '/^#else/{block=1; found=0; next} block && !found && /\* *1024/{gsub(/[^0-9*]/,""); split($0,p,"*"); value=p[1]; found=1} END{print value}' "$sizer")"
+  preferred_k="$(awk '/^#elif LOKA_CLASSIC_68K/{block=1; next} block && /^#/{exit} block && /\* *1024/{gsub(/[^0-9*]/,""); split($0,p,"*"); print p[1]; exit}' "$sizer")"
   [[ "$preferred_k" =~ ^[0-9]+$ ]] || fail "could not read the preferred size from $sizer"
 
   local work="$PROJECT_DIR/build/mame-measure/$example"
@@ -139,7 +140,7 @@ measure() {
   grep -qx 'LOKA-MEASURE: complete' <<<"$log" || fail "$example: probe did not complete; see $work/measure.log"
   local live max
   live="$(sed -n 's/^PEAK live=\([0-9]*\) .*/\1/p' <<<"$log")"
-  max="$(sed -n 's/^launched .* max=\([0-9]*\) .*/\1/p' <<<"$log")"
+  max="$(sed -n 's/^launched max=\([0-9]*\)$/\1/p' <<<"$log")"
   [ -n "$live" ] && [ -n "$max" ] || fail "$example: the application did not survive the workload; see $work/measure.log and $work/snapshot"
   awk -v ex="$example" -v live="$live" -v max="$max" -v pref="$preferred_k" 'BEGIN {
     fixed = pref * 1024 - max; need = live + fixed
