@@ -436,6 +436,38 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxMemorySourceTests COMMAND LokaToolboxMemorySourceTests)
 
+  # Dedicated Classic file slice: never link common objects built without
+  # LOKA_RETRO68, which changes File and FileHandle definitions.
+  add_executable(LokaToolboxFileChoiceTests
+    tests/toolbox/host/ToolboxFileChoiceHostTests.cpp
+    tests/toolbox/host/ToolboxFileHost.cpp
+    apple/toolbox/src/ToolboxFileChoice.cpp
+    apple/toolbox/src/ToolboxByteSource.cpp
+    apple/toolbox/src/ToolboxString.cpp
+    apple/toolbox/src/platform/ToolboxAppLocation.cpp
+    apple/toolbox/src/platform/ToolboxFileIO.cpp
+    apple/toolbox/src/platform/ToolboxHfsName.cpp
+    apple/toolbox/src/platform/ToolboxMacRoman.cpp
+    common/core/String.cpp common/core/StringBuffer.cpp common/core/LokaAlloc.cpp
+    common/core/diag/LifecycleAudit.cpp
+    common/platform/StringUTF8.cpp
+    common/platform/file/GenericFileIO.cpp common/platform/file/FileRead.cpp)
+  target_include_directories(LokaToolboxFileChoiceTests PRIVATE
+    tests/toolbox/host tests apple/toolbox/src common)
+  target_compile_definitions(LokaToolboxFileChoiceTests PRIVATE LOKA_RETRO68=1)
+  target_compile_options(LokaToolboxFileChoiceTests PRIVATE -fno-exceptions -fno-rtti)
+  loka_enable_warnings(LokaToolboxFileChoiceTests)
+  set_target_properties(LokaToolboxFileChoiceTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_file_case tuple single application viewer smirky refused)
+    add_test(NAME testToolboxFileChoice_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
+  endforeach()
+  option(LOKA_TOOLBOX_FILE_CHOICE_RED_PINS "Register known-red #1063 acceptance evidence (PR 3 enables)" OFF)
+  if(LOKA_TOOLBOX_FILE_CHOICE_RED_PINS)
+    foreach(_file_case collision-ab collision-ba decoy)
+      add_test(NAME testToolboxFileChoice_RED_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
+    endforeach()
+  endif()
+
   add_executable(LokaToolboxBoxLayoutTests
     tests/toolbox/host/ToolboxBoxLayoutHostTests.cpp
     apple/toolbox/src/ToolboxNodeDispatch.cpp
