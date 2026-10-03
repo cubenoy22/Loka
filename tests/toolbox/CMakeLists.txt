@@ -251,7 +251,7 @@ set(LOKA_TESTS_TOOLBOX_SOURCES
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
   ${CMAKE_SOURCE_DIR}/common/testing/snap/SnapFormat.cpp
-  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/Size.r
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScrapbookVehicleSize.r
 )
 
 loka_add_toolbox_test_application(
@@ -515,7 +515,7 @@ set(LOKA_STANDALONE_FLOW_TOOLBOX_SOURCES
   ${LOKA_STANDALONE_FLOW_TOOLBOX_SUPPORT_SOURCES}
   ${CMAKE_SOURCE_DIR}/tests/scenarios/ScrapbookScenarios.cpp
   ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
-  ${CMAKE_SOURCE_DIR}/example/ScrapbookUI/Size.r
+  ${CMAKE_CURRENT_SOURCE_DIR}/ScrapbookVehicleSize.r
 )
 
 set(LOKA_STANDALONE_FLOW_TOOLBOX_ALL_TARGET
