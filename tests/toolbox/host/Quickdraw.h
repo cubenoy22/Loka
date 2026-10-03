@@ -54,4 +54,12 @@ void SetClip(RgnHandle);
 bool RectInRgn(const Rect *, RgnHandle);
 void EraseRect(const Rect *);
 void ClipRect(const Rect *);
+struct Picture
+{
+  short picSize;
+  Rect picFrame;
+};
+typedef Picture *PicPtr;
+typedef PicPtr *PicHandle;
+void KillPicture(PicHandle);
 #endif
