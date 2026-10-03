@@ -142,9 +142,13 @@ measure() {
   live="$(sed -n 's/^PEAK live=\([0-9]*\) .*/\1/p' <<<"$log")"
   max="$(sed -n 's/^launched max=\([0-9]*\)$/\1/p' <<<"$log")"
   [ -n "$live" ] && [ -n "$max" ] || fail "$example: the application did not survive the workload; see $work/measure.log and $work/snapshot"
-  awk -v ex="$example" -v live="$live" -v max="$max" -v pref="$preferred_k" 'BEGIN {
+  awk -v ex="$example" -v live="$live" -v max="$max" -v pref="$preferred_k" '
+  # Exact integer ceiling: num and den are whole byte counts, so no binary
+  # fraction (1.1 has none) can push a value that lands on a boundary past it.
+  function ceil_div(num, den) { return int((num + den - 1) / den) }
+  BEGIN {
     fixed = pref * 1024 - max; need = live + fixed
-    min = 32 * int((need * 1.1 / 1024 + 31) / 32); best = 64 * int((need * 1.5 / 1024 + 63) / 64)
+    min = 32 * ceil_div(need * 11, 10 * 1024 * 32); best = 64 * ceil_div(need * 3, 2 * 1024 * 64)
     printf "%-13s need=%5.1fK (live %d + fixed %d)  minimum=%dK  preferred=%dK  (declared preferred %dK)\n",
       ex, need / 1024, live, fixed, min, best, pref
   }'
