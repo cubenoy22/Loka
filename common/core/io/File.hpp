@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "core/String.hpp"
+#include "core/io/FileLocator.hpp"
 
 namespace loka
 {
@@ -27,7 +28,9 @@ namespace loka
         BASE_APPLICATION,
         BASE_DESKTOP,
         BASE_DOCUMENTS,
-        BASE_ROOT
+        BASE_ROOT,
+        /** Sticky composition refusal, with no text or locator. */
+        BASE_REFUSED
       };
 
       File()
@@ -105,8 +108,18 @@ namespace loka
       }
 #endif
 
+      /** Refusal wins first, then a located parent refuses composition, then
+          a located child wins. Unlocated values retain ordinary path rules. */
       File operator<<(const File &child) const
       {
+        if (this->base_ == BASE_REFUSED || child.base_ == BASE_REFUSED || !this->locator_.empty())
+        {
+          File refused;
+          refused.base_ = BASE_REFUSED;
+          return refused;
+        }
+        if (!child.locator_.empty())
+          return child;
         if (child.base_ != BASE_NONE)
         {
           return child;
@@ -119,6 +132,9 @@ namespace loka
         }
         return combined;
       }
+
+      /** Opaque immutable address snapshot; display text is not its identity. */
+      const FileLocator &locator() const { return this->locator_; }
 
       Kind kind() const
       {
@@ -137,7 +153,8 @@ namespace loka
 
       void setKind(Kind kind)
       {
-        this->kind_ = kind;
+        if (this->base_ != BASE_REFUSED)
+          this->kind_ = kind;
       }
 
       loka::core::String toString() const
@@ -168,12 +185,14 @@ namespace loka
       }
 
     private:
+      friend class loka::platform::file::FileLocatorAccess;
       friend bool operator!=(const File &lhs, const File &rhs);
 
       BaseKind base_;
       Kind kind_;
       loka::core::String basePath_;
       loka::core::String relative_;
+      FileLocator locator_;
 
       static const char *separatorLiteral()
       {
@@ -236,6 +255,8 @@ namespace loka
 
     inline bool operator!=(const File &lhs, const File &rhs)
     {
+      if (lhs.locator_ != rhs.locator_)
+        return true;
       if (lhs.kind_ != rhs.kind_)
       {
         return true;

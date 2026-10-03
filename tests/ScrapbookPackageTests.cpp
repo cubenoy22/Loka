@@ -1,3 +1,4 @@
+#include "support/FileRefusalPin.hpp"
 #include "ScrapbookPackageTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -298,6 +299,14 @@ namespace
 
 void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
 {
+  // This fake's base predicate must stay exact-Application as File gains phases.
+  PackagePathContext refusalContext(loka::core::String::Literal("unused"));
+  loka::platform::file::FileHandle refusedOutput;
+  LOKA_VERIFY(!refusalContext.openFile(RefusedFileForTest(), refusedOutput));
+  LOKA_VERIFY(!refusalContext.openFile(loka::file::File("ASSETS.LRP"), refusedOutput));
+  LOKA_VERIFY(refusalContext.openFile(
+      loka::file::File::Application() << loka::file::File("ASSETS.LRP"), refusedOutput));
+
   CheckPackageManifestAndImages(
       "example/ScrapbookUI/assets/manifest.txt", "example/ScrapbookUI/ASSETS.LRP", PACKAGE_IMAGES_ARE_PICT);
   CheckPackageManifestAndImages("example/ScrapbookUI/assets/manifest-modern.txt",

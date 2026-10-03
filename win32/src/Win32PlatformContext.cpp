@@ -39,6 +39,12 @@ loka::app::scene::NodeContext *Win32PlatformContext::createNodeContext(loka::app
 
 bool Win32PlatformContext::openFile(const loka::file::File &item, loka::platform::file::FileHandle &out) const
 {
+  // Keep this refusal before all resolution, as on the other platform rails.
+  if (item.base() == loka::file::File::BASE_REFUSED)
+  {
+    out = loka::platform::file::FileHandle();
+    return false;
+  }
   if (item.base() == loka::file::File::BASE_APPLICATION)
   {
     return loka::platform::file::ResolveApplicationItem(item, out);
