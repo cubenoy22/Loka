@@ -1,7 +1,9 @@
-// The scenario vehicle carries the production board plus audit and actuation
-// vocabulary. Keep its partition separate from the shipping example's measured
-// budget (#1103): a second registered tour crossed the old 384K/512K partition
-// during the existing two-New-Game recomposition sequence.
+// The Scrapbook-based test vehicles (the scenario registry vehicle and the
+// standalone Flow application) carry the production package code plus every
+// registered scenario's audit and actuation vocabulary. Keep their partition
+// at its proven 512K minimum / 1024K preferred instead of following the
+// shipping example's measured budget (#1103), which is sized for the smaller
+// production binary.
 #include "Processes.r"
 
 resource 'SIZE' (-1) {
@@ -12,10 +14,10 @@ resource 'SIZE' (-1) {
 	canBackground,
 	doesActivateOnFGSwitch,
 #else
-	ignoreSuspendResumeEvents,
+	acceptSuspendResumeEvents,
 	reserved,
-	cannotBackground,
-	needsActivateOnFGSwitch,
+	canBackground,
+	doesActivateOnFGSwitch,
 #endif
 	backgroundAndForeground,
 	dontGetFrontClicks,
@@ -36,7 +38,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024,
 	1024 * 1024
 #else
-	640 * 1024,	/* preferred */
-	512 * 1024	/* minimum */
+	1024 * 1024,
+	512 * 1024
 #endif
 };
