@@ -160,10 +160,10 @@ namespace simpleviewer
       {
         Blob blob;
         int detailCode = SIMPLE_VIEWER_FLOW_ERROR_CODE_FILE_READ_FAILED;
-        loka::platform::file::FileHandle handle;
-        const bool resolved = this->ctx_ && projection.hasFileItem && this->ctx_->openFile(projection.fileItem, handle);
+        const loka::file::File file = projection.hasFileItem ? projection.fileItem
+            : loka::file::File(projection.request.filePath);
         const loka::platform::file::ReadResult result = loka::app::ReadFileImageBlob(
-            this->ctx_, resolved ? &handle : 0, projection.request.filePath, blob);
+            this->ctx_, file, blob);
         if (!mapReadResult(result, detailCode))
         {
           error.kind = SIMPLE_VIEWER_FLOW_ERROR_BLOB_LOAD;

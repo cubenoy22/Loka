@@ -4,7 +4,8 @@
 #include "CardFlowDescription.hpp"
 #include "JsNativeClass.hpp"
 #ifdef LOKA_RETRO68
-#include "ToolboxPlatformContext.hpp"
+#include "ToolboxFileChoice.hpp"
+#include "app/PlatformContext.hpp"
 #endif
 #include "app/nodes/AttributedText.hpp"
 #include <new>
@@ -383,14 +384,15 @@ namespace smirkycard
         if (name.empty() || name == "." || name == ".."
             || name.find_first_of("/\\:") != std::string::npos || name.find('\0') != std::string::npos)
           return JS_ThrowTypeError(ctx, "deliverChosenFile requires a flat filename");
-        const loka::file::File chosen(loka::core::String::Utf8(name.data(), name.size()));
+        loka::file::File chosen(loka::core::String::Utf8(name.data(), name.size()));
 #ifdef LOKA_RETRO68
         PlatformContext *platform = this->runtime_.nativeContext();
         loka::platform::file::FileHandle handle;
         if (!platform || !platform->openFile(loka::file::File::Application() << chosen, handle) || !handle.hasSpec)
           return JS_ThrowTypeError(ctx, "deliverChosenFile could not resolve file");
         // Match SimpleViewerScenarioDriver's stand-in for the dialog rail.
-        ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
+        if (!ToolboxCaptureChosenFile(handle.spec, chosen))
+          return JS_ThrowTypeError(ctx, "deliverChosenFile could not resolve file");
 #endif
         result = loka::app::FileChooserResult::File(chosen);
       }

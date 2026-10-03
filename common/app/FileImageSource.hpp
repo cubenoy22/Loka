@@ -7,27 +7,32 @@ namespace loka
 {
   namespace app
   {
-    /** Synchronous whole-file source shared by native image clients. The optional
-        resolved handle selects the native attempt; path explicitly selects the
-        fallback. Capacity
-        refusal is terminal. Output is committed only after a successful read. */
+    /** Resolve and read the original File. Refused and located sources never
+        retry display text as a path. Output commits only on a successful read. */
     inline loka::platform::file::ReadResult ReadFileImageBlob(PlatformContext *context,
-                                                              const loka::platform::file::FileHandle *resolved,
-                                                              const loka::core::String &path,
+                                                              const loka::file::File &file,
                                                               loka::core::resource::Blob &out)
     {
       using namespace loka::platform::file;
+      if (file.base() == loka::file::File::BASE_REFUSED)
+        return READ_NO_NATIVE_SPEC;
+      FileHandle handle;
+      const bool resolved = context && context->openFile(file, handle);
+      const bool located = !file.locator().empty();
+      if (located && !resolved)
+        return READ_NO_NATIVE_SPEC;
       loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
       const PlatformReadCapacity capacity(context);
       ReadResult result;
       if (resolved)
       {
-        result = ReadBytes(*resolved, blob.mutableBytes(), &capacity);
-        if (result != READ_OK && result != READ_CAPACITY_REFUSED)
-          result = ReadBytes(path, blob.mutableBytes(), &capacity);
+        result = ReadBytes(handle, blob.mutableBytes(), &capacity);
+        if (!located && result != READ_OK && result != READ_CAPACITY_REFUSED)
+          result = ReadBytes(file.base() == loka::file::File::BASE_APPLICATION
+              ? handle.displayPath : file.toString(), blob.mutableBytes(), &capacity);
       }
       else
-        result = ReadBytes(path, blob.mutableBytes(), &capacity);
+        result = ReadBytes(file.toString(), blob.mutableBytes(), &capacity);
       if (result == READ_OK)
       {
         blob.sealBytes();

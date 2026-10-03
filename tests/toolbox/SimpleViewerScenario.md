@@ -29,9 +29,9 @@ there is no environment override. The final load is Bulb, replacing Sun.
 The test-access layer begins MainNode's existing ImageLoadSession and writes
 its chooser result inside a StateTrackerGuard, without showing a dialog.
 The driver resolves `File::Application() << File("Sun.pict")` (or `Bulb.pict`)
-through Process Manager and `FSMakeFSSpec`, registers the FSSpec with
-`ToolboxPlatformContext::registerChosenFileSpec`, and passes a `FileChooserResult`
-carrying the filename as its display path, just like the dialog. The production
+through Process Manager and `FSMakeFSSpec`, captures the FSSpec with
+`ToolboxCaptureChosenFile`, and passes a `FileChooserResult`
+carrying both its native locator and display-only filename, just like the dialog. The production
 chooser adapters, capacity check, data-fork read, decode and image commit run
 unchanged. Capture first waits until the session has released its Flow, then
 checks completed errors before considering the retained image. Success requires
@@ -96,9 +96,10 @@ Do not run `--update-golden` as part of this handoff.
 - The Finder needs **three** Tabs to land on the scenario application when
   the PICT is staged beside it (`FINDER_TAB_COUNT=3` in the runner).
 - The chosen file goes through the dialog's own door: the driver resolves the
-  application-relative FSSpec, registers it with
-  `ToolboxPlatformContext::registerChosenFileSpec`, and hands the session a
-  `FileChooserResult` whose item carries the display path. A path-less
+  application-relative FSSpec and hands the session a `FileChooserResult`
+  whose item carries the display path. At the time of this measurement, a
+  separate chosen-spec table carried identity; #1063 PR 3 replaces that table
+  with `ToolboxCaptureChosenFile` and the File-owned locator. A path-less
   application-relative item is treated by the production projection as "no
   file selected" and cancels silently.
 - The session advances its Flow over later settled turns; the driver waits

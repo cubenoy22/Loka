@@ -6,6 +6,24 @@
 
 namespace
 {
+  void AppendDisplayScalar(std::string &utf8, unsigned long scalar)
+  {
+    // The Roman table contains only BMP scalars; ASCII uses the first branch.
+    if (scalar < 0x80)
+      utf8 += static_cast<char>(scalar);
+    else if (scalar < 0x800)
+    {
+      utf8 += static_cast<char>(0xC0 | (scalar >> 6));
+      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
+    }
+    else
+    {
+      utf8 += static_cast<char>(0xE0 | (scalar >> 12));
+      utf8 += static_cast<char>(0x80 | ((scalar >> 6) & 0x3F));
+      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
+    }
+  }
+
   // Validation mirrors strict HFS decoding in ToolboxHfsName.cpp; recovery is
   // deliberately different: the caller consumes only one byte on refusal.
   bool DecodeScalar(const char *utf8, std::size_t remaining,
@@ -146,21 +164,25 @@ bool ToolboxDecodeNative(const unsigned char *bytes, std::size_t length, loka::c
       ToolboxMacRomanDecode(bytes[i], scalar);
     else if (bytes[i] >= 0x80)
       return false;
-    // The Roman table contains only BMP scalars; ASCII uses the first branch.
-    if (scalar < 0x80)
-      utf8 += static_cast<char>(scalar);
-    else if (scalar < 0x800)
-    {
-      utf8 += static_cast<char>(0xC0 | (scalar >> 6));
-      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
-    }
-    else
-    {
-      utf8 += static_cast<char>(0xE0 | (scalar >> 12));
-      utf8 += static_cast<char>(0x80 | ((scalar >> 6) & 0x3F));
-      utf8 += static_cast<char>(0x80 | (scalar & 0x3F));
-    }
+    AppendDisplayScalar(utf8, scalar);
   }
   out = loka::core::String::Utf8(utf8.data(), utf8.size());
   return true;
+}
+
+loka::core::String ToolboxChosenFileDisplayName(const unsigned char *bytes, std::size_t length)
+{
+  assert(bytes || !length);
+  const bool roman = GetScriptManagerVariable(smSysScript) == smRoman;
+  std::string display;
+  for (std::size_t i = 0; i < length; ++i)
+  {
+    unsigned long scalar = bytes[i];
+    if (roman)
+      ToolboxMacRomanDecode(bytes[i], scalar);
+    else if (bytes[i] >= 0x80)
+      scalar = '?';
+    AppendDisplayScalar(display, scalar);
+  }
+  return loka::core::String::Utf8(display.data(), display.size());
 }

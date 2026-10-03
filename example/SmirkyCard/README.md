@@ -332,7 +332,9 @@ delivers a file result into the current card's own FILE seat; passing `null`
 instead of a filename delivers cancellation. A seat handle is also accepted.
 The operation runs outside production CardFlow execution and forces notification
 inside a tracker transaction. Classic resolves the file beside the application
-and registers its FSSpec through the same seam used by the native dialog.
+and captures its FSSpec into the delivered File through the same seam used by
+the native dialog. The decoded name is display-only; native reads use the
+captured locator.
 
 `c.test.imageFacts('picture')` (or an own IMAGE seat handle) returns the frozen
 plain object `{ empty, width, height }`, with zero dimensions when empty. It
