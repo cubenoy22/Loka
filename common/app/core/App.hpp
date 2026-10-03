@@ -66,6 +66,11 @@ public:
   }
 
 protected:
+  /** Rails that own projection state call this first in their destructor;
+      the base destructor's own call is the fallback for rails that own none.
+      Repeated calls derive their work from the remaining group and close queue. */
+  void retireComponents();
+
   /** Drain-internal reclaim step: deletes an already-detached Window. Only
       drainWindowClosures() and subclass observation hooks may call
       this; everything else must go through requestWindowClose(). */

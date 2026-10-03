@@ -338,6 +338,12 @@ namespace
           loka::dsl::testing::SceneTestAccess::platformController(*this->window.scene()));
       LOKA_VERIFY(this->facts.controller);
     }
+    ~InputFixture()
+    {
+      // The borrowed stack Window outlives its App; revoke its Scene first.
+      loka::dsl::testing::SceneTestAccess::unmount(*this->window.scene());
+      this->window.setApp(0);
+    }
     NSWindow *nativeWindow()
     {
       return (NSWindow *)loka::dsl::testing::MacWindowTestAccess::nativeWindow(this->window);

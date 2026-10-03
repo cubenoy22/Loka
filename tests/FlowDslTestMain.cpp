@@ -46,6 +46,7 @@
 #include "ApplicationFileTests.hpp"
 #ifdef _WIN32
 #include "Win32FocusTests.hpp"
+#include "Win32MenuAttachmentTests.hpp"
 #include "Win32RailMetricsTests.hpp"
 #include "Win32PropsReconciliationTests.hpp"
 #include "Win32ThreadModalScopeTests.hpp"

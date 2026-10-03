@@ -10,7 +10,7 @@ namespace toolbox_host
   ControlCalls controlCalls;
   std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<Draw> draws;
-  std::vector<std::string> pascalDraws, windowTitles, widthPayloads;
+  std::vector<std::string> pascalDraws, windowTitles, widthPayloads, measurePayloads;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
@@ -22,6 +22,7 @@ namespace toolbox_host
     draws.clear();
     pascalDraws.clear();
     widthPayloads.clear();
+    measurePayloads.clear();
     erases = widths = measures = fonts = metrics = textHits = regions = 0;
     failRegions = 0;
   }
@@ -89,8 +90,9 @@ void GetFontInfo(FontInfo *out)
   out->leading = 2;
   out->widMax = port->txSize / 3 + ((port->txFace & bold) ? 1 : 0);
 }
-void MeasureText(short count, const void *, void *charLocs)
+void MeasureText(short count, const void *bytes, void *charLocs)
 {
+  toolbox_host::measurePayloads.push_back(std::string(static_cast<const char *>(bytes), count));
   ++toolbox_host::measures;
   short *positions = static_cast<short *>(charLocs);
   for (int i = 0; i <= count; ++i)

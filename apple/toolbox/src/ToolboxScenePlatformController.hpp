@@ -71,6 +71,7 @@ public:
   virtual bool hasPendingSync() const;
   virtual void drainNativeRetirements();
   virtual void destroy();
+  virtual void releaseMenu();
   virtual void releaseNodeContexts(loka::app::scene::Node *node);
 
   /** Refresh existing projection ledgers after a retained props apply. */
