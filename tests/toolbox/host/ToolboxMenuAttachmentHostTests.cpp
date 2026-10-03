@@ -15,6 +15,7 @@ namespace toolbox_host
 {
   std::vector<std::string> menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<MenuHandle> installedMenus;
+  std::vector<ItemCmdCall> itemCmdCalls;
   void (*afterMenuSet)() = 0;
   unsigned beeps = 0;
   unsigned menuDraws = 0, menuClears = 0, menuDisposes = 0, menuValueWrites = 0;
@@ -27,6 +28,7 @@ namespace
 {
   void clearCalls()
   {
+    toolbox_host::itemCmdCalls.clear();
     toolbox_host::beeps = 0;
     toolbox_host::menuTitles.clear();
     toolbox_host::menuAppends.clear();
@@ -36,6 +38,7 @@ namespace
   }
   void noCalls()
   {
+    LOKA_VERIFY(toolbox_host::itemCmdCalls.empty());
     LOKA_VERIFY(toolbox_host::menuTitles.empty());
     LOKA_VERIFY(toolbox_host::menuAppends.empty());
     LOKA_VERIFY(toolbox_host::menuInserts.empty());
@@ -483,6 +486,84 @@ void testToolboxMenuProjectionDefersBackgroundDraws()
   LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
   LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
 }
+void testToolboxMenuShortcutProjectsItemCmd()
+{
+  ToolboxApp app;
+  MenuBarDefinition menu;
+  menu << (Menu("File") << MenuItem("Plain") << MenuSeparator()
+                       << MenuItem("Save").shortcut('S')
+                       << MenuItem("Lower").shortcut('a')
+                       << MenuItem("Empty").shortcut(0));
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 2);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].menu == toolbox_host::installedMenus[0]);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].item == 3);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].cmd == 'S');
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].menu == toolbox_host::installedMenus[0]);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].item == 4);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].cmd == 'A');
+}
+void testToolboxQuitDefaultsToCommandQ()
+{
+  ToolboxApp app;
+  MenuBarDefinition menu;
+  menu << (Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP)
+                       << MenuItem("Override").actionType(MENU_ACTION_QUIT_APP).shortcut('X')
+                       << MenuItem("Empty").actionType(MENU_ACTION_QUIT_APP).shortcut(0));
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 3);
+  for (std::size_t i = 0; i < 3; ++i)
+  {
+    LOKA_VERIFY(toolbox_host::itemCmdCalls[i].menu == toolbox_host::installedMenus[0]);
+    LOKA_VERIFY(toolbox_host::itemCmdCalls[i].item == static_cast<short>(i + 1));
+  }
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].cmd == 'Q');
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].cmd == 'X');
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[2].cmd == 'Q');
+}
+void testToolboxHierarchicalOpenerKeepsMarkerOverShortcut()
+{
+  ToolboxApp app;
+  MenuBarDefinition menu;
+  menu << (Menu("File") << (MenuItem("More").shortcut('K') << MenuItem("Child").shortcut('C')));
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus.size() == 2);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 2);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].menu == toolbox_host::installedMenus[0]);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].item == 1);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].cmd == 'C');
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].menu == toolbox_host::installedMenus[1]);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].item == 1);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[1].cmd == hMenuCmd);
+}
+void testToolboxShortcutChangeReprojectsThroughPartialRebuild()
+{
+  ToolboxApp app;
+  MenuBarDefinition first, changed;
+  first << (Menu("File") << MenuItem("Save").shortcut('S'))
+        << (Menu("Help") << MenuItem("Help").shortcut('H'));
+  changed << (Menu("File") << MenuItem("Save").shortcut('X'))
+          << (Menu("Help") << MenuItem("Help").shortcut('H'));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  MenuHandle file = toolbox_host::installedMenus[0], help = toolbox_host::installedMenus[1];
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuDisposes == 0);
+  LOKA_VERIFY(toolbox_host::menuClears == 0 && toolbox_host::menuInserts.empty());
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Save");
+  LOKA_VERIFY(toolbox_host::installedMenus.size() == 2);
+  LOKA_VERIFY(toolbox_host::installedMenus[0] == file && toolbox_host::installedMenus[1] == help);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 1);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].menu == file);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].item == 1);
+  LOKA_VERIFY(toolbox_host::itemCmdCalls[0].cmd == 'X');
+  clearCalls();
+  LOKA_VERIFY(!app.menuAttachment().project(&changed, 0, false));
+  noCalls();
+}
 int main(int argc, char **argv)
 {
   struct Test { const char *name; void (*run)(); };
@@ -490,6 +571,10 @@ int main(int argc, char **argv)
   const Test tests[] = {
     PIN(testToolboxMenuDoorFiltersRowsAndForwardsScene),
     PIN(testToolboxMenuProjectionDefersBackgroundDraws),
+    PIN(testToolboxShortcutChangeReprojectsThroughPartialRebuild),
+    PIN(testToolboxHierarchicalOpenerKeepsMarkerOverShortcut),
+    PIN(testToolboxQuitDefaultsToCommandQ),
+    PIN(testToolboxMenuShortcutProjectsItemCmd),
     PIN(testToolboxMenuAttachmentProjectsOnceForEqualBar),
     PIN(testToolboxMenuAttachmentSeesOpaqueMenuItemChange),
     PIN(testToolboxMenuAttachmentPartialRebuildFromBaseline),

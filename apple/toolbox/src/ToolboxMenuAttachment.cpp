@@ -197,6 +197,28 @@ void ToolboxMenuAttachment::resetMenuState()
   nextMenuId_ = 128;
 }
 
+// Deliberate platform-seam twin of MacMenuAttachment.mm:141 MenuShortcutForAction;
+// Win32's twin deliberately has no default key for Quit.
+static char MenuShortcutForAction(const loka::app::MenuItemDefinition *itemDef)
+{
+  if (itemDef->hasShortcut && itemDef->shortcutKey)
+  {
+    const char key = itemDef->shortcutKey;
+    return key >= 'a' && key <= 'z' ? static_cast<char>(key - 'a' + 'A') : key;
+  }
+  switch (itemDef->action)
+  {
+  case loka::app::MENU_ACTION_QUIT_APP:
+    return 'Q';
+  case loka::app::MENU_ACTION_ABOUT_APP:
+  case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
+  case loka::app::MENU_ACTION_REBUILD_MENU:
+  case loka::app::MENU_ACTION_NONE:
+    return 0;
+  }
+  return 0;
+}
+
 void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
                            MenuHandle menu,
                            const loka::app::MenuItemDefinition *itemsHead,
@@ -248,6 +270,7 @@ void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
         continue;
       }
       InsertMenu(subMenu, kInsertHierarchicalMenu);
+      // A declared shortcut is ignored: Classic uses the cmd field as the submenu marker.
       SetItemCmd(menu, itemIndex, hMenuCmd);
 #if defined(TARGET_API_MAC_CARBON) && TARGET_API_MAC_CARBON
       OSErr hierErr = SetMenuItemHierarchicalID(menu, itemIndex, subMenuId);
@@ -262,6 +285,9 @@ void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
       itemDef = itemDef->nextInComposition;
       continue;
     }
+    const char key = MenuShortcutForAction(itemDef);
+    if (key)
+      SetItemCmd(menu, itemIndex, key);
     ToolboxMenuAttachment::MenuCommand command;
     command.menuId = menuId;
     command.itemIndex = itemIndex;
