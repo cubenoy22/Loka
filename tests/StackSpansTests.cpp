@@ -60,16 +60,19 @@ void testStackSpansSelection()
 
 void testStackSpansAllocationRefusal()
 {
-  StackSpans spans;
-  loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
-  const bool built = spans.begin(100);
-  loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 0);
-  LOKA_VERIFY(!built);
-  LOKA_VERIFY(!spans.valid());
-  LOKA_VERIFY(spans.begin(100));
-  for (int i = 0; i < 100; ++i)
-    LOKA_VERIFY(spans.append(i, i + 1));
-  LOKA_VERIFY(spans.finish());
+  {
+    StackSpans spans;
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 1);
+    const bool built = spans.begin(100);
+    loka::core::testing::failLokaAllocRaw("TextLineBreaker", "Table", 0);
+    LOKA_VERIFY(!built);
+    LOKA_VERIFY(!spans.valid());
+    LOKA_VERIFY(spans.begin(100));
+    for (int i = 0; i < 100; ++i)
+      LOKA_VERIFY(spans.append(i, i + 1));
+    LOKA_VERIFY(spans.finish());
+  }
+  loka::core::testing::allowLokaAllocRaw();
 }
 
 void testStackSpansColumnCollection()
