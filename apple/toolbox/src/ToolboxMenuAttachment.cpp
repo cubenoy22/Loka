@@ -296,6 +296,10 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
 {
   if (!menuBar)
   {
+    // An absent offer with nothing installed is unchanged: the installed
+    // entries are the only record of what the native bar shows.
+    if (this->menuEntries_.empty())
+      return false;
     resetMenuState();
     InitMenus();
     this->app_.requestMenuBarDraw();

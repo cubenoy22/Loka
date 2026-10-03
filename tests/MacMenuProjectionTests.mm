@@ -352,6 +352,8 @@ void testMacMenuAttachmentCloneRefusalClearsBaseline()
   LOKA_VERIFY(app.menuAttachment().project(0, 0));
   LOKA_VERIFY([NSApp mainMenu] != before);
   [before release];
+  // Completion re-offers every tick: absent over absent is unchanged.
+  LOKA_VERIFY(!app.menuAttachment().project(0, 0));
 }
 
 void testMacMenuAttachmentDispatchMayDisconnect()

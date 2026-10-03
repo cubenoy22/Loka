@@ -307,6 +307,12 @@ void testToolboxMenuAttachmentSwitchesSourceAndClearsNullBar()
   LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
   LOKA_VERIFY(toolbox_host::menuDisposes == 2 && toolbox_host::menuClears == 1 && toolbox_host::menuDraws == 1);
   LOKA_VERIFY(toolbox_host::installedMenus.empty());
+  // Completion re-offers every turn: an absent bar over an empty projection
+  // must neither clear nor draw again (codex review of N2a).
+  clearCalls();
+  const int redrawsBefore = app.redraws;
+  LOKA_VERIFY(!app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(toolbox_host::menuClears == 0 && toolbox_host::menuDraws == 0 && app.redraws == redrawsBefore);
 }
 void testToolboxMenuAttachmentMissingEntryFallsBackWithPreparedClone()
 {

@@ -189,6 +189,8 @@ void testWin32MenuAttachmentProjectsOnceForEqualBar()
   LOKA_VERIFY(window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   LOKA_VERIFY(!GetMenu(window.hwnd()));
   verifyFrame(window, before);
+  // Completion re-offers every tail: absent over absent is unchanged.
+  LOKA_VERIFY(window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_UNCHANGED);
   // Equal offers after native recreation must rebuild, never reuse a dead HMENU.
   LOKA_VERIFY(window.menuAttachment().project(&changed, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   show(window, false);

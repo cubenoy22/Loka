@@ -59,13 +59,19 @@ namespace
         : BoundaryNodeFor<MenuRoot<Kind> >(props) {}
     virtual void composeNode(NodeComposition &c)
     {
-      if (Kind != 0)
+      MenuBarDefinition bar;
+      switch (Kind)
       {
-        MenuBarDefinition bar;
-        if (Kind == 1) bar << (Menu("View") << MenuItem("Zoom"));
-        else bar << (Menu("File") << MenuItem("Save"));
-        LOKA_VERIFY(c.menuBar(bar));
+      case 0:
+        return;
+      case 1:
+        bar << (Menu("View") << MenuItem("Zoom"));
+        break;
+      default:
+        bar << (Menu("File") << MenuItem("Save"));
+        break;
       }
+      LOKA_VERIFY(c.menuBar(bar));
     }
   };
   template <int Kind> NullWindow *addWindow(RecordingApp &app, NullPlatformContext &platform,
