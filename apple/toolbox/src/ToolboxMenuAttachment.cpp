@@ -1,0 +1,624 @@
+#include "ToolboxMenuAttachment.hpp"
+#include "ToolboxApp.hpp"
+#include "ToolboxWindow.hpp"
+#include "ToolboxScenePlatformController.hpp"
+#include "platform/ToolboxPascalText.hpp"
+#include <Devices.h>
+#include <Sound.h>
+
+namespace
+{
+  const unsigned char kSeparator[] = {1, '-'};
+  const unsigned char kPlaceholder[] = {1, ' '};
+}
+
+ToolboxMenuAttachment::ToolboxMenuAttachment(ToolboxApp &app)
+    : app_(app), nextMenuId_(128), applied_(), source_(0)
+{
+}
+
+ToolboxMenuAttachment::~ToolboxMenuAttachment()
+{
+  this->resetMenuState();
+}
+
+void ToolboxMenuAttachment::disconnect()
+{
+  this->clearMenuBindings();
+  this->applied_.reset();
+  this->source_ = 0;
+}
+
+void ToolboxMenuAttachment::releaseFrom(const loka::app::scene::Scene *scene)
+{
+  if (this->source_ == scene)
+    this->disconnect();
+}
+
+void ToolboxMenuAttachment::MenuEnabledChangedThunk(void *userData)
+{
+  ToolboxMenuAttachment::MenuBinding *binding = static_cast<ToolboxMenuAttachment::MenuBinding *>(userData);
+  if (!binding || !binding->menu || !binding->enabledState)
+    return;
+  bool enabled = binding->enabledState->get();
+  if (binding->invertEnabled)
+  {
+    enabled = !enabled;
+  }
+  if (enabled)
+  {
+    EnableItem(binding->menu, binding->itemIndex);
+  }
+  else
+  {
+    DisableItem(binding->menu, binding->itemIndex);
+  }
+  // Enable/DisableItem mutate app-owned menu data and are phase-free; the
+  // DrawMenuBar screen write is the app's to gate.
+  binding->app->noteMenuBarChangedFromBinding();
+}
+
+void ToolboxMenuAttachment::MenuCheckedChangedThunk(void *userData)
+{
+  ToolboxMenuAttachment::MenuBinding *binding = static_cast<ToolboxMenuAttachment::MenuBinding *>(userData);
+  if (!binding || !binding->menu || !binding->checkedState)
+    return;
+  CheckItem(binding->menu, binding->itemIndex, binding->checkedState->get());
+  binding->app->noteMenuBarChangedFromBinding();
+}
+
+void ToolboxMenuAttachment::ApplyMenuItemStates(ToolboxApp *app,
+                                MenuHandle menu,
+                                short itemIndex,
+                                const loka::app::MenuItemDefinition *itemDef,
+                                std::vector<ToolboxMenuAttachment::MenuBinding *> &bindings)
+{
+  if (!itemDef->isEnabledInitial())
+  {
+    DisableItem(menu, itemIndex);
+  }
+  CheckItem(menu, itemIndex, itemDef->isCheckedInitial());
+
+  loka::core::State<bool> *enabledState = itemDef->enabledBindingState();
+  loka::core::State<bool> *checkedState = itemDef->checkedBindingState();
+  if (!enabledState && !checkedState)
+  {
+    return;
+  }
+
+  ToolboxMenuAttachment::MenuBinding *binding = new ToolboxMenuAttachment::MenuBinding();
+  binding->app = app;
+  binding->menu = menu;
+  binding->itemIndex = itemIndex;
+  binding->enabledState = enabledState;
+  binding->invertEnabled = itemDef->enabledBindingInvert();
+  binding->checkedState = checkedState;
+  if (enabledState)
+  {
+    enabledState->deferBind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
+  }
+  if (checkedState)
+  {
+    checkedState->deferBind(&ToolboxMenuAttachment::MenuCheckedChangedThunk, binding);
+  }
+  bindings.push_back(binding);
+}
+
+void ToolboxMenuAttachment::clearMenuBindings()
+{
+  for (size_t i = 0; i < bindings_.size(); ++i)
+  {
+    MenuBinding *binding = bindings_[i];
+    if (binding)
+    {
+      if (binding->enabledState)
+      {
+        binding->enabledState->deferUnbind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
+      }
+      if (binding->checkedState)
+      {
+        binding->checkedState->deferUnbind(&ToolboxMenuAttachment::MenuCheckedChangedThunk, binding);
+      }
+      binding->menu = 0;
+      binding->enabledState = 0;
+      binding->checkedState = 0;
+    }
+    delete binding;
+  }
+  bindings_.clear();
+  commands_.clear();
+}
+
+void ToolboxMenuAttachment::clearMenuBindingsFor(MenuHandle menuHandle, short menuId)
+{
+  for (size_t i = 0; i < bindings_.size();)
+  {
+    MenuBinding *binding = bindings_[i];
+    if (binding && binding->menu == menuHandle)
+    {
+      if (binding->enabledState)
+      {
+        binding->enabledState->deferUnbind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
+      }
+      if (binding->checkedState)
+      {
+        binding->checkedState->deferUnbind(&ToolboxMenuAttachment::MenuCheckedChangedThunk, binding);
+      }
+      binding->menu = 0;
+      binding->enabledState = 0;
+      binding->checkedState = 0;
+      delete binding;
+      bindings_.erase(bindings_.begin() + i);
+      continue;
+    }
+    ++i;
+  }
+  for (size_t i = 0; i < commands_.size();)
+  {
+    if (commands_[i].menuId == menuId)
+    {
+      commands_.erase(commands_.begin() + i);
+      continue;
+    }
+    ++i;
+  }
+}
+
+void ToolboxMenuAttachment::disposeMenuEntries()
+{
+  for (size_t i = 0; i < menuEntries_.size(); ++i)
+  {
+    if (menuEntries_[i].menu)
+    {
+      DisposeMenu(menuEntries_[i].menu);
+    }
+  }
+  menuEntries_.clear();
+}
+
+void ToolboxMenuAttachment::disposeHierarchicalMenus()
+{
+  for (size_t i = 0; i < hierarchicalMenus_.size(); ++i)
+  {
+    if (hierarchicalMenus_[i])
+    {
+      DisposeMenu(hierarchicalMenus_[i]);
+    }
+  }
+  hierarchicalMenus_.clear();
+}
+
+void ToolboxMenuAttachment::resetMenuState()
+{
+  ClearMenuBar();
+  this->disconnect();
+  disposeHierarchicalMenus();
+  disposeMenuEntries();
+  nextMenuId_ = 128;
+}
+
+void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
+                           MenuHandle menu,
+                           const loka::app::MenuItemDefinition *itemsHead,
+                           short menuId,
+                           short &nextMenuId,
+                           std::vector<ToolboxMenuAttachment::MenuCommand> &commands,
+                           std::vector<ToolboxMenuAttachment::MenuBinding *> &bindings,
+                           std::vector<MenuHandle> &hierarchicalMenus)
+{
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
+  {
+    if (!itemDef)
+    {
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
+    if (!itemDef->isVisibleInitial())
+    {
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
+    if (itemDef->isSeparator)
+    {
+      AppendMenu(menu, kSeparator);
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
+    if (itemDef->action == loka::app::MENU_ACTION_SHOW_COLOR_PICKER)
+    {
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
+    Str255 title;
+    ToolboxEncodePascal(itemDef->title, title);
+    AppendMenu(menu, kPlaceholder);
+    short itemIndex = CountMenuItems(menu);
+    SetMenuItemText(menu, itemIndex, title);
+    if (itemDef->hasChildren())
+    {
+      short subMenuId = nextMenuId++;
+      MenuHandle subMenu = NewMenu(subMenuId, title);
+      BuildMenuItems(app, subMenu, itemDef->childrenHead(), subMenuId, nextMenuId, commands, bindings, hierarchicalMenus);
+      if (CountMenuItems(subMenu) == 0)
+      {
+        DisposeMenu(subMenu);
+        DeleteMenuItem(menu, itemIndex);
+        itemDef = itemDef->nextInComposition;
+        continue;
+      }
+      InsertMenu(subMenu, kInsertHierarchicalMenu);
+      SetItemCmd(menu, itemIndex, hMenuCmd);
+#if defined(TARGET_API_MAC_CARBON) && TARGET_API_MAC_CARBON
+      OSErr hierErr = SetMenuItemHierarchicalID(menu, itemIndex, subMenuId);
+      if (hierErr != noErr)
+      {
+        SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
+      }
+#else
+      SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
+#endif
+      hierarchicalMenus.push_back(subMenu);
+      itemDef = itemDef->nextInComposition;
+      continue;
+    }
+    ToolboxMenuAttachment::MenuCommand command;
+    command.menuId = menuId;
+    command.itemIndex = itemIndex;
+    command.action = itemDef->action;
+    command.emitter = itemDef->onClickState;
+    commands.push_back(command);
+    ApplyMenuItemStates(app, menu, itemIndex, itemDef, bindings);
+    itemDef = itemDef->nextInComposition;
+  }
+}
+
+bool ToolboxMenuAttachment::HasHierarchicalItems(const loka::app::MenuItemDefinition *itemsHead)
+{
+  const loka::app::MenuItemDefinition *itemDef = itemsHead;
+  while (itemDef)
+  {
+    if (itemDef->hasChildren())
+    {
+      return true;
+    }
+    if (HasHierarchicalItems(itemDef->childrenHead()))
+    {
+      return true;
+    }
+    itemDef = itemDef->nextInComposition;
+  }
+  return false;
+}
+
+bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
+                                    const loka::app::scene::Scene *source, bool forceFullRebuild)
+{
+  if (!menuBar)
+  {
+    resetMenuState();
+    InitMenus();
+    DrawMenuBar();
+    return true;
+  }
+
+  size_t menuCount = menuBar->menusCount();
+  const loka::app::MenuCompositionDiff diff =
+      loka::app::MenuCompositionDiff::DiffProjection(this->applied_.get(), *menuBar);
+  if (!diff.fullRebuild && !diff.hasChanged() && this->source_ == source)
+    return false;
+  forceFullRebuild = forceFullRebuild || this->source_ != source;
+  // The snapshot is a cache, not native truth. Capture refusal must not lose
+  // an acknowledged legacy refresh: still project, then clear the baseline so
+  // the next offer rebuilds fully. The source continues to own the live borrows.
+  loka::core::OwnedDef<loka::app::MenuBarDefinition> candidate(menuBar->clone());
+  bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
+  bool hasHierarchical = false;
+  loka::dsl::CompositionCursor<loka::app::MenuDefinition> hierarchyIt(menuBar->menusHead(), menuCount);
+  for (loka::app::MenuDefinition *menuDef = hierarchyIt.next(); menuDef; menuDef = hierarchyIt.next())
+  {
+    if (HasHierarchicalItems(menuDef->itemsHead()))
+    {
+      hasHierarchical = true;
+      break;
+    }
+  }
+  if (hasHierarchical || !hierarchicalMenus_.empty())
+  {
+    forceFullRebuild = true;
+    canPartial = false;
+  }
+  if (canPartial && menuEntries_.size() != menuCount)
+  {
+    canPartial = false;
+  }
+  // A partial pass can fall back once. Reuse the prepared snapshot so that
+  // no second fallible clone occurs after native items have been changed.
+  for (;;)
+  {
+    if (!canPartial)
+    {
+      resetMenuState();
+      InitMenus();
+    }
+
+    bool hasAppMenu = false;
+    loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuScan(menuBar->menusHead(), menuCount);
+    for (loka::app::MenuDefinition *menuDef = appMenuScan.next(); menuDef; menuDef = appMenuScan.next())
+    {
+      if (menuDef->isAppMenu)
+      {
+        hasAppMenu = true;
+        break;
+      }
+    }
+
+    MenuHandle appMenuHandle = 0;
+    if (hasAppMenu && !canPartial)
+    {
+      Str255 title;
+      title[0] = 1;
+      title[1] = 0x14;
+      MenuHandle menu = NewMenu(128, title);
+      std::vector<const loka::app::MenuItemDefinition *> aboutItems;
+      loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+      for (loka::app::MenuDefinition *menuDef = appMenuIt.next(); menuDef; menuDef = appMenuIt.next())
+      {
+        if (!menuDef->isAppMenu)
+          continue;
+        const loka::app::MenuItemDefinition *itemDef = menuDef->itemsHead();
+        while (itemDef)
+        {
+          if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
+          {
+            if (itemDef->isVisibleInitial())
+            {
+              aboutItems.push_back(itemDef);
+            }
+          }
+          itemDef = itemDef->nextInComposition;
+        }
+      }
+      if (!aboutItems.empty())
+      {
+        AppendResMenu(menu, 'DRVR');
+        const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
+        Str255 aboutTitle;
+        ToolboxEncodePascal(itemDef->title, aboutTitle);
+        InsertMenuItem(menu, kPlaceholder, 0);
+        SetMenuItemText(menu, 1, aboutTitle);
+        short aboutIndex = 1;
+        // Separator not needed; desk accessories already have one.
+        ToolboxMenuAttachment::MenuCommand command;
+        command.menuId = 128;
+        command.itemIndex = aboutIndex;
+        command.action = itemDef->action;
+        command.emitter = itemDef->onClickState;
+        commands_.push_back(command);
+        ApplyMenuItemStates(&this->app_, menu, aboutIndex, itemDef, bindings_);
+        InsertMenu(menu, 0);
+        appMenuHandle = menu;
+      }
+      nextMenuId_ = 129;
+    }
+
+    if (!canPartial)
+    {
+      menuEntries_.clear();
+      menuEntries_.resize(menuCount);
+      for (size_t i = 0; i < menuEntries_.size(); ++i)
+      {
+        menuEntries_[i].menu = 0;
+        menuEntries_[i].menuId = 0;
+        menuEntries_[i].isAppMenu = false;
+      }
+      size_t menuIndex = 0;
+      loka::dsl::CompositionCursor<loka::app::MenuDefinition> it(menuBar->menusHead(), menuCount);
+      for (loka::app::MenuDefinition *menuDef = it.next(); menuDef; menuDef = it.next(), ++menuIndex)
+      {
+        if (menuDef->isAppMenu)
+        {
+          menuEntries_[menuIndex].menu = appMenuHandle;
+          menuEntries_[menuIndex].menuId = appMenuHandle ? 128 : 0;
+          menuEntries_[menuIndex].isAppMenu = true;
+          menuEntries_[menuIndex].title = menuDef->title;
+          continue;
+        }
+        Str255 title;
+        ToolboxEncodePascal(menuDef->title, title);
+        if (title[0] == 0)
+        {
+          ToolboxEncodePascal(loka::core::String::Literal("Menu"), title);
+        }
+        short menuId = nextMenuId_;
+        MenuHandle menu = NewMenu(menuId, title);
+        BuildMenuItems(&this->app_, menu, menuDef->itemsHead(), menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
+        if (CountMenuItems(menu) == 0)
+        {
+          DisposeMenu(menu);
+          continue;
+        }
+        InsertMenu(menu, 0);
+        menuEntries_[menuIndex].menu = menu;
+        menuEntries_[menuIndex].menuId = menuId;
+        menuEntries_[menuIndex].isAppMenu = false;
+        menuEntries_[menuIndex].title = menuDef->title;
+        ++nextMenuId_;
+      }
+      DrawMenuBar();
+      this->applied_.reset(candidate.take());
+      this->source_ = source;
+      return true;
+    }
+
+    bool needsFullRebuild = false;
+    loka::dsl::CompositionCursor<loka::app::MenuCompositionDiff::ChangedIndex> diffIt(diff.changedHead(),
+                                                                                      diff.changedCount());
+    for (loka::app::MenuCompositionDiff::ChangedIndex *diffEntry = diffIt.next(); diffEntry; diffEntry = diffIt.next())
+    {
+      size_t i = diffEntry->value;
+      if (i >= menuCount)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      const loka::app::MenuDefinition *menuDef = menuBar->menuAt(i);
+      if (!menuDef)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      MenuEntry &entry = menuEntries_[i];
+      if (!entry.menu || entry.menuId == 0)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      if (menuDef->isAppMenu && !entry.isAppMenu)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      if (!menuDef->isAppMenu && entry.isAppMenu)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      if (!menuDef->title.equals(entry.title))
+      {
+        needsFullRebuild = true;
+        break;
+      }
+      clearMenuBindingsFor(entry.menu, entry.menuId);
+      while (CountMenuItems(entry.menu) > 0)
+      {
+        DeleteMenuItem(entry.menu, 1);
+      }
+      if (menuDef->isAppMenu)
+      {
+        std::vector<const loka::app::MenuItemDefinition *> aboutItems;
+        loka::dsl::CompositionCursor<loka::app::MenuDefinition> appMenuIt(menuBar->menusHead(), menuCount);
+        for (loka::app::MenuDefinition *appDef = appMenuIt.next(); appDef; appDef = appMenuIt.next())
+        {
+          if (!appDef->isAppMenu)
+            continue;
+          const loka::app::MenuItemDefinition *itemDef = appDef->itemsHead();
+          while (itemDef)
+          {
+            if (itemDef->action == loka::app::MENU_ACTION_ABOUT_APP)
+            {
+              if (itemDef->isVisibleInitial())
+              {
+                aboutItems.push_back(itemDef);
+              }
+            }
+            itemDef = itemDef->nextInComposition;
+          }
+        }
+        if (aboutItems.empty())
+        {
+          needsFullRebuild = true;
+          break;
+        }
+        AppendResMenu(entry.menu, 'DRVR');
+        const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
+        Str255 aboutTitle;
+        ToolboxEncodePascal(itemDef->title, aboutTitle);
+        InsertMenuItem(entry.menu, kPlaceholder, 0);
+        SetMenuItemText(entry.menu, 1, aboutTitle);
+        short aboutIndex = 1;
+        ToolboxMenuAttachment::MenuCommand command;
+        command.menuId = entry.menuId;
+        command.itemIndex = aboutIndex;
+        command.action = itemDef->action;
+        command.emitter = itemDef->onClickState;
+        commands_.push_back(command);
+        ApplyMenuItemStates(&this->app_, entry.menu, aboutIndex, itemDef, bindings_);
+        continue;
+      }
+      BuildMenuItems(
+          &this->app_,
+          entry.menu, menuDef->itemsHead(), entry.menuId, nextMenuId_, commands_, bindings_, hierarchicalMenus_);
+      if (CountMenuItems(entry.menu) == 0)
+      {
+        needsFullRebuild = true;
+        break;
+      }
+    }
+    if (needsFullRebuild)
+    {
+      canPartial = false;
+      continue;
+    }
+    DrawMenuBar();
+    this->applied_.reset(candidate.take());
+    this->source_ = source;
+    return true;
+  }
+}
+
+bool ToolboxMenuAttachment::dispatch(short menuId, short item)
+{
+  if (menuId == 0 || item == 0)
+    return false;
+  for (size_t i = 0; i < this->commands_.size(); ++i)
+  {
+    if (this->commands_[i].menuId != menuId || this->commands_[i].itemIndex != item)
+      continue;
+    // Emission may disconnect or replace this attachment. Keep the whole
+    // command on the stack; never revisit the table after calling user code.
+    const MenuCommand command = this->commands_[i];
+    switch (command.action)
+    {
+    case loka::app::MENU_ACTION_ABOUT_APP:
+    case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
+      SysBeep(1);
+      return true;
+    case loka::app::MENU_ACTION_QUIT_APP:
+      this->app_.quit();
+      return true;
+    case loka::app::MENU_ACTION_REBUILD_MENU:
+    case loka::app::MENU_ACTION_NONE:
+      break;
+    }
+    if (command.emitter)
+      command.emitter->emit();
+    if (command.action == loka::app::MENU_ACTION_REBUILD_MENU)
+      this->app_.requestMenuInvalidation();
+    return true;
+  }
+  return false;
+}
+
+ToolboxApp::~ToolboxApp()
+{
+  this->retireComponents();
+}
+
+void ToolboxApp::applyMenuBar(Window *activeWindow)
+{
+  const loka::app::MenuBarDefinition *bar = this->resolveMenuBar(activeWindow);
+  const bool force = activeWindow && activeWindow->menuBar();
+  if (this->menuAttachment_.project(bar, 0, force) && activeWindow && activeWindow->asToolboxWindow())
+    activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
+  this->clearMenuDiff();
+}
+
+void ToolboxApp::handleMenuSelection(short menuId, short item)
+{
+  if (!menuId || !item)
+    return;
+  if (!this->menuAttachment_.dispatch(menuId, item) && menuId == 128)
+  {
+    Str255 deskAccName;
+    GetMenuItemText(GetMenuHandle(menuId), item, deskAccName);
+    OpenDeskAcc(deskAccName);
+  }
+}
+
+void ToolboxScenePlatformController::releaseMenu()
+{
+  ToolboxApp *app = this->window_ ? this->window_->toolboxApp() : 0;
+  if (app)
+    app->menuAttachment().releaseFrom(this->window_->scene());
+}

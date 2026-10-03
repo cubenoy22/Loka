@@ -217,6 +217,28 @@ namespace loka
         changed.clear();
       }
 
+      /** Value copies own their changed-index chain, including non-elided C++98 returns. */
+      MenuCompositionDiff(const MenuCompositionDiff &other)
+          : loka::dsl::CompositionDiff(other), changed()
+      {
+        for (ChangedIndex *entry = other.changedHead(); entry; entry = entry->nextInComposition)
+          this->addChanged(entry->value);
+      }
+      MenuCompositionDiff &operator=(const MenuCompositionDiff &other)
+      {
+        if (this != &other)
+        {
+          MenuCompositionDiff copy(other);
+          copy.changed.detachTo(this->changed);
+          this->valid = copy.valid;
+          this->fullRebuild = copy.fullRebuild;
+        }
+        return *this;
+      }
+
+      /** Diff the installed projection; composition opacity never hides item changes. */
+      static MenuCompositionDiff DiffProjection(const MenuBarDefinition *applied, const MenuBarDefinition &offered);
+
       static bool Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out);
 
       void addChanged(size_t index)

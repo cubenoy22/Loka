@@ -149,7 +149,7 @@ MacWindow *MacWindow::fromRootView(void *rootView)
   return [(LokaWindowDelegate *)[[(NSView *)rootView window] delegate] owner];
 }
 
-void MacWindow::setApp(App *app)
+void MacWindow::setApp(MacApp *app)
 {
   app_ = app;
   if (app_)

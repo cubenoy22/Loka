@@ -6,6 +6,7 @@
 #include <new>
 #include "core/LokaAlloc.hpp"
 #include "MacWindow.hpp"
+#include "MacApp.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
 #include "app/core/App.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
@@ -53,10 +54,10 @@ namespace
     delete[] static_cast<unsigned char *>(storage);
   }
 
-  class DialogApp : public App
+  class DialogApp : public MacApp
   {
   public:
-    DialogApp() : App(0), closes(0) {}
+    DialogApp() : MacApp(0), closes(0) {}
     virtual void quit() {}
     void install(MacWindow *window)
     {

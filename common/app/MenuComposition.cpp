@@ -36,6 +36,28 @@ namespace loka
       return false;
     }
 
+    MenuCompositionDiff MenuCompositionDiff::DiffProjection(const MenuBarDefinition *applied,
+                                                          const MenuBarDefinition &offered)
+    {
+      MenuCompositionDiff result;
+      if (!applied || applied->menusCount() != offered.menusCount())
+      {
+        result.valid = true;
+        return result;
+      }
+      result.fullRebuild = false;
+      const MenuDefinition *before = applied->menusHead();
+      const MenuDefinition *after = offered.menusHead();
+      for (size_t index = 0; before && after;
+           before = before->nextInComposition, after = after->nextInComposition, ++index)
+      {
+        if (!before->equalsProjection(*after))
+          result.addChanged(index);
+      }
+      result.valid = true;
+      return result;
+    }
+
     MenuComposition::~MenuComposition()
     {
       // list_ cleans up automatically

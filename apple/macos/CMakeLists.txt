@@ -48,7 +48,7 @@ file(GLOB_RECURSE LOKA_MACOS_CORE_HEADERS CONFIGURE_DEPENDS
 set(LOKA_MACOS_CORE_SOURCES
   src/MacBootstrap.mm
   src/MacApp.mm
-  src/MacMenuProjection.mm
+  src/MacMenuAttachment.mm
   src/MacBuiltInSupport.mm
   src/MacDisplayAppearance.mm
   src/MacPlatformContext.mm
@@ -131,7 +131,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacProjection.mm
-    ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuProjection.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacMenuAttachment.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacBuiltInSupport.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacScenePlatformController.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/context/MacButtonContext.mm
