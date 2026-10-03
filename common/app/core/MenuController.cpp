@@ -3,11 +3,8 @@
 #include "app/core/Window.hpp"
 #include "app/MenuComposition.hpp"
 
-MenuController::MenuController(AppConfigurable *config, ApplyFn applyFn, void *applyUserData)
+MenuController::MenuController(AppConfigurable *config)
     : config_(config),
-      applyFn_(applyFn),
-      applyUserData_(applyUserData),
-      pendingApplyWindow_(0),
       menuBar_(0),
       diff_()
 {
@@ -24,15 +21,6 @@ bool MenuController::RefreshThunk(void *userData)
   return controller ? controller->refreshDefaultMenuBar() : false;
 }
 
-void MenuController::ApplyThunk(void *userData)
-{
-  MenuController *controller = static_cast<MenuController *>(userData);
-  if (controller)
-  {
-    controller->apply(controller->pendingApplyWindow_);
-  }
-}
-
 void MenuController::requestInvalidation()
 {
   if (config_)
@@ -41,23 +29,22 @@ void MenuController::requestInvalidation()
   }
 }
 
-bool MenuController::flushInvalidation(Window *activeWindow)
+bool MenuController::flushInvalidation()
 {
   if (!config_)
   {
     return false;
   }
-  pendingApplyWindow_ = activeWindow;
-  return config_->menuRefresh().run(&MenuController::RefreshThunk, &MenuController::ApplyThunk, this);
+  return config_->menuRefresh().run(&MenuController::RefreshThunk, 0, this);
 }
 
-void MenuController::invalidate(Window *activeWindow)
+void MenuController::invalidate()
 {
   this->requestInvalidation();
-  this->flushInvalidation(activeWindow);
+  this->flushInvalidation();
 }
 
-void MenuController::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar, Window *activeWindow)
+void MenuController::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
 {
   if (menuBar)
   {
@@ -72,7 +59,6 @@ void MenuController::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuB
   {
     menuBar_.reset();
   }
-  this->apply(activeWindow);
 }
 
 const loka::app::MenuBarDefinition *MenuController::defaultMenuBar() const
@@ -210,12 +196,4 @@ const loka::app::MenuCompositionDiff &MenuController::diff() const
 void MenuController::clearDiff()
 {
   diff_.clear();
-}
-
-void MenuController::apply(Window *activeWindow)
-{
-  if (applyFn_)
-  {
-    applyFn_(applyUserData_, activeWindow);
-  }
 }

@@ -9,19 +9,40 @@
 #include "app/core/Window.hpp"
 #include "app/scene/projection/PlatformController.hpp"
 #include "ToolboxMenuAttachment.hpp"
+#include "ToolboxActivationPhase.hpp"
+#include "Menus.h"
 
 class ToolboxApp : public App
 {
 public:
-  explicit ToolboxApp(AppConfigurable *config = 0) : App(config), menuAttachment_(*this), redraws(0), quits(0) {}
+  explicit ToolboxApp(AppConfigurable *config = 0) : App(config), menuAttachment_(*this), phase_(ACTIVATION_FOREGROUND), deferred_(false), redraws(0), quits(0) {}
   virtual ~ToolboxApp();
-  virtual void applyMenuBar(Window *window);
+  virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source);
+  const loka::app::MenuBarDefinition *resolveForTest() { return this->resolveMenuBar(0); }
   void handleMenuSelection(short menuId, short item);
   ToolboxMenuAttachment &menuAttachment() { return this->menuAttachment_; }
-  void noteMenuBarChangedFromBinding() { ++this->redraws; }
+  void requestMenuBarDraw()
+  {
+    ++this->redraws;
+    if (this->phase_ == ACTIVATION_FOREGROUND) DrawMenuBar();
+    else this->deferred_ = true;
+  }
+  void phase(ActivationPhase phase)
+  {
+    this->phase_ = phase;
+    if (phase == ACTIVATION_FOREGROUND && this->deferred_)
+    {
+      DrawMenuBar();
+      this->deferred_ = false;
+    }
+  }
+  bool drawOwed() const { return this->deferred_; }
   virtual void quit() { ++this->quits; }
 private:
   ToolboxMenuAttachment menuAttachment_;
+  ActivationPhase phase_;
+  bool deferred_;
 public:
   int redraws, quits;
 };

@@ -593,6 +593,11 @@ void ToolboxWindow::draw()
   GetPort(&oldPort);
   SetPort(window_);
 
+  // This draw repaints the whole window, so an OS update already pending
+  // would repaint it again (#1104). Validate before the walk, never after it:
+  // whatever the OS invalidates during the walk (a modal closing inside it)
+  // stays pending.
+  ValidRect(&window_->portRect);
   EraseRect(&window_->portRect);
   if (scenePlatformController_)
   {

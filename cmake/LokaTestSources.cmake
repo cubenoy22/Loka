@@ -72,6 +72,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/DefinitionCloneTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NodeMatchTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneOwnershipTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/MenuCompletionTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneMenuBarTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/SceneFocusTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/FocusPublisherTests.cpp
