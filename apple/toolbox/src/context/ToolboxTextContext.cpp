@@ -7,9 +7,7 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
-#include "platform/StringUTF8.hpp"
 #include <cstring>
-#include <string>
 
 namespace
 {
@@ -25,24 +23,24 @@ namespace
   }
 } // namespace
 
-/** Immutable completed plain-text break. Extent owns the payload; construction
+/** Immutable completed plain-text break. Extent owns native ranges; construction
     counts and fills through the same walk, using TextLineBreaker's fallible table. */
 class ToolboxPlainTextLines
 {
 public:
   static loka::core::Managed<ToolboxPlainTextLines> Build(
-      const loka::core::String &value, short width, short pitch, loka::app::TextWrap wrap,
+      const ToolboxNativeText &native, short width, short pitch, loka::app::TextWrap wrap,
       const ToolboxTextMeasureScope &measure)
   {
     ToolboxPlainTextLines *lines = loka::core::LokaNew<ToolboxPlainTextLines>(Site());
     if (!lines)
       return loka::core::Managed<ToolboxPlainTextLines>();
     std::size_t count = 0;
-    if (pitch <= 0 || !measure.valid() || !loka::platform::CollectUtf8(value, lines->bytes_)
-        || !lines->walk(width, wrap, false, count)
+    if (pitch <= 0 || !measure.valid() || !native.valid()
+        || !lines->walk(native, width, wrap, false, count)
         || count > static_cast<std::size_t>(SHRT_MAX / pitch)
         || !lines->ranges_.allocate(count)
-        || !lines->walk(width, wrap, true, count))
+        || !lines->walk(native, width, wrap, true, count))
     {
       Release(lines, 0);
       return loka::core::Managed<ToolboxPlainTextLines>();
@@ -58,26 +56,24 @@ public:
   {
     return static_cast<short>(this->ranges_.size() * this->pitch_);
   }
-  void draw(short x, short baseline, short availableWidth, const loka::app::BlockStyle &block) const
+  void draw(const ToolboxNativeText &native, short x, short baseline, short availableWidth, const loka::app::BlockStyle &block) const
   {
     for (std::size_t i = 0; i < this->ranges_.size(); ++i)
     {
       const Range &range = this->ranges_[i];
       Str255 text;
-      text[0] = static_cast<unsigned char>(range.end - range.start);
-      if (text[0])
-        std::memcpy(text + 1, this->bytes_.data() + range.start, text[0]);
+      native.copyPascal(range.start, range.end, text);
       const int y = baseline + static_cast<int>(i) * this->pitch_;
       DrawPascalAt(x, static_cast<short>(y > SHRT_MAX ? SHRT_MAX : y), text, availableWidth, block);
     }
   }
 
 private:
+  /** Native byte endpoints into the context-owned projection. */
   struct Range
   {
     std::size_t start, end;
   };
-  std::string bytes_;
   loka::app::detail::TextMeasureTable<Range> ranges_;
   short pitch_;
   static loka::core::LokaAllocationSite Site()
@@ -100,27 +96,25 @@ private:
     ++count;
     return true;
   }
-  bool walk(short maxWidth, loka::app::TextWrap wrap, bool fill, std::size_t &count)
+  bool walk(const ToolboxNativeText &native, short maxWidth, loka::app::TextWrap wrap, bool fill, std::size_t &count)
   {
     count = 0;
     std::size_t start = 0, wordStart = 0;
-    for (std::size_t i = 0; i < this->bytes_.size();)
+    for (std::size_t i = 0; i < native.size();)
     {
-      const std::size_t cpStart = i++;
-      while (i < this->bytes_.size() && (static_cast<unsigned char>(this->bytes_[i]) & 0xC0u) == 0x80u)
-        ++i;
-      if (i - cpStart == 1 && (this->bytes_[cpStart] == '\n' || this->bytes_[cpStart] == '\r'))
+      const std::size_t cpStart = i;
+      i = native.next(i);
+      if (i - cpStart == 1 && (native.data()[cpStart] == '\n' || native.data()[cpStart] == '\r'))
       {
         if (!this->append(start, cpStart, fill, count))
           return false;
         start = wordStart = i;
         continue;
       }
-      Str255 candidate;
-      candidate[0] = static_cast<unsigned char>(i - start > 255 ? 255 : i - start);
-      std::memcpy(candidate + 1, this->bytes_.data() + start, candidate[0]);
-      const short width = StringWidth(candidate);
-      const bool space = this->bytes_[cpStart] == ' ' || this->bytes_[cpStart] == '\t';
+      // Rebase before narrowing: a later line may start beyond SHRT_MAX.
+      const short width = i - start <= 255
+          ? TextWidth(reinterpret_cast<const char *>(native.data() + start), 0, static_cast<short>(i - start)) : 0;
+      const bool space = native.data()[cpStart] == ' ' || native.data()[cpStart] == '\t';
       // Twin: TextLineBreaker::build keeps fitting spaces/tabs, moves the
       // following word intact, and force-breaks a word at an empty line.
       // This native walk additionally bounds every range to Str255 and keeps
@@ -140,7 +134,7 @@ private:
       if (space)
         wordStart = i;
     }
-    return this->append(start, this->bytes_.size(), fill, count);
+    return this->append(start, native.size(), fill, count);
   }
 };
 
@@ -168,62 +162,24 @@ namespace
 
   ToolboxTextNodeHandler gToolboxTextNodeHandler;
 
-  bool DrawStringAt(short x, short y, const loka::core::String &value,
-                    short availableWidth, const loka::app::BlockStyle &block)
+  /** Capped native display, including the dots inside the 255-byte budget. */
+  void PlainDisplay(const ToolboxNativeText &native, short maxWidth,
+                    loka::app::TextTruncation truncation, Str255 out)
   {
-    Str255 text;
-    if (!ToolboxBuildLegacyTextPascal(value, text))
+    native.copyPascal(0, native.cappedEnd(255), out);
+    if (maxWidth <= 0 || truncation != loka::app::TEXT_TRUNCATION_ELLIPSIS
+        || StringWidth(out) <= maxWidth)
+      return;
+    std::size_t end = native.cappedEnd(252);
+    for (;;)
     {
-      return false;
+      native.copyPascal(0, end, out);
+      std::memcpy(out + 1 + out[0], "...", 3);
+      out[0] = static_cast<unsigned char>(out[0] + 3);
+      if (!end || StringWidth(out) <= maxWidth)
+        return;
+      end = native.previous(end);
     }
-    DrawPascalAt(x, y, text, availableWidth, block);
-    return true;
-  }
-
-  std::string TruncateWithEllipsis(const loka::core::String &value, short maxWidth,
-                                   const ToolboxTextMeasureScope &measure)
-  {
-    if (maxWidth <= 0)
-    {
-      return std::string();
-    }
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      return std::string();
-    }
-    if (measure.measureLegacyText(value) <= maxWidth)
-    {
-      return utf8;
-    }
-
-    const short ellipsisWidth = measure.measureLegacyText(loka::core::String::Literal("..."));
-    if (ellipsisWidth >= maxWidth)
-    {
-      return std::string("...");
-    }
-
-    std::string prefix = utf8;
-    while (!prefix.empty())
-    {
-      std::string candidate = prefix + "...";
-      if (measure.measureLegacyText(loka::core::String(candidate)) <= maxWidth)
-      {
-        return candidate;
-      }
-      // Remove one UTF-8 code point from the tail.
-      std::size_t pos = prefix.size();
-      if (pos == 0)
-      {
-        break;
-      }
-      do
-      {
-        --pos;
-      } while (pos > 0 && (static_cast<unsigned char>(prefix[pos]) & 0xC0u) == 0x80u);
-      prefix.erase(pos);
-    }
-    return std::string("...");
   }
 
   /** Completed text geometry; paint consumes the baseline captured by layout. */
@@ -242,7 +198,7 @@ namespace
       first baseline; ellipsis keeps the legacy terminal baseline. */
   bool ResolveTextGeometry(const loka::app::TextStyle &style,
                                    const loka::app::scene::LayoutState &state,
-                                   const loka::core::String &value,
+                                   const ToolboxNativeText &native,
                                    loka::app::TextWrap wrap,
                                    loka::app::TextTruncation truncation,
                                    const ToolboxTextMeasureScope &measure, TextGeometry &geometry)
@@ -267,7 +223,7 @@ namespace
     }
     if (wraps)
     {
-      geometry.lines = ToolboxPlainTextLines::Build(value, state.width, geometry.linePitch, wrap, measure);
+      geometry.lines = ToolboxPlainTextLines::Build(native, state.width, geometry.linePitch, wrap, measure);
       if (!geometry.lines.isValid())
         return false;
       const int extra = geometry.lines->height() - (style.hasFontSize_ ? geometry.linePitch : state.lineHeight);
@@ -330,6 +286,7 @@ void ToolboxTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previ
 
 void ToolboxTextContext::clearMeasurement()
 {
+  this->projection_.clear();
   this->measurement_ = loka::app::MeasurementResult<Constraint, Extent>();
   this->presented_.invalidate();
   SetRect(&this->rect_, 0, 0, 0, 0);
@@ -356,20 +313,48 @@ void ToolboxTextContext::updateRect(const Rect &rect, short textX, short textY)
   textY_ = textY;
 }
 
-short ToolboxTextContext::visibleWidth() const
+bool ToolboxTextContext::reconcileProjection()
 {
-  if (!this->text_ || !this->node_ || !this->controller())
+  if (!this->text_ || this->deliveredFact() == loka::app::scene::NODE_FACT_RETIRED)
   {
-    return 0;
+    this->clearMeasurement();
+    return false;
   }
+  const loka::core::String &value = this->text_->get();
+  if (this->projection_.matches(value))
+    return true;
+  // Geometry ranges index the old bytes; paint history stays, because it
+  // records the logical value last painted and drives exact damage (#518).
+  this->measurement_ = loka::app::MeasurementResult<Constraint, Extent>();
+  if (!this->projection_.build(value))
+  {
+    // Revoke readiness and history but keep placement: the scene's
+    // non-wrapped text-change and redrawTextHit paths only measure and
+    // repaint, so a later successful build must still have a rect to paint.
+    this->projection_.clear();
+    this->presented_.invalidate();
+    return false;
+  }
+  return true;
+}
+
+short ToolboxTextContext::visibleWidth()
+{
+  if (!this->reconcileProjection() || !this->node_ || !this->controller())
+    return 0;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
-  short width = measure.measureLegacyText(this->text_->get());
+  if (!measure.valid())
+  {
+    this->clearMeasurement();
+    return 0;
+  }
+  Str255 text;
+  PlainDisplay(this->projection_, this->maxWidth_, this->truncationMode_, text);
+  short width = StringWidth(text);
   const short maxWidth = static_cast<short>(rect_.right - rect_.left);
   if (maxWidth > 0 && width > maxWidth)
-  {
     width = maxWidth;
-  }
   return width;
 }
 
@@ -381,6 +366,8 @@ void ToolboxTextContext::paint(bool erase)
   // owes no pixels, so no port switch and no clip regions.
   if (EmptyRect(&this->paintRect_))
     return;
+  if (!this->reconcileProjection())
+    return;
   const ToolboxTextFontDescriptor descriptor(this->node_->props.resolvedTextStyle());
   ToolboxTextMeasureScope measure(*this->controller(), descriptor);
   ToolboxPaintClip clip(this->paintRect_);
@@ -391,39 +378,28 @@ void ToolboxTextContext::paint(bool erase)
   this->presented_.invalidate();
   if (!this->text_)
     return;
-  if (!clip.isActive())
+  if (!measure.valid())
   {
-    // Classic low-memory fallback: keep the caller's clip and still draw.
-    // No complete clip coverage was established, so history stays unknown.
-    const Extent &extent = this->measurement_.extent();
-    if (extent.lines.isValid() && this->truncationMode_ != loka::app::TEXT_TRUNCATION_ELLIPSIS)
-      extent.lines->draw(this->textX_, this->textY_, this->maxWidth_, this->node_->props.blockStyle_);
-    else
-      DrawStringAt(this->textX_, this->textY_, this->text_->get(),
-                   this->maxWidth_, this->node_->props.blockStyle_);
+    this->clearMeasurement();
     return;
   }
-  if (erase)
+  if (erase && clip.isActive())
     EraseRect(&this->paintRect_);
   bool painted = false;
-  if (this->maxWidth_ > 0 && this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
+  if (this->truncationMode_ != loka::app::TEXT_TRUNCATION_ELLIPSIS
+      && this->measurement_.extent().lines.isValid())
   {
-    const std::string truncated = TruncateWithEllipsis(
-        this->text_->get(), this->maxWidth_, measure);
-    DrawStringAt(this->textX_, this->textY_, loka::core::String(truncated),
-                 this->maxWidth_, this->node_->props.blockStyle_);
-    // The legacy truncator cannot report conversion refusal, so it cannot
-    // establish a completed value. Keep its answer conservative.
-  }
-  else if (this->measurement_.extent().lines.isValid())
-  {
-    this->measurement_.extent().lines->draw(this->textX_, this->textY_, this->maxWidth_, this->node_->props.blockStyle_);
+    this->measurement_.extent().lines->draw(this->projection_, this->textX_, this->textY_,
+        this->maxWidth_, this->node_->props.blockStyle_);
     painted = true;
   }
-  else
+  else if (this->wrapMode_ == loka::app::TEXT_WRAP_NONE || this->maxWidth_ <= 0
+           || this->truncationMode_ == loka::app::TEXT_TRUNCATION_ELLIPSIS)
   {
-    painted = DrawStringAt(this->textX_, this->textY_, this->text_->get(),
-                 this->maxWidth_, this->node_->props.blockStyle_);
+    Str255 text;
+    PlainDisplay(this->projection_, this->maxWidth_, this->truncationMode_, text);
+    DrawPascalAt(this->textX_, this->textY_, text, this->maxWidth_, this->node_->props.blockStyle_);
+    painted = true;
   }
   if (painted && completes)
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
@@ -463,7 +439,11 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     this->clearMeasurement();
     return 0;
   }
-  const loka::core::String &value = node_->props.text_->get();
+  if (!this->reconcileProjection())
+  {
+    controller->refuseTextMeasurement(this->node_, state);
+    return 0;
+  }
   const Constraint constraint(state.width, state.lineHeight);
   if (state.inputs != loka::app::scene::NODE_DIRTY_NONE || !this->measurement_.reusable(constraint))
   {
@@ -471,15 +451,15 @@ short ToolboxTextContext::layout(loka::app::scene::IPlatformController *controll
     const ToolboxTextFontDescriptor descriptor(style);
     ToolboxTextMeasureScope measure(*toolbox, descriptor);
     TextGeometry geometry;
-    short measuredWidth = 0;
-    if (!ResolveTextGeometry(style, state, value, this->wrapMode_, this->truncationMode_, measure, geometry)
-        || !measure.measureLegacyText(value, measuredWidth))
+    if (!ResolveTextGeometry(style, state, this->projection_, this->wrapMode_, this->truncationMode_, measure, geometry))
     {
       controller->refuseTextMeasurement(this->node_, state);
       this->clearMeasurement();
       return 0;
     }
-    Extent extent(geometry.height, geometry.baselineOffset, measuredWidth);
+    Str255 text;
+    PlainDisplay(this->projection_, state.width, this->truncationMode_, text);
+    Extent extent(geometry.height, geometry.baselineOffset, StringWidth(text));
     extent.lines = geometry.lines;
     this->measurement_.commit(constraint, extent);
   }

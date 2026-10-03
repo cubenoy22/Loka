@@ -40,9 +40,6 @@ private:
   loka::app::TextStyle style_;
 };
 
-/** Raw-byte plain Text projection, deleted by T1b (#1076). */
-bool ToolboxBuildLegacyTextPascal(const loka::core::String &value, Str255 text);
-
 /** Window-bound text measurement and painting transaction.
 
     The controller supplies the window owner. The scope restores both the
@@ -64,9 +61,6 @@ public:
   short measure(const loka::core::String &value) const;
   /** Refuses absent ports and failed conversion; zero width can be success. */
   bool measure(const loka::core::String &value, short &width) const;
-  /** Raw-byte plain Text measurement, deleted by T1b (#1076). */
-  short measureLegacyText(const loka::core::String &value) const;
-  bool measureLegacyText(const loka::core::String &value, short &width) const;
   bool valid() const { return this->measurePort_ != 0; }
   /** Select against the original port, never the preceding run. */
   void select(const ToolboxTextFontDescriptor &descriptor) const;
