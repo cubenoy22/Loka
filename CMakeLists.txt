@@ -438,35 +438,33 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   # Dedicated Classic file slice: never link common objects built without
   # LOKA_RETRO68, which changes File and FileHandle definitions.
+  set(LOKA_TOOLBOX_FILE_COMMON_SOURCES ${LOKA_COMMON_SOURCES})
+  list(FILTER LOKA_TOOLBOX_FILE_COMMON_SOURCES EXCLUDE REGEX "/platform/GenericString\\.cpp$")
   add_executable(LokaToolboxFileChoiceTests
     tests/toolbox/host/ToolboxFileChoiceHostTests.cpp
     tests/toolbox/host/ToolboxFileHost.cpp
     apple/toolbox/src/ToolboxFileChoice.cpp
+    apple/toolbox/src/platform/ToolboxPascalText.cpp
     apple/toolbox/src/ToolboxByteSource.cpp
     apple/toolbox/src/ToolboxString.cpp
     apple/toolbox/src/platform/ToolboxAppLocation.cpp
     apple/toolbox/src/platform/ToolboxFileIO.cpp
     apple/toolbox/src/platform/ToolboxHfsName.cpp
     apple/toolbox/src/platform/ToolboxMacRoman.cpp
-    common/core/String.cpp common/core/StringBuffer.cpp common/core/LokaAlloc.cpp
-    common/core/diag/LifecycleAudit.cpp
-    common/platform/StringUTF8.cpp
-    common/platform/file/GenericFileIO.cpp common/platform/file/FileRead.cpp)
+    ${LOKA_TOOLBOX_FILE_COMMON_SOURCES}
+    tests/TestingHooks.cpp
+    apple/toolbox/src/context/ToolboxOpenFileDialogContext.cpp)
+
   target_include_directories(LokaToolboxFileChoiceTests PRIVATE
-    tests/toolbox/host tests apple/toolbox/src common)
+    tests/toolbox/host tests apple/toolbox/src common tools example/SimpleViewer/src)
   target_compile_definitions(LokaToolboxFileChoiceTests PRIVATE LOKA_RETRO68=1)
-  target_compile_options(LokaToolboxFileChoiceTests PRIVATE -fno-exceptions -fno-rtti)
+  target_compile_options(LokaToolboxFileChoiceTests PRIVATE -fno-exceptions -fno-rtti
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxFileChoiceHost.hpp)
   loka_enable_warnings(LokaToolboxFileChoiceTests)
   set_target_properties(LokaToolboxFileChoiceTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_file_case tuple single application viewer smirky refused)
+  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity)
     add_test(NAME testToolboxFileChoice_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
   endforeach()
-  option(LOKA_TOOLBOX_FILE_CHOICE_RED_PINS "Register known-red #1063 acceptance evidence (PR 3 enables)" OFF)
-  if(LOKA_TOOLBOX_FILE_CHOICE_RED_PINS)
-    foreach(_file_case collision-ab collision-ba decoy)
-      add_test(NAME testToolboxFileChoice_RED_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
-    endforeach()
-  endif()
 
   add_executable(LokaToolboxBoxLayoutTests
     tests/toolbox/host/ToolboxBoxLayoutHostTests.cpp

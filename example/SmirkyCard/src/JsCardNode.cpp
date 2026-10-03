@@ -490,10 +490,7 @@ namespace smirkycard
     if (!platform)
       return JS_ThrowTypeError(ctx, "loadImage requires ScriptRuntime PlatformContext");
     loka::core::resource::Blob blob;
-    loka::platform::file::FileHandle handle;
-    const bool opened = platform->openFile(file, handle);
-    const loka::platform::file::ReadResult read = loka::app::ReadFileImageBlob(
-        platform, opened ? &handle : 0, opened ? handle.displayPath : file.toString(), blob);
+    const loka::platform::file::ReadResult read = loka::app::ReadFileImageBlob(platform, file, blob);
     loka::core::resource::Image image;
     const bool decoded = read == loka::platform::file::READ_OK
                          && loka::app::DecodeFileImageBlob(platform, blob, image);

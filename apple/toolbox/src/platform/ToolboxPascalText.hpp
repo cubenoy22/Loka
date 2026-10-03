@@ -54,4 +54,8 @@ bool ToolboxEncodePascal(const loka::core::String &value, Str255 out);
     Embedded NULs are preserved; allocation failure follows the String contract. */
 bool ToolboxDecodeNative(const unsigned char *bytes, std::size_t length, loka::core::String &out);
 
+/** Display-only chosen-name projection: Roman decodes every byte; other scripts
+    preserve ASCII and replace each high byte with question mark. Never identity. */
+loka::core::String ToolboxChosenFileDisplayName(const unsigned char *bytes, std::size_t length);
+
 #endif

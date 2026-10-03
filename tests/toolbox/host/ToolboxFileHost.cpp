@@ -32,6 +32,7 @@ namespace
   std::map<Address, std::string> files;
   std::map<short, Reader> readers;
   FSSpec application;
+  toolbox_file_host::ReadFailure readFailure = toolbox_file_host::NoFailure;
 }
 namespace toolbox_file_host
 {
@@ -50,6 +51,8 @@ namespace toolbox_file_host
     assert(spec.name[0] <= 63);
     files[Address(spec)] = contents;
   }
+  void Remove(const FSSpec &spec) { files.erase(Address(spec)); }
+  void FailRead(ReadFailure failure) { readFailure = failure; }
   void SetApplication(const FSSpec &spec) { application = spec; }
   std::size_t OpenCount() { return readers.size(); }
 }
@@ -71,6 +74,7 @@ OSErr FSpOpenDF(const FSSpec *spec, signed char permission, short *out)
 OSErr FSClose(short ref) { return readers.erase(ref) == 1 ? noErr : paramErr; }
 OSErr GetEOF(short ref, long *out)
 {
+  if (readFailure == toolbox_file_host::SizeFailure) return paramErr;
   const std::map<short, Reader>::const_iterator found = readers.find(ref);
   if (found == readers.end() || !out) return paramErr;
   *out = static_cast<long>(found->second.bytes.size());
@@ -85,6 +89,7 @@ OSErr SetFPos(short ref, short mode, long position)
 }
 OSErr FSRead(short ref, long *count, void *out)
 {
+  if (readFailure == toolbox_file_host::DataFailure) return paramErr;
   const std::map<short, Reader>::iterator found = readers.find(ref);
   if (found == readers.end() || !count || *count < 0 || *count > INT32_MAX || (!out && *count)) return paramErr;
   Reader &reader = found->second;
@@ -119,3 +124,10 @@ OSErr GetProcessInformation(const ProcessSerialNumber *, ProcessInfoRec *out)
 OSErr HGetVol(unsigned char *, short *, long *) { return paramErr; }
 OSErr HSetVol(const unsigned char *, short, long) { return paramErr; }
 OSErr FlushVol(const unsigned char *, short) { return paramErr; }
+
+namespace toolbox_host { long systemScript = 0; unsigned scriptReads = 0; }
+long GetScriptManagerVariable(short)
+{
+  ++toolbox_host::scriptReads;
+  return toolbox_host::systemScript;
+}

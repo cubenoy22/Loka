@@ -18,7 +18,7 @@ struct FSSpec
 };
 #pragma pack(pop)
 
-enum { noErr = 0, fnfErr = -43, eofErr = -39, paramErr = -50,
+enum { noErr = 0, memFullErr = -108, fnfErr = -43, eofErr = -39, paramErr = -50,
        fsRdPerm = 1, fsFromStart = 1 };
 
 // Production uses long out-parameters. Model their values, not the host ABI;

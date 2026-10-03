@@ -1,5 +1,6 @@
 #include "ToolboxFileHost.hpp"
 #include "ToolboxPlatformContext.hpp"
+#include "ToolboxFileChoice.hpp"
 #include "ToolboxByteSource.hpp"
 #include "app/FileImageSource.hpp"
 #include "support/TestVerify.hpp"
@@ -9,7 +10,19 @@
 #include <cstring>
 #include <unistd.h>
 
-// Only unrelated UI/heap virtuals are substituted. openFile and registration
+#include "Script.h"
+#include "StandardFile.h"
+#include "context/ToolboxOpenFileDialogContext.hpp"
+#include "platform/file/FileLocatorAccess.hpp"
+#include "platform/ToolboxPascalText.hpp"
+#include "platform/StringUTF8.hpp"
+#include "SimpleViewerFlowAdapters.hpp"
+#include "support/LokaAllocFailure.hpp"
+
+static StandardFileReply reply;
+void StandardGetFile(void *, short, void *, StandardFileReply *out) { *out = reply; }
+
+// Only unrelated UI/heap virtuals are substituted. openFile and capture
 // are linked from the same production translation unit as Classic builds.
 ToolboxPlatformContext::ToolboxPlatformContext() {}
 ToolboxPlatformContext::~ToolboxPlatformContext() {}
@@ -29,14 +42,23 @@ typedef char ClassicSpecSize[sizeof(FSSpec) == 70 ? 1 : -1];
 typedef char ClassicParentOffset[offsetof(FSSpec, parID) == 2 ? 1 : -1];
 typedef char ClassicNameOffset[offsetof(FSSpec, name) == 6 ? 1 : -1];
 
-// Dialog-equivalent input at its existing production registration door.
-// UI presentation and State delivery are not simulated by this fixture.
+// The production dialog consumes a fake Standard File reply and publishes
+// through its real NodeState door; retained choices outlive every temporary.
 static File Choose(const FSSpec &spec)
 {
-  const String display = String::Utf8(reinterpret_cast<const char *>(spec.name + 1), spec.name[0]);
-  File chosen(display);
-  chosen.setKind(File::KIND_FILE);
-  ToolboxPlatformContext::registerChosenFileSpec(display, spec);
+  typedef loka::app::FileChooserResult Result;
+  loka::core::MutableState<Result> storage;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&storage);
+  loka::app::scene::NodeState<Result> state(&storage, &tracker);
+  loka::app::OpenFileDialogNode node(loka::app::OpenFileDialogProps().result(state));
+  reply.sfGood = true;
+  reply.sfFile = spec;
+  ToolboxOpenFileDialogContext dialog(&node, 0);
+  dialog.presentIfNeeded();
+  LOKA_VERIFY(storage.get().kind == Result::RESULT_FILE);
+  const File chosen = storage.get().item;
+  tracker.removeState(&storage);
   return chosen;
 }
 static std::string Read(ToolboxPlatformContext &context, const File &file)
@@ -134,10 +156,11 @@ static void Application(const bool viewer, const bool smirky)
   }
   if (viewer || smirky)
   {
-    // Same resolve/register sequence as both scenario stand-ins. Their
+    // Same resolve/capture sequence as both scenario stand-ins. Their
     // controller/JS delivery is covered elsewhere, not compiled here.
-    ToolboxPlatformContext::registerChosenFileSpec(chosen.toString(), handle.spec);
-    LOKA_VERIFY(Read(context, chosen) == "application contents");
+    File captured;
+    LOKA_VERIFY(ToolboxCaptureChosenFile(handle.spec, captured));
+    LOKA_VERIFY(Read(context, captured) == "application contents");
   }
   LOKA_VERIFY(!context.openFile(File::Application(), handle));
   LOKA_VERIFY(!handle.hasSpec);
@@ -176,8 +199,37 @@ static void Decoy()
   std::vector<unsigned char> bytes;
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED);
   loka::core::resource::Blob blob;
-  const ReadResult result = loka::app::ReadFileImageBlob(&context, &handle, chosen.toString(), blob);
+  const ReadResult result = loka::app::ReadFileImageBlob(&context, chosen, blob);
   const std::string actual(blob.bytes().begin(), blob.bytes().end());
+  const FSSpec live = Spec(-7, 999, "Photo.PICT");
+  Put(live, "native");
+  FailRead(SizeFailure);
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, chosen, blob) == READ_NATIVE_SIZE_FAILED);
+  FailRead(DataFailure);
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, chosen, blob) == READ_NATIVE_READ_FAILED);
+  FailRead(NoFailure);
+  Remove(live);
+  File malformed;
+  const unsigned char bad[] = {1};
+  LOKA_VERIFY(FileLocatorAccess::capture(chosen.toString(), File::KIND_FILE, bad, sizeof(bad), malformed));
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, malformed, blob) == READ_NO_NATIVE_SPEC);
+  const File refused = chosen << File("child");
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, refused, blob) == READ_NO_NATIVE_SPEC);
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, File("Photo.PICT"), blob) == READ_OK);
+  LOKA_VERIFY(std::string(blob.bytes().begin(), blob.bytes().end()) == "decoy");
+  // Both failed native entries must stay terminal through the real viewer client.
+  const File failures[] = {chosen, malformed, refused};
+  for (unsigned i = 0; i < 3; ++i)
+  {
+    simpleviewer::ChooserProjection projection;
+    projection.request.setFilePath(String::Literal("Photo.PICT"));
+    projection.hasFileItem = true;
+    projection.fileItem = failures[i];
+    loka::dsl::FlowError error;
+    LOKA_VERIFY(simpleviewer::ProjectionToBlobAdapter(&context).run(projection, blob, error)
+                == loka::dsl::FLOW_STEP_FAILED);
+    LOKA_VERIFY(error.code == (i == 0 ? 1008 : 1007));
+  }
   LOKA_VERIFY(chdir(cwd) == 0);
   LOKA_VERIFY(std::remove(path.c_str()) == 0);
   LOKA_VERIFY(rmdir(directory) == 0);
@@ -185,6 +237,209 @@ static void Decoy()
       loka::app::FileImageReadResultName(result), actual.c_str());
   LOKA_VERIFY(result == READ_NATIVE_OPEN_FAILED);
   LOKA_VERIFY(actual != "decoy");
+}
+
+static void Canonical()
+{
+  ToolboxPlatformContext context;
+  FSSpec spec = Spec(-7, 0x76543210, std::string("A\0\x8e", 3));
+  const File first = Choose(spec);
+  const unsigned char expected[] = {0xff, 0xf9, 0x76, 0x54, 0x32, 0x10, 3, 'A', 0, 0x8e};
+  const unsigned char *bytes = 0;
+  std::size_t size = 0;
+  LOKA_VERIFY(FileLocatorAccess::query(first, bytes, size));
+  LOKA_VERIFY(size == sizeof(expected) && !std::memcmp(bytes, expected, size));
+  std::memset(spec.name + 4, 0xad, 60);
+  const File equal = Choose(spec);
+  LOKA_VERIFY(!(first != equal) && first != File(first.toString()));
+  Put(spec, "original");
+  FSSpec decoded;
+  std::memset(&decoded, 0xcd, sizeof(decoded));
+  LOKA_VERIFY(QueryToolboxSpec(equal, decoded));
+  LOKA_VERIFY(decoded.vRefNum == -7 && decoded.parID == 0x76543210);
+  LOKA_VERIFY(!std::memcmp(decoded.name, spec.name, 4));
+  for (unsigned i = 4; i < sizeof(decoded.name); ++i) LOKA_VERIFY(decoded.name[i] == 0);
+  spec.vRefNum = -8;
+  LOKA_VERIFY(first != Choose(spec));
+  spec.vRefNum = -7;
+  spec.parID++;
+  LOKA_VERIFY(first != Choose(spec));
+  spec = Spec(-32768, static_cast<int32_t>(-1985229329), "signed");
+  LOKA_VERIFY(QueryToolboxSpec(Choose(spec), decoded));
+  LOKA_VERIFY(decoded.vRefNum == spec.vRefNum && decoded.parID == spec.parID);
+  spec.name[1] = 'X';
+  LOKA_VERIFY(Read(context, first) == "original");
+}
+static void Validation()
+{
+  ToolboxPlatformContext context;
+  const File original = Choose(Spec(-1, 9, "kept"));
+  FSSpec before;
+  std::memset(&before, 0xa5, sizeof(before));
+  unsigned char bytes[72] = {};
+  const unsigned lengths[] = {0, 1, 6, 7, 8, 9, 70, 71, 72};
+  const unsigned names[] = {0, 1, 63, 64, 255};
+  for (unsigned i = 0; i < sizeof(lengths)/sizeof(lengths[0]); ++i)
+    for (unsigned j = 0; j < sizeof(names)/sizeof(names[0]); ++j)
+    {
+      bytes[6] = static_cast<unsigned char>(names[j]);
+      if (names[j] && names[j] <= 63 && lengths[i] == 7 + names[j]) continue;
+      File malformed;
+      LOKA_VERIFY(FileLocatorAccess::capture(String::Literal("kept"), File::KIND_FILE, bytes, lengths[i], malformed));
+      FSSpec out = before;
+      LOKA_VERIFY(!QueryToolboxSpec(malformed, out));
+      LOKA_VERIFY(!std::memcmp(&out, &before, sizeof(out)));
+      FileHandle handle;
+      LOKA_VERIFY(context.openFile(original, handle));
+      LOKA_VERIFY(!context.openFile(malformed, handle));
+      LOKA_VERIFY(!handle.hasSpec && handle.displayPath.empty());
+    }
+  FSSpec out = before;
+  LOKA_VERIFY(!QueryToolboxSpec(File("kept"), out));
+  LOKA_VERIFY(!std::memcmp(&out, &before, sizeof(out)));
+  FSSpec invalid = Spec(1, 2, "kept");
+  File kept = original;
+  invalid.name[0] = 0;
+  LOKA_VERIFY(!ToolboxCaptureChosenFile(invalid, kept) && !(kept != original));
+  invalid.name[0] = 64;
+  LOKA_VERIFY(!ToolboxCaptureChosenFile(invalid, kept) && !(kept != original));
+}
+static void Allocation()
+{
+  using namespace loka::core::testing;
+  const File original = Choose(Spec(-1, 9, "kept"));
+  const FSSpec spec = Spec(-2, 10, "new");
+  File out = original;
+  failLokaAllocRaw("FileLocator", "Payload", 1);
+  LOKA_VERIFY(!ToolboxCaptureChosenFile(spec, out));
+  LOKA_VERIFY(!(out != original) && lokaAllocRawLive() == 0);
+  allowLokaAllocRaw();
+  // Display construction also uses Managed; permit it, refuse locator adoption.
+  failLokaAllocRaw("Managed", "ControlBlock", 2);
+  LOKA_VERIFY(!ToolboxCaptureChosenFile(spec, out));
+  LOKA_VERIFY(!(out != original) && lokaAllocRawLive() == 0);
+  allowLokaAllocRaw();
+}
+static void Display()
+{
+  ToolboxPlatformContext context;
+  toolbox_host::systemScript = smRoman;
+  for (unsigned i = 128; i < 256; ++i)
+  {
+    const unsigned char byte = static_cast<unsigned char>(i);
+    String strict;
+    LOKA_VERIFY(ToolboxDecodeNative(&byte, 1, strict));
+    const unsigned reads = toolbox_host::scriptReads;
+    LOKA_VERIFY(ToolboxChosenFileDisplayName(&byte, 1).equals(strict));
+    LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+  }
+  LOKA_VERIFY(Choose(Spec(1, 2, "Caf\x8e")).toString().equals(String::Literal("Caf\xc3\xa9")));
+  toolbox_host::systemScript = 1;
+  const unsigned char sjis[] = {'A', 0, 0x83, 0x5c, 0x8e, 0x9a};
+  const std::string expected("A\0?\\??", 6);
+  std::string actual;
+  LOKA_VERIFY(loka::platform::CollectUtf8(ToolboxChosenFileDisplayName(sjis, sizeof(sjis)), actual));
+  LOKA_VERIFY(actual == expected);
+  String unchanged("kept");
+  LOKA_VERIFY(!ToolboxDecodeNative(sjis, sizeof(sjis), unchanged));
+  LOKA_VERIFY(unchanged.equals(String::Literal("kept")));
+  const FSSpec a = Spec(-1, 2, "\x80.PICT"), b = Spec(-1, 2, "\x81.PICT");
+  Put(a, "A"); Put(b, "B");
+  const File first = Choose(a), second = Choose(b);
+  LOKA_VERIFY(first.toString().equals(second.toString()) && first != second);
+  LOKA_VERIFY(Read(context, first) == "A" && Read(context, second) == "B");
+  toolbox_host::systemScript = smRoman;
+}
+static void CountDelivery(void *data) { ++*static_cast<unsigned *>(data); }
+static void Copies()
+{
+  using loka::app::FileChooserResult;
+  ToolboxPlatformContext context;
+  const FSSpec a = Spec(-1, 1, "same"), b = Spec(-1, 2, "same");
+  Put(a, "A"); Put(b, "B");
+  FileChooserResult saved;
+  { const File temporary = Choose(a); saved = FileChooserResult::File(temporary); }
+  LOKA_VERIFY(Read(context, saved.item) == "A");
+  loka::core::MutableState<FileChooserResult> storage(saved);
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&storage);
+  loka::app::scene::NodeState<FileChooserResult> state(&storage, &tracker);
+  unsigned notifications = 0;
+  storage.bind(&CountDelivery, &notifications, false);
+  state.set(FileChooserResult::File(Choose(b)), true);
+  LOKA_VERIFY(notifications == 1);
+  state.set(FileChooserResult::File(Choose(b)), true);
+  LOKA_VERIFY(notifications == 2);
+  LOKA_VERIFY(Read(context, state.get().item) == "B");
+  simpleviewer::ChooserContext chooser;
+  simpleviewer::ChooserProjection projection;
+  loka::dsl::FlowError error;
+  LOKA_VERIFY(simpleviewer::ChooserToContextAdapter().run(state.get(), chooser, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(Read(context, chooser.result.item) == "B");
+  LOKA_VERIFY(simpleviewer::ContextToProjectionAdapter().run(chooser, projection, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(Read(context, projection.fileItem) == "B");
+  loka::core::resource::Blob blob;
+  LOKA_VERIFY(simpleviewer::ProjectionToBlobAdapter(&context).run(projection, blob, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
+  LOKA_VERIFY(blob.bytes().size() == 1 && blob.bytes()[0] == 'B');
+  storage.unbind(&CountDelivery, &notifications);
+  tracker.removeState(&storage);
+}
+static void Validity()
+{
+  ToolboxPlatformContext context;
+  // Each event invalidates the captured address, not the immutable value.
+  // The fake models catalog facts after the operation, not OS event dispatch.
+  const char *events[] = {"eject", "delete", "rename", "move"};
+  for (unsigned event = 0; event < 4; ++event)
+  {
+    const FSSpec old = Spec(-7, 100, "Photo.PICT");
+    Put(old, "original");
+    const File saved = Choose(old);
+    Remove(old);
+    FSSpec replacement = old;
+    if (event == 0) replacement.vRefNum = -8;
+    if (event == 2) replacement.name[1] = 'X';
+    if (event == 3) replacement.parID = 101;
+    if (event != 1) Put(replacement, "moved");
+    loka::core::resource::Blob blob;
+    LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, saved, blob) == READ_NATIVE_OPEN_FAILED);
+    std::fprintf(stderr, "%s: old address failed terminally\n", events[event]);
+    if (event != 1) Remove(replacement);
+    // Replacement/reused volume reference is deliberately not object identity.
+    Put(old, "replacement");
+    LOKA_VERIFY(Read(context, saved) == "replacement");
+    Remove(old);
+  }
+}
+static void Dialog()
+{
+  using loka::app::FileChooserResult;
+  using namespace loka::core::testing;
+  ToolboxPlatformContext platform;
+  loka::core::MutableState<FileChooserResult> storage;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&storage);
+  loka::app::scene::NodeState<FileChooserResult> state(&storage, &tracker);
+  loka::app::OpenFileDialogNode node(loka::app::OpenFileDialogProps().result(state));
+  reply.sfGood = true;
+  reply.sfFile = Spec(-1, 10, "dialog");
+  Put(reply.sfFile, "dialog contents");
+  {
+    ToolboxOpenFileDialogContext dialog(&node, 0);
+    dialog.presentIfNeeded();
+  }
+  LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_FILE);
+  LOKA_VERIFY(Read(platform, storage.get().item) == "dialog contents");
+  state.set(FileChooserResult());
+  {
+    ToolboxOpenFileDialogContext dialog(&node, 0);
+    failLokaAllocRaw("FileLocator", "Payload", 1);
+    dialog.presentIfNeeded();
+    LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR);
+    LOKA_VERIFY(storage.get().item.locator().empty());
+    allowLokaAllocRaw();
+  }
+  tracker.removeState(&storage);
 }
 static void Refused()
 {
@@ -203,6 +458,13 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "collision-ba")) Collision(true);
   else if (!std::strcmp(argv[1], "decoy")) Decoy();
   else if (!std::strcmp(argv[1], "refused")) Refused();
+  else if (!std::strcmp(argv[1], "canonical")) Canonical();
+  else if (!std::strcmp(argv[1], "validation")) Validation();
+  else if (!std::strcmp(argv[1], "allocation")) Allocation();
+  else if (!std::strcmp(argv[1], "display")) Display();
+  else if (!std::strcmp(argv[1], "copies")) Copies();
+  else if (!std::strcmp(argv[1], "dialog")) Dialog();
+  else if (!std::strcmp(argv[1], "validity")) Validity();
   else return 2;
   LOKA_VERIFY(OpenCount() == 0);
   return 0;

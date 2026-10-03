@@ -8789,6 +8789,7 @@ void testSimpleViewerReadFailuresAndFallback()
   LOKA_VERIFY(accepted.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
   assert(output.size() == 4 && exact.queries_ == 1);
   projection.request.setFilePath(loka::core::String::Literal("_loka_missing_read_file_"));
+  projection.fileItem = loka::file::File::FromPath("_loka_missing_read_file_");
   LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
   assert(error.code == 1011 && output.size() == 0);
   LOKA_VERIFY(std::remove(path) == 0);

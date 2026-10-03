@@ -1,5 +1,5 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
-#include "ToolboxPlatformContext.hpp"
+#include "ToolboxFileChoice.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <StandardFile.h>
@@ -64,19 +64,6 @@ namespace
 struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNativeDialogSession
 {
 };
-
-static loka::core::String displayPathFromSpec(const FSSpec &spec)
-{
-  char name[64];
-  const unsigned char length = spec.name[0];
-  const unsigned char capped = length > 63 ? 63 : length;
-  for (unsigned char i = 0; i < capped; ++i)
-  {
-    name[i] = static_cast<char>(spec.name[i + 1]);
-  }
-  name[capped] = '\0';
-  return loka::core::String(std::string(name, capped));
-}
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner)
     : cursorOwner_(cursorOwner), node_(node),
@@ -160,13 +147,10 @@ void ToolboxOpenFileDialogContext::presentDialog()
 
   if (reply.sfGood)
   {
-    const loka::core::String displayPath = displayPathFromSpec(reply.sfFile);
-    loka::file::File file(displayPath);
-    file.setKind(loka::file::File::KIND_FILE);
-#if defined(LOKA_RETRO68)
-    ToolboxPlatformContext::registerChosenFileSpec(displayPath, reply.sfFile);
-#endif
-    result = loka::app::FileChooserResult::File(file);
+    loka::file::File file;
+    result = ToolboxCaptureChosenFile(reply.sfFile, file)
+        ? loka::app::FileChooserResult::File(file)
+        : loka::app::FileChooserResult::Error(memFullErr);
   }
 
   dialog = this->detachDialogIfActive(dialog);
