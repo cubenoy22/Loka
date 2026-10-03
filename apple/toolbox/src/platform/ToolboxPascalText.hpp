@@ -48,4 +48,10 @@ private:
     Collection/allocation refusal leaves out[0] zero. */
 bool ToolboxEncodePascal(const loka::core::String &value, Str255 out);
 
+/** Decode counted native bytes literally, sampling the system script once.
+    Roman accepts all bytes; other scripts accept ASCII only. Empty input
+    succeeds; null nonempty input refuses. Refusal leaves out untouched.
+    Embedded NULs are preserved; allocation failure follows the String contract. */
+bool ToolboxDecodeNative(const unsigned char *bytes, std::size_t length, loka::core::String &out);
+
 #endif
