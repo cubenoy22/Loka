@@ -221,9 +221,11 @@ void testMacMenuDoorSkipsProjectionDuringTracking()
   // Run the loop in the tracking mode AppKit uses while a menu is open; the
   // door must leave the tracked graph alone and the next completion re-offers.
   __block bool ran = false;
+  TestApp *door = &app;
+  MenuBarDefinition *offer = &changed;
   CFRunLoopPerformBlock(CFRunLoopGetCurrent(), (CFStringRef)NSEventTrackingRunLoopMode, ^{
     ran = true;
-    app.projectMenu(0, &changed, 0);
+    door->projectMenu(0, offer, 0);
   });
   [[NSRunLoop currentRunLoop] runMode:NSEventTrackingRunLoopMode beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.2]];
   LOKA_VERIFY(ran);
