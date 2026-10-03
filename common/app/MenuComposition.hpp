@@ -15,6 +15,12 @@ namespace loka
     struct MenuBarDefinition;
     class MenuComposition;
 
+    /** Clone base and replace equal-title menus in place with overlay menus;
+        append overlay-only menus in order. Null means both absent or clone
+        refusal; callers distinguish by input presence and keep installed truth.
+        The caller owns the result; borrowed item endpoints retain their owner. */
+    MenuBarDefinition *MergeMenuBars(const MenuBarDefinition *base, const MenuBarDefinition *overlay);
+
     /**
      * An AppConfigurable-owned menu composition scope. A MenuBoundary is owned
      * by and composed by exactly one AppConfigurable; its tracker may retain

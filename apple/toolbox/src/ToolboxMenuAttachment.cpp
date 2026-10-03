@@ -53,9 +53,9 @@ void ToolboxMenuAttachment::MenuEnabledChangedThunk(void *userData)
   {
     DisableItem(binding->menu, binding->itemIndex);
   }
-  // Enable/DisableItem mutate app-owned menu data and are phase-free; the
-  // DrawMenuBar screen write is the app's to gate.
-  binding->app->noteMenuBarChangedFromBinding();
+  // Enable/DisableItem mutate app-owned menu data and are phase-free.
+  // Projection and binding screen writes share the App's draw gate.
+  binding->app->requestMenuBarDraw();
 }
 
 void ToolboxMenuAttachment::MenuCheckedChangedThunk(void *userData)
@@ -64,7 +64,7 @@ void ToolboxMenuAttachment::MenuCheckedChangedThunk(void *userData)
   if (!binding || !binding->menu || !binding->checkedState)
     return;
   CheckItem(binding->menu, binding->itemIndex, binding->checkedState->get());
-  binding->app->noteMenuBarChangedFromBinding();
+  binding->app->requestMenuBarDraw();
 }
 
 void ToolboxMenuAttachment::ApplyMenuItemStates(ToolboxApp *app,
@@ -296,9 +296,13 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
 {
   if (!menuBar)
   {
+    // An absent offer with nothing installed is unchanged: the installed
+    // entries are the only record of what the native bar shows.
+    if (this->menuEntries_.empty())
+      return false;
     resetMenuState();
     InitMenus();
-    DrawMenuBar();
+    this->app_.requestMenuBarDraw();
     return true;
   }
 
@@ -445,7 +449,7 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
         menuEntries_[menuIndex].title = menuDef->title;
         ++nextMenuId_;
       }
-      DrawMenuBar();
+      this->app_.requestMenuBarDraw();
       this->applied_.reset(candidate.take());
       this->source_ = source;
       return true;
@@ -550,7 +554,7 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
       canPartial = false;
       continue;
     }
-    DrawMenuBar();
+    this->app_.requestMenuBarDraw();
     this->applied_.reset(candidate.take());
     this->source_ = source;
     return true;
@@ -595,11 +599,13 @@ ToolboxApp::~ToolboxApp()
   this->retireComponents();
 }
 
-void ToolboxApp::applyMenuBar(Window *activeWindow)
+void ToolboxApp::projectMenu(Window *activeWindow, const loka::app::MenuBarDefinition *bar,
+                             const loka::app::scene::Scene *source)
 {
-  const loka::app::MenuBarDefinition *bar = this->resolveMenuBar(activeWindow);
+  if (activeWindow != this->activeWindow())
+    return;
   const bool force = activeWindow && activeWindow->menuBar();
-  if (this->menuAttachment_.project(bar, 0, force) && activeWindow && activeWindow->asToolboxWindow())
+  if (this->menuAttachment_.project(bar, source, force) && activeWindow && activeWindow->asToolboxWindow())
     activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
   this->clearMenuDiff();
 }

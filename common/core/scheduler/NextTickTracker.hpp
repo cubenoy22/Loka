@@ -109,6 +109,7 @@ namespace loka
         maxIterations_ = maxIterations;
       }
 
+      /** Refresh a requested batch; a null apply leaves projection to its caller. */
       bool run(RefreshFn refresh, ApplyFn apply, void *userData)
       {
         if (inProgress_)
@@ -128,7 +129,7 @@ namespace loka
           }
           ++iterations;
         }
-        if (changed)
+        if (changed && apply)
         {
           // Keep the cycle closed across apply(): a request() that arrives
           // during apply must schedule the next run instead of re-entering

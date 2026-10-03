@@ -22,7 +22,8 @@ public:
   MacMenuAttachment &menuAttachment() { return this->menuAttachment_; }
 
 protected:
-  virtual void applyMenuBar(Window *activeWindow);
+  virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source);
 
 private:
   void startInvalidationFlushTimer();

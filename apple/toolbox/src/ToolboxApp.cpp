@@ -181,7 +181,6 @@ void ToolboxApp::run()
   this->cursorOwner_.initialize();
 
   App::run();
-  applyMenuBar(0);
   if (group_)
   {
     const std::vector<AppComponent *> &comps = group_->getComponents();
@@ -395,7 +394,7 @@ void ToolboxApp::run()
       }
       if (activationPhase_ == ACTIVATION_FOREGROUND && menuBarDrawDeferred_)
       {
-        // Background bindings updated the app-owned menu data but deferred
+        // Background projection or bindings updated menu data but deferred
         // the shared menu bar write; show it once now the bar is ours again.
         DrawMenuBar();
         menuBarDrawDeferred_ = false;
@@ -475,7 +474,7 @@ void ToolboxApp::quit()
   running_ = false;
 }
 
-void ToolboxApp::noteMenuBarChangedFromBinding()
+void ToolboxApp::requestMenuBarDraw()
 {
   if (activationPhase_ == ACTIVATION_FOREGROUND)
   {

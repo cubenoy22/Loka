@@ -92,14 +92,15 @@ public:
   virtual void run();
   virtual void quit();
   void handleMenuSelection(short menuId, short item);
-  virtual void applyMenuBar(Window *activeWindow);
+  virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source);
   ToolboxMenuAttachment &menuAttachment() { return this->menuAttachment_; }
 
-  /** Called by a live menu binding when it has updated the app-owned menu
+  /** Called by projection or live bindings after updating app-owned menu
       data. Foreground: redraws the menu bar immediately. Background: the
       shared menu bar is the foreground application's surface, so the single
       redraw is deferred until resume. */
-  void noteMenuBarChangedFromBinding();
+  void requestMenuBarDraw();
 
 private:
   friend class CursorOwner;
@@ -111,7 +112,7 @@ private:
       per-step booleans (see ToolboxActivationPhase.hpp). */
   ActivationPhase activationPhase_;
   CursorOwner cursorOwner_;
-  /** A background binding changed the menu data; one DrawMenuBar is owed at
+  /** Background projection or bindings changed menu data; one DrawMenuBar is owed at
       resume. */
   bool menuBarDrawDeferred_;
   ToolboxMenuAttachment menuAttachment_;
