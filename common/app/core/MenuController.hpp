@@ -13,16 +13,14 @@ class Window;
 class MenuController
 {
 public:
-  typedef void (*ApplyFn)(void *userData, Window *activeWindow);
-
-  MenuController(AppConfigurable *config, ApplyFn applyFn, void *applyUserData);
+  explicit MenuController(AppConfigurable *config);
   ~MenuController();
 
   void requestInvalidation();
-  bool flushInvalidation(Window *activeWindow);
-  void invalidate(Window *activeWindow);
+  bool flushInvalidation();
+  void invalidate();
 
-  void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar, Window *activeWindow);
+  void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
   const loka::app::MenuBarDefinition *defaultMenuBar() const;
   const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
 
@@ -32,14 +30,8 @@ public:
 
 private:
   static bool RefreshThunk(void *userData);
-  static void ApplyThunk(void *userData);
-
-  void apply(Window *activeWindow);
 
   AppConfigurable *config_;
-  ApplyFn applyFn_;
-  void *applyUserData_;
-  Window *pendingApplyWindow_;
   loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBar_;
   loka::app::MenuCompositionDiff diff_;
 };

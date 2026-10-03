@@ -22,6 +22,7 @@ namespace
   public:
     MenuApp() : Win32App(0, GetModuleHandleW(NULL), SW_SHOW) {}
     virtual ~MenuApp() {}
+    using Win32App::projectMenu;
     void own(Window *window)
     {
       if (!this->group_)
@@ -188,6 +189,8 @@ void testWin32MenuAttachmentProjectsOnceForEqualBar()
   LOKA_VERIFY(window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   LOKA_VERIFY(!GetMenu(window.hwnd()));
   verifyFrame(window, before);
+  // Completion re-offers every tail: absent over absent is unchanged.
+  LOKA_VERIFY(window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_UNCHANGED);
   // Equal offers after native recreation must rebuild, never reuse a dead HMENU.
   LOKA_VERIFY(window.menuAttachment().project(&changed, 0) == Win32MenuAttachment::PROJECT_APPLIED);
   show(window, false);
@@ -249,20 +252,20 @@ void testWin32TwoWindowsOwnTheirMenus()
   EmitterState emitterA, emitterB;
   emitterA.deferBind(&count, &callsA);
   emitterB.deferBind(&count, &callsB);
-  // Window-owned bars: until N2a wires the Scene source, resolveMenuBar
-  // prefers WindowProps::menuBar, so each Window legitimately has its own.
-  // (The App default is one bar shared by whichever Window is active.)
+  // Each Window owns its bar and native attachment.
   MenuBarDefinition barA = bar("A", &emitterA), barB = bar("B", &emitterB);
   Win32Window a(&context, props().menuBar(barA)), b(&context, props().menuBar(barB));
   a.setApp(&app);
   b.setApp(&app);
   show(a, true);
   show(b, true);
-  // Exercise the production apply path: B's projection used to detach A.
+  // Exercise the production rail door: B's projection used to detach A.
   app.setActiveWindow(&a);
+  app.projectMenu(&a, a.menuBar(), 0);
   HMENU menuA = GetMenu(a.hwnd());
   LOKA_VERIFY(menuA);
   app.setActiveWindow(&b);
+  app.projectMenu(&b, b.menuBar(), 0);
   HMENU menuB = GetMenu(b.hwnd());
   LOKA_VERIFY(menuB && menuB != menuA);
   LOKA_VERIFY(GetMenu(a.hwnd()) == menuA && IsMenu(menuA));

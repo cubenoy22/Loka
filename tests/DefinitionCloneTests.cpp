@@ -116,12 +116,6 @@ namespace
     bool includeSecondMenu;
   };
 
-  void CountMenuApply(void *userData, Window *)
-  {
-    int *applyCount = static_cast<int *>(userData);
-    ++*applyCount;
-  }
-
   bool hasSingleMenuNamed(const loka::app::MenuBarDefinition *menuBar, const char *title)
   {
     return menuBar && menuBar->menusCount() == 1 && menuBar->menuAt(0)
@@ -560,21 +554,18 @@ void testMenuControllerPreservesDefaultMenuBarOnOomClone()
   printf("\n==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] start ====\n");
 
   MenuCloneTestConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountMenuApply, &applyCount);
+  MenuController controller(&config);
   loka::app::MenuBarDefinition stableMenuBar;
   stableMenuBar << loka::app::Menu("Stable");
-  controller.setDefaultMenuBar(&stableMenuBar, 0);
+  controller.setDefaultMenuBar(&stableMenuBar);
   assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-  assert(applyCount == 1);
 
   loka::app::MenuBarDefinition replacementMenuBar;
   replacementMenuBar << loka::app::Menu("Replacement");
   loka::app::testing::failNextMenuBarDefinitionClone();
-  controller.setDefaultMenuBar(&replacementMenuBar, 0);
+  controller.setDefaultMenuBar(&replacementMenuBar);
 
   assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-  assert(applyCount == 1);
   loka::app::testing::allowMenuBarDefinitionClones();
 
   printf("==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] end ====\n");
@@ -585,23 +576,21 @@ void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
   printf("\n==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] start ====\n");
 
   MenuCloneTestConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountMenuApply, &applyCount);
+  MenuController controller(&config);
   loka::app::MenuBarDefinition stableMenuBar;
   stableMenuBar << loka::app::Menu("Stable");
-  controller.setDefaultMenuBar(&stableMenuBar, 0);
+  controller.setDefaultMenuBar(&stableMenuBar);
   controller.clearDiff();
   config.includeSecondMenu = true;
 
   loka::app::testing::failNextMenuBarDefinitionClone();
   controller.requestInvalidation();
-  bool refreshed = controller.flushInvalidation(0);
+  bool refreshed = controller.flushInvalidation();
 
   (void)refreshed;
   assert(!refreshed);
   assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
   LOKA_VERIFY(!controller.diff().valid);
-  assert(applyCount == 1);
   loka::app::testing::allowMenuBarDefinitionClones();
 
   printf("==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] end ====\n");
@@ -612,26 +601,22 @@ void testMenuControllerRequeuesDirtyMenusAfterOomClone()
   printf("\n==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] start ====\n");
 
   MenuBoundaryCloneTestConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountMenuApply, &applyCount);
+  MenuController controller(&config);
   controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
-  int appliesAfterInitial = applyCount;
 
   config.boundary.requestAfter = true;
   loka::app::testing::failMenuBarDefinitionClones(2);
   controller.requestInvalidation();
-  LOKA_VERIFY(!controller.flushInvalidation(0));
+  LOKA_VERIFY(!controller.flushInvalidation());
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
   assert(config.boundary.tracker()->asPushTracker()->peekDirty());
   loka::app::testing::allowMenuBarDefinitionClones();
 
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
   assert(hasSingleItemLabeled(controller.defaultMenuBar(), "After"));
   assert(!config.boundary.tracker()->asPushTracker()->peekDirty());
-  (void)appliesAfterInitial;
-  assert(applyCount > appliesAfterInitial);
 
   printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
 }
@@ -641,10 +626,9 @@ void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
   printf("\n==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] start ====\n");
 
   MenuCloneTestConfig config;
-  int applyCount = 0;
-  MenuController controller(&config, &CountMenuApply, &applyCount);
+  MenuController controller(&config);
   controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
   assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
 
   // Structural change with no boundary dirt: a direct refresh failure must
@@ -657,7 +641,7 @@ void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
 
   // No explicit requestInvalidation here: the failed direct refresh must
   // have queued the retry itself.
-  LOKA_VERIFY(controller.flushInvalidation(0));
+  LOKA_VERIFY(controller.flushInvalidation());
   assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 2);
 
   printf("==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] end ====\n");

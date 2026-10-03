@@ -440,7 +440,8 @@ namespace
     }
 
   protected:
-    virtual void applyMenuBar(Window *window)
+    virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *,
+                             const loka::app::scene::Scene *)
     {
       ++applyMenuCalls;
       appliedWindow = window;
@@ -872,8 +873,8 @@ void testAppDefersWindowReclaimUntilInvalidationFlush()
   WindowRetirementProbe *window = new WindowRetirementProbe(&context, props);
   WindowRetirementTestApp app;
   app.install(window);
-  assert(app.applyMenuCalls == 1);
-  assert(app.appliedWindow == window);
+  assert(app.applyMenuCalls == 0);
+  assert(app.appliedWindow == 0);
 
   WindowRetirementNotification notification;
   notification.app = &app;
@@ -888,10 +889,11 @@ void testAppDefersWindowReclaimUntilInvalidationFlush()
   assert(g_sceneOwnershipScenesAlive == 1);
   assert(app.activeWindow() == 0); // loka-assert-ok: activeWindow is a pure reader
   assert(app.appliedWindow == 0);
-  assert(app.applyMenuCalls == 2);
+  assert(app.applyMenuCalls == 0);
   assert(app.quitCalls == 1);
 
   app.flush();
+  assert(app.applyMenuCalls == 1);
   assert(app.reclaimCalls == 1);
   assert(g_windowRetirementWindowsAlive == 0);
   assert(g_sceneOwnershipScenesAlive == 0);
@@ -912,13 +914,13 @@ void testAppDefersReentrantWindowCloseRequestUntilNextFlush()
   WindowRetirementProbe *second = new WindowRetirementProbe(&context, WindowProps());
   WindowRetirementTestApp app;
   app.install(first, second);
-  assert(app.applyMenuCalls == 1);
+  assert(app.applyMenuCalls == 0);
   app.closeDuringReclaim = second;
 
   app.requestWindowClose(first);
   assert(app.activeWindow() == second); // loka-assert-ok: activeWindow is a pure reader
-  assert(app.appliedWindow == second);
-  assert(app.applyMenuCalls == 2);
+  assert(app.appliedWindow == 0);
+  assert(app.applyMenuCalls == 0);
   assert(g_windowRetirementWindowsAlive == 2);
 
   app.flush();
@@ -926,8 +928,8 @@ void testAppDefersReentrantWindowCloseRequestUntilNextFlush()
   assert(app.windowsAliveDuringNestedFlush == 2);
   assert(g_windowRetirementWindowsAlive == 1);
   assert(app.activeWindow() == 0); // loka-assert-ok: activeWindow is a pure reader
-  assert(app.appliedWindow == 0);
-  assert(app.applyMenuCalls == 3);
+  assert(app.appliedWindow == second);
+  assert(app.applyMenuCalls == 1);
   assert(app.quitCalls == 1);
 
   app.flush();

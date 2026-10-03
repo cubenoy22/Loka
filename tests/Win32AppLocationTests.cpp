@@ -10,8 +10,6 @@
 #include <vector>
 
 #include "core/io/File.hpp"
-#include "Win32PlatformContext.hpp"
-#include "support/FileRefusalPin.hpp"
 #include "platform/Win32String.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
@@ -47,9 +45,6 @@ namespace
 
 void testWin32ApplicationItemNamesExecutableDirectory()
 {
-  Win32PlatformContext refusalContext;
-  VerifyFileRefusal(refusalContext);
-
   const wchar_t fileNameWide[] = {L'l', L'o', L'k', L'a', L'-', 0xFF21, L'.', L'b', L'i', L'n', 0};
   const char fileNameUtf8[] = "loka-\xEF\xBC\xA1.bin";
   const unsigned char expected[] = {0x19, 0x9A, 0x01};

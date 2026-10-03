@@ -38,11 +38,9 @@ namespace
     {
       return false;
     }
-#ifdef NSEventTrackingRunLoopMode
+    // NSEventTrackingRunLoopMode is an exported constant, not a macro: an
+    // #ifdef on it is always false and silently disables this guard.
     return [mode isEqualToString:NSEventTrackingRunLoopMode] ? true : false;
-#else
-    return false;
-#endif
   }
 } // namespace
 
@@ -219,9 +217,11 @@ void MacApp::dispatchNativeMenuCommand(int commandId)
   this->menuAttachment_.dispatch(commandId);
 }
 
-void MacApp::applyMenuBar(Window *activeWindow)
+void MacApp::projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                         const loka::app::scene::Scene *source)
 {
-  const loka::app::MenuBarDefinition *bar = this->resolveMenuBar(activeWindow);
-  this->menuAttachment_.project(bar, 0);
+  if (window != this->activeWindow() || IsEventTrackingRunLoopMode())
+    return;
+  this->menuAttachment_.project(bar, source);
   this->clearMenuDiff();
 }

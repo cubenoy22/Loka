@@ -5,6 +5,22 @@
 #include "core/Operation.hpp"
 #include "app/core/Window.hpp"
 
+/** Shared Null model of Win32's tail for borrowed and owning test Apps. */
+template <class TestApp>
+void RunWindowAdmissionOperation(TestApp &app, void (*collect)(void *) = 0, void *data = 0)
+{
+  loka::core::Operation turn;
+  if (collect)
+    collect(data);
+  app.flushMenuInvalidation();
+  turn.settle();
+  app.admitAndApplyWindows();
+  app.reconcileFocus();
+  app.admitAndApplyWindows();
+  turn.close();
+  app.reclaimWindows();
+}
+
 /** Exercises the production App clock with fixture-owned windows. The fixture
     keeps them alive through flush(); destruction returns the borrowed rows. */
 class WindowAdmissionTestApp : public App
@@ -26,16 +42,7 @@ public:
   /** Null model of Win32App::flushIterationTail(): two admissions, one reclaim. */
   void operationLoop(void (*collect)(void *) = 0, void *data = 0)
   {
-    loka::core::Operation turn;
-    if (collect)
-      collect(data);
-    this->flushMenuInvalidation();
-    turn.settle();
-    this->admitAndApplyWindows();
-    this->reconcileFocus();
-    this->admitAndApplyWindows();
-    turn.close();
-    this->reclaimWindows();
+    RunWindowAdmissionOperation(*this, collect, data);
   }
 };
 
