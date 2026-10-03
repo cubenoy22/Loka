@@ -44,6 +44,7 @@ set(LOKA_TOOLBOX_SOURCES
   src/ToolboxScenePlatformController.cpp
   src/ToolboxWindow.cpp
   src/ToolboxWindowContext.cpp
+  src/ToolboxFileChoice.cpp
   src/ToolboxPlatformContext.cpp
   src/platform/ToolboxAppLocation.cpp
   src/platform/ToolboxFileIO.cpp
