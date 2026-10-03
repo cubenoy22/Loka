@@ -2,6 +2,16 @@
 
 namespace
 {
+  loka::core::LokaAllocationSite NativeImageSite()
+  {
+    return loka::core::LokaAllocationSite("ToolboxNativeImage", "Image");
+  }
+
+  loka::core::LokaAllocationSite PictBytesSite()
+  {
+    return loka::core::LokaAllocationSite("ToolboxNativeImage", "PictBytes");
+  }
+
   void ReleaseToolboxNativeImage(void *handle, void *)
   {
     loka::toolbox::ToolboxNativeImage *native = static_cast<loka::toolbox::ToolboxNativeImage *>(handle);
@@ -18,11 +28,11 @@ namespace
       }
       else if (native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES)
       {
-        delete static_cast<loka::toolbox::ToolboxPictBytesPayload *>(native->payload);
+        loka::core::LokaDelete(static_cast<loka::toolbox::ToolboxPictBytesPayload *>(native->payload), PictBytesSite());
       }
     }
 
-    delete native;
+    loka::core::LokaDelete(native, NativeImageSite());
   }
 } // namespace
 
@@ -37,7 +47,15 @@ namespace loka
         return loka::core::resource::Image::Empty();
       }
 
-      ToolboxNativeImage *native = new ToolboxNativeImage();
+      ToolboxNativeImage *native = loka::core::LokaNew<ToolboxNativeImage>(NativeImageSite());
+      if (!native)
+      {
+        // Refused before the Image took the picture: honor the ownership the
+        // caller handed over, as the Image's releaser would have (#1064).
+        if (takeOwnership)
+          KillPicture(picture);
+        return loka::core::resource::Image::Empty();
+      }
       native->magic = kToolboxNativeImageMagic;
       native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT;
       native->payload = picture;
@@ -58,7 +76,11 @@ namespace loka
         return loka::core::resource::Image::Empty();
       }
 
-      ToolboxPictBytesPayload *payload = new ToolboxPictBytesPayload();
+      ToolboxPictBytesPayload *payload = loka::core::LokaNew<ToolboxPictBytesPayload>(PictBytesSite());
+      if (!payload)
+      {
+        return loka::core::resource::Image::Empty();
+      }
       // Share the source buffer only when the Blob is a stable snapshot
       // (completed and immutable); the streamed bytes must stay consistent
       // with the width/height parsed here. For a mutable or still-loading
@@ -90,7 +112,12 @@ namespace loka
         payload->pictureEnd = pictureEnd - pictureOffset;
       }
 
-      ToolboxNativeImage *native = new ToolboxNativeImage();
+      ToolboxNativeImage *native = loka::core::LokaNew<ToolboxNativeImage>(NativeImageSite());
+      if (!native)
+      {
+        loka::core::LokaDelete(payload, PictBytesSite());
+        return loka::core::resource::Image::Empty();
+      }
       native->magic = kToolboxNativeImageMagic;
       native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES;
       native->payload = payload;
