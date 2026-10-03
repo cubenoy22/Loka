@@ -23,7 +23,7 @@ void ToolboxScenePlatformController::updateStateFromEdit(
     // The edited bytes were never accepted. If the repair could not commit
     // either, degrade the projection to empty rather than leave them visible.
     if (!binding.installed.holds(binding.text->get()))
-      TESetText("", 0, binding.te);
+      TESetText(static_cast<const void *>(""), 0, binding.te);
     this->addPendingDirty(context->chromeRect());
     SysBeep(1);
     return;
