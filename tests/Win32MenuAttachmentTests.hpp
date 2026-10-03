@@ -1,0 +1,10 @@
+#ifndef LOKA_WIN32_MENU_ATTACHMENT_TESTS_HPP
+#define LOKA_WIN32_MENU_ATTACHMENT_TESTS_HPP
+
+void testWin32MenuAttachmentProjectsOnceForEqualBar();
+void testWin32MenuAttachmentReleaseFromSourceDisconnects();
+void testWin32SceneDetachReleasesMenu();
+void testWin32TwoWindowsOwnTheirMenus();
+void testWin32AppShutdownReleasesMenuBeforeAttachmentDestruction();
+
+#endif
