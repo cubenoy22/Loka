@@ -32,6 +32,14 @@ namespace loka
       {
         return this->completed_ && this->constraint_ == constraint;
       }
+      /** Reports the constraint of a completed measurement; declines otherwise. */
+      bool queryConstraint(Constraint &out) const
+      {
+        if (!this->completed_)
+          return false;
+        out = this->constraint_;
+        return true;
+      }
       const Extent &extent() const
       {
         return this->extent_;

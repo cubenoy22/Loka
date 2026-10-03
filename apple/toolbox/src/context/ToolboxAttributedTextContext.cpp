@@ -57,9 +57,7 @@ void ToolboxAttributedTextContext::retireNativeProjection()
 
 void ToolboxAttributedTextContext::onPropsApplied()
 {
-  // The input mark also forces rebuild; eagerly dropping derived rows is harmless.
-  this->table_.clear();
-  this->presented_.invalidate();
+  this->table_.invalidateGeometry();
 }
 
 void ToolboxAttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFact previous,
@@ -73,27 +71,58 @@ void ToolboxAttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycle
   ToolboxProjectedNodeContext::onFactChanged(previous, next);
 }
 
+short ToolboxAttributedTextContext::placedWidth(short constraint) const
+{
+  return constraint > 0 ? constraint : this->table_.width();
+}
+
+bool ToolboxAttributedTextContext::reconcileProjection(short width, bool rebuildGeometry)
+{
+  if (!this->controller() || !this->node_ || !this->node_->props.text_)
+  {
+    this->table_.clear();
+    this->presented_.invalidate();
+    return false;
+  }
+  const loka::app::AttributedString &value = this->node_->props.text_->get();
+  if (!rebuildGeometry && this->table_.valid() && this->table_.matches(value))
+    return true;
+  if (this->table_.build(value, this->node_->props.blockStyle_, width, *this->controller()))
+  {
+    // A rebuild under a logically equal value can still change pixels (font
+    // metrics, wrapping, or segment boundaries splitting malformed bytes), so
+    // equal-value history becomes unknown on every path that rebuilds.
+    if (this->presented_.isKnown() && value == this->presented_.value())
+      this->presented_.invalidate();
+    return true;
+  }
+  this->presented_.invalidate();
+  return false;
+}
+
 short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController *controller,
                                            loka::app::scene::LayoutState &state)
 {
   ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
   if (!toolbox || !this->node_ || !this->node_->props.text_)
   {
-    this->onPropsApplied();
+    this->table_.clear();
+    this->presented_.invalidate();
     return 0;
   }
   assert(toolbox->textShaping() == loka::app::PER_RUN);
   const loka::app::AttributedString &value = this->node_->props.text_->get();
   // The builder reads width, not lineHeight. Ambient fonts follow the frozen
   // environment contract on ToolboxTextMeasureScope.
-  const bool reused = state.inputs == loka::app::scene::NODE_DIRTY_NONE && this->table_.reusable(state.width);
-  if (!reused && !this->table_.build(value, this->node_->props.blockStyle_, state.width, *toolbox))
+  const bool reused = state.inputs == loka::app::scene::NODE_DIRTY_NONE && this->table_.reusable(state.width)
+      && this->table_.valid() && this->table_.matches(value);
+  if (!this->reconcileProjection(state.width, !reused))
   {
     controller->refuseTextMeasurement(this->node_, state);
     this->presented_.invalidate();
     return 0;
   }
-  const short width = state.width > 0 ? state.width : this->table_.width();
+  const short width = this->placedWidth(state.width);
   Rect rect;
   rect.left = state.x;
   rect.top = state.y;
@@ -102,9 +131,10 @@ short ToolboxAttributedTextContext::layout(loka::app::scene::IPlatformController
   Rect paintRect = rect;
   if (!toolbox->intersectWithProjectionClip(rect, paintRect))
     SetRect(&paintRect, 0, 0, 0, 0);
-  // Like Cell, unchanged geometry preserves history; a rebuilt table cannot,
-  // even for an equal value, because width or font metrics may change pixels.
-  if (!reused || !EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
+  // Keep the previous logical paint value on source changes: exact damage
+  // compares it with the new projection. reconcileProjection already made
+  // equal-value rebuilds unknown; a moved placement does the same here.
+  if (!EqualRect(&this->rect_, &rect) || !EqualRect(&this->paintRect_, &paintRect))
     this->presented_.invalidate();
   this->rect_ = rect;
   this->paintRect_ = paintRect;
@@ -119,7 +149,7 @@ ToolboxAttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuer
   if (query.placement != PLACEMENT_ELIGIBLE || query.scope != ToolboxPaintScope())
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->table_.valid() || !this->node_ || !this->node_->props.text_
-      || !(this->table_.value() == this->node_->props.text_->get()))
+      || !this->table_.matches(this->node_->props.text_->get()))
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   if (ToolboxPaintIsClippedOut(this->rect_, this->paintRect_, this->deliveredFact()))
     return ToolboxExactPaint(this->paintRect_, false);
@@ -132,9 +162,17 @@ ToolboxAttributedTextContext::queryPaintDamage(const loka::app::scene::PaintQuer
 
 void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController *)
 {
-  if (!this->controller() || !this->table_.valid() || !this->node_->props.text_
-      || !(this->table_.value() == this->node_->props.text_->get()))
+  // A paint-only rebuild keeps the last layout constraint (an intrinsic 0
+  // stays unbounded) instead of the placement width derived from it.
+  const short placementWidth = static_cast<short>(this->rect_.right - this->rect_.left);
+  short constraint = placementWidth;
+  this->table_.queryConstraint(constraint);
+  if (!this->reconcileProjection(constraint, false))
     return;
+  // Geometry layout would place differently waits for layout: paint what
+  // fits, but never certify the value as presented.
+  const bool fits = this->placedWidth(constraint) == placementWidth
+      && this->table_.height() == this->rect_.bottom - this->rect_.top;
   // Layout already intersected the placement with the projection clip: an
   // empty paint rect owes no pixels, so leave before switching the port or
   // allocating clip regions (the resident-Column scroll cost, S1 lane).
@@ -158,7 +196,7 @@ void ToolboxAttributedTextContext::render(loka::app::scene::IPlatformController 
                                          *this->controller(),
                                          this->node_->props.blockStyle_,
                                          this->rect_.right - this->rect_.left);
-  if (painted && completes)
+  if (painted && completes && fits)
     this->presented_.commit(this->table_.value(), ToolboxPaintScope());
 }
 

@@ -1,8 +1,9 @@
 #include "app/layout/AlignedLineOffset.hpp"
 #include "context/ToolboxAttributedTextTable.hpp"
 #include "platform/StringUTF8.hpp"
+#include "platform/ToolboxPascalText.hpp"
+#include <Script.h>
 #include <climits>
-#include <cstring>
 
 using namespace loka::app;
 namespace
@@ -79,18 +80,112 @@ ToolboxAttributedTextTable::~ToolboxAttributedTextTable()
 {
   this->clear();
 }
-void ToolboxAttributedTextTable::clear()
+void ToolboxAttributedTextTable::invalidateGeometry()
 {
   this->measurement_.invalidate();
   loka::core::LokaDelete(this->lines_, BreakSite());
   this->lines_ = 0;
+  this->advances_.clear();
+  this->metrics_.clear();
+}
+void ToolboxAttributedTextTable::clear()
+{
+  this->invalidateGeometry();
   this->snapshot_ = AttributedString();
   this->bytes_.clear();
-  this->advances_.clear();
   this->characters_.clear();
   this->spans_.clear();
   this->fonts_.clear();
-  this->metrics_.clear();
+}
+
+bool ToolboxAttributedTextTable::matches(const AttributedString &value) const
+{
+  if (!this->bytes_.valid() || !value.valid() || this->snapshot_.segmentCount() != value.segmentCount())
+    return false;
+  for (std::size_t s = 0; s < value.segmentCount(); ++s)
+  {
+    const AttributedString::Segment &a = this->snapshot_.segment(s);
+    const AttributedString::Segment &b = value.segment(s);
+    if (&a == &b)
+      return true; // Shared immutable storage owns every segment.
+    if (a.style != b.style || !a.text.equals(b.text))
+      return false;
+  }
+  return true;
+}
+
+bool ToolboxAttributedTextTable::reconcileProjection(const AttributedString &value)
+{
+  if (this->matches(value))
+    return true;
+  this->clear();
+  if (!value.valid())
+    return false;
+  const bool roman = GetScriptManagerVariable(smSysScript) == smRoman;
+  std::size_t count = 0, spanCount = 0;
+  // Sizing and filling below use the same segment-local traversal and
+  // nonempty/equal-style coalescing rule (the synthetic rail keeps its own
+  // decoder in SyntheticTextWidthSource). Neither pass joins input segments.
+  const loka::app::TextStyle *previous = 0;
+  for (std::size_t s = 0; s < value.segmentCount(); ++s)
+  {
+    const AttributedString::Segment &segment = value.segment(s);
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(segment.text, utf8))
+      return false;
+    if (utf8.empty())
+      continue;
+    if (!previous || *previous != segment.style)
+      ++spanCount;
+    previous = &segment.style;
+    for (std::size_t input = 0; input < utf8.size(); ++count)
+    {
+      if (count == (std::numeric_limits<std::size_t>::max)() - 1)
+        return false;
+      input += ToolboxNextTextUnit(utf8.data() + input, utf8.size() - input, roman).consumed;
+    }
+  }
+  // T1 emits one native byte per strict unit. Character endpoints below are
+  // the seam for variable-length native units; consumers never decode bytes.
+  if (!this->bytes_.allocate(count) || !this->characters_.allocate(count)
+      || !this->spans_.allocate(spanCount) || !this->fonts_.allocate(spanCount))
+    return false;
+  std::size_t character = 0, offset = 0, span = 0;
+  previous = 0;
+  for (std::size_t s = 0; s < value.segmentCount(); ++s)
+  {
+    const AttributedString::Segment &segment = value.segment(s);
+    std::string utf8;
+    if (!loka::platform::CollectUtf8(segment.text, utf8))
+      return false;
+    if (utf8.empty())
+      continue;
+    if (!previous || *previous != segment.style)
+    {
+      if (previous)
+        ++span;
+      TextStyleSpan &descriptor = this->spans_[span];
+      descriptor.segment = s;
+      descriptor.start = character;
+      descriptor.style = segment.style;
+      this->fonts_[span] = ToolboxTextFontDescriptor(segment.style);
+    }
+    previous = &segment.style;
+    for (std::size_t input = 0; input < utf8.size();)
+    {
+      const ToolboxTextUnit unit = ToolboxNextTextUnit(utf8.data() + input, utf8.size() - input, roman);
+      TextBreakCharacter &row = this->characters_[character++];
+      row.value = static_cast<unsigned int>(unit.scalar);
+      row.span = span;
+      row.offset = offset;
+      this->bytes_[offset++] = static_cast<char>(unit.native);
+      row.end = offset;
+      input += unit.consumed;
+    }
+    this->spans_[span].end = character;
+  }
+  this->snapshot_ = value;
+  return true;
 }
 
 bool ToolboxAttributedTextTable::build(const AttributedString &value,
@@ -98,72 +193,28 @@ bool ToolboxAttributedTextTable::build(const AttributedString &value,
                                        short width,
                                        const ToolboxScenePlatformController &controller)
 {
-  this->clear();
-  // Reuse the common decoder/coalescer only during construction. Its UTF-32
-  // offsets are replaced below by offsets into the one joined native buffer.
-  const SyntheticTextWidthSource decoded(value);
-  if (!decoded.valid())
-    return false;
-  std::size_t count = 0;
-  for (std::size_t i = 0; i < value.segmentCount(); ++i)
+  if (!this->reconcileProjection(value))
   {
-    std::string bytes;
-    if (!loka::platform::CollectUtf8(value.segment(i).text, bytes)
-        || bytes.size() > (std::numeric_limits<std::size_t>::max)() - count)
-      return false;
-    count += bytes.size();
+    this->clear();
+    return false;
   }
+  this->invalidateGeometry();
+  const std::size_t count = this->bytes_.size();
   detail::TextMeasureTable<short> positions;
-  if (count == (std::numeric_limits<std::size_t>::max)()
-      || !positions.allocate((count < SHRT_MAX ? count : SHRT_MAX) + 1)
-      || !this->advances_.allocate(count + 1) || !this->bytes_.allocate(count) || !this->characters_.allocate(decoded.length())
-      || !this->spans_.allocate(decoded.spanCount()) || !this->fonts_.allocate(decoded.spanCount())
-      || !this->metrics_.allocate(decoded.spanCount()))
+  if (!positions.allocate((count < SHRT_MAX ? count : SHRT_MAX) + 1)
+      || !this->advances_.allocate(count + 1) || !this->metrics_.allocate(this->spans_.size()))
   {
     this->clear();
     return false;
   }
-  std::size_t offset = 0;
-  for (std::size_t i = 0; i < value.segmentCount(); ++i)
-  {
-    std::string bytes;
-    if (!loka::platform::CollectUtf8(value.segment(i).text, bytes))
-    {
-      this->clear();
-      return false;
-    }
-    if (!bytes.empty())
-      std::memcpy(&this->bytes_[offset], bytes.data(), bytes.size());
-    offset += bytes.size();
-  }
-  offset = 0;
-  for (std::size_t i = 0; i < decoded.length(); ++i)
-  {
-    TextBreakCharacter &row = this->characters_[i];
-    row = decoded.character(i);
-    row.offset = offset++;
-    while (offset < count && (static_cast<unsigned char>(this->bytes_[offset]) & 0xc0) == 0x80)
-      ++offset;
-    row.end = offset;
-  }
-  if (offset != count)
-  {
-    this->clear();
-    return false;
-  }
-  for (std::size_t i = 0; i < decoded.spanCount(); ++i)
-  {
-    this->spans_[i] = decoded.span(i);
-    this->fonts_[i] = ToolboxTextFontDescriptor(decoded.spanStyle(i));
-  }
-  ToolboxTextMeasureScope measure(controller, decoded.spanCount() ? &this->fonts_[0] : 0, decoded.spanCount());
+  ToolboxTextMeasureScope measure(controller, this->spans_.size() ? &this->fonts_[0] : 0, this->spans_.size());
   if (!measure.valid())
   {
     this->clear();
     return false;
   }
   this->advances_[0] = 0;
-  for (std::size_t i = 0; i < decoded.spanCount(); ++i)
+  for (std::size_t i = 0; i < this->spans_.size(); ++i)
   {
     measure.select(this->fonts_[i]);
     std::size_t previous = 0;
@@ -228,10 +279,21 @@ std::size_t ToolboxAttributedTextTable::rangeEnd(std::size_t start, std::size_t 
   // Both native count and native pixel result are signed shorts. WORD lookahead
   // may exceed either even though its eventual wrapped fragments are small.
   const std::size_t limit = SHRT_MAX / this->metrics_[span].maxAdvance;
-  std::size_t next = end - start > limit ? start + limit : end;
-  while (next > start && next < end && (static_cast<unsigned char>(this->bytes_[next]) & 0xc0) == 0x80)
-    --next;
-  return next;
+  if (end - start <= limit)
+    return end;
+  const std::size_t bound = start + limit;
+  // Search recorded native endpoints, never UTF-8 continuation bits. This
+  // remains character-safe when the projection acquires multibyte units.
+  std::size_t low = 0, high = this->characters_.size();
+  while (low < high)
+  {
+    const std::size_t mid = low + (high - low) / 2;
+    if (this->characters_[mid].end <= bound)
+      low = mid + 1;
+    else
+      high = mid;
+  }
+  return low && this->characters_[low - 1].end > start ? this->characters_[low - 1].end : start;
 }
 
 bool ToolboxAttributedTextTable::draw(short x,
