@@ -4,7 +4,7 @@
 #include "app/core/Window.hpp"
 #include "app/core/DialogResultTransport.hpp"
 
-class App;
+class MacApp;
 class MacScenePlatformController;
 namespace loka { namespace macos { class MacProjection; } }
 
@@ -40,7 +40,9 @@ public:
 
   /** Borrow the owner of this rail's root view while its delegate is attached. */
   static MacWindow *fromRootView(void *rootView);
-  void setApp(App *app);
+  void setApp(MacApp *app);
+  /** Borrows the rail owner; absent before the Window is enrolled. */
+  MacApp *macApp() const { return this->app_; }
 
   virtual void onShow();
   virtual void onHide();
@@ -91,7 +93,7 @@ private:
   void *window_;
   void *contentView_;
   void *delegate_;
-  App *app_;
+  MacApp *app_;
   bool closing_;
 
   MacScenePlatformController *scenePlatformController_;
