@@ -407,7 +407,8 @@ void ToolboxApp::run()
       char key = static_cast<char>(event.message & charCodeMask);
       // A Command key is a menu command, never text: it goes to MenuKey only,
       // so a focused field cannot swallow it, and a plain key never reaches
-      // MenuKey (#1086). Option-only keys stay text.
+      // MenuKey (#1086). Option-only keys stay text. A held Command key's
+      // autoKey repeats are swallowed so a command runs once per press.
       const bool command = (event.modifiers & cmdKey) != 0;
       bool handled = false;
 #if LOKA_RETRO68_DIAGNOSTICS
@@ -425,7 +426,7 @@ void ToolboxApp::run()
           handled = this->handleKeyPress(key);
         }
       }
-      else if (!handled)
+      else if (!handled && event.what == keyDown)
       {
         long choice = MenuKey(key);
         if (choice != 0)
