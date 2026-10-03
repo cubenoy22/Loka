@@ -197,11 +197,6 @@ namespace
     }
   };
 
-  void CountMenuApply(void *userData, Window *)
-  {
-    ++*static_cast<int *>(userData);
-  }
-
   loka::app::scene::Node *findNode(loka::app::scene::Node *node,
                                     const char *testId)
   {
@@ -343,8 +338,7 @@ namespace
           buttonGeometryHandler(),
           platform(),
           scene(0),
-          menuApplyCount(0),
-          menuController(&config, &CountMenuApply, &menuApplyCount)
+          menuController(&config)
     {
       LOKA_VERIFY(this->platform.registerNodeHandler(&this->imageGeometryHandler));
       LOKA_VERIFY(this->platform.registerNodeHandler(&this->buttonGeometryHandler));
@@ -363,7 +357,7 @@ namespace
       this->scene->mount(&this->platform);
       loka::dsl::testing::SceneTestAccess::updateAttached(*this->scene, true);
       this->menuController.requestInvalidation();
-      LOKA_VERIFY(this->menuController.flushInvalidation(0));
+      LOKA_VERIFY(this->menuController.flushInvalidation());
     }
 
     ~SimpleViewerHarness()
@@ -387,7 +381,6 @@ namespace
     NullButtonGeometryHandler buttonGeometryHandler;
     NullScenePlatformController platform;
     loka::app::scene::Scene *scene;
-    int menuApplyCount;
     MenuController menuController;
   };
 } // namespace
@@ -483,7 +476,7 @@ void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode()
   SimpleViewerTestAccess::setDisplayMode(harness.config,
                                          simpleviewer::DISPLAY_ACTUAL);
   flushScene(*harness.scene);
-  LOKA_VERIFY(harness.menuController.flushInvalidation(0));
+  LOKA_VERIFY(harness.menuController.flushInvalidation());
   image = static_cast<loka::app::ImageViewNode *>(findNode(main, "SimpleViewer.Image"));
   LOKA_VERIFY(image != 0);
   LOKA_VERIFY(image->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_INTRINSIC);
@@ -493,7 +486,7 @@ void testSimpleViewerDisplayArmsAndMenuChecksFollowOwnedMode()
   SimpleViewerTestAccess::setDisplayMode(harness.config,
                                          simpleviewer::DISPLAY_ACTUAL_SCROLL);
   flushScene(*harness.scene);
-  LOKA_VERIFY(harness.menuController.flushInvalidation(0));
+  LOKA_VERIFY(harness.menuController.flushInvalidation());
   loka::app::ScrollViewNode *scroll = static_cast<loka::app::ScrollViewNode *>(
       findNode(main, "SimpleViewer.ActualScroll"));
   LOKA_VERIFY(scroll != 0);
@@ -693,7 +686,7 @@ void testSimpleViewerPaneScrollButtonUsesMenuEmitter()
 
   button->props.onClick_->emit();
   flushScene(*harness.scene);
-  LOKA_VERIFY(harness.menuController.flushInvalidation(0));
+  LOKA_VERIFY(harness.menuController.flushInvalidation());
   LOKA_VERIFY(SimpleViewerTestAccess::displayModeState(harness.config)->get() ==
               simpleviewer::DISPLAY_ACTUAL_SCROLL);
   verifyCheckedMode(viewMenu(harness.menuController.defaultMenuBar()),

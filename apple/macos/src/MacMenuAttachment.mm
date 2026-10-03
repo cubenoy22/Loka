@@ -259,6 +259,9 @@ bool MacMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
 {
   if (!menuBar)
   {
+    // An absent offer with no installed graph is unchanged.
+    if (!this->menu_)
+      return false;
     this->reset();
     return true;
   }

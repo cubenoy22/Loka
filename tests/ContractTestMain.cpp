@@ -1,3 +1,4 @@
+#include "MenuCompletionTests.hpp"
 #include "SceneMenuBarTests.hpp"
 #include "support/SeatBuildRequestAccess.hpp"
 #include "StackSpansTests.hpp"

@@ -4,6 +4,7 @@
 void testMacMenuProjectionDetachesMainMenuBeforeReleasingTarget();
 
 void testMacMenuAttachmentProjectsOnceForEqualBar();
+void testMacMenuDoorSkipsProjectionDuringTracking();
 void testMacMenuAttachmentDisconnectStripsTargetAndAction();
 void testMacSceneDetachReleasesMenu();
 void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction();

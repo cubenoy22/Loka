@@ -83,7 +83,12 @@ protected:
   double idleAccumulatedSeconds_;
 
   const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
-  virtual void applyMenuBar(Window *activeWindow);
+  /** Synchronous borrowed offer from completion or bootstrap. A null window
+      means no active window: project the default. Global rails accept only
+      window == activeWindow() (including both null); per-window rails accept
+      every non-null row and ignore null. Attachments revoke source on detach. */
+  virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source);
   bool refreshDefaultMenuBar();
 
   const loka::app::MenuCompositionDiff &menuDiff() const
@@ -144,7 +149,7 @@ private:
   bool flushingWindowWork_;
   AdmissionBatch pendingReclaim_;
 
-  static void ApplyMenuBarThunk(void *userData, Window *activeWindow);
+  void projectMenuSources();
 
   friend class loka::dsl::testing::OwnershipDump;
   friend class loka::app::testing::AppTestAccess;
