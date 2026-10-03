@@ -13,10 +13,15 @@ public:
   ToolboxAttributedTextTable();
   ~ToolboxAttributedTextTable();
   void clear();
+  /** Drop geometry while retaining the complete logical/native projection. */
+  void invalidateGeometry();
   bool build(const loka::app::AttributedString &value,
              const loka::app::BlockStyle &block,
              short width,
              const ToolboxScenePlatformController &controller);
+  /** Projection identity includes segment boundaries: malformed units cannot
+      be joined even when logical AttributedString equality coalesces runs. */
+  bool matches(const loka::app::AttributedString &value) const;
   bool valid() const
   {
     return this->lines_ != 0;
@@ -34,6 +39,11 @@ public:
   bool reusable(short width) const
   {
     return this->measurement_.reusable(width);
+  }
+  /** The width constraint the completed geometry was built for, if any. */
+  bool queryConstraint(short &width) const
+  {
+    return this->valid() && this->measurement_.queryConstraint(width);
   }
   short height() const
   {
@@ -71,6 +81,7 @@ private:
     {
     }
   };
+  bool reconcileProjection(const loka::app::AttributedString &value);
   std::size_t rangeEnd(std::size_t start, std::size_t end, std::size_t span) const;
   loka::app::detail::TextMeasureTable<char> bytes_;
   loka::app::detail::TextMeasureTable<int> advances_;

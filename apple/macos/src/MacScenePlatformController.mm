@@ -1,5 +1,6 @@
 #include "MacScenePlatformController.hpp"
 #include "MacInputDoor.hpp"
+#include "MacApp.hpp"
 #include "app/layout/CanvasLayout.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
@@ -1208,4 +1209,12 @@ int MacScenePlatformController::measureClientWidth(int requestedWidth) const
     return this->projection().clientCapacityToLu(bounds.size.width);
   }
   return 260;
+}
+
+void MacScenePlatformController::releaseMenu()
+{
+  MacWindow *window = MacWindow::fromRootView(this->rootView());
+  MacApp *app = window ? window->macApp() : 0;
+  if (app)
+    app->menuAttachment().releaseFrom(window->scene());
 }

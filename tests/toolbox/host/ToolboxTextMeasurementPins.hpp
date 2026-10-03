@@ -161,8 +161,8 @@ namespace
       LOKA_VERIFY(controller.relayoutRetries.pending());
     }
     controller.window_ = window;
-    // Recovery can precede the retry layout. Refusal must revoke the old seat,
-    // including the inactive-clip fallback, before any paint/hit can observe it.
+    // AttributedText can recover its projection before retry layout, retaining
+    // the last placement. Plain Text keeps its separate placement refusal.
     const int hits = toolbox_host::textHits;
     for (int regions = 0; regions <= 2; regions += 2)
     {
@@ -170,10 +170,15 @@ namespace
       toolbox_host::failRegions = regions;
       context.render(&controller);
       RepaintRefused(context, controller);
-      LOKA_VERIFY(toolbox_host::draws.empty());
+      if (node.asAttributedTextNode())
+        LOKA_VERIFY(!toolbox_host::draws.empty());
+      else
+      {
+        LOKA_VERIFY(toolbox_host::draws.empty());
+        const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
+        LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
+      }
       LOKA_VERIFY(toolbox_host::textHits == hits);
-      const PaintQuery query = {ToolboxPaintScope(), PLACEMENT_ELIGIBLE};
-      LOKA_VERIFY(context.queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED);
     }
     toolbox_host::failRegions = 0;
     before = MeasurementCalls();

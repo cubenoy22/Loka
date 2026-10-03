@@ -150,6 +150,7 @@ Win32Window::Win32Window(PlatformContext *context, const WindowProps &props)
     : Window(context, props),
       hwnd_(NULL),
       app_(NULL),
+      menuAttachment_(*this),
       scenePlatformController_(0)
 {
   // Track logical states and project them into native Win32 state.
@@ -285,7 +286,7 @@ bool Win32Window::detachMenuForTeardown(HMENU expectedMenu)
   return detached != FALSE;
 }
 
-void Win32Window::setApp(App *app)
+void Win32Window::setApp(Win32App *app)
 {
   app_ = app;
   if (app_ && hwnd_)
@@ -464,7 +465,9 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     }
     case WM_DESTROY:
       self->dialogResults().close();
+      self->teardownScene();
       self->hwnd_ = NULL;
+      self->menuAttachment_.resetForTeardown();
       self->onDestroy();
       if (self->app_)
       {
@@ -547,6 +550,7 @@ void Win32Window::destroyNativeWindow()
     SetWindowLongPtr(this->hwnd_, GWLP_USERDATA, 0);
     DestroyWindow(this->hwnd_);
     this->hwnd_ = NULL;
+    this->menuAttachment_.resetForTeardown();
     if (appToClear)
     {
       appToClear->setActiveWindow(0);
@@ -691,10 +695,10 @@ void Win32Window::teardownScene()
 
 bool Win32Window::handleCommand(WPARAM wParam, LPARAM lParam)
 {
-  if (app_ && lParam == 0)
+  if (lParam == 0)
   {
     int commandId = LOWORD(wParam);
-    if (app_->handleMenuCommand(commandId, this))
+    if (this->menuAttachment_.dispatch(commandId))
     {
       return true;
     }

@@ -2,7 +2,7 @@
 #define LOKA_MAC_APP_HPP
 
 #include "app/core/App.hpp"
-#include "MacMenuProjection.hpp"
+#include "MacMenuAttachment.hpp"
 #include <mach/mach_time.h>
 #include <vector>
 
@@ -19,32 +19,15 @@ public:
   void dispatchNativeMenuCommand(int commandId);
   void flushInvalidationsTick();
 
-  struct MenuCommand
-  {
-    int commandId;
-    loka::app::MenuActionType action;
-    loka::core::EmitterState *emitter;
-  };
-
-  struct MenuBinding
-  {
-    void *menuItem;
-    loka::core::State<bool> *enabledState;
-    bool invertEnabled;
-    loka::core::State<bool> *checkedState;
-  };
+  MacMenuAttachment &menuAttachment() { return this->menuAttachment_; }
 
 protected:
   virtual void applyMenuBar(Window *activeWindow);
 
 private:
-  void clearMenuBindings();
   void startInvalidationFlushTimer();
   void stopInvalidationFlushTimer();
-  int nextCommandId_;
-  std::vector<MenuCommand> commands_;
-  std::vector<MenuBinding *> bindings_;
-  MacMenuProjection menuProjection_;
+  MacMenuAttachment menuAttachment_;
   void *flushTarget_;
   void *flushTimer_;
   unsigned long long lastIdleTick_;

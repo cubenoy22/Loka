@@ -89,16 +89,32 @@ inline void InsertMenuItem(MenuHandle menu, const unsigned char *text, short aft
   toolbox_host::menuInserts.push_back(HostPascalBytes(text));
   menu->items.insert(menu->items.begin() + after, HostPascalBytes(text));
 }
+#ifdef LOKA_HOST_MENU_ATTACHMENT
+namespace toolbox_host { extern void (*afterMenuSet)(); }
+#endif
 inline void SetMenuItemText(MenuHandle menu, short item, const unsigned char *text)
 {
   toolbox_host::menuSets.push_back(HostPascalBytes(text));
+#ifdef LOKA_HOST_MENU_ATTACHMENT
+  if (toolbox_host::afterMenuSet) toolbox_host::afterMenuSet();
+#endif
   if (item > 0 && static_cast<std::size_t>(item) <= menu->items.size())
     menu->items[item - 1] = HostPascalBytes(text);
 }
+#ifdef LOKA_HOST_MENU_ATTACHMENT
+namespace toolbox_host { extern std::vector<MenuHandle> installedMenus; extern unsigned menuDisposes; }
+inline void InsertMenu(MenuHandle menu, short) { toolbox_host::installedMenus.push_back(menu); }
+#else
 inline void InsertMenu(MenuHandle, short) {}
+#endif
 inline void LocalToGlobal(Point *) {}
 inline long PopUpMenuSelect(MenuHandle, short, short, short) { return toolbox_host::popupItem; }
 inline void DeleteMenu(short) {}
 inline void DisposeMenu(MenuHandle menu)
-{ toolbox_host::disposedMenuItems = menu->items; delete menu; }
+{
+#ifdef LOKA_HOST_MENU_ATTACHMENT
+  ++toolbox_host::menuDisposes;
+#endif
+  toolbox_host::disposedMenuItems = menu->items; delete menu;
+}
 #endif

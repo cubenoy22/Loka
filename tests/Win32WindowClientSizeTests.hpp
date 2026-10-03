@@ -7,7 +7,7 @@ void testWin32NativeWindowCreationDoesNotEchoVisibility();
 void testWin32AppOnlyMenuWindowSettles();
 void testWin32MenuRebuildPreservesMovedWindowFrame();
 void testWin32WindowDestructionDestroysNativeWindow();
-void testWin32RepeatedAppDestructionDetachesMenuBeforeDestroyingHandle();
+void testWin32AppDestructionLeavesWindowOwnedMenu();
 void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification();
 void testWin32DisplayScaleProjectsLogicalEdges();
 void testWin32DpiChangeAcceptsSuggestedWindowRect();
