@@ -498,7 +498,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaToolboxPascalTextTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxPascalTextTests)
   set_target_properties(LokaToolboxPascalTextTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_pascal_case codec malformed truncation script failure hfs counted)
+  foreach(_pascal_case codec malformed truncation script failure hfs counted decode host-stubs)
     add_test(NAME testToolboxPascal_${_pascal_case} COMMAND LokaToolboxPascalTextTests ${_pascal_case})
   endforeach()
 

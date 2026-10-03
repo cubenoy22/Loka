@@ -3,7 +3,10 @@
 #include "platform/String.hpp"
 #include "support/TestVerify.hpp"
 #include "support/LokaAllocFailure.hpp"
+#include "platform/ToolboxMacRoman.hpp"
+#include "platform/StringUTF8.hpp"
 #include <Script.h>
+#include <Sound.h>
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -40,6 +43,80 @@ namespace
       out += static_cast<char>(0x80 | (scalar & 63));
     }
     return out;
+  }
+
+  void expectDecode(const unsigned char *bytes, std::size_t length, const std::string &expected)
+  {
+    String out = String::Literal("old");
+    const unsigned reads = toolbox_host::scriptReads;
+    LOKA_VERIFY(ToolboxDecodeNative(bytes, length, out));
+    LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+    std::string actual;
+    LOKA_VERIFY(loka::platform::CollectUtf8(out, actual));
+    LOKA_VERIFY(actual == expected);
+  }
+
+  void decode()
+  {
+    toolbox_host::systemScript = smRoman;
+    unsigned char bytes[256];
+    unsigned long scalars[256];
+    for (unsigned i = 0; i < 256; ++i)
+    {
+      bytes[i] = static_cast<unsigned char>(i);
+      LOKA_VERIFY(ToolboxMacRomanDecode(bytes[i], scalars[i]));
+      unsigned char encoded = 0;
+      LOKA_VERIFY(ToolboxMacRomanEncode(scalars[i], encoded));
+      LOKA_VERIFY(encoded == bytes[i]);
+      if (i < 128) LOKA_VERIFY(scalars[i] == i);
+      for (unsigned j = 128; j < i; ++j)
+        LOKA_VERIFY(scalars[i] != scalars[j]);
+    }
+    const unsigned char cafe[] = {'c', 'a', 'f', 0x8E};
+    expectDecode(cafe, sizeof(cafe), "caf\xC3\xA9");
+    expectDecode(bytes + 0xC9, 1, "\xE2\x80\xA6");
+    expectDecode(bytes + 0xF0, 1, "\xEF\xA3\xBF");
+    expectDecode(bytes + 0xDB, 1, "\xC2\xA4");
+    const unsigned char nul[] = {'a', 0, 'b'};
+    expectDecode(nul, sizeof(nul), std::string("a\0b", 3));
+    expectDecode(0, 0, "");
+    expectDecode(bytes, 0, "");
+    String out;
+    LOKA_VERIFY(ToolboxDecodeNative(bytes, sizeof(bytes), out));
+    ToolboxNativeText native;
+    LOKA_VERIFY(native.build(out));
+    LOKA_VERIFY(native.size() == sizeof(bytes));
+    LOKA_VERIFY(std::memcmp(native.data(), bytes, sizeof(bytes)) == 0);
+
+    toolbox_host::systemScript = 1;
+    expectDecode(bytes, 128, std::string(reinterpret_cast<const char *>(bytes), 128));
+    out = String::Literal("unchanged");
+    const unsigned reads = toolbox_host::scriptReads;
+    LOKA_VERIFY(!ToolboxDecodeNative(cafe, sizeof(cafe), out));
+    LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+    LOKA_VERIFY(out.equals(String::Literal("unchanged")));
+    expectDecode(0, 0, "");
+    toolbox_host::systemScript = smRoman;
+    LOKA_VERIFY(!ToolboxDecodeNative(0, 1, out));
+    LOKA_VERIFY(out.equals(String::Literal("unchanged")));
+  }
+
+  void hostStubs()
+  {
+    toolbox_host::systemScript = smRoman;
+    toolbox_host::keyboardScript = 1;
+    const unsigned reads = toolbox_host::scriptReads;
+    LOKA_VERIFY(GetScriptManagerVariable(smKeyScript) == 1);
+    LOKA_VERIFY(toolbox_host::scriptReads == reads);
+    LOKA_VERIFY(GetScriptManagerVariable(smSysScript) == smRoman);
+    LOKA_VERIFY(toolbox_host::scriptReads == reads + 1);
+    const unsigned beeps = toolbox_host::beeps;
+    SysBeep(1);
+    LOKA_VERIFY(toolbox_host::beeps == beeps + 1);
+    toolbox_host::reset();
+    LOKA_VERIFY(toolbox_host::beeps == 0);
+    toolbox_host::systemScript = smRoman;
+    toolbox_host::keyboardScript = smRoman;
   }
 
   void codec()
@@ -233,6 +310,8 @@ int main(int argc, char **argv)
   else if (std::strcmp(argv[1], "script") == 0) script();
   else if (std::strcmp(argv[1], "failure") == 0) failure();
   else if (std::strcmp(argv[1], "counted") == 0) counted();
+  else if (std::strcmp(argv[1], "decode") == 0) decode();
+  else if (std::strcmp(argv[1], "host-stubs") == 0) hostStubs();
   else if (std::strcmp(argv[1], "hfs") == 0) hfs();
   else LOKA_VERIFY(false);
   std::puts("Pascal text pin passed");
