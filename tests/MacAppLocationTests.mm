@@ -9,6 +9,8 @@
 #include <cstring>
 
 #include "core/io/File.hpp"
+#include "MacPlatformContext.hpp"
+#include "support/FileRefusalPin.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
 
@@ -62,6 +64,8 @@ namespace
 void testMacApplicationItemNamesResourceDirectory()
 {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  MacPlatformContext refusalContext;
+  VerifyFileRefusal(refusalContext);
   NSString *executablePath = [[NSBundle mainBundle] executablePath];
   NSString *executableDirectory = [executablePath stringByDeletingLastPathComponent];
   NSString *resourcePath = [[NSBundle mainBundle] resourcePath];

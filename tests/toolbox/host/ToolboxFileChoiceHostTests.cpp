@@ -3,6 +3,7 @@
 #include "ToolboxByteSource.hpp"
 #include "app/FileImageSource.hpp"
 #include "support/TestVerify.hpp"
+#include "support/FileRefusalPin.hpp"
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -185,6 +186,11 @@ static void Decoy()
   LOKA_VERIFY(result == READ_NATIVE_OPEN_FAILED);
   LOKA_VERIFY(actual != "decoy");
 }
+static void Refused()
+{
+  ToolboxPlatformContext context;
+  VerifyFileRefusal(context);
+}
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
@@ -196,6 +202,7 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "collision-ab")) Collision(false);
   else if (!std::strcmp(argv[1], "collision-ba")) Collision(true);
   else if (!std::strcmp(argv[1], "decoy")) Decoy();
+  else if (!std::strcmp(argv[1], "refused")) Refused();
   else return 2;
   LOKA_VERIFY(OpenCount() == 0);
   return 0;

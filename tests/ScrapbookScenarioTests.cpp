@@ -1,3 +1,4 @@
+#include "support/FileRefusalPin.hpp"
 #include "ScrapbookScenarioTests.hpp"
 
 #include "support/TestVerify.hpp"
@@ -250,6 +251,14 @@ void testScrapbookRigLaunchRequiresConfigAndRefusesStandaloneTour()
 
 void testScrapbookStandaloneTourAdvancesInOrderAndHoldsFinalScene()
 {
+  // This fake's base predicate must stay exact-Application as File gains phases.
+  ScrapbookTourPlatformContext refusalContext(loka::core::String::Literal("unused"));
+  loka::platform::file::FileHandle refusedOutput;
+  LOKA_VERIFY(!refusalContext.openFile(RefusedFileForTest(), refusedOutput));
+  LOKA_VERIFY(!refusalContext.openFile(loka::file::File("ASSETS.LRP"), refusedOutput));
+  LOKA_VERIFY(refusalContext.openFile(
+      loka::file::File::Application() << loka::file::File("ASSETS.LRP"), refusedOutput));
+
   const loka::scenario_tests::ScenarioLaunchPlan plan = loka::scenario_tests::ScenarioLaunchPlan::StandaloneTour();
   VerifyPlanValidity(plan, true);
   LOKA_VERIFY(plan.scenario() == "standalone-tour");

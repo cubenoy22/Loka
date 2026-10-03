@@ -20,6 +20,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/TestingHooks.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ExampleAppConfigCompileTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ApplicationFileTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/FileLocatorTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/NullPlatformContext.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/NullScenePlatformController.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/platform/null/context/NullButtonContext.cpp
