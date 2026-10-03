@@ -5,7 +5,7 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
-#include "platform/StringUTF8.hpp"
+#include "platform/ToolboxPascalText.hpp"
 #include "platform/String.hpp"
 #include "core/StringAccess.hpp"
 #include <cstring>
@@ -35,47 +35,10 @@ namespace
 
   ToolboxEditTextNodeHandler gToolboxEditTextNodeHandler;
 
-  /** Certify the installed bytes, not a logical value whose sync may refuse. */
-  bool InstalledTextMatches(TEHandle te, const loka::core::String &value)
-  {
-    loka::platform::Utf8View bytes = {0, 0};
-    std::string scratch;
-    const loka::core::Managed<loka::platform::String> &handle = loka::core::StringAccess::handle(value);
-    if (handle.isValid() && !handle->queryUtf8(bytes))
-    {
-      if (!loka::platform::CollectUtf8(value, scratch))
-        return false;
-      bytes.bytes = scratch.data();
-      bytes.length = scratch.size();
-    }
-    if ((**te).teLength < 0 || static_cast<std::size_t>((**te).teLength) != bytes.length)
-      return false;
-    if (!bytes.length)
-      return true;
-    // Conversion is complete before borrowing the relocatable native bytes.
-    // No allocating or Toolbox call intervenes before the comparison.
-    CharsHandle installed = TEGetText(te);
-    return installed && *installed && std::memcmp(*installed, bytes.bytes, bytes.length) == 0;
-  }
-
   void DrawStringAt(short x, short y, const loka::core::String &value)
   {
-    std::string utf8;
-    if (!loka::platform::CollectUtf8(value, utf8))
-    {
-      return;
-    }
-    std::size_t length = utf8.size();
-    if (length > 255)
-    {
-      length = 255;
-    }
     Str255 text;
-    text[0] = static_cast<unsigned char>(length);
-    if (length > 0)
-    {
-      std::memcpy(text + 1, utf8.data(), length);
-    }
+    if (!ToolboxEncodePascal(value, text)) return;
     MoveTo(x, y);
     DrawString(text);
   }
@@ -148,8 +111,9 @@ void ToolboxEditTextContext::updateRect(const Rect &outerRect, const Rect &textR
   textY_ = textY;
 }
 
-void ToolboxEditTextContext::repaint(TEHandle te)
+void ToolboxEditTextContext::repaint(const ToolboxEditPresentation &presentation)
 {
+  TEHandle te = presentation.te;
   ToolboxPaintClip clip(this->paintRect_);
   if (clip.isActive() && !clip.touches(this->paintRect_))
     return;
@@ -161,7 +125,7 @@ void ToolboxEditTextContext::repaint(TEHandle te)
   const Rect view = (**te).viewRect;
   TEUpdate(&view, te);
   FrameRect(&this->rect_);
-  if (completes && InstalledTextMatches(te, this->text_->get()))
+  if (completes && presentation.installed.holds(this->text_->get()))
     this->presented_.commit(this->text_->get(), ToolboxPaintScope());
 }
 
@@ -170,10 +134,10 @@ void ToolboxEditTextContext::draw(ToolboxScenePlatformController *controller)
   // The render walk rebuilds native usage even for disjoint painters.
   if (controller && this->text_)
   {
-    TEHandle te = controller->ensureEditTextControl(this, textRect_, text_, lifetimeHint());
-    if (te)
+    const ToolboxEditPresentation presentation = controller->ensureEditTextControl(this, textRect_, text_, lifetimeHint());
+    if (presentation.te)
     {
-      this->repaint(te);
+      this->repaint(presentation);
       return;
     }
   }

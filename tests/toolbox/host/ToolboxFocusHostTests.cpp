@@ -1,3 +1,7 @@
+#include "platform/String.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include <Script.h>
+#include <Sound.h>
 #include "ToolboxInputDoor.hpp"
 #include "support/TestVerify.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
@@ -146,7 +150,7 @@ namespace
     void native(EditTextNode &node, int x = 0)
     {
       LOKA_VERIFY(controller.ensureEditTextControl(
-          context(node), rect(x), context(node)->projectedTextState(), NATIVE_HINT_DEFAULT));
+          context(node), rect(x), context(node)->projectedTextState(), NATIVE_HINT_DEFAULT).te);
     }
     void click(int x = 0)
     {
@@ -341,7 +345,7 @@ namespace
     f.expect(&f.first);
     SetRect(&f.controller.projectionClip, 0, 0, 40, 20);
     LOKA_VERIFY(!f.controller.ensureEditTextControl(f.context(f.second), f.rect(80),
-                                                  f.text.state(), NATIVE_HINT_DEFAULT));
+                                                  f.text.state(), NATIVE_HINT_DEFAULT).te);
     f.hit(f.second, 80);
     f.focus.post(SECOND);
     {
@@ -453,7 +457,7 @@ namespace
   {
     Fixture f;
     toolbox_host::failNew = 1;
-    LOKA_VERIFY(!f.controller.ensureEditTextControl(f.context(f.first), f.rect(), f.text.state(), NATIVE_HINT_DEFAULT));
+    LOKA_VERIFY(!f.controller.ensureEditTextControl(f.context(f.first), f.rect(), f.text.state(), NATIVE_HINT_DEFAULT).te);
     f.hit(f.first);
     f.click();
     f.expect(&f.first);
@@ -524,6 +528,276 @@ namespace
     f.expect(0);
     LOKA_VERIFY(!ToolboxInputDoor::keyDown(f.controller, 'x'));
   }
+  class RefusableText : public loka::platform::String
+  {
+  public:
+    bool refuse;
+    mutable unsigned reads;
+    std::string bytes;
+    explicit RefusableText(const std::string &value) : refuse(false), reads(0), bytes(value) {}
+    virtual bool appendUtf8(std::string &out) const
+    { ++this->reads; out += this->bytes; return !this->refuse; }
+  };
+  void write(Fixture &f, const String &value)
+  { StateTrackerGuard guard(f.tracker()); f.text.set(value); }
+  void ordinaryRoundTrip()
+  {
+    toolbox_host::systemScript = toolbox_host::keyboardScript = smRoman;
+    Fixture f;
+    write(f, String::Literal("caf\xC3\xA9"));
+    f.native(f.first);
+    f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    LOKA_VERIFY((**te).text == std::string("caf\x8E", 4) && (**te).selStart == 4);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, static_cast<char>(0x8E)));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("caf\xC3\xA9\xC3\xA9")));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 8));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("caf\xC3\xA9")));
+    const int controls[] = {13, 3, 9, 27, 0x10, 0};
+    const int sets = toolbox_host::sets;
+    for (unsigned i = 0; i < sizeof(controls) / sizeof(controls[0]); ++i)
+      LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, static_cast<char>(controls[i])));
+    LOKA_VERIFY((**te).text == std::string("caf\x8E", 4) && toolbox_host::sets == sets);
+    for (int script = 0; script < 2; ++script)
+    {
+      toolbox_host::systemScript = script ? 0 : 1;
+      toolbox_host::keyboardScript = script ? 1 : 0;
+      const unsigned beeps = toolbox_host::beeps;
+      LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, static_cast<char>(0xC9)));
+      LOKA_VERIFY(toolbox_host::beeps == beeps + 1 && (**te).text == std::string("caf\x8E", 4));
+    }
+    toolbox_host::systemScript = toolbox_host::keyboardScript = smRoman;
+    write(f, String::Literal("abcd")); f.native(f.first);
+    TESetSelect(1, 1, te);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 0x7F));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("acd")) && (**te).selStart == 1);
+    TESetSelect(1, 3, te);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 0x7F));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("a")));
+    const unsigned beeps = toolbox_host::beeps;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 0x7F));
+    LOKA_VERIFY(toolbox_host::beeps == beeps && f.text.get().equals(String::Literal("a")));
+    write(f, String(std::string(32767, 'x'))); f.native(f.first);
+    const int fullSets = toolbox_host::sets;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'y'));
+    LOKA_VERIFY((**te).teLength == 32767 && toolbox_host::beeps == beeps + 1);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 8));
+    LOKA_VERIFY((**te).teLength == 32766 && toolbox_host::sets == fullSets);
+    write(f, String(std::string(32768, 'z'))); f.native(f.first);
+    LOKA_VERIFY((**te).teLength == 32766 && toolbox_host::sets == fullSets);
+    write(f, String(std::string(32767, 'x'))); f.native(f.first);
+    TESetSelect(0, 32767, te);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'y'));
+    LOKA_VERIFY((**te).text == "y");
+    toolbox_host::systemScript = 1;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'z'));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("yz")));
+    toolbox_host::systemScript = 0;
+    write(f, String::Literal("\xE6\xBC\xA2\xE5\xAD\x97")); f.native(f.first);
+    LOKA_VERIFY((**te).text == "??");
+    const String lossy = f.text.get();
+    const unsigned beforeBeep = toolbox_host::beeps;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(toolbox_host::beeps == beforeBeep + 1 && f.text.get().equals(lossy));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 28));
+    LOKA_VERIFY((**te).selStart == 1 && f.text.get().equals(lossy));
+    // A verified empty installation is not a never-installed row.
+    ToolboxEditInstalled none;
+    LOKA_VERIFY(!none.holds(String()));
+    write(f, String()); f.native(f.first);
+    LOKA_VERIFY(f.controller.editControls_[0].installed.holds(String()));
+    f.controller.retireEditTextBinding(f.controller.editControls_[0], NATIVE_HINT_DEFAULT);
+    LOKA_VERIFY(!f.controller.editControls_[0].installed.holds(String()));
+    f.controller.editControls_.clear(); f.controller.flushTE();
+    f.native(f.first);
+    LOKA_VERIFY((**f.controller.editControls_[0].te).text.empty());
+    std::puts("ordinary round trip, key classification, capacity, certificate pins passed");
+  }
+  void ordinaryRefusal()
+  {
+    Fixture f; f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    RefusableText *source = new RefusableText("B");
+    const String refused = String::FromPlatform(Managed<loka::platform::String>::Wrap(source));
+    write(f, refused); source->refuse = true;
+    f.native(f.first);
+    const unsigned beeps = toolbox_host::beeps;
+    LOKA_VERIFY((**te).text == "a" && f.controller.editControls_[0].installed.holds(String::Literal("a")));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY((**te).text == "a" && toolbox_host::beeps == beeps + 1);
+    source->refuse = false;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY((**te).text == "Bx" && f.text.get().equals(String::Literal("Bx")));
+    // Same row, new props and seat, refused collection: the old seat is never written.
+    { StateTrackerGuard guard(f.tracker()); f.replacement.set(refused); }
+    source->refuse = true;
+    f.first.props.text(f.replacement); f.native(f.first);
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'q'));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("Bx")) && (**te).text == "Bx");
+    source->refuse = false;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'q'));
+    LOKA_VERIFY(f.replacement.get().equals(String::Literal("Bq")) && f.text.get().equals(String::Literal("Bx")));
+    std::puts("refusal recovery without State write and props rebind pins passed");
+  }
+  void ordinaryNoPublication()
+  {
+    Fixture f;
+    RefusableText *source = new RefusableText("z");
+    const String logical = String::FromPlatform(Managed<loka::platform::String>::Wrap(source));
+    write(f, logical); f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    source->reads = 0;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 28));
+    LOKA_VERIFY(source->reads == 0);
+    // Admission collects once and decoded-vs-before equality collects once.
+    // Keep the transaction open: a redundant seat.set marks its tracker dirty
+    // even when State equality suppresses observer notification.
+    source->reads = 0;
+    { StateTrackerGuard guard(f.tracker());
+      LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 8));
+      LOKA_VERIFY(!static_cast<PushStateTracker *>(f.tracker())->transactionDirty()); }
+    LOKA_VERIFY(source->reads == 2);
+    f.controller.editControls_[0].installed.commit(logical);
+    source->reads = 0; TESetSelect(0, 1, te);
+    { StateTrackerGuard guard(f.tracker());
+      LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'z'));
+      LOKA_VERIFY(!static_cast<PushStateTracker *>(f.tracker())->transactionDirty()); }
+    LOKA_VERIFY(source->reads == 2 && (**te).selStart == 1);
+    std::puts("arrows, start Backspace and same-byte replacement never enter the seat");
+  }
+  void refuseAfterKey(TEHandle te)
+  {
+    (**te).teLength = -1;
+    toolbox_host::afterKey = 0;
+  }
+  void refuseReadAfterKey(TEHandle)
+  { toolbox_host::refuseReads = 1; toolbox_host::afterKey = 0; }
+  void ordinaryBoundedRepair()
+  {
+    Fixture f; f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    f.controller.editControls_[0].installed.revoke();
+    const int sets = toolbox_host::sets;
+    toolbox_host::afterKey = refuseAfterKey;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(toolbox_host::sets == sets + 2 && (**te).text == "a");
+    LOKA_VERIFY(f.text.get().equals(String::Literal("a")));
+    toolbox_host::afterKey = refuseReadAfterKey;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("a")) && (**te).text == "a");
+    f.controller.editControls_[0].installed.revoke();
+    toolbox_host::corruptSets = 1;
+    f.controller.syncEditTextFromState(f.controller.editControls_[0]);
+    LOKA_VERIFY(!f.controller.editControls_[0].installed.holds(f.text.get()));
+    LOKA_VERIFY((**te).teLength == 1 && (**te).text != "a");
+    f.controller.syncEditTextFromState(f.controller.editControls_[0]);
+    // Pool a nonempty native record, then reuse it for a certified empty value.
+    f.controller.retireEditTextControl(f.context(f.first), NATIVE_HINT_DEFAULT);
+    f.controller.flushTE(); write(f, String()); f.native(f.first);
+    LOKA_VERIFY(f.controller.editControls_[0].te == te && (**te).text.empty());
+    LOKA_VERIFY(f.controller.editControls_[0].installed.holds(String()));
+  }
+  struct SyncEdits
+  {
+    ToolboxScenePlatformController *controller;
+    explicit SyncEdits(ToolboxScenePlatformController &c) : controller(&c) {}
+    static void changed(void *data)
+    {
+      SyncEdits &self = *static_cast<SyncEdits *>(data);
+      for (std::size_t i = 0; i < self.controller->editControls_.size(); ++i)
+        self.controller->syncEditTextFromState(self.controller->editControls_[i]);
+    }
+  };
+  void ordinaryFanout()
+  {
+    Fixture f; write(f, String::Literal("abcd")); f.native(f.first); f.native(f.second, 80);
+    f.controller.activateEditControl(0);
+    TEHandle source = f.controller.editControls_[0].te;
+    TESetSelect(2, 2, source);
+    SyncEdits sync(f.controller);
+    f.text.state()->bind(SyncEdits::changed, &sync);
+    const int sets = toolbox_host::sets;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'X'));
+    LOKA_VERIFY((**source).text == "abXcd" && (**source).selStart == 3);
+    LOKA_VERIFY((**f.controller.editControls_[1].te).text == "abXcd");
+    LOKA_VERIFY(toolbox_host::sets == sets + 1);
+    f.text.state()->unbind(SyncEdits::changed, &sync);
+  }
+  void ordinaryDecodeRepair()
+  {
+    Fixture f;
+    write(f, String::Literal("caf\xC3\xA9")); f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    toolbox_host::systemScript = 1;
+    const unsigned beeps = toolbox_host::beeps;
+    const int sets = toolbox_host::sets;
+    f.controller.pendingDirtyRects_.clear();
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("caf\xC3\xA9")) && (**te).text == "caf?");
+    LOKA_VERIFY(toolbox_host::beeps == beeps + 1 && toolbox_host::sets == sets + 1);
+    LOKA_VERIFY(!f.controller.pendingDirtyRects_.empty());
+    toolbox_host::systemScript = smRoman;
+    // Failed readback clears the certificate; no absent certificate may skip retry.
+    f.controller.editControls_[0].installed.revoke();
+    toolbox_host::failSets = 1;
+    f.controller.syncEditTextFromState(f.controller.editControls_[0]);
+    LOKA_VERIFY(!f.controller.editControls_[0].installed.holds(f.text.get()));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("caf\xC3\xA9x")));
+    std::puts("decode refusal preserves State, repairs native text and records damage");
+  }
+  RefusableText *gRepairSource = 0;
+  void refuseReadAndRepairAfterKey(TEHandle)
+  {
+    toolbox_host::refuseReads = 1;
+    gRepairSource->refuse = true;
+    toolbox_host::afterKey = 0;
+  }
+  void ordinaryFailedRepair()
+  {
+    Fixture f;
+    RefusableText *source = new RefusableText("ab");
+    const String value = String::FromPlatform(Managed<loka::platform::String>::Wrap(source));
+    write(f, value); f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    LOKA_VERIFY((**te).text == "ab");
+    gRepairSource = source;
+    toolbox_host::afterKey = refuseReadAndRepairAfterKey;
+    const unsigned beeps = toolbox_host::beeps;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    // Neither the readback nor the repair committed; the unaccepted "abx" must not stay visible.
+    LOKA_VERIFY(f.text.get().equals(value) && toolbox_host::beeps == beeps + 1);
+    LOKA_VERIFY((**te).text.empty() && !f.controller.editControls_[0].installed.holds(value));
+    source->refuse = false;
+    gRepairSource = 0;
+    std::puts("a refused repair degrades the native projection to empty, never to the unaccepted edit");
+  }
+  void ordinaryFallback()
+  {
+    Fixture f; f.hit(f.first); f.click();
+    write(f, String());
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, static_cast<char>(0x8E)));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("\xC3\xA9")));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 0x7F));
+    LOKA_VERIFY(f.text.get().equals(String::Literal("\xC3\xA9")));
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 8));
+    LOKA_VERIFY(f.text.get().equals(String()));
+    const char *bad[] = {"\x80", "\xC0\xAF", "\xE2\x82", "\xED\xA0\x80"};
+    for (unsigned i = 0; i < sizeof(bad) / sizeof(bad[0]); ++i)
+    {
+      const String value(bad[i]); write(f, value);
+      const unsigned beeps = toolbox_host::beeps;
+      LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 8));
+      LOKA_VERIFY(f.text.get().equals(value) && toolbox_host::beeps == beeps + 1);
+    }
+    RefusableText *source = new RefusableText("partial");
+    const String value = String::FromPlatform(Managed<loka::platform::String>::Wrap(source));
+    write(f, value); source->refuse = true;
+    const unsigned beeps = toolbox_host::beeps;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    LOKA_VERIFY(f.text.get().equals(value) && toolbox_host::beeps == beeps + 1);
+    std::puts("fallback scalar insertion/deletion and refusal pins passed");
+  }
 } // namespace
 int main(int argc, char **argv)
 {
@@ -532,6 +806,14 @@ int main(int argc, char **argv)
     sharedTextKey();
     return 0;
   }
+  ordinaryRoundTrip();
+  ordinaryRefusal();
+  ordinaryNoPublication();
+  ordinaryBoundedRepair();
+  ordinaryFanout();
+  ordinaryDecodeRepair();
+  ordinaryFailedRepair();
+  ordinaryFallback();
   postedNative();
   admissionGuards();
   postedEditor();

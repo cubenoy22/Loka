@@ -1,17 +1,19 @@
+#include "platform/ToolboxPascalText.hpp"
+#include <cstring>
 /** Shared production binding path, also compiled by the host TextEdit fixture. */
-TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
+ToolboxEditPresentation ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                                                const Rect &rect,
                                                                loka::core::State<loka::core::String> *text,
                                                                loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
   if (!text || !ownerContext)
   {
-    return 0;
+    return ToolboxEditPresentation();
   }
   Rect controlRect;
   if (!this->intersectWithProjectionClip(rect, controlRect))
   {
-    return 0;
+    return ToolboxEditPresentation();
   }
   EditTextControlBinding *binding = 0;
   loka::core::State<loka::core::String> *previousText = 0;
@@ -29,7 +31,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     if (textEditBucket_.tryAcquire(te))
     {
       // Restore the fresh-created baseline: pooled records keep their last
-      // text and rects, and the new binding starts from lastText == "".
+      // text and rects; the new binding starts with no installation certificate.
       TESetText(static_cast<const void *>(""), 0, te);
       (**te).destRect = controlRect;
       (**te).viewRect = controlRect;
@@ -40,7 +42,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
       te = TENew(&controlRect, &controlRect);
       if (!te)
       {
-        return 0;
+        return ToolboxEditPresentation();
       }
     }
     EditTextControlBinding entry;
@@ -51,7 +53,7 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
     entry.te = te;
     entry.rect = controlRect;
     entry.usedThisFrame = true;
-    entry.lastText = "";
+    entry.installed.revoke();
     entry.lifetimeHint = lifetimeHint;
     editControls_.add(entry);
     binding = &editControls_.back();
@@ -86,13 +88,14 @@ TEHandle ToolboxScenePlatformController::ensureEditTextControl(ToolboxEditTextCo
   {
     syncEditTextFromState(*binding);
   }
-  return binding ? binding->te : 0;
+  return ToolboxEditPresentation(binding->te, binding->installed);
 }
 
 void ToolboxScenePlatformController::retireEditTextBinding(
     EditTextControlBinding &binding,
     loka::app::scene::NativeLifetimeHint lifetimeHint)
 {
+  binding.installed.revoke();
   if (binding.editor)
     binding.editor->invalidateNativePresentation();
   else if (binding.ownerContext)
@@ -136,21 +139,33 @@ void ToolboxScenePlatformController::retireEditTextControl(
 
 void ToolboxScenePlatformController::syncEditTextFromState(EditTextControlBinding &binding)
 {
-  if (binding.editor) return;
-  if (!binding.te)
+  if (binding.editor || !binding.te || !*binding.te || !binding.text) return;
+  const loka::core::String source = binding.text->get();
+  if (binding.installed.holds(source)) return;
+  ToolboxNativeText candidate;
+  // Pre-install refusals preserve both the native value and its certificate (#1026).
+  if (!candidate.build(source) || candidate.size() > 32767) return;
+  TESetText(candidate.size() ? static_cast<const void *>(candidate.data()) : "",
+            static_cast<long>(candidate.size()), binding.te);
+  CharsHandle handle = TEGetText(binding.te);
+  bool verified = handle && *handle && (**binding.te).teLength >= 0
+      && static_cast<std::size_t>((**binding.te).teLength) == candidate.size();
+  if (verified)
   {
-    return;
+    const signed char state = HGetState(reinterpret_cast<Handle>(handle));
+    HLock(reinterpret_cast<Handle>(handle));
+    verified = !candidate.size() || std::memcmp(*handle, candidate.data(), candidate.size()) == 0;
+    HSetState(reinterpret_cast<Handle>(handle), state);
   }
-  std::string utf8;
-  // A refused conversion leaves partial bytes: keep the installed text and
-  // lastText so the next sync retries instead of recording them (#1026).
-  if (binding.text && !loka::platform::CollectUtf8(binding.text->get(), utf8))
-    return;
-  if (binding.lastText == utf8)
+  if (verified)
   {
-    return;
+    binding.installed.commit(source);
+    TESetSelect(static_cast<short>(candidate.size()), static_cast<short>(candidate.size()), binding.te);
   }
-  TESetText(utf8.c_str(), static_cast<long>(utf8.size()), binding.te);
-  TESetSelect(utf8.size(), utf8.size(), binding.te);
-  binding.lastText = utf8;
+  else
+  {
+    binding.installed.revoke();
+    if (binding.ownerContext)
+      static_cast<ToolboxEditTextContext *>(binding.ownerContext)->invalidateNativePresentation();
+  }
 }

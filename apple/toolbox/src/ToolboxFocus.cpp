@@ -1,3 +1,53 @@
+#include "ToolboxEditKey.hpp"
+#include "platform/ToolboxPascalText.hpp"
+#include "platform/ToolboxMacRoman.hpp"
+#include "core/StringAccess.hpp"
+#include "platform/String.hpp"
+#include <Script.h>
+#include <Sound.h>
+
+namespace
+{
+  ToolboxEditKey OrdinaryEditKey(char key)
+  {
+    const unsigned char byte = static_cast<unsigned char>(key);
+    const bool roman = byte < 0x80 || (GetScriptManagerVariable(smSysScript) == smRoman
+        && GetScriptManagerVariable(smKeyScript) == smRoman);
+    return ClassifyEditKey(byte, roman);
+  }
+
+  /** Compare canonical decoded native units without constructing a decoded String.
+      Collect before borrowing the movable handle; the walk itself cannot allocate. */
+  bool EditRoundTrips(TEHandle te, const loka::core::String &source)
+  {
+    loka::platform::Utf8View utf8 = {0, 0};
+    std::string scratch;
+    const loka::core::Managed<loka::platform::String> &value = loka::core::StringAccess::handle(source);
+    if (value.isValid() && !value->queryUtf8(utf8))
+    {
+      if (!loka::platform::CollectUtf8(source, scratch)) return false;
+      utf8.bytes = scratch.data();
+      utf8.length = scratch.size();
+    }
+    CharsHandle handle = TEGetText(te);
+    if (!handle || !*handle || (**te).teLength < 0) return false;
+    const unsigned char *native = reinterpret_cast<const unsigned char *>(*handle);
+    std::size_t offset = 0;
+    for (long i = 0; i < (**te).teLength; ++i)
+    {
+      unsigned long scalar = native[i];
+      ToolboxMacRomanDecode(native[i], scalar);
+      if (offset == utf8.length) return false;
+      const ToolboxTextUnit unit = ToolboxNextTextUnit(utf8.bytes + offset, utf8.length - offset, false);
+      // The strict reader recovers malformed input as '?'; only the literal
+      // ASCII '?' can round trip to that scalar.
+      if (unit.scalar != scalar || (unit.scalar == '?' && utf8.bytes[offset] != '?')) return false;
+      offset += unit.consumed;
+    }
+    return offset == utf8.length;
+  }
+}
+
 /** Controller focus reads and key delivery, shared with the host fixture. */
 ToolboxEditTextContext *ToolboxScenePlatformController::fallbackFocusContext() const
 {
@@ -59,9 +109,43 @@ bool ToolboxScenePlatformController::handleKeyDown(char key)
       focusedEdit->editor->key(key);
       return true;
     }
+    const ToolboxEditKey kind = OrdinaryEditKey(key);
+    switch (kind)
+    {
+      case EDIT_KEY_CONSUME: return true;
+      case EDIT_KEY_REFUSE_HIGH: SysBeep(1); return true;
+      case EDIT_KEY_NAVIGATE:
+        TEKey(key, focusedEdit->te);
+        return true;
+      case EDIT_KEY_DELETE_BACKWARD:
+      case EDIT_KEY_DELETE_FORWARD:
+      case EDIT_KEY_INSERT: break;
+    }
+    if (!focusedEdit->text) return true;
     this->beginBatchUpdate();
-    TEKey(key, focusedEdit->te);
-    this->updateStateFromEdit(*focusedEdit);
+    const loka::core::String before = focusedEdit->text->get();
+    if (!focusedEdit->installed.holds(before))
+    {
+      this->syncEditTextFromState(*focusedEdit);
+      this->addPendingDirty(static_cast<ToolboxEditTextContext *>(focusedEdit->ownerContext)->chromeRect());
+    }
+    TEHandle te = focusedEdit->te;
+    const long length = (**te).teLength;
+    const long start = (**te).selStart, end = (**te).selEnd;
+    if (!focusedEdit->installed.holds(before) || !EditRoundTrips(te, before)
+        || start < 0 || end < start || length < end
+        || (kind == EDIT_KEY_INSERT && length - (end - start) + 1 > 32767))
+      SysBeep(1);
+    else if (kind != EDIT_KEY_DELETE_FORWARD || start != end || end != length)
+    {
+      if (kind == EDIT_KEY_DELETE_FORWARD && start == end)
+        TESetSelect(static_cast<short>(start), static_cast<short>(start + 1), te);
+      // No certificate is observable for a native mutation awaiting readback.
+      focusedEdit->installed.revoke();
+      TEKey(kind == EDIT_KEY_INSERT ? key : 8, te);
+      this->updateStateFromEdit(*focusedEdit, before);
+      // Publication may retire or relocate the row. Do not borrow it again.
+    }
     this->endBatchUpdate();
     return true;
   }
@@ -83,30 +167,43 @@ bool ToolboxScenePlatformController::handleTextKey(char key)
   {
     return false;
   }
+  const ToolboxEditKey kind = OrdinaryEditKey(key);
+  switch (kind)
+  {
+    case EDIT_KEY_NAVIGATE:
+    case EDIT_KEY_DELETE_FORWARD:
+    case EDIT_KEY_CONSUME: return true;
+    case EDIT_KEY_REFUSE_HIGH: SysBeep(1); return true;
+    case EDIT_KEY_DELETE_BACKWARD:
+    case EDIT_KEY_INSERT: break;
+  }
+  const loka::core::String before = text->get();
   std::string utf8;
-  loka::platform::CollectUtf8(text->get(), utf8);
-  if (key == 8 || key == 0x7F)
+  if (!loka::platform::CollectUtf8(before, utf8))
+  { SysBeep(1); return true; }
+  if (kind == EDIT_KEY_DELETE_BACKWARD)
   {
-    if (!utf8.empty())
-    {
-      utf8.erase(utf8.size() - 1);
-    }
-  }
-  else if (key == 13)
-  {
-    return true;
-  }
-  else if (key >= 32)
-  {
-    utf8.push_back(key);
+    if (utf8.empty()) return true;
+    std::size_t start = utf8.size() - 1;
+    while (start && (static_cast<unsigned char>(utf8[start]) & 0xC0) == 0x80) --start;
+    const ToolboxTextUnit tail = ToolboxNextTextUnit(utf8.data() + start, utf8.size() - start, true);
+    // A malformed byte recovers as '?'; only a literal '?' may have that shape.
+    if (tail.consumed != utf8.size() - start
+        || (tail.scalar == '?' && utf8[start] != '?'))
+    { SysBeep(1); return true; }
+    utf8.erase(start);
   }
   else
   {
-    return false;
+    const unsigned char byte = static_cast<unsigned char>(key);
+    loka::core::String scalar;
+    std::string encoded;
+    if (!ToolboxDecodeNative(&byte, 1, scalar) || !loka::platform::CollectUtf8(scalar, encoded))
+    { SysBeep(1); return true; }
+    utf8 += encoded;
   }
   const loka::app::scene::WriteSeat<loka::core::String> seat = context->projectedWriteSeat();
-  if (!seat.isValid())
-    return false;
+  if (!seat.isValid()) return false;
   seat.set(loka::core::String(utf8));
   return true;
 }

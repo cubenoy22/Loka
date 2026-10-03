@@ -193,6 +193,8 @@ void ClipRect(const Rect *rect)
 #include "context/ToolboxTextEditorContext.hpp"
 namespace toolbox_host
 {
+  void (*afterKey)(TEHandle) = 0;
+  unsigned corruptSets = 0, refuseReads = 0;
   int copied = 0, sets = 0, disposals = 0, failSets = 0, failNew = 0, updates = 0, selections = 0;
 }
 TEHandle TENew(const Rect *dest, const Rect *view)
@@ -249,11 +251,14 @@ void TESetText(const void *bytes, long length, TEHandle te)
     length = 0;
   }
   (**te).text.assign(static_cast<const char *>(bytes), length);
+  if (toolbox_host::corruptSets && length)
+  { --toolbox_host::corruptSets; (**te).text[0] ^= 1; }
   (**te).teLength = static_cast<short>(length);
   TECalText(te);
 }
 Handle TEGetText(TEHandle te)
 {
+  if (toolbox_host::refuseReads) { --toolbox_host::refuseReads; return 0; }
   (**te).data = const_cast<char *>((**te).text.data());
   return &(**te).data;
 }
@@ -284,6 +289,7 @@ void TEKey(char key, TEHandle te)
   t.selEnd = t.selStart;
   t.teLength = static_cast<short>(t.text.size());
   TECalText(te);
+  if (toolbox_host::afterKey) toolbox_host::afterKey(te);
 }
 void TEClick(Point p, bool, TEHandle te)
 {
@@ -326,6 +332,8 @@ void TEUpdate(const Rect *, TEHandle)
 {
   ++toolbox_host::updates;
 }
+signed char HGetState(Handle) { return 0; }
+void HSetState(Handle, signed char) {}
 void HLock(Handle) {}
 void HUnlock(Handle) {}
 void BlockMoveData(const void *source, void *dest, long length)

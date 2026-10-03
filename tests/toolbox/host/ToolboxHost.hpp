@@ -1,5 +1,6 @@
 #ifndef LOKA_TEST_TOOLBOX_HOST_HPP
 #define LOKA_TEST_TOOLBOX_HOST_HPP
+#include "ToolboxEditInstalled.hpp"
 // Replace OS/controller neighbors; compile the actual context, table, measure
 // scope, lifecycle base and built-in registration source without alteration.
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
@@ -138,6 +139,7 @@ public:
   virtual loka::core::State<loka::core::String> *projectedTextState()
   { return this->projectedWriteSeat().state(); }
   void invalidateNativePresentation() {}
+  const Rect &chromeRect() const { static const Rect rect = {0, 0, 0, 0}; return rect; }
 };
 #else
 #include "context/ToolboxEditTextContext.hpp"
@@ -270,14 +272,14 @@ public:
   std::vector<ButtonControlBinding> buttonControls_;
   void commitScrollBarValueAt(std::size_t);
   void commitViewportScrollBarValue(ViewportScrollBarBinding &, ScrollBarControlBinding &);
-  void addPendingDirty(const Rect &) {}
+  void addPendingDirty(const Rect &rect) { this->pendingDirtyRects_.push_back(rect); }
   void installScroll(const ScrollBarControlBinding &row) { this->scrollBarLedger_.scrollBarControls_.push_back(row); }
 
   bool handleTextKey(char);
   void beginBatchUpdate() {}
   void endBatchUpdate() {}
   struct EditTextControlBinding;
-  void updateStateFromEdit(EditTextControlBinding &);
+  void updateStateFromEdit(EditTextControlBinding &, const loka::core::String &);
   void recordEditHit(const Rect &, loka::core::State<loka::core::String> *,
                      loka::app::scene::BoundaryNode *, ToolboxEditTextContext *);
   struct EditTextControlBinding
@@ -286,7 +288,7 @@ public:
     TEHandle te;
     loka::core::State<loka::core::String> *text;
     loka::app::scene::WriteSeat<loka::core::String> textSeat;
-    std::string lastText;
+    ToolboxEditInstalled installed;
     ToolboxTextEditorContext *editor;
     Rect rect;
     bool usedThisFrame;
@@ -309,7 +311,7 @@ public:
   void queueRetiredTextEdit(TEHandle, loka::app::scene::NativeLifetimeHint);
   bool hasLiveBinding(TEHandle) const;
   void disposeNativeHandle(TEHandle);
-  TEHandle ensureEditTextControl(ToolboxEditTextContext *, const Rect &, loka::core::State<loka::core::String> *,
+  ToolboxEditPresentation ensureEditTextControl(ToolboxEditTextContext *, const Rect &, loka::core::State<loka::core::String> *,
                                 loka::app::scene::NativeLifetimeHint);
   void retireEditTextBinding(EditTextControlBinding &, loka::app::scene::NativeLifetimeHint);
   void retireEditTextControlAt(std::size_t, loka::app::scene::NativeLifetimeHint);
