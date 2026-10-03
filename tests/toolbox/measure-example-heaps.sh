@@ -142,9 +142,12 @@ measure() {
   live="$(sed -n 's/^PEAK live=\([0-9]*\) .*/\1/p' <<<"$log")"
   max="$(sed -n 's/^launched max=\([0-9]*\)$/\1/p' <<<"$log")"
   [ -n "$live" ] && [ -n "$max" ] || fail "$example: the application did not survive the workload; see $work/measure.log and $work/snapshot"
-  awk -v ex="$example" -v live="$live" -v max="$max" -v pref="$preferred_k" 'BEGIN {
+  awk -v ex="$example" -v live="$live" -v max="$max" -v pref="$preferred_k" '
+  # Round a fractional K value up to a multiple of step (int() truncates).
+  function ceil_to(value, step,    n) { n = int(value / step); if (n * step < value) n++; return n * step }
+  BEGIN {
     fixed = pref * 1024 - max; need = live + fixed
-    min = 32 * int((need * 1.1 / 1024 + 31) / 32); best = 64 * int((need * 1.5 / 1024 + 63) / 64)
+    min = ceil_to(need * 1.1 / 1024, 32); best = ceil_to(need * 1.5 / 1024, 64)
     printf "%-13s need=%5.1fK (live %d + fixed %d)  minimum=%dK  preferred=%dK  (declared preferred %dK)\n",
       ex, need / 1024, live, fixed, min, best, pref
   }'
