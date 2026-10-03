@@ -4,6 +4,7 @@
 #include <AppKit/AppKit.h>
 
 #include "MacWindow.hpp"
+#include "MacApp.hpp"
 #include "app/core/App.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/scene/Scene.hpp"
@@ -18,10 +19,10 @@ namespace
   typedef loka::dsl::testing::SceneTestAccess SceneAccess;
   typedef loka::app::testing::AppTestAccess AppAccess;
 
-  class AdmissionApp : public App
+  class AdmissionApp : public MacApp
   {
   public:
-    AdmissionApp() : App(0), closes(0) {}
+    AdmissionApp() : MacApp(0), closes(0) {}
     virtual void quit() {}
     void install(MacWindow *window)
     {

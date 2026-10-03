@@ -616,6 +616,30 @@ namespace loka
         return true;
       }
 
+      /** Compare the complete native projection, including opaque menu items.
+          Keep aligned with the adjacent equalsStructure; only item traversal differs. */
+      bool equalsProjection(const MenuDefinition &other) const
+      {
+        if (isAppMenu != other.isAppMenu)
+          return false;
+        if (!title.equals(other.title))
+          return false;
+        if (opaqueChildrenFlag_ != other.opaqueChildrenFlag_)
+          return false;
+        if (items_.count() != other.items_.count())
+          return false;
+        const MenuItemDefinition *left = items_.head();
+        const MenuItemDefinition *right = other.items_.head();
+        while (left && right)
+        {
+          if (!left->equalsStructure(*right))
+            return false;
+          left = left->nextInComposition;
+          right = right->nextInComposition;
+        }
+        return true;
+      }
+
       bool hasItems() const
       {
         return items_.count() > 0;
@@ -698,6 +722,24 @@ namespace loka
         while (left && right)
         {
           if (!left->equalsStructure(*right))
+            return false;
+          left = left->nextInComposition;
+          right = right->nextInComposition;
+        }
+        return true;
+      }
+
+      /** Compare the complete native projection, including opaque menu items.
+          Keep aligned with the adjacent equalsStructure; only item traversal differs. */
+      bool equalsProjection(const MenuBarDefinition &other) const
+      {
+        if (menus_.count() != other.menus_.count())
+          return false;
+        const MenuDefinition *left = menus_.head();
+        const MenuDefinition *right = other.menus_.head();
+        while (left && right)
+        {
+          if (!left->equalsProjection(*right))
             return false;
           left = left->nextInComposition;
           right = right->nextInComposition;

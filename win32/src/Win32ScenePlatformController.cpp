@@ -1,3 +1,4 @@
+#include "Win32Window.hpp"
 #include "Win32InputDoor.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "context/Win32FocusParticipant.hpp"
@@ -1639,4 +1640,12 @@ bool Win32ScenePlatformController::applyNativeFocus(loka::app::scene::NodeContex
   // the copied HWND is compared. Its return is the previous handle, not success.
   SetFocus(hwnd);
   return GetFocus() == hwnd;
+}
+
+void Win32ScenePlatformController::releaseMenu()
+{
+  Win32Window *window = this->rootHwnd_
+      ? reinterpret_cast<Win32Window *>(GetWindowLongPtrW(this->rootHwnd_, GWLP_USERDATA)) : 0;
+  if (window)
+    window->menuAttachment().releaseFrom(window->scene());
 }

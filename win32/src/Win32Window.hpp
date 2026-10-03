@@ -3,11 +3,12 @@
 
 #include "app/core/Window.hpp"
 #include "app/core/DialogResultTransport.hpp"
+#include "Win32MenuAttachment.hpp"
 #include <windows.h>
 #include <string>
 
 class PlatformContext;
-class App;
+class Win32App;
 
 namespace loka
 {
@@ -35,7 +36,10 @@ public:
     return this;
   }
 
-  void setApp(App *app);
+  void setApp(Win32App *app);
+  /** Borrows the rail owner; absent before enrollment. */
+  Win32App *win32App() const { return this->app_; }
+  Win32MenuAttachment &menuAttachment() { return this->menuAttachment_; }
   HWND hwnd() const
   {
     return hwnd_;
@@ -64,7 +68,7 @@ public:
 
 protected:
   HWND hwnd_;
-  App *app_;
+  Win32App *app_;
 
   virtual void onCreate();
 
@@ -96,6 +100,7 @@ private:
   void teardownScene();
   bool handleCommand(WPARAM wParam, LPARAM lParam);
 
+  Win32MenuAttachment menuAttachment_;
   Win32ScenePlatformController *scenePlatformController_;
 };
 

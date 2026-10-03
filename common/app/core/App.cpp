@@ -20,6 +20,11 @@ App::App(AppConfigurable *config)
 
 App::~App()
 {
+  this->retireComponents();
+}
+
+void App::retireComponents()
+{
   // Shutdown destroys every owner; discard borrowed tail snapshots first.
   this->pendingReclaim_.clear();
   for (size_t i = 0; i < this->pendingWindowClosures_.size(); ++i)

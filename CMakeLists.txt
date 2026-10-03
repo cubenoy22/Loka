@@ -442,6 +442,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     endforeach()
   endforeach()
 
+  foreach(_range_case scroll-refusal scroll-limit)
+    foreach(_range_path handler fallback)
+      foreach(_range_kind row row-advance row-offset grid)
+        add_test(NAME testToolboxResult_${_range_kind}_${_range_path}_${_range_case}
+          COMMAND LokaToolboxBoxLayoutTests ${_range_path} ${_range_kind} ${_range_case})
+      endforeach()
+    endforeach()
+    add_test(NAME testToolboxResult_band_handler_${_range_case}
+      COMMAND LokaToolboxBoxLayoutTests handler band ${_range_case})
+  endforeach()
+
   # Production QuickDraw projection against a deterministic host OS fixture.
   add_executable(LokaToolboxAttributedTextTests
     tests/toolbox/host/ToolboxAttributedTextHostTests.cpp
@@ -491,6 +502,24 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     add_test(NAME testToolboxPascal_${_pascal_case} COMMAND LokaToolboxPascalTextTests ${_pascal_case})
   endforeach()
 
+
+  add_executable(LokaToolboxMenuTests
+    tests/toolbox/host/ToolboxMenuAttachmentHostTests.cpp
+    common/app/MenuComposition.cpp # Exercise C++98 return copies with elision disabled.
+    tests/TestingHooks.cpp
+    apple/toolbox/src/ToolboxMenuAttachment.cpp
+    apple/toolbox/src/platform/ToolboxPascalText.cpp
+    apple/toolbox/src/platform/ToolboxMacRoman.cpp)
+  target_include_directories(LokaToolboxMenuTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_compile_definitions(LokaToolboxMenuTests PRIVATE LOKA_HOST_MENU_ATTACHMENT)
+  target_compile_options(LokaToolboxMenuTests PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxMenuHost.hpp -Wno-multichar -fno-elide-constructors)
+  target_link_libraries(LokaToolboxMenuTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxMenuTests)
+  set_target_properties(LokaToolboxMenuTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxMenuTests COMMAND LokaToolboxMenuTests)
+  add_test(NAME testToolboxAppShutdownReleasesMenuBeforeAttachmentDestruction
+    COMMAND LokaToolboxMenuTests testToolboxAppShutdownReleasesMenuBeforeAttachmentDestruction)
 
   add_executable(LokaToolboxFocusTests tests/toolbox/host/ToolboxFocusHostTests.cpp ${_editor_host_sources})
   target_include_directories(LokaToolboxFocusTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
