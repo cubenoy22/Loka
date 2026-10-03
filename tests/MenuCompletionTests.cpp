@@ -35,6 +35,7 @@ namespace
     }
     using App::admitAndApplyWindows;
     using App::reclaimWindows;
+    using App::clearMenuDiff;
     void operationLoop()
     {
       RunWindowAdmissionOperation(*this);
@@ -101,10 +102,11 @@ namespace
   class RefreshConfig : public AppConfigurable
   {
   public:
-    RefreshConfig() : AppConfigurable(0) {}
+    RefreshConfig() : AppConfigurable(0), composes(0) {}
     virtual void compose(AppComposition &) {}
-    virtual void composeMenu(MenuComposition &c) { c << this->menu; }
+    virtual void composeMenu(MenuComposition &c) { ++this->composes; c << this->menu; }
     RefreshMenu menu;
+    int composes;
   };
 
 }
@@ -269,6 +271,29 @@ void testDefaultRefreshIsVisibleToTheSameCompletion()
     LOKA_VERIFY(app.offers[0].bar.menuAt(0)->itemsHead()->title.equals(String::Literal("After")));
     turn.close();
   }
+}
+void testCleanCompletionsDoNotRecomposeDefault()
+{
+  NullPlatformContext platform;
+  RefreshConfig config;
+  RecordingApp app(&config);
+  NullWindow *window = addWindow<0>(app, platform);
+  app.setActiveWindow(window);
+  app.requestMenuInvalidation();
+  LOKA_VERIFY(app.flushMenuInvalidation());
+  app.operationLoop();
+  const int composed = config.composes;
+  LOKA_VERIFY(composed >= 1);
+  app.offers.clear();
+  // Rails clear the controller diff after projecting; a clean completion must
+  // still read the cached default instead of recomposing it (codex review).
+  for (int i = 0; i < 5; ++i)
+  {
+    app.clearMenuDiff();
+    app.operationLoop();
+  }
+  LOKA_VERIFY(config.composes == composed);
+  LOKA_VERIFY(app.offers.size() == 10 && app.offers[9].hasBar);
 }
 void testTwoAdmissionsReofferSameSource()
 {

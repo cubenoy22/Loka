@@ -459,7 +459,11 @@ void App::projectMenuSources()
       Window *window = rows[i] ? rows[i]->asWindow() : 0;
       if (!window || this->isWindowClosePending(window))
         continue;
-      const loka::app::MenuBarDefinition *base = this->resolveMenuBar(window);
+      // The cached default, never resolveMenuBar: a refresh is the
+      // invalidation flush's job before this step, and a clean completion
+      // must not recompose the default menu.
+      const loka::app::MenuBarDefinition *base =
+          window->menuBar() ? window->menuBar() : this->menuController_.defaultMenuBar();
       const loka::app::scene::Scene *scene = window->scene();
       const loka::app::MenuBarDefinition *overlay = scene ? scene->menuBar() : 0;
       loka::core::OwnedDef<loka::app::MenuBarDefinition> merged(
@@ -470,7 +474,7 @@ void App::projectMenuSources()
     }
   }
   if (!this->activeWindow_)
-    this->projectMenu(0, this->resolveMenuBar(0), 0);
+    this->projectMenu(0, this->menuController_.defaultMenuBar(), 0);
 }
 
 bool App::refreshDefaultMenuBar()

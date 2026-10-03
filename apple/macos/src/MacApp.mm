@@ -38,11 +38,9 @@ namespace
     {
       return false;
     }
-#ifdef NSEventTrackingRunLoopMode
+    // NSEventTrackingRunLoopMode is an exported constant, not a macro: an
+    // #ifdef on it is always false and silently disables this guard.
     return [mode isEqualToString:NSEventTrackingRunLoopMode] ? true : false;
-#else
-    return false;
-#endif
   }
 } // namespace
 
