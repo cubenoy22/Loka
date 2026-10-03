@@ -6,7 +6,7 @@
 #include "core/String.hpp"
 #include "app/scene/projection/PaintFact.hpp"
 #include <Quickdraw.h>
-#include <TextEdit.h>
+#include "ToolboxEditInstalled.hpp"
 
 class ToolboxScenePlatformController;
 namespace loka
@@ -54,7 +54,7 @@ public:
   void updateRect(const Rect &outerRect, const Rect &textRect, short textX, short textY);
   void draw(ToolboxScenePlatformController *controller);
   /** Replay established native placement without creating or reprojecting TE. */
-  void repaint(TEHandle te);
+  void repaint(const ToolboxEditPresentation &presentation);
   /** The rect draw() frames. The retained binding carries the inset text rect,
       which TEUpdate needs, so a dirty replay gated on that one would skip a
       region covering only the chrome the frame lands on. */

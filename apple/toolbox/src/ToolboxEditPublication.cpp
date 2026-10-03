@@ -1,27 +1,32 @@
 /** Included by the production controller and Linux host fixture. */
-void ToolboxScenePlatformController::updateStateFromEdit(EditTextControlBinding &binding)
+void ToolboxScenePlatformController::updateStateFromEdit(
+    EditTextControlBinding &binding, const loka::core::String &before)
 {
-  if (!binding.text || !binding.te)
+  CharsHandle handle = TEGetText(binding.te);
+  const long length = (**binding.te).teLength;
+  loka::core::String decoded;
+  bool accepted = false;
+  if (handle && *handle && length >= 0)
   {
+    const signed char state = HGetState(reinterpret_cast<Handle>(handle));
+    HLock(reinterpret_cast<Handle>(handle));
+    accepted = ToolboxDecodeNative(reinterpret_cast<const unsigned char *>(*handle),
+                                  static_cast<std::size_t>(length), decoded);
+    HSetState(reinterpret_cast<Handle>(handle), state);
+  }
+  if (!accepted)
+  {
+    binding.installed.revoke();
+    ToolboxEditTextContext *context = static_cast<ToolboxEditTextContext *>(binding.ownerContext);
+    context->invalidateNativePresentation();
+    this->syncEditTextFromState(binding);
+    this->addPendingDirty(context->chromeRect());
+    SysBeep(1);
     return;
   }
-  CharsHandle textHandle = TEGetText(binding.te);
-  long length = 0;
-  if (binding.te && *binding.te)
-  {
-    length = (**binding.te).teLength;
-  }
-  std::string utf8;
-  if (textHandle && length > 0)
-  {
-    HLock(reinterpret_cast<Handle>(textHandle));
-    const char *ptr = reinterpret_cast<const char *>(*textHandle);
-    utf8.assign(ptr, static_cast<size_t>(length));
-    HUnlock(reinterpret_cast<Handle>(textHandle));
-  }
-  // State notification fans out to every binding. Mark the typing source
-  // current first so its sync is a no-op and preserves the active selection.
-  binding.lastText = utf8;
-  binding.textSeat.set(loka::core::String(utf8));
+  binding.installed.commit(decoded);
+  if (decoded.equals(before)) return;
+  // Mark before synchronous fanout; copy the seat and never touch the row after it.
+  const loka::app::scene::WriteSeat<loka::core::String> seat = binding.textSeat;
+  seat.set(decoded);
 }
-

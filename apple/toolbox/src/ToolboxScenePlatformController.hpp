@@ -1,5 +1,6 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
+#include "ToolboxEditInstalled.hpp"
 
 #include "app/RectSurface.hpp"
 #include "app/FocusParticipant.hpp"
@@ -146,7 +147,7 @@ public:
   TEHandle ensureTextEditorControl(ToolboxTextEditorContext *, const Rect &, loka::app::scene::NativeLifetimeHint);
   void retireTextEditorControl(loka::app::scene::NodeContext *context, loka::app::scene::NativeLifetimeHint hint)
   { this->retireEditTextControl(context, hint); }
-  TEHandle ensureEditTextControl(ToolboxEditTextContext *ownerContext,
+  ToolboxEditPresentation ensureEditTextControl(ToolboxEditTextContext *ownerContext,
                                  const Rect &rect,
                                  loka::core::State<loka::core::String> *text,
                                  loka::app::scene::NativeLifetimeHint lifetimeHint = loka::app::scene::NATIVE_HINT_DEFAULT);
@@ -289,7 +290,7 @@ private:
     TEHandle te;
     Rect rect;
     bool usedThisFrame;
-    std::string lastText;
+    ToolboxEditInstalled installed;
     loka::app::scene::NativeLifetimeHint lifetimeHint;
   };
 
@@ -415,7 +416,7 @@ public:
   void syncNativePoolStats();
   void refreshEditTextBindingForStateChange(EditTextControlBinding &binding);
   void syncEditTextFromState(EditTextControlBinding &binding);
-  void updateStateFromEdit(EditTextControlBinding &binding);
+  void updateStateFromEdit(EditTextControlBinding &binding, const loka::core::String &before);
   /** Revoke presentation and queue the TE on every native retirement path. */
   void retireEditTextBinding(EditTextControlBinding &binding, loka::app::scene::NativeLifetimeHint lifetimeHint);
   void retireEditTextControlAt(std::size_t index, loka::app::scene::NativeLifetimeHint lifetimeHint);
@@ -443,7 +444,7 @@ public:
     return this->debugStats_;
   }
 
-  /** Reads the live TextEdit payload without synchronizing it first.
+  /** Reads counted native bytes (not UTF-8) without synchronizing TextEdit first.
 
       Scenario probes use this const door to distinguish the native record from
       its bound State; calling ensureEditTextControl would repair the value and
