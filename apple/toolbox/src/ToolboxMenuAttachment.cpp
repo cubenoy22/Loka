@@ -204,6 +204,11 @@ static char MenuShortcutForAction(const loka::app::MenuItemDefinition *itemDef)
   if (itemDef->hasShortcut && itemDef->shortcutKey)
   {
     const char key = itemDef->shortcutKey;
+    // The Classic cmd byte is overloaded: 0x1B marks a submenu, 0x1C-0x1E
+    // script/icon markers, other control bytes are reserved. Only a printable
+    // ASCII key may be written; anything else projects no shortcut.
+    if (key < 0x20 || key >= 0x7F)
+      return 0;
     return key >= 'a' && key <= 'z' ? static_cast<char>(key - 'a' + 'A') : key;
   }
   switch (itemDef->action)

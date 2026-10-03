@@ -493,7 +493,9 @@ void testToolboxMenuShortcutProjectsItemCmd()
   menu << (Menu("File") << MenuItem("Plain") << MenuSeparator()
                        << MenuItem("Save").shortcut('S')
                        << MenuItem("Lower").shortcut('a')
-                       << MenuItem("Empty").shortcut(0));
+                       << MenuItem("Empty").shortcut(0)
+                       // A control byte is a Classic marker, never a key (bot P2 on #1122).
+                       << MenuItem("Marker").shortcut('\x1b'));
   clearCalls();
   LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
   LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 2);
