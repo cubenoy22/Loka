@@ -20,6 +20,10 @@ void ToolboxScenePlatformController::updateStateFromEdit(
     ToolboxEditTextContext *context = static_cast<ToolboxEditTextContext *>(binding.ownerContext);
     context->invalidateNativePresentation();
     this->syncEditTextFromState(binding);
+    // The edited bytes were never accepted. If the repair could not commit
+    // either, degrade the projection to empty rather than leave them visible.
+    if (!binding.installed.holds(binding.text->get()))
+      TESetText("", 0, binding.te);
     this->addPendingDirty(context->chromeRect());
     SysBeep(1);
     return;

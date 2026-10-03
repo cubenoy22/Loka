@@ -746,6 +746,32 @@ namespace
     LOKA_VERIFY(f.text.get().equals(String::Literal("caf\xC3\xA9x")));
     std::puts("decode refusal preserves State, repairs native text and records damage");
   }
+  RefusableText *gRepairSource = 0;
+  void refuseReadAndRepairAfterKey(TEHandle)
+  {
+    toolbox_host::refuseReads = 1;
+    gRepairSource->refuse = true;
+    toolbox_host::afterKey = 0;
+  }
+  void ordinaryFailedRepair()
+  {
+    Fixture f;
+    RefusableText *source = new RefusableText("ab");
+    const String value = String::FromPlatform(Managed<loka::platform::String>::Wrap(source));
+    write(f, value); f.native(f.first); f.controller.activateEditControl(0);
+    TEHandle te = f.controller.editControls_[0].te;
+    LOKA_VERIFY((**te).text == "ab");
+    gRepairSource = source;
+    toolbox_host::afterKey = refuseReadAndRepairAfterKey;
+    const unsigned beeps = toolbox_host::beeps;
+    LOKA_VERIFY(ToolboxInputDoor::keyDown(f.controller, 'x'));
+    // Neither the readback nor the repair committed; the unaccepted "abx" must not stay visible.
+    LOKA_VERIFY(f.text.get().equals(value) && toolbox_host::beeps == beeps + 1);
+    LOKA_VERIFY((**te).text.empty() && !f.controller.editControls_[0].installed.holds(value));
+    source->refuse = false;
+    gRepairSource = 0;
+    std::puts("a refused repair degrades the native projection to empty, never to the unaccepted edit");
+  }
   void ordinaryFallback()
   {
     Fixture f; f.hit(f.first); f.click();
@@ -786,6 +812,7 @@ int main(int argc, char **argv)
   ordinaryBoundedRepair();
   ordinaryFanout();
   ordinaryDecodeRepair();
+  ordinaryFailedRepair();
   ordinaryFallback();
   postedNative();
   admissionGuards();
