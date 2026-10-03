@@ -24,6 +24,20 @@ namespace
     }
 
     virtual ~MenuApplyingWin32App() {}
+    /** Borrow the fixture Window only for a production completion. */
+    void complete(Window &window)
+    {
+      if (!this->group_)
+        this->group_ = new AppComponentGroup(std::vector<AppComponent *>());
+      this->group_->adopt(&window);
+      loka::core::Operation turn;
+      this->flushMenuInvalidation();
+      turn.settle();
+      this->admitAndApplyWindows();
+      turn.close();
+      this->reclaimWindows();
+      this->group_->build();
+    }
   };
 
   void setWindowVisibility(Win32Window &window, bool visible)
@@ -318,12 +332,15 @@ void testWin32DeclaredWindowSizeMeansClientArea()
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
   app.setDefaultMenuBar(&menuBar);
+  app.complete(window);
   assert(GetMenu(hwnd) && "the production menu path must attach the declared menu");
   assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
   LOKA_VERIFY(window.frameState().get().height == declaredHeight);
 
   app.setDefaultMenuBar(0);
+
+  app.complete(window);
   assert(!GetMenu(hwnd) && "the production menu path must detach a cleared menu");
   assertLogicalClientSize(hwnd, declaredWidth, declaredHeight);
   LOKA_VERIFY(window.frameState().get().width == declaredWidth);
@@ -433,6 +450,7 @@ void testWin32AppOnlyMenuWindowSettles()
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
   app.setDefaultMenuBar(&appOnlyMenuBar);
+  app.complete(window);
   pumpWindowMessages(16);
 
   const RECT settledOuterRect = readWindowRect(hwnd);
@@ -480,6 +498,7 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
   MenuApplyingWin32App app;
   app.setActiveWindow(&window);
   app.setDefaultMenuBar(&initialMenuBar);
+  app.complete(window);
   assert(GetMenu(hwnd) && "the production menu path must attach the initial menu");
   LOKA_VERIFY(SetWindowPos(hwnd,
                            NULL,
@@ -493,6 +512,8 @@ void testWin32MenuRebuildPreservesMovedWindowFrame()
   LOKA_VERIFY(GetClientRect(hwnd, &movedClientRect));
 
   app.setDefaultMenuBar(&rebuiltMenuBar);
+
+  app.complete(window);
 
   const RECT rebuiltOuterRect = readWindowRect(hwnd);
   RECT rebuiltClientRect;
@@ -562,6 +583,7 @@ void testWin32AppDestructionLeavesWindowOwnedMenu()
       MenuApplyingWin32App app;
       app.setActiveWindow(&window);
       app.setDefaultMenuBar(&menuBar);
+      app.complete(window);
       menu = GetMenu(hwnd);
       LOKA_VERIFY(menu != NULL);
       const BOOL menuCreated = IsMenu(menu);
@@ -598,6 +620,7 @@ void testWin32NativeWindowDestructionReleasesMenuWithoutStateNotification()
   window.setApp(&app);
   setWindowVisibility(window, true);
   app.setDefaultMenuBar(&menuBar);
+  app.complete(window);
   HMENU menu = GetMenu(window.hwnd());
   LOKA_VERIFY(menu != NULL);
   const BOOL menuCreated = IsMenu(menu);

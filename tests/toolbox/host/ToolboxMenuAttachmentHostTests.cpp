@@ -151,15 +151,16 @@ void testToolboxMenuAttachmentSeesOpaqueMenuItemChange()
 {
   Config config;
   ToolboxApp app(&config);
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.back() == "Actual");
   config.menu.flip();
   clearCalls();
   LOKA_VERIFY(app.flushMenuInvalidation());
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Actual");
   LOKA_VERIFY(toolbox_host::menuTitles.empty());
   clearCalls();
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   noCalls();
 }
 void testToolboxMenuAttachmentPartialRebuildFromBaseline()
@@ -186,8 +187,9 @@ void testToolboxMenuAttachmentReleaseFromSourceDisconnects()
   f.app.menuAttachment().releaseFrom(&other);
   LOKA_VERIFY(f.app.menuAttachment().dispatch(128, 1));
   LOKA_VERIFY(f.observation.calls == 1);
+  const int before = f.app.redraws;
   f.root()->disable();
-  LOKA_VERIFY(f.app.redraws == 1); // Positive control: live State reaches the thunk.
+  LOKA_VERIFY(f.app.redraws == before + 1); // Positive control: live State reaches the thunk.
   clearCalls();
   f.app.menuAttachment().releaseFrom(f.window.scene());
   noCalls();
@@ -251,21 +253,21 @@ void testToolboxMenuAttachmentCloneRefusalClearsAppliedBaseline()
   };
   Config config;
   RefreshApp app(&config);
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   config.menu.flip();
   app.refresh(); // Legacy controller has captured and acknowledged the new bar.
   loka::app::testing::failMenuBarDefinitionClones(1);
   clearCalls();
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Actual");
   LOKA_VERIFY(app.defaultMenuBar()->menuAt(0)->itemsHead()->isCheckedInitial());
   loka::app::testing::allowMenuBarDefinitionClones();
   clearCalls();
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   // Failed capture left no baseline, so even an equal offer must rebuild fully.
   LOKA_VERIFY(toolbox_host::menuTitles.size() == 1 && toolbox_host::menuDisposes == 1);
   clearCalls();
-  app.applyMenuBar(0);
+  app.projectMenu(0, app.resolveForTest(), 0);
   noCalls();
 }
 
@@ -422,11 +424,63 @@ void testAppDestructorRetiresComponentsWithoutRailOwner()
   }
   LOKA_VERIFY(deletions == 1);
 }
+void testToolboxMenuDoorFiltersRowsAndForwardsScene()
+{
+  Mounted f;
+  ToolboxWindow inactive(&f.platform, WindowProps(), &f.app);
+  MenuBarDefinition other = bar("Other");
+  f.app.setActiveWindow(&f.window);
+  clearCalls();
+  f.app.projectMenu(&inactive, &other, 0);
+  f.app.projectMenu(0, &other, 0);
+  noCalls();
+  // Equal Scene offer proves the door retained the source identity as well as
+  // the contents; dropping the source would force a native rebuild here.
+  f.app.projectMenu(&f.window, f.window.scene()->menuBar(), f.window.scene());
+  noCalls();
+  f.app.setActiveWindow(0);
+  f.app.projectMenu(0, &other, 0);
+  LOKA_VERIFY(toolbox_host::menuDraws == 1);
+  f.app.menuAttachment().disconnect();
+}
+void testToolboxMenuProjectionDefersBackgroundDraws()
+{
+  ToolboxApp app;
+  MenuBarDefinition first = bar(), partial = bar("Save");
+  app.phase(ACTIVATION_BACKGROUND);
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(toolbox_host::menuTitles.size() == 2);
+  LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
+  app.phase(ACTIVATION_FOREGROUND);
+  LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
+  app.phase(ACTIVATION_FOREGROUND);
+  LOKA_VERIFY(toolbox_host::menuDraws == 1);
+  app.phase(ACTIVATION_BACKGROUND);
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&partial, 0, false));
+  LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuSets.size() == 1);
+  LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
+  app.phase(ACTIVATION_FOREGROUND);
+  LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
+  app.phase(ACTIVATION_BACKGROUND);
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus.empty());
+  LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
+  app.phase(ACTIVATION_FOREGROUND);
+  LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
+}
 int main(int argc, char **argv)
 {
   struct Test { const char *name; void (*run)(); };
 #define PIN(name) {#name, &name}
   const Test tests[] = {
+    PIN(testToolboxMenuDoorFiltersRowsAndForwardsScene),
+    PIN(testToolboxMenuProjectionDefersBackgroundDraws),
     PIN(testToolboxMenuAttachmentProjectsOnceForEqualBar),
     PIN(testToolboxMenuAttachmentSeesOpaqueMenuItemChange),
     PIN(testToolboxMenuAttachmentPartialRebuildFromBaseline),

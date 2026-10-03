@@ -22,7 +22,8 @@ public:
   bool handleMenuCommand(int commandId, Window *window);
 
 protected:
-  virtual void applyMenuBar(Window *activeWindow);
+  virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                           const loka::app::scene::Scene *source);
 
 private:
   /** Flushes Scene work produced inside the focus completion's operation in

@@ -1,5 +1,6 @@
 #include "app/core/App.hpp"
 #include "app/core/Window.hpp"
+#include "app/MenuComposition.hpp"
 #include "app/PlatformContext.hpp"
 #include "app/core/AppComposition.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -10,7 +11,7 @@ App::App(AppConfigurable *config)
     : group_(0),
       quitWhenLastWindowClosed_(true),
       config_(config),
-      menuController_(config, &App::ApplyMenuBarThunk, this),
+      menuController_(config),
       activeWindow_(0),
       idleAccumulatedSeconds_(0.0),
       pendingWindowClosures_(),
@@ -47,15 +48,6 @@ void App::retireComponents()
   group_ = 0;
 }
 
-void App::ApplyMenuBarThunk(void *userData, Window *activeWindow)
-{
-  App *app = static_cast<App *>(userData);
-  if (app)
-  {
-    app->applyMenuBar(activeWindow);
-  }
-}
-
 void App::run()
 {
   if (!group_ && config_)
@@ -66,6 +58,7 @@ void App::run()
     group_ = new AppComponentGroup(composition.build());
   }
   projectInitialVisibilityChunks();
+  this->projectMenuSources();
 }
 
 loka::app::IdlePolicy App::idlePolicy() const
@@ -221,21 +214,21 @@ void App::admitAndApplyWindows()
   if (this->flushingWindowWork_)
     return;
   this->pendingReclaim_.begin(this->pendingWindowClosures_);
-  if (!this->group_)
-    return;
-
   this->flushingWindowWork_ = true;
   std::vector<AdmittedWindow> admitted;
-  const std::vector<AppComponent *> &comps = this->group_->getComponents();
-  for (size_t i = 0; i < comps.size(); ++i)
+  if (this->group_)
   {
-    Window *win = comps[i] ? comps[i]->asWindow() : 0;
-    if (this->windowHasAdmissionWork(win))
+    const std::vector<AppComponent *> &comps = this->group_->getComponents();
+    for (size_t i = 0; i < comps.size(); ++i)
     {
-      loka::app::DialogResultDelivery *delivery = win->dialogResultDelivery();
-      if (admitted.empty())
-        admitted.reserve(comps.size());
-      admitted.push_back(AdmittedWindow(win, delivery, delivery ? delivery->retirementSnapshot() : 0));
+      Window *win = comps[i] ? comps[i]->asWindow() : 0;
+      if (this->windowHasAdmissionWork(win))
+      {
+        loka::app::DialogResultDelivery *delivery = win->dialogResultDelivery();
+        if (admitted.empty())
+          admitted.reserve(comps.size());
+        admitted.push_back(AdmittedWindow(win, delivery, delivery ? delivery->retirementSnapshot() : 0));
+      }
     }
   }
   // Snapshot our rows before callbacks can remove a Window from the group.
@@ -277,6 +270,7 @@ void App::admitAndApplyWindows()
     if (scene && !scene->isBusy())
       window->retireSceneForClose();
   }
+  this->projectMenuSources();
   this->flushingWindowWork_ = false;
 }
 
@@ -413,7 +407,7 @@ bool App::handleMenuCommand(int commandId, Window *window)
 
 void App::invalidateMenu()
 {
-  menuController_.invalidate(activeWindow_);
+  menuController_.invalidate();
 }
 
 void App::requestMenuInvalidation()
@@ -423,12 +417,12 @@ void App::requestMenuInvalidation()
 
 bool App::flushMenuInvalidation()
 {
-  return menuController_.flushInvalidation(activeWindow_);
+  return menuController_.flushInvalidation();
 }
 
 void App::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
 {
-  menuController_.setDefaultMenuBar(menuBar, activeWindow_);
+  menuController_.setDefaultMenuBar(menuBar);
 }
 
 const loka::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
@@ -443,12 +437,40 @@ void App::setActiveWindow(Window *window)
     return;
   }
   activeWindow_ = window;
-  applyMenuBar(activeWindow_);
 }
 
-void App::applyMenuBar(Window *activeWindow)
+void App::projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
+                      const loka::app::scene::Scene *source)
 {
-  (void)activeWindow;
+  (void)window;
+  (void)bar;
+  (void)source;
+}
+
+void App::projectMenuSources()
+{
+  // One pass per admission (twice in a Win32 tail), plus bootstrap. Walk only
+  // App-owned rows; each offer owns one temporary merge, never a cached source.
+  if (this->group_)
+  {
+    const std::vector<AppComponent *> &rows = this->group_->getComponents();
+    for (size_t i = 0; i < rows.size(); ++i)
+    {
+      Window *window = rows[i] ? rows[i]->asWindow() : 0;
+      if (!window || this->isWindowClosePending(window))
+        continue;
+      const loka::app::MenuBarDefinition *base = this->resolveMenuBar(window);
+      const loka::app::scene::Scene *scene = window->scene();
+      const loka::app::MenuBarDefinition *overlay = scene ? scene->menuBar() : 0;
+      loka::core::OwnedDef<loka::app::MenuBarDefinition> merged(
+          loka::app::MergeMenuBars(base, overlay));
+      if ((base || overlay) && !merged.isSet())
+        continue;
+      this->projectMenu(window, merged.get(), overlay ? scene : 0);
+    }
+  }
+  if (!this->activeWindow_)
+    this->projectMenu(0, this->resolveMenuBar(0), 0);
 }
 
 bool App::refreshDefaultMenuBar()
