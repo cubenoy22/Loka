@@ -9,7 +9,7 @@
 class Win32Window;
 namespace loka { namespace app { namespace scene { class Scene; } } }
 
-/** Owns one Window's native menu and endpoint borrows. Scene detach makes
+/** Owns one Window's native menu, accelerator table, and endpoint borrows. Scene detach makes
     the installed menu inert until replacement or native window destruction. */
 class Win32MenuAttachment
 {
@@ -31,6 +31,8 @@ public:
   void disconnect();
   void releaseFrom(const loka::app::scene::Scene *source);
   bool dispatch(int commandId);
+  /** Consumes a declared shortcut through this Window's native command route. */
+  bool translateAccelerator(MSG &msg);
 
 private:
   friend class Win32Window;
@@ -72,11 +74,14 @@ private:
                           UINT byFlags,
                           const loka::app::MenuItemDefinition *itemDef,
                           HWND hwnd);
-  bool buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef, HWND hwnd);
-  bool buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead, HWND hwnd);
+  bool buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef,
+                     HWND hwnd, std::vector<ACCEL> &accelerators);
+  bool buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead,
+                      HWND hwnd, std::vector<ACCEL> &accelerators);
 
   Win32Window &window_;
   HMENU menu_;
+  HACCEL accel_;
   int nextCommandId_;
   std::vector<MenuCommand> commands_;
   std::vector<MenuBinding *> bindings_;
