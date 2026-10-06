@@ -15,8 +15,11 @@ class NullMenuAttachment
   struct Subscription
   {
     explicit Subscription(const loka::app::MenuItemDefinition &item)
-        : item_(item), values_(item.isEnabledInitial(), item.isCheckedInitial())
+        : item_(item), values_(item.isEnabledInitial(), item.isCheckedInitial()),
+          title_(item.titleState ? item.titleState->get() : item.title)
     {
+      if (this->item_.titleState)
+        this->item_.titleState->deferBind(&Update, this);
       if (this->item_.enabledBindingState())
         this->item_.enabledBindingState()->deferBind(&Update, this);
       if (this->item_.checkedBindingState())
@@ -24,6 +27,8 @@ class NullMenuAttachment
     }
     ~Subscription()
     {
+      if (this->item_.titleState)
+        this->item_.titleState->deferUnbind(&Update, this);
       if (this->item_.enabledBindingState())
         this->item_.enabledBindingState()->deferUnbind(&Update, this);
       if (this->item_.checkedBindingState())
@@ -32,10 +37,12 @@ class NullMenuAttachment
     static void Update(void *data)
     {
       Subscription *self = static_cast<Subscription *>(data);
+      self->title_ = self->item_.titleState ? self->item_.titleState->get() : self->item_.title;
       self->values_ = std::make_pair(self->item_.isEnabledInitial(), self->item_.isCheckedInitial());
     }
     const loka::app::MenuItemDefinition &item_;
     std::pair<bool, bool> values_;
+    loka::core::String title_;
   private:
     Subscription(const Subscription &);
     Subscription &operator=(const Subscription &);
@@ -82,6 +89,12 @@ public:
   {
     return id && id <= this->subscriptions_.size()
         ? this->subscriptions_[id - 1]->values_ : std::make_pair(false, false);
+  }
+
+  loka::core::String title(unsigned id) const
+  {
+    return id && id <= this->subscriptions_.size()
+        ? this->subscriptions_[id - 1]->title_ : loka::core::String();
   }
 
 private:
