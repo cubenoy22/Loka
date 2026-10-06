@@ -22,6 +22,8 @@ public:
   bool handleMenuCommand(int commandId, Window *window);
 
 protected:
+  /** Routes one non-quit message: menu shortcut, dialog navigation, dispatch. */
+  static void TranslateOrDispatch(MSG &msg);
   virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
                            const loka::app::scene::Scene *source);
 

@@ -1,5 +1,6 @@
 #include "Win32MenuAttachmentTests.hpp"
 #include <cstdio>
+#include <cwchar>
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
 #include "Win32ScenePlatformController.hpp"
@@ -20,9 +21,12 @@ namespace
   class MenuApp : public Win32App
   {
   public:
-    MenuApp() : Win32App(0, GetModuleHandleW(NULL), SW_SHOW) {}
+    MenuApp() : Win32App(0, GetModuleHandleW(NULL), SW_SHOW), quits(0) {}
     virtual ~MenuApp() {}
     using Win32App::projectMenu;
+    using Win32App::TranslateOrDispatch;
+    virtual void quit() { ++this->quits; }
+    int quits;
     void own(Window *window)
     {
       if (!this->group_)
@@ -106,7 +110,7 @@ namespace
     virtual void composeNode(NodeComposition &c)
     {
       MenuBarDefinition offered;
-      offered << (Menu("File") << MenuItem("Run").enabled(this->enabled_.state()).onClick(&this->clicked_));
+      offered << (Menu("File") << MenuItem("Run").shortcut('R').enabled(this->enabled_.state()).onClick(&this->clicked_));
       LOKA_VERIFY(c.menuBar(offered));
     }
     virtual void detachNode(NodeComposition &)
@@ -310,4 +314,262 @@ void testWin32AppShutdownReleasesMenuBeforeAttachmentDestruction()
   LOKA_VERIFY(observation.detaches == 1);
   LOKA_VERIFY(!IsMenu(installed));
   LOKA_VERIFY(!IsWindow(hwnd));
+}
+
+namespace
+{
+  // TranslateAccelerator reads the calling thread's keyboard state. Preserve
+  // that state around synthetic MSGs without depending on physical key timing.
+  class ControlKey
+  {
+  public:
+    ControlKey()
+    {
+      LOKA_VERIFY(GetKeyboardState(this->saved_));
+      BYTE state[256] = {0};
+      state[VK_CONTROL] = 0x80;
+      LOKA_VERIFY(SetKeyboardState(state));
+    }
+    ~ControlKey() { LOKA_VERIFY(SetKeyboardState(this->saved_)); }
+    void release()
+    {
+      BYTE state[256] = {0};
+      LOKA_VERIFY(SetKeyboardState(state));
+    }
+  private:
+    BYTE saved_[256];
+  };
+
+  MSG keyMessage(HWND hwnd, WPARAM key)
+  {
+    MSG msg = {};
+    msg.hwnd = hwnd;
+    msg.message = WM_KEYDOWN;
+    msg.wParam = key;
+    msg.lParam = 1;
+    return msg;
+  }
+
+  void pumpCommands(HWND hwnd)
+  {
+    // TranslateAccelerator sends WM_COMMAND synchronously; drain posted
+    // commands too so an accidental duplicate cannot hide in the queue.
+    MSG msg;
+    while (PeekMessageW(&msg, hwnd, WM_COMMAND, WM_COMMAND, PM_REMOVE))
+      DispatchMessageW(&msg);
+  }
+
+  MenuBarDefinition shortcutBar(const char *title, char key, EmitterState *emitter)
+  {
+    MenuBarDefinition result;
+    result << (Menu("File") << MenuItem(title).shortcut(key).onClick(emitter));
+    return result;
+  }
+
+  void verifyLabel(Win32Window &window, const wchar_t *expected)
+  {
+    wchar_t label[128];
+    LOKA_VERIFY(GetMenuStringW(GetSubMenu(GetMenu(window.hwnd()), 0), 0,
+                              label, 128, MF_BYPOSITION) > 0);
+    LOKA_VERIFY(std::wcscmp(label, expected) == 0);
+  }
+
+  struct ShortcutFixture
+  {
+    NullPlatformContext context;
+    MenuApp app;
+    int calls;
+    EmitterState emitter;
+    Win32Window window;
+    ShortcutFixture() : calls(0), window(&this->context, props())
+    {
+      this->emitter.deferBind(&count, &this->calls);
+      this->window.setApp(&this->app);
+      show(this->window, true);
+    }
+    ~ShortcutFixture()
+    {
+      show(this->window, false);
+      this->emitter.deferUnbind(&count, &this->calls);
+    }
+    void project(char key)
+    {
+      MenuBarDefinition offered = shortcutBar("Save", key, &this->emitter);
+      LOKA_VERIFY(this->window.menuAttachment().project(&offered, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+    }
+    bool translate(WPARAM key)
+    {
+      MSG msg = keyMessage(this->window.hwnd(), key);
+      const bool consumed = this->window.menuAttachment().translateAccelerator(msg);
+      pumpCommands(this->window.hwnd());
+      return consumed;
+    }
+  };
+}
+
+void testWin32MenuAcceleratorTranslatesDeclaredShortcut()
+{
+  ShortcutFixture f;
+  f.project('s');
+  verifyLabel(f.window, L"Save\tCtrl+S");
+  ControlKey control;
+  LOKA_VERIFY(f.translate('S'));
+  LOKA_VERIFY(f.calls == 1);
+  control.release();
+  LOKA_VERIFY(!f.translate('S'));
+  LOKA_VERIFY(f.calls == 1);
+  ControlKey held;
+  MenuBarDefinition nested;
+  nested << (Menu("File")
+      << (MenuItem("Parent").shortcut('P') << MenuItem("Digit").shortcut('7').onClick(&f.emitter))
+      << MenuItem("Zero").shortcut(0)
+      << MenuItem("Separator").separator().shortcut('X'));
+  LOKA_VERIFY(f.window.menuAttachment().project(&nested, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Parent");
+  LOKA_VERIFY(!f.translate('P') && !f.translate('X') && !f.translate('S'));
+  LOKA_VERIFY(f.translate('7'));
+  LOKA_VERIFY(f.calls == 2);
+  f.project(0);
+  verifyLabel(f.window, L"Save");
+  LOKA_VERIFY(!f.translate('7'));
+}
+
+void testWin32QuitHasNoDefaultAccelerator()
+{
+  ShortcutFixture f;
+  MenuBarDefinition plain;
+  plain << (Menu("File") << MenuItem("Exit").actionType(MENU_ACTION_QUIT_APP));
+  LOKA_VERIFY(f.window.menuAttachment().project(&plain, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Exit");
+  ControlKey control;
+  LOKA_VERIFY(!f.translate('Q'));
+  LOKA_VERIFY(f.app.quits == 0);
+  MenuBarDefinition explicitKey;
+  explicitKey << (Menu("File") << MenuItem("Exit").actionType(MENU_ACTION_QUIT_APP).shortcut('Q'));
+  LOKA_VERIFY(f.window.menuAttachment().project(&explicitKey, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Exit\tCtrl+Q");
+  LOKA_VERIFY(f.translate('Q'));
+  LOKA_VERIFY(f.app.quits == 1);
+}
+
+void testWin32MenuAcceleratorInertAfterRelease()
+{
+  Mounted f;
+  ControlKey control;
+  MSG msg = keyMessage(f.window.hwnd(), 'R');
+  LOKA_VERIFY(f.window.menuAttachment().translateAccelerator(msg));
+  pumpCommands(f.window.hwnd());
+  LOKA_VERIFY(f.observation.calls == 1);
+  f.window.menuAttachment().releaseFrom(f.window.scene());
+  LOKA_VERIFY(f.window.menuAttachment().translateAccelerator(msg));
+  pumpCommands(f.window.hwnd());
+  LOKA_VERIFY(f.observation.calls == 1);
+}
+
+void testWin32MenuAcceleratorSwapsWithProjection()
+{
+  ShortcutFixture f;
+  f.project('S');
+  ControlKey control;
+  LOKA_VERIFY(f.translate('S'));
+  f.project('N');
+  LOKA_VERIFY(!f.translate('S'));
+  LOKA_VERIFY(f.translate('N'));
+  LOKA_VERIFY(f.calls == 2);
+  const DWORD resources = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+  LOKA_VERIFY(resources > 0);
+  for (int i = 0; i < 32; ++i)
+    f.project(i % 2 ? 'N' : 'S');
+  const DWORD afterSwaps = GetGuiResources(GetCurrentProcess(), GR_USEROBJECTS);
+  LOKA_VERIFY(afterSwaps > 0 && afterSwaps <= resources);
+  show(f.window, false);
+  LOKA_VERIFY(!f.translate('N'));
+  show(f.window, true);
+  f.project('N');
+  LOKA_VERIFY(f.translate('N'));
+  LOKA_VERIFY(f.calls == 3);
+  LOKA_VERIFY(f.window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  LOKA_VERIFY(!f.translate('N'));
+  // The external WM_DESTROY route also releases the accelerator table.
+  f.project('S');
+  f.window.setApp(0);
+  LOKA_VERIFY(DestroyWindow(f.window.hwnd()));
+  LOKA_VERIFY(!f.translate('S'));
+}
+
+void testWin32TwoWindowsOwnTheirAccelerators()
+{
+  ShortcutFixture a, b;
+  a.project('S');
+  b.project('S');
+  ControlKey control;
+  MSG msg = keyMessage(a.window.hwnd(), 'S');
+  MenuApp::TranslateOrDispatch(msg);
+  pumpCommands(a.window.hwnd());
+  LOKA_VERIFY(a.calls == 1 && b.calls == 0);
+  msg = keyMessage(b.window.hwnd(), 'S');
+  MenuApp::TranslateOrDispatch(msg);
+  pumpCommands(b.window.hwnd());
+  LOKA_VERIFY(a.calls == 1 && b.calls == 1);
+}
+
+namespace
+{
+  struct EditObservation
+  {
+    WNDPROC previous;
+    int keydowns;
+    int dialogQueries;
+    EditObservation() : previous(0), keydowns(0), dialogQueries(0) {}
+  };
+
+  LRESULT CALLBACK ObserveEdit(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
+  {
+    EditObservation *observation = reinterpret_cast<EditObservation *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (message == WM_KEYDOWN)
+      ++observation->keydowns;
+    if (message == WM_GETDLGCODE)
+      ++observation->dialogQueries;
+    return CallWindowProcW(observation->previous, hwnd, message, wParam, lParam);
+  }
+}
+
+void testWin32MenuAcceleratorPrecedesDialogAndDispatch()
+{
+  ShortcutFixture f;
+  f.project('V');
+  EditObservation observation;
+  HWND edit = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                               0, 0, 100, 24, f.window.hwnd(), NULL, GetModuleHandleW(NULL), NULL);
+  HWND next = CreateWindowExW(0, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP,
+                               0, 30, 100, 24, f.window.hwnd(), NULL, GetModuleHandleW(NULL), NULL);
+  LOKA_VERIFY(edit && next);
+  SetWindowLongPtrW(edit, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&observation));
+  observation.previous = reinterpret_cast<WNDPROC>(SetWindowLongPtrW(edit, GWLP_WNDPROC,
+                                                    reinterpret_cast<LONG_PTR>(&ObserveEdit)));
+  LOKA_VERIFY(observation.previous);
+  LOKA_VERIFY(Win32Window::FromHwnd(f.window.hwnd()) == &f.window);
+  // A foreign class with non-null userdata must never be cast to Win32Window.
+  LOKA_VERIFY(!Win32Window::FromHwnd(edit));
+  SetFocus(edit);
+  ControlKey control;
+  MSG msg = keyMessage(edit, 'V');
+  MenuApp::TranslateOrDispatch(msg);
+  pumpCommands(f.window.hwnd());
+  LOKA_VERIFY(f.calls == 1);
+  LOKA_VERIFY(observation.keydowns == 0 && observation.dialogQueries == 0);
+  control.release();
+  msg = keyMessage(edit, VK_F8);
+  MenuApp::TranslateOrDispatch(msg);
+  LOKA_VERIFY(observation.keydowns == 1);
+  const int queries = observation.dialogQueries;
+  msg = keyMessage(edit, VK_TAB);
+  MenuApp::TranslateOrDispatch(msg);
+  LOKA_VERIFY(observation.dialogQueries > queries);
+  LOKA_VERIFY(observation.keydowns == 1);
+  LOKA_VERIFY(GetFocus() == next);
+  SetWindowLongPtrW(edit, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(observation.previous));
+  SetWindowLongPtrW(edit, GWLP_USERDATA, 0);
+  LOKA_VERIFY(DestroyWindow(next));
+  LOKA_VERIFY(DestroyWindow(edit));
 }
