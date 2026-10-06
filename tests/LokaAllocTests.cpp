@@ -8,6 +8,8 @@
 
 #include "core/LokaAlloc.hpp"
 #include "core/resource/Blob.hpp"
+#include "core/resource/Image.hpp"
+#include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
 
 namespace
@@ -270,4 +272,60 @@ void testBlobEmptyWritePreservesSharedRecord()
   assert(empty.bytes().empty());
   assert(empty == loka::core::resource::Blob::Empty());
   assert(writable.bytes()[0] == 42);
+}
+
+namespace
+{
+  void countImageRelease(void *, void *userData)
+  {
+    ++*static_cast<int *>(userData);
+  }
+
+  // FromNative consumes the native handle: a refusal must hand back an invalid
+  // Image and release the handle exactly once, never abort (#1064).
+  void verifyImageFromNativeRefusal(const char *owner, const char *type)
+  {
+    int releases = 0;
+    loka::core::testing::failLokaAllocRaw(owner, type, 1);
+    {
+      const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+          reinterpret_cast<void *>(1), 4, 3, &countImageRelease, &releases);
+      LOKA_VERIFY(!image.isValid());
+      LOKA_VERIFY(image.nativeHandle() == 0);
+      LOKA_VERIFY(releases == 1);
+    }
+    LOKA_VERIFY(releases == 1);
+    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+    loka::core::testing::allowLokaAllocRaw();
+  }
+} // namespace
+
+void testImageFromNativeRecordRefusalReleasesNativeOnce()
+{
+  verifyImageFromNativeRefusal("Image", "Record");
+}
+
+void testImageFromNativeControlBlockRefusalReleasesNativeOnce()
+{
+  verifyImageFromNativeRefusal("Managed", "ControlBlock");
+}
+
+void testImageFromNativeReleasesNativeOnceAfterLastCopy()
+{
+  int releases = 0;
+  loka::core::testing::failLokaAllocRaw("Image", "Record", 0);
+  {
+    const loka::core::resource::Image image = loka::core::resource::Image::FromNative(
+        reinterpret_cast<void *>(1), 4, 3, &countImageRelease, &releases);
+    LOKA_VERIFY(image.isValid());
+    LOKA_VERIFY(image.width() == 4 && image.height() == 3);
+    {
+      const loka::core::resource::Image copy = image;
+      LOKA_VERIFY(copy == image);
+    }
+    LOKA_VERIFY(releases == 0);
+  }
+  LOKA_VERIFY(releases == 1);
+  LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+  loka::core::testing::allowLokaAllocRaw();
 }

@@ -44,12 +44,9 @@ namespace
     [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
     out = loka::core::resource::Image::FromNative(
         (void *)bitmap, (int)bounds.size.width, (int)bounds.size.height, &ReleaseCapturedButtonBitmap, 0);
-    if (!out.isValid())
-    {
-      [bitmap release];
-      return false;
-    }
-    return true;
+    // FromNative consumes the retained bitmap: on a refused allocation it has
+    // already released it through ReleaseCapturedButtonBitmap (#1064).
+    return out.isValid();
   }
 
   class MacButtonNodeHandler
