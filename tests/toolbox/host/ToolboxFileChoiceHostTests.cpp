@@ -18,6 +18,7 @@
 #include "platform/StringUTF8.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
 #include "support/LokaAllocFailure.hpp"
+#include "ToolboxBusy.hpp"
 
 static StandardFileReply reply;
 void StandardGetFile(void *, short, void *, StandardFileReply *out) { *out = reply; }
@@ -446,6 +447,57 @@ static void Refused()
   ToolboxPlatformContext context;
   VerifyFileRefusal(context);
 }
+namespace
+{
+  class CountingBusyOwner : public ToolboxBusyOwner
+  {
+  public:
+    CountingBusyOwner() : depth(0), entries(0), exits(0) {}
+    int depth, entries, exits;
+
+  private:
+    virtual void enterBusy()
+    {
+      ++this->depth;
+      ++this->entries;
+    }
+    virtual void exitBusy()
+    {
+      --this->depth;
+      ++this->exits;
+    }
+  };
+}
+// A whole-file read borrows the registered busy owner once and returns it on
+// every exit after the open; with no registration the borrow is inert (#1066).
+static void Busy()
+{
+  const FSSpec spec = Spec(-7, 0x12345678, "Photo.PICT");
+  Put(spec, "abc");
+  ToolboxPlatformContext context;
+  FileHandle live;
+  LOKA_VERIFY(context.openFile(Choose(spec), live));
+  FileHandle missing;
+  LOKA_VERIFY(context.openFile(Choose(Spec(-7, 999, "Gone.PICT")), missing));
+  const FileHandle none;
+  std::vector<unsigned char> bytes;
+  CountingBusyOwner owner;
+  LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
+  LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
+  LOKA_VERIFY(owner.entries == 0);
+  {
+    const ToolboxBusyOwnerRegistration registration(owner);
+    LOKA_VERIFY(RegisteredToolboxBusyOwner() == &owner);
+    LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
+    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "abc");
+    LOKA_VERIFY(owner.entries == 1 && owner.exits == 1 && owner.depth == 0);
+    LOKA_VERIFY(ReadBytes(missing, bytes) == READ_NATIVE_OPEN_FAILED);
+    LOKA_VERIFY(owner.entries == 2 && owner.exits == 2 && owner.depth == 0);
+    LOKA_VERIFY(ReadBytes(none, bytes) == READ_NO_NATIVE_SPEC);
+    LOKA_VERIFY(owner.entries == 2 && owner.exits == 2);
+  }
+  LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
+}
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
@@ -465,6 +517,7 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "copies")) Copies();
   else if (!std::strcmp(argv[1], "dialog")) Dialog();
   else if (!std::strcmp(argv[1], "validity")) Validity();
+  else if (!std::strcmp(argv[1], "busy")) Busy();
   else return 2;
   LOKA_VERIFY(OpenCount() == 0);
   return 0;
