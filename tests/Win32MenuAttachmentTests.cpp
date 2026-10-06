@@ -371,6 +371,8 @@ namespace
     wchar_t label[128];
     LOKA_VERIFY(GetMenuStringW(GetSubMenu(GetMenu(window.hwnd()), 0), 0,
                               label, 128, MF_BYPOSITION) > 0);
+    if (std::wcscmp(label, expected) != 0)
+      fwprintf(stderr, L"verifyLabel: expected [%ls] got [%ls]\n", expected, label);
     LOKA_VERIFY(std::wcscmp(label, expected) == 0);
   }
 
