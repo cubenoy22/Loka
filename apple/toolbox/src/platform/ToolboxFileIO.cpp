@@ -68,6 +68,16 @@ namespace loka
         };
       } // namespace
 
+      ReadResult ReadBytes(const loka::core::String &path,
+                           std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity)
+      {
+        // The stdio read (logical paths, System 6 application items) blocks
+        // like the native one (#1066).
+        const BusyScope busy(RegisteredToolboxBusyOwner());
+        return ReadBytesThroughStdio(path, out, capacity);
+      }
+
       ReadResult ReadBytes(const FileHandle &handle,
                            std::vector<unsigned char> &out,
                            const ReadCapacity *capacity)

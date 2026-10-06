@@ -6,9 +6,9 @@ namespace loka
   {
     namespace file
     {
-      ReadResult ReadBytes(const loka::core::String &path,
-                           std::vector<unsigned char> &out,
-                           const ReadCapacity *capacity)
+      ReadResult ReadBytesThroughStdio(const loka::core::String &path,
+                                       std::vector<unsigned char> &out,
+                                       const ReadCapacity *capacity)
       {
         out.clear();
         FILE *file = loka::platform::file::OpenRead(path);

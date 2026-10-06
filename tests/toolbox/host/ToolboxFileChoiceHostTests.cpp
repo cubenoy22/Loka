@@ -495,6 +495,16 @@ static void Busy()
     LOKA_VERIFY(owner.entries == 2 && owner.exits == 2 && owner.depth == 0);
     LOKA_VERIFY(ReadBytes(none, bytes) == READ_NO_NATIVE_SPEC);
     LOKA_VERIFY(owner.entries == 2 && owner.exits == 2);
+    // The stdio read behind logical paths borrows the same owner, including
+    // a failed open.
+    std::FILE *stream = std::fopen("busy-path.txt", "wb");
+    LOKA_VERIFY(stream && std::fwrite("xyz", 1, 3, stream) == 3 && std::fclose(stream) == 0);
+    LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_OK);
+    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "xyz");
+    LOKA_VERIFY(owner.entries == 3 && owner.exits == 3 && owner.depth == 0);
+    LOKA_VERIFY(std::remove("busy-path.txt") == 0);
+    LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_STDIO_OPEN_FAILED);
+    LOKA_VERIFY(owner.entries == 4 && owner.exits == 4 && owner.depth == 0);
   }
   LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
 }
