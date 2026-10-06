@@ -11,4 +11,8 @@ void testMacAppShutdownReleasesMenuBeforeAttachmentDestruction();
 void testMacMenuAttachmentCloneRefusalClearsBaseline();
 void testMacMenuAttachmentDispatchMayDisconnect();
 
+void testMacMenuTitleFollowsState();
+void testMacMenuSubmenuTitleFollowsState();
+void testMacMenuTitleStateUnbindsOnRelease();
+
 #endif // LOKA_TESTS_MAC_MENU_PROJECTION_TESTS_HPP
