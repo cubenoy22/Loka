@@ -5,6 +5,13 @@ namespace toolbox_host
 {
   extern unsigned menuDraws, menuClears, menuDisposes, menuValueWrites;
   extern std::vector<MenuHandle> installedMenus;
+  /** Immutable call facts captured at the fake Toolbox boundary. */
+  struct ItemCmdCall
+  {
+    MenuHandle menu;
+    short item, cmd;
+  };
+  extern std::vector<ItemCmdCall> itemCmdCalls;
 }
 enum { kInsertHierarchicalMenu = -1, hMenuCmd = 27 };
 typedef short CharParameter;
@@ -17,7 +24,11 @@ inline void ClearMenuBar() { ++toolbox_host::menuClears; toolbox_host::installed
 inline void InitMenus() {}
 inline void DrawMenuBar() { ++toolbox_host::menuDraws; }
 inline void AppendResMenu(MenuHandle, unsigned long) {}
-inline void SetItemCmd(MenuHandle, short, short) {}
+inline void SetItemCmd(MenuHandle menu, short item, short cmd)
+{
+  const toolbox_host::ItemCmdCall call = {menu, item, cmd};
+  toolbox_host::itemCmdCalls.push_back(call);
+}
 inline void SetItemMark(MenuHandle, short, CharParameter) {}
 inline MenuHandle GetMenuHandle(short) { return 0; }
 inline void GetMenuItemText(MenuHandle, short, unsigned char *text) { text[0] = 0; }
