@@ -247,6 +247,13 @@ void MacOpenFileDialogContext::presentDialog()
   }
   loka::app::DialogResultTransport::ReturnPort port(this->registration_);
   this->presentation_.markPresented();
+  if (this->node_->props.options_.purpose() == loka::app::FILE_DIALOG_SAVE)
+  {
+    // SAVE is implemented by a later rail PR; never fall back to OPEN.
+    port.seal(loka::app::FileChooserResult::Error(loka::app::FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE));
+    return;
+  }
+
   // From here through modal return, only the revocable stack port is borrowed.
   NSOpenPanel *panel = [NSOpenPanel openPanel];
   if (!panel)

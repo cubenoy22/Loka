@@ -18,4 +18,6 @@ void testDialogSeatClockEligibility();
 void testDialogSeatClockCancellationStillSuppresses();
 void testDialogSeatClockDeadTokenStillSuppresses();
 void testDialogSeatClockWindowCloseStillSuppresses();
+void testFileDialogOptionsIdentityAndNullRefusal();
+void testFileDialogOptionsRetarget();
 #endif

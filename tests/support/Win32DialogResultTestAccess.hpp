@@ -8,6 +8,7 @@ class Win32DialogResultTestAccess
 {
 public:
   static Win32OpenFileDialogContext *create(Win32Window &window, loka::app::OpenFileDialogNode *node);
+  static void present(Win32OpenFileDialogContext &context);
   static void queue(Win32OpenFileDialogContext &context, const loka::app::FileChooserResult &result);
 };
 #endif

@@ -44,8 +44,7 @@ private:
   NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
 
   loka::app::OpenFileDialogNode *node_;
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState_;
-  loka::core::EmitterState *onResult_;
+  loka::app::OpenFileDialogProps props_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
   NativeDialogSession *dialog_;
 };

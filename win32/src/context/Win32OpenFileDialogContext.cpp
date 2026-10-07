@@ -138,6 +138,12 @@ void Win32OpenFileDialogContext::presentDialog()
   loka::app::DialogResultTransport::ReturnPort port(this->registration_);
   const HWND parent = this->parent_;
   this->presentation_.markPresented();
+  if (this->node_->props.options_.purpose() == loka::app::FILE_DIALOG_SAVE)
+  {
+    // SAVE is implemented by a later rail PR; never fall back to OPEN.
+    queueDeferredResult(port, loka::app::FileChooserResult::Error(loka::app::FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE));
+    return;
+  }
 
   // The W dialog, not the A one: GetOpenFileNameA returns the path in the
   // process ANSI code page, and handing those bytes to loka::core::String --
@@ -154,6 +160,8 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.lpstrFile = buffer;
   ofn.nMaxFile = MAX_PATH;
   ofn.lpstrFilter = L"Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff\0All Files\0*.*\0";
+  if (this->node_->props.options_.filterPolicy() == loka::app::FILE_DIALOG_FILTER_ALL_FILES_TEXT)
+    ofn.lpstrFilter = L"All Files\0*.*\0Text\0*.txt\0";
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
