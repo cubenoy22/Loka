@@ -12,6 +12,12 @@ Win32OpenFileDialogContext *Win32DialogResultTestAccess::create(Win32Window &win
 {
   return new Win32OpenFileDialogContext(window.hwnd(), node, &window);
 }
+void Win32DialogResultTestAccess::present(Win32OpenFileDialogContext &context)
+{
+  context.registration_ = context.transport_->reserve(context.node_->props);
+  LOKA_VERIFY(context.registration_ != 0);
+  context.presentDialog();
+}
 void Win32DialogResultTestAccess::queue(Win32OpenFileDialogContext &context, const loka::app::FileChooserResult &result)
 {
   context.registration_ = context.transport_->reserve(context.node_->props);
@@ -157,5 +163,33 @@ void testWin32OpenFileDialogMissingHwndUsesAdmission()
   delete node;
   app.flush();
   emitter.unbind(&countResult, &emits);
+#endif
+}
+
+void testWin32SaveFileDialogRefusesWithoutNativeDialog()
+{
+#ifndef LOKA_A3_BASELINE
+  using namespace loka::app;
+  Win32Window window(0, WindowProps());
+  WindowAdmissionTestApp app(window);
+  app.flush();
+  loka::core::MutableState<FileChooserResult> storage;
+  loka::core::PushStateTracker tracker;
+  tracker.addState(&storage);
+  scene::NodeState<FileChooserResult> state(&storage, &tracker);
+  int writes = 0;
+  storage.bind(&countResult, &writes, false);
+  OpenFileDialogDefinition definition = SaveFileDialog(loka::core::String::Literal("Untitled")).result(state);
+  OpenFileDialogNode node(definition.props);
+  node.setContext(Win32DialogResultTestAccess::create(window, &node));
+  Win32DialogResultTestAccess::present(*static_cast<Win32OpenFileDialogContext *>(node.getContext()));
+  LOKA_VERIFY(writes == 0);
+  app.flush();
+  LOKA_VERIFY(writes == 1 && storage.get().kind == FileChooserResult::RESULT_ERROR);
+  LOKA_VERIFY(storage.get().errorCode == FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE);
+  app.flush();
+  LOKA_VERIFY(writes == 1);
+  storage.unbind(&countResult, &writes);
+  tracker.removeState(&storage);
 #endif
 }
