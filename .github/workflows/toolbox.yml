@@ -117,6 +117,7 @@ jobs:
           if [ "$IS_PR" = true ]; then
             test -n "$COMPARISON_REF"
             args=(--compare-build-root "$RUNNER_TEMP/retro68-size-base/build/retro68/68k/Release"
+                  --compare-baseline "$RUNNER_TEMP/retro68-size-base/tools/ci/retro68_68k_size_baseline.json"
                   --comparison-ref "$COMPARISON_REF")
           fi
           python3 tools/ci/retro68_size_report.py build/retro68/68k/Release "${args[@]}"

@@ -32,6 +32,16 @@
       }
     },
     {
+      "name": "LokaSimpleText68K",
+      "path": "example/SimpleText/LokaSimpleText68K.bin",
+      "baseline": {
+        "total": 344832,
+        "CODE": 318360,
+        "DATA": 13444,
+        "RELA": 12087
+      }
+    },
+    {
       "name": "LokaFloppyBird68K",
       "path": "example/FloppyBird/LokaFloppyBird68K.bin",
       "baseline": {

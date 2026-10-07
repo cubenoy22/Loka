@@ -34,6 +34,7 @@ local ALIASES = {
     tab = { "Tab" },
     l = { "l  L" },
     o = { "o  O" },
+    s = { "s  S" },
     cmd = { "Command / Open Apple" },
     zero = { "0  )" },
     five = { "5  %" },

@@ -84,6 +84,7 @@ switch ($Key) {
     }
     "MineSweeper" { $cmakeTarget = "LokaMine${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/MineSweeper/LokaMine${suffix}.bin" }
     "SimpleViewer" { $cmakeTarget = "LokaSimpleViewer${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin" }
+    "SimpleText" { $cmakeTarget = "LokaSimpleText${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SimpleText/LokaSimpleText${suffix}.bin" }
     "FloppyBird" { $cmakeTarget = "LokaFloppyBird${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin" }
     "SmirkBench" { $cmakeTarget = "LokaSmirkBench${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/SmirkBench/LokaSmirkBench${suffix}.bin" }
     "LazyList" { $cmakeTarget = "LokaLazyList${suffix}_APPL"; $bin = "build/retro68/${cpu}/Release/example/LazyList/LokaLazyList${suffix}.bin" }
