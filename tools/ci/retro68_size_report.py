@@ -220,7 +220,13 @@ def growth_bytes(current, reference):
 
 
 def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
-           report_only=False, acknowledge_growth=False):
+           report_only=False, acknowledge_growth=False, compare_baseline=None):
+    # An artifact is new in this PR only when the base declared neither its
+    # path nor its name; a moved application (same name) is still refused.
+    comparison_paths = (frozenset(artifact["path"] for artifact in compare_baseline["artifacts"])
+                        if compare_baseline is not None else None)
+    comparison_names = (frozenset(artifact["name"] for artifact in compare_baseline["artifacts"])
+                        if compare_baseline is not None else None)
     identity = baseline["identity"]
     declared_paths = set(artifact["path"] for artifact in baseline["artifacts"])
     example_root = build_root / "example"
@@ -270,7 +276,14 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
         current = artifact_sizes(path)
         comparison_path = (compare_build_root / artifact["path"]
                            if compare_build_root is not None else None)
-        if comparison_path is not None:
+        new_artifact = (comparison_path is not None and not comparison_path.is_file()
+                        and not artifact.get("optional")
+                        and comparison_paths is not None
+                        and artifact["path"] not in comparison_paths
+                        and artifact["name"] not in comparison_names)
+        if new_artifact:
+            facts = artifact["baseline"]
+        elif comparison_path is not None:
             facts = (artifact_sizes(comparison_path)
                      if comparison_path.is_file() or not artifact.get("optional")
                      else artifact["baseline"])
@@ -292,7 +305,7 @@ def report(build_root, baseline, compare_build_root=None, comparison_ref=None,
             print("CUMULATIVE GROWTH: %s +%d since bank %s" % (
                 artifact["name"], growth, identity["source_commit"]))
             reason = "cumulative limit exceeded; refresh the bank with an explicit inventory"
-        verdict = "REGRESSION" if reason else "ok"
+        verdict = ("REGRESSION" if reason else "ok") + (" (new)" if new_artifact else "")
         if reason:
             regressions.append((artifact["name"], growth, reason))
         print(
@@ -332,6 +345,8 @@ def parse_arguments(arguments):
     )
     parser.add_argument("--compare-build-root", type=pathlib.Path,
                         help="measure reference artifacts instead of using bank sizes")
+    parser.add_argument("--compare-baseline", type=pathlib.Path,
+                        help="reference manifest identifying paths introduced by this PR")
     parser.add_argument("--comparison-ref", help="source commit of the reference build")
     parser.add_argument("--report-only", action="store_true",
                         help="report bank drift; the cumulative guard still fails above 200 KB")
@@ -352,9 +367,14 @@ def parse_arguments(arguments):
 def main(arguments=None):
     options = parse_arguments(arguments)
     try:
+        if options.compare_baseline is not None and options.compare_build_root is None:
+            raise SizeReportError("--compare-baseline requires --compare-build-root")
         baseline = load_baseline(options.baseline)
+        compare_baseline = (load_baseline(options.compare_baseline)
+                            if options.compare_baseline is not None else None)
         return report(options.build_root, baseline, options.compare_build_root,
-                      options.comparison_ref, options.report_only, options.acknowledge_growth)
+                      options.comparison_ref, options.report_only, options.acknowledge_growth,
+                      compare_baseline=compare_baseline)
     except (OSError, SizeReportError) as error:
         print("retro68_size_report: %s" % error, file=sys.stderr)
         return 2
