@@ -1,6 +1,5 @@
 #include "app/nodes/controls/TextEditor.hpp"
-#include "platform/String.hpp"
-#include "core/StringAccess.hpp"
+#include "app/nodes/controls/TextDocumentLine.hpp"
 #include <cstring>
 
 namespace loka
@@ -9,72 +8,7 @@ namespace loka
   {
     namespace
     {
-      /** Borrow the rail's UTF-8 bytes when available. Other rails retain the
-          existing StringBuffer conversion/refusal contract, as AttributedString
-          does. String construction retains the rail contract (#827). */
-      class LineBytes
-      {
-      public:
-        explicit LineBytes(const core::String &value)
-            : buffer_(),
-              view_(),
-              result_(EDITOR_OK)
-        {
-          const core::Managed<platform::String> &handle = core::StringAccess::handle(value);
-          if (!handle.isValid())
-          {
-            this->view_.bytes = "";
-            this->view_.length = 0;
-            return;
-          }
-          if (!handle->queryUtf8(this->view_))
-          {
-            this->buffer_ = value.bufferWithEncoding(core::StringEncodingUtf8);
-            if (!this->buffer_.platformHandle().isValid())
-            {
-              this->result_ = EDITOR_ALLOCATION;
-              return;
-            }
-            this->view_.bytes = static_cast<const char *>(this->buffer_.data());
-            this->view_.length = this->buffer_.length();
-          }
-          if (!this->view_.length)
-            this->view_.bytes = "";
-          if (this->view_.length > TextEditorProps::kMaxBytes)
-          {
-            this->result_ = EDITOR_CAPACITY;
-            return;
-          }
-          for (std::size_t i = 0; i < this->view_.length; ++i)
-          {
-            const unsigned char c = static_cast<unsigned char>(this->view_.bytes[i]);
-            if (!c || c > 127 || c == '\r' || c == '\n')
-            {
-              this->result_ = EDITOR_NON_ASCII;
-              return;
-            }
-          }
-        }
-        EditorResult result() const
-        {
-          return this->result_;
-        }
-        const char *data() const
-        {
-          return this->view_.bytes;
-        }
-        std::size_t size() const
-        {
-          return this->view_.length;
-        }
-
-      private:
-        LineBytes(const LineBytes &);
-        LineBytes &operator=(const LineBytes &);
-        core::StringBuffer buffer_;
-        platform::Utf8View view_;
-        EditorResult result_;
-      };
+      using text_document_detail::LineBytes;
       /** Local checked construction storage. No retained draft or owner state. */
       class EditorScratch
       {
@@ -181,18 +115,7 @@ namespace loka
         return resultOf(ready);
       if (!this->props_.cursor_.usesTracker(owner))
         return EDITOR_OWNER_MISMATCH;
-      if (lines->size() > TextEditorProps::kMaxLines)
-        return EDITOR_CAPACITY;
-      for (unsigned short i = 0; i < lines->size(); ++i)
-      {
-        const LineBytes line(lines->at(i).value);
-        if (line.result() != EDITOR_OK)
-          return line.result();
-        bytes += line.size() + (i ? 1 : 0);
-        if (bytes > TextEditorProps::kMaxBytes)
-          return EDITOR_CAPACITY;
-      }
-      return EDITOR_OK;
+      return text_document_detail::Measure(*lines, bytes);
     }
     EditorResult TextEditorDocument::project(std::string &out) const
     {

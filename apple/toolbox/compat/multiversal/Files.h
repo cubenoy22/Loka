@@ -12,6 +12,17 @@ inline OSErr FSpOpenDF(const FSSpec *spec, SignedByte permission, int16_t *refNu
   return FSpOpenDF(const_cast<FSSpec *>(spec), permission, refNum);
 }
 
+// Match Universal Interfaces' read-only FSSpec input for the prepare door.
+inline OSErr FSpGetFInfo(const FSSpec *spec, FInfo *info)
+{
+  return FSpGetFInfo(const_cast<FSSpec *>(spec), info);
+}
+
+inline OSErr FSpCreate(const FSSpec *spec, OSType creator, OSType type, ScriptCode script)
+{
+  return FSpCreate(const_cast<FSSpec *>(spec), creator, type, script);
+}
+
 inline OSErr HGetVol(StringPtr volumeName, short *vRefNum, long *dirId)
 {
   WDPBRec params;
