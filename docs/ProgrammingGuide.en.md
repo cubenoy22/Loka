@@ -1070,9 +1070,14 @@ A `RESULT_FILE` is a selected address: it certifies neither existence nor
 writability. Toolbox implements SAVE with StandardPutFile and refuses names
 outside its 1–31 byte HFS limit. Default-name suggestions may be empty, must
 encode losslessly, and must fit within 31 native bytes.
-Win32 and macOS currently deliver `Error(FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE)`
-without showing a native dialog; their SAVE implementations follow in separate
-PRs. Null refuses both purposes. Changing purpose, default name or filter on a
+Win32 implements SAVE with `GetSaveFileNameW`: it asks before replacing an
+existing file, and `FILE_DIALOG_FILTER_ALL_FILES_TEXT` adds a Text (`*.txt`)
+filter and appends `.txt` to a name typed without an extension. A default name
+Windows cannot use as a file name (a path separator, a reserved character, a
+trailing dot or space) completes with an `Error` result without showing the
+dialog. macOS currently delivers
+`Error(FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE)` without showing a native dialog;
+its SAVE implementation follows in a separate PR. Null refuses both purposes. Changing purpose, default name or filter on a
 retained dialog abandons an active operation until reattach. Options changed
 while detached configure the next presentation.
 
