@@ -619,7 +619,7 @@ namespace
         const loka::core::resource::Blob &,
         std::size_t,
         std::size_t,
-        loka::core::resource::Image &) const
+        loka::core::resource::Image &)
     {
       return false;
     }

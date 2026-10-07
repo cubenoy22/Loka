@@ -1,3 +1,4 @@
+#include "NativeResourceRetirementTests.hpp"
 #include "MenuCompletionTests.hpp"
 #include "SceneMenuBarTests.hpp"
 #include "support/SeatBuildRequestAccess.hpp"
