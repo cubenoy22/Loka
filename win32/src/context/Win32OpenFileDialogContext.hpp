@@ -2,6 +2,7 @@
 #define LOKA_WIN32_OPEN_FILE_DIALOG_CONTEXT_HPP
 
 #include <windows.h>
+#include <commdlg.h>
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/core/DialogResultTransport.hpp"
 
@@ -39,6 +40,10 @@ private:
   void applyAttachedPresentation();
   void applyDetachedPresentation();
   void presentDialog();
+  /** Prepares a SAVE basename and native policy before entering the modal loop.
+      Refuses invalid default names without opening a dialog or touching a file. */
+  static bool configureSaveDialog(const loka::app::FileDialogOptions &options,
+                                  wchar_t (&buffer)[MAX_PATH], OPENFILENAMEW &dialog);
   static void queueDeferredResult(loka::app::DialogResultTransport::ReturnPort &port,
                                   const loka::app::FileChooserResult &result);
   void detachOwnedDialog();
