@@ -653,7 +653,7 @@ bool MacWindow::mountReplacementScene(loka::app::scene::Scene *next)
   if (!this->window_ || !this->contentView_)
     return true;
   if (!this->scenePlatformController_)
-    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_, loka::macos::DefaultRailMetrics());
+    this->scenePlatformController_ = new MacScenePlatformController(this->contentView_, loka::macos::DefaultRailMetrics(), this->context());
   if (!this->scenePlatformController_)
     return false;
   return next->mount(this->scenePlatformController_);

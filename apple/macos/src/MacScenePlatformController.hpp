@@ -2,6 +2,7 @@
 #define LOKA_MAC_SCENE_PLATFORM_CONTROLLER_HPP
 
 #include <vector>
+#include "core/resource/Image.hpp"
 #include "app/layout/TextShaping.hpp"
 #include "platform/MacProjection.hpp"
 #include "app/RectSurface.hpp"
@@ -10,6 +11,8 @@
 #include "app/scene/projection/PlatformController.hpp"
 #include "app/scene/projection/PlatformLayoutHandler.hpp"
 #include "app/scene/projection/PlatformNodeHandler.hpp"
+
+class PlatformContext;
 
 namespace loka
 {
@@ -90,7 +93,10 @@ public:
     int resultY;
   };
 
-  MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics);
+  MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics,
+                             PlatformContext *platformContext = 0);
+  /** Borrows the Window's ancestor context; an ownerless controller refuses. */
+  bool captureViewBitmap(void *view, loka::core::resource::Image &out) const;
   virtual ~MacScenePlatformController();
   loka::app::TextShaping textShaping() const { return this->textShaping_; }
 
@@ -288,6 +294,7 @@ private:
   const loka::macos::MacProjection projection_;
   const loka::app::TextShaping textShaping_;
   TextFontTable textFonts_;
+  PlatformContext *const platformContext_; // Ancestor outlives controller and captured Images.
   void *rootView_;
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;
   loka::app::scene::PlatformLayoutHandlerRegistry layoutHandlerRegistry_;

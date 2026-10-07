@@ -165,7 +165,10 @@ void MacApp::flushInvalidationsTick()
     MacScenePlatformController::flushPendingRelayouts();
     this->reconcileFocus();
     turn.close();
+    // Native dealloc chains may autorelease, including on direct tick entry.
+    NSAutoreleasePool *retirementPool = [[NSAutoreleasePool alloc] init];
     this->reclaimWindows();
+    [retirementPool drain];
   }
 #ifdef LOKA_LIFECYCLE_AUDIT
   // A runModal timer joins the outer apply turn; only an outermost timer returns idle.

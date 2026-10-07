@@ -7,8 +7,8 @@
 > completion, and quiescent shutdown. Exact signatures remain in headers.
 >
 > **Delivery:** PR 1 provides common machinery and host pins. PR 2 wires Win32
-> decode and capture. PR 3 wires macOS, and PR 4 removes the unused Toolbox
-> owned-PICT path; those two rails retain their inline releasers until then.
+> decode and capture. PR 3 wires macOS decode and capture. PR 4 removes the
+> unused Toolbox owned-PICT path; Toolbox retains its inline releasers until then.
 
 ## Owner and clock
 
@@ -90,9 +90,24 @@ GetWindowDC. The Window passes its PlatformContext borrow into
 Win32ScenePlatformController at construction; Button and Text contexts capture
 through that controller. A standalone controller without the borrow refuses
 capture. The borrow is fixed for the controller lifetime; the ancestor context
-must outlive the controller, its node contexts, and all resulting Images. macOS decode reserves before NSImage
-allocation, and capture before bitmapImageRepForCachingDisplayInRect, not just
-before retain. Caller replacement remains temporary-build/commit where required;
+must outlive the controller, its node contexts, and all resulting Images.
+
+On macOS `MacPlatformContext::createImageFromBlob` reserves after blob/range
+validation and before both NSData and NSImage allocation. Text and Button
+`captureBitmap` remain const and forward through their existing controller link
+to `MacScenePlatformController::captureViewBitmap`. One `PlatformContext *const`
+borrow is supplied from `Window::context()` when MacWindow constructs the
+controller. The controller alone reads that borrow and forwards to the shared
+rail-internal `loka::macos::CaptureViewBitmap` in MacBitmapCapture.mm. An absent
+context refuses capture; no inline fallback.
+The helper validates view geometry, reserves before
+`bitmapImageRepForCachingDisplayInRect:`, retains the returned autoreleased
+bitmap, caches pixels, then consumes the retained obligation through
+`publishImage`. A nil native result cancels the reservation. FromNative record
+or control-block refusal queues the retained bitmap; it must not be released a
+second time by the producer. Controllers and their node contexts die before the
+ancestor context; captured Images may survive the window, but not that context.
+Caller replacement remains temporary-build/commit where required;
 publication is a consuming operation, not a preserve-old replacement policy.
 
 ## Eligible completion and re-entrancy
@@ -122,14 +137,36 @@ Code running a nested modal outside an Operation must not carry a raw native
 handle borrowed from an Image across that modal call. Operation exclusion is
 not a universal proof of modal safety. Synchronous modal work inside an
 Operation defers retirement; a deferred presenter outside it may admit eligible
-nested completions. Save-dialog integration (#1131) must observe the same rule.
+nested completions. The macOS Open and Save panels (#1136) share
+`presentIfNeeded` and
+`presentDialog`: the deferred presenter schedules a timer and enters the panel
+outside the apply Operation in the ordinary path. Nested ticks can then close
+an outer Operation and drain. If presenter allocation fails, `presentIfNeeded`
+calls `presentDialog` synchronously inside apply: nested ticks join the active
+Operation and cannot drain. A deferred timer dispatched by an already nested
+loop can also join an active Operation; eligibility depends on actual entry
+state, not presenter identity. This applies to NSOpenPanel `runModal`, NSSavePanel
+`runModal`, and its legacy `runModalForDirectory:file:` fallback alike. Each
+branch copies logical inputs and carries only the revocable ReturnPort across
+the modal call, not an Image-derived raw handle. Image loss during synchronous
+modal dwell remains queued until an actual eligible completion.
 
 Disposers are rail static functions only. They must not write State, create an
 Image, reserve a ticket, or destroy the context. The Win32 bitmap disposers (`ReleaseWin32Bitmap` and `ReleaseCapturedBitmap`)
 call DeleteObject only and drop no Loka value; it must not create a new queued cascade after the last pre-sleep
-tail. A macOS dealloc cascade may drop an existing Image, queued for the next
-completion. macOS integration supplies an autorelease pool for tick disposal;
-the outer application pool must survive the context final drain.
+tail. The macOS `ReleaseNSImage` and `ReleaseCapturedBitmap` disposers send `release`
+only. They must not explicitly run application work. A dealloc cascade may drop
+an existing Loka Image; its ticket queues for the next completion, outside the
+current finite snapshot. `MacApp::flushInvalidationsTick` closes its Operation
+before calling `App::reclaimWindows`, under a local NSAutoreleasePool so dealloc
+chains may autorelease even on direct tick entry. Neither the tick nor its timer
+callback previously had a lexical pool; normal AppKit dispatch supplies an outer
+pool but direct callers need not. The repeating timer is the normal route to
+later completions
+for cascaded tickets; allocation refusal or undelivered modal modes do not
+establish any finite wall-clock guarantee. The example main's outer application
+pool survives RunApp
+and thus the context final drain. There is no macOS-specific drain call.
 
 ## Shutdown and invalid lifetime containment
 
@@ -200,6 +237,37 @@ excess explicitly and obtain an evidence-based acceptance or admission redesign;
 do not silently accept an excess or introduce an unmeasured cap. The modal trial
 must verify no deletion while the outer Operation remains active, then recovery
 at completion; final-exit recovery covers WM_QUIT's skipped tail.
+
+### macOS measured acceptance (Tahoe rig TODO)
+
+Run `LokaTestsMacOS`, including `testMacNativeRetirement*` and
+`testMacCaptureRefusalReleasesBitmapOnce`, before measurement. Compare the PR 2
+baseline with PR 3 on the same Tahoe rig, inputs and actions; record revisions,
+OS/architecture, toolchain, preset and rig descriptor. No macOS build-verified,
+runtime-verified or measured acceptance claim is made by these TODOs.
+
+Record decoded image dimensions/bytes, burst length within one outer Operation,
+modal path and dwell, baseline and candidate peak RSS and physical footprint,
+peak queued ticket count (sample immediately before eligible completion), and
+post-completion recovery of bytes and tickets. Use the existing testing ledger
+access for ticket observation in an instrumented rig build; do not add a shipped
+counter. RSS and footprint are separate measurements; do not label one as the
+other. Record refusal behavior. Retention beyond the provisional extra-one-image
+criterion requires an evidence-based acceptance decision before merge.
+
+| Workload | Image sizes / burst / dwell | Baseline vs candidate peak RSS / footprint | Queued tickets at peak / recovery after completion | Refusal / decision |
+|---|---|---|---|---|
+| Scrapbook burst page flips | TODO | TODO | TODO | TODO |
+| SimpleViewer replace | TODO | TODO | TODO | TODO |
+| Multiple replacements inside one outer Operation | TODO | TODO | TODO | TODO |
+| LazyView image generation replacement | TODO | TODO | TODO | TODO |
+| Open panel dwell: deferred and synchronous fallback | TODO | TODO | TODO | TODO |
+| Save panel dwell: deferred and synchronous fallback | TODO | TODO | TODO | TODO |
+
+For both panel types verify retirement is refused while an outer Operation is
+active and allowed on eligible ticks when none is active. Exercise the legacy
+Save selector on a supporting rig; Tahoe's modern selector does not establish
+that runtime branch. Verify final-exit recovery after App and Config destruction.
 
 Reservation and cancellation cost O(1) per attempted acquisition. Publication
 adds the existing Image allocations. Final release transfers O(1), allocation
