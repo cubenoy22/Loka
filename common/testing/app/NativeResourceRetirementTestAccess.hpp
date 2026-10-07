@@ -26,6 +26,11 @@ namespace loka
         {
           return count(context.nativeResourceRetirement_.inFlight_);
         }
+        static void *queuedHandle(const PlatformContext &context)
+        {
+          const NativeResourceRetirement::Ticket *ticket = context.nativeResourceRetirement_.queued_;
+          return ticket ? ticket->handle : 0;
+        }
         static void drain(PlatformContext &context)
         {
           context.nativeResourceRetirement_.drain();

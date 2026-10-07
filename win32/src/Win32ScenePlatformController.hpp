@@ -13,6 +13,8 @@
 #include "platform/Win32DisplayFont.hpp"
 #include "platform/Win32DisplayScale.hpp"
 
+class PlatformContext;
+
 class Win32ButtonContext;
 class Win32EditTextContext;
 class Win32NativeLayoutPass;
@@ -107,8 +109,12 @@ public:
   };
 
   Win32ScenePlatformController(HWND rootHwnd,
-                               const loka::win32::Win32DisplayScale &displayScale);
+                               const loka::win32::Win32DisplayScale &displayScale,
+                               PlatformContext *platformContext = 0);
   virtual ~Win32ScenePlatformController();
+  /** Capture borrows the Window's ancestor context; standalone controllers
+      without that owner refuse. No Image retains this controller. */
+  bool captureWindowClientBitmap(HWND hwnd, loka::core::resource::Image &out) const;
 
   static void requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
@@ -406,6 +412,7 @@ private:
   void flushPendingInvalidations(bool updateNow);
   void dumpRedrawStatsIfNeeded();
 
+  PlatformContext *const platformContext_; // Ancestor outlives this controller and its contexts.
   HWND rootHwnd_;
   Win32NativeLayoutPass *activeNativeLayoutPass_;
   loka::app::RectSurfaceExtentLedger rectSurfaceExtentLedger_;
