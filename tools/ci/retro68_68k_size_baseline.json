@@ -35,9 +35,9 @@
       "name": "LokaSimpleText68K",
       "path": "example/SimpleText/LokaSimpleText68K.bin",
       "baseline": {
-        "total": 345088,
-        "CODE": 318676,
-        "DATA": 13396,
+        "total": 344832,
+        "CODE": 318360,
+        "DATA": 13444,
         "RELA": 12087
       }
     },
