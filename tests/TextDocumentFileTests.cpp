@@ -435,6 +435,11 @@ void testTextDocumentResolution()
   const Snapshot missing(document.lines);
   LOKA_VERIFY(ReadTextDocument(&source.context, source.file, document.lines) == TEXT_DOCUMENT_READ_FAILED);
   missing.unchanged(document.lines);
+  // An application-relative File that no context resolved has no path to
+  // flatten: File::toString() asserts on BASE_APPLICATION, so it must refuse.
+  LOKA_VERIFY(ReadTextDocument(0, File::Application() << File("absent.txt"), document.lines)
+              == TEXT_DOCUMENT_READ_FAILED);
+  missing.unchanged(document.lines);
 }
 
 void testTextDocumentWriteFailures()

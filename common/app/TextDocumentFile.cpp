@@ -48,7 +48,7 @@ namespace loka
         {
           if (this->position_ < this->lines_.size())
             out =
-                core::ListOp<core::String>(core::REMOVE, this->lines_.at(this->lines_.size() - 1 - this->position_).id);
+                core::ListOp<core::String>(core::REMOVE, this->lines_.at(static_cast<unsigned short>(this->lines_.size() - 1 - this->position_)).id);
           else
           {
             const unsigned int row = this->position_ - this->lines_.size();
@@ -126,6 +126,8 @@ namespace loka
                              bytes,
                              &capacity);
       }
+      else if (file.base() == loka::file::File::BASE_APPLICATION)
+        return TEXT_DOCUMENT_READ_FAILED; // unresolved: no path to flatten
       else
         result = ReadBytes(file.toString(), bytes, &capacity);
       if (result == READ_CAPACITY_REFUSED || result == READ_SIZE_OVERFLOW)
