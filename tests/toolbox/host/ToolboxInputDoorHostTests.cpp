@@ -10,14 +10,7 @@
 #include "ToolboxActivationPhase.hpp"
 #include <cstdio>
 #include <cstring>
-/** The real Toolbox completion with fixture-owned native neighbors. */
-class ToolboxApp : public WindowAdmissionTestApp
-{
-public:
-  explicit ToolboxApp(Window &window) : WindowAdmissionTestApp(window) {}
-  void present(ActivationPhase, loka::core::Operation &turn);
-};
-#include "ToolboxPresent.cpp"
+#include "ToolboxPresentHost.hpp"
 namespace
 {
   using namespace loka::app;

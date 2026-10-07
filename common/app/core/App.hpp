@@ -111,6 +111,8 @@ protected:
   void flushWindowInvalidations();
   /** Pre-wait progress: close rows or serviceable Window completion work. */
   bool hasPendingWindowAdmission() const;
+  /** Completion rails skip windows whose close has already been requested. */
+  bool isWindowClosePending(Window *window) const;
   /** Drains one queue snapshot outside an open split tail; requests made during
       the drain wait for the next flush. */
   void flushPendingWindowClosures();
@@ -143,7 +145,6 @@ private:
     Phase phase_;
   };
   void drainWindowClosures(const std::vector<Window *> &pending);
-  bool isWindowClosePending(Window *window) const;
   bool windowHasAdmissionWork(Window *window) const;
   std::vector<Window *> pendingWindowClosures_;
   bool flushingWindowWork_;
