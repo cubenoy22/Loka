@@ -298,15 +298,23 @@ namespace simpletext
       }
     }
 
-    static loka::core::String failureText(DocumentAction action)
+    static loka::core::String failureText(DocumentAction action, loka::app::TextDocumentResult result)
     {
+      using namespace loka::app;
       switch (action)
       {
       case NEW_DOCUMENT:
         return loka::core::String::Literal("Cannot start a new document.");
       case OPEN_DOCUMENT:
+        if (result == TEXT_DOCUMENT_TOO_LARGE)
+          return loka::core::String::Literal("Cannot open the file: it is too long for the editor.");
+        if (result == TEXT_DOCUMENT_NON_ASCII)
+          return loka::core::String::Literal("Cannot open the file: it is not plain ASCII text.");
         return loka::core::String::Literal("Cannot open the file.");
       case SAVE_DOCUMENT:
+        // The prepare door refuses a non-TEXT file before anything is written.
+        if (result == TEXT_DOCUMENT_NOT_TEXT)
+          return loka::core::String::Literal("Not saved: the file is not a text file.");
         return loka::core::String::Literal("Save failed; the destination may have changed.");
       }
       return loka::core::String();
@@ -318,6 +326,7 @@ namespace simpletext
       using namespace loka::app;
       loka::core::StateTrackerGuard guard(this->tracker());
       bool committed = false;
+      TextDocumentResult result = TEXT_DOCUMENT_OK;
       switch (action)
       {
       case NEW_DOCUMENT:
@@ -327,16 +336,17 @@ namespace simpletext
         break;
       }
       case OPEN_DOCUMENT:
-        committed = ReadTextDocument(this->props.platformContext(), destination.item, this->lines_) == TEXT_DOCUMENT_OK;
+        result = ReadTextDocument(this->props.platformContext(), destination.item, this->lines_);
+        committed = result == TEXT_DOCUMENT_OK;
         break;
       case SAVE_DOCUMENT:
-        committed =
-            WriteTextDocument(this->props.platformContext(), destination.item, this->lines_) == TEXT_DOCUMENT_OK;
+        result = WriteTextDocument(this->props.platformContext(), destination.item, this->lines_);
+        committed = result == TEXT_DOCUMENT_OK;
         break;
       }
       if (!committed)
       {
-        this->error_.set(failureText(action));
+        this->error_.set(failureText(action, result));
         return;
       }
       this->currentFile_ = destination;
