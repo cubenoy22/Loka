@@ -65,6 +65,24 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: macOS SimpleText",
+      "hide": true,
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "macos-debug",
+        "--target",
+        "LokaSimpleTextMacOS"
+      ],
+      "dependsOn": [
+        "Configure: macOS Native"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: macOS ScrapbookUI",
       "hide": true,
       "type": "shell",
@@ -319,6 +337,21 @@
         "win32-debug",
         "--target",
         "LokaSimpleViewerWin32"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "Build: Win32 SimpleText",
+      "hide": true,
+      "type": "shell",
+      "command": "cmake",
+      "args": [
+        "--build",
+        "--preset",
+        "win32-debug",
+        "--target",
+        "LokaSimpleTextWin32"
       ],
       "group": "build",
       "problemMatcher": "$msCompile"
@@ -1302,14 +1335,14 @@
       "type": "pickString",
       "description": "Select the macOS target to build",
       "default": "All",
-      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
+      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "SimpleText", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
     },
     {
       "id": "lokaWin32Build",
       "type": "pickString",
       "description": "Select the Win32 target to build",
       "default": "All",
-      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
+      "options": ["All", "HelloWorld", "MineSweeper", "SimpleViewer", "SimpleText", "ScrapbookUI", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "SmirkyCard", "Tests"]
     },
     {
       "id": "lokaScenarioLoop",
