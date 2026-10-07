@@ -560,6 +560,24 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxMenuTests)
   set_target_properties(LokaToolboxMenuTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxMenuTests COMMAND LokaToolboxMenuTests)
+
+  # Refusal paths of the Toolbox picture -> Image allocations (#1064).
+  add_executable(LokaToolboxNativeImageTests
+    tests/toolbox/host/ToolboxNativeImageHostTests.cpp
+    tests/TestingHooks.cpp
+    apple/toolbox/src/ToolboxNativeImage.cpp)
+  target_include_directories(LokaToolboxNativeImageTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+  target_link_libraries(LokaToolboxNativeImageTests PRIVATE LokaCommonTesting)
+  loka_enable_warnings(LokaToolboxNativeImageTests)
+  set_target_properties(LokaToolboxNativeImageTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  foreach(_native_image_case
+      testOwnedPictureKilledOnceOnNativeImageRefusal
+      testBorrowedPictureKeptOnNativeImageRefusal
+      testOwnedPictureKilledOnceOnImageRecordRefusal
+      testOwnedPictureKilledOnceOnControlBlockRefusal
+      testPictBytesRefusalsReleaseEverything)
+    add_test(NAME ${_native_image_case} COMMAND LokaToolboxNativeImageTests ${_native_image_case})
+  endforeach()
   add_test(NAME testToolboxAppShutdownReleasesMenuBeforeAttachmentDestruction
     COMMAND LokaToolboxMenuTests testToolboxAppShutdownReleasesMenuBeforeAttachmentDestruction)
 

@@ -8,5 +8,8 @@ void testLokaAllocAuditBalancedUseCountsToZero();
 void testBlobOwnedWriteLeavesNoLiveGateAllocation();
 void testBlobEmptyWritePreservesSharedRecord();
 void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow();
+void testImageFromNativeRecordRefusalReleasesNativeOnce();
+void testImageFromNativeControlBlockRefusalReleasesNativeOnce();
+void testImageFromNativeReleasesNativeOnceAfterLastCopy();
 
 #endif // LOKA_TESTS_LOKA_ALLOC_TESTS_HPP

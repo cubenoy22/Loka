@@ -2,6 +2,7 @@
 #define LOKA_CORE2_RESOURCE_IMAGE_HPP
 
 #include <cstddef>
+#include "core/LokaAlloc.hpp"
 #include "core/Managed.hpp"
 
 namespace loka
@@ -53,6 +54,9 @@ namespace loka
           return Image();
         }
 
+        /** Consumes nativeHandle. When the record or its control block cannot be
+            allocated, releaseFn runs once on the handle and the Image is invalid;
+            this never aborts (#1064). */
         static Image FromNative(
             void *nativeHandle, int width, int height, void (*releaseFn)(void *handle, void *userData), void *userData)
         {
@@ -60,14 +64,29 @@ namespace loka
           {
             return Image();
           }
-          ImageRecord *record = new ImageRecord();
+          ImageRecord *record = LokaNew<ImageRecord>(RecordSite());
+          if (!record)
+          {
+            if (releaseFn)
+            {
+              releaseFn(nativeHandle, userData);
+            }
+            return Image();
+          }
           record->nativeHandle = nativeHandle;
           record->releaseNative = releaseFn;
           record->releaseUserData = userData;
           record->width = width;
           record->height = height;
           record->format = IMAGE_FORMAT_NATIVE;
-          return Image(Managed<ImageRecord>::Wrap(record, &Image::ReleaseRecord));
+          const Managed<ImageRecord> handle = Managed<ImageRecord>::TryWrap(record, &Image::ReleaseRecord, 0);
+          if (!handle.isValid())
+          {
+            // TryWrap left the record with us: release it as the last owner would.
+            ReleaseRecord(record, 0);
+            return Image();
+          }
+          return Image(handle);
         }
 
         bool isValid() const
@@ -115,7 +134,12 @@ namespace loka
           {
             record->releaseNative(record->nativeHandle, record->releaseUserData);
           }
-          delete record;
+          LokaDelete(record, RecordSite());
+        }
+
+        static LokaAllocationSite RecordSite()
+        {
+          return LokaAllocationSite("Image", "Record");
         }
 
         Managed<ImageRecord> handle_;

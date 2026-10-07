@@ -991,3 +991,58 @@ void testMacTextMeasurementInputPublications()
   [root release];
   [pool drain];
 }
+
+#include "app/scene/ability/CapturableBitmap.hpp"
+#include "core/resource/Image.hpp"
+
+void testMacCaptureRefusalReleasesBitmapOnce()
+{
+  NSAutoreleasePool *outer = [[NSAutoreleasePool alloc] init];
+  [NSApplication sharedApplication];
+  NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
+  LOKA_VERIFY(root != nil);
+  {
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
+    loka::app::ButtonProps buttonProps;
+    loka::app::ButtonNode button(buttonProps);
+    loka::app::TextProps textProps;
+    loka::app::TextNode text(textProps);
+    loka::app::scene::LayoutState state;
+    state.x = 10;
+    state.y = 20;
+    state.width = 100;
+    state.height = 30;
+    LOKA_VERIFY(controller.prepareProjectedLayout(&button, state));
+    state.y = 60;
+    LOKA_VERIFY(controller.prepareProjectedLayout(&text, state));
+    loka::app::scene::NodeContext *const contexts[] = {button.getContext(), text.getContext()};
+    for (int i = 0; i < 2; ++i)
+    {
+      LOKA_VERIFY(contexts[i]);
+      const loka::app::scene::ICapturableBitmap *capturable = contexts[i]->asCapturableBitmap();
+      LOKA_VERIFY(capturable);
+      {
+        // A refused Image record: FromNative consumes the retained bitmap, so
+        // the capture must not release it again; an over-release surfaces when
+        // this pool drains (#1064).
+        NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
+        loka::core::testing::failLokaAllocRaw("Image", "Record", 1);
+        loka::core::resource::Image image;
+        LOKA_VERIFY(!capturable->captureBitmap(image));
+        LOKA_VERIFY(!image.isValid());
+        loka::core::testing::allowLokaAllocRaw();
+        [inner drain];
+      }
+      {
+        NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
+        loka::core::resource::Image image;
+        LOKA_VERIFY(capturable->captureBitmap(image));
+        LOKA_VERIFY(image.isValid());
+        [inner drain];
+      }
+    }
+  }
+  [root release];
+  [outer drain];
+  std::printf("==== [testMacCaptureRefusalReleasesBitmapOnce] PASSED ====\n");
+}
