@@ -3,9 +3,18 @@
 #include "../MacScenePlatformController.hpp"
 #include "../MacWindow.hpp"
 #include "MacObjCCompat.hpp"
+#include "MacSaveFileDialogSetup.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "Utf8String.hpp"
 #import <AppKit/AppKit.h>
+
+// These declarations also cover old/mixed SDK headers, as in MacObjCCompat.
+// They supply types only; the runtime capability checks below remain required.
+@interface NSSavePanel (LokaSavePanelCompat)
+- (void)setNameFieldStringValue:(NSString *)value;
+- (NSInteger)runModal;
+- (NSURL *)URL;
+@end
 
 @interface LokaMacOpenFileDialogDeferredPresenter : NSObject
 {
@@ -247,10 +256,56 @@ void MacOpenFileDialogContext::presentDialog()
   }
   loka::app::DialogResultTransport::ReturnPort port(this->registration_);
   this->presentation_.markPresented();
-  if (this->node_->props.options_.purpose() == loka::app::FILE_DIALOG_SAVE)
+  const loka::app::FileDialogOptions options(this->node_->props.options_);
+  if (options.purpose() == loka::app::FILE_DIALOG_SAVE)
   {
-    // SAVE is implemented by a later rail PR; never fall back to OPEN.
-    port.seal(loka::app::FileChooserResult::Error(loka::app::FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE));
+    // All logical inputs are stack-owned before AppKit can run nested events.
+    NSSavePanel *panel = [NSSavePanel savePanel]; // Autoreleased; do not release.
+    NSString *name = loka::macos::MacSaveFileDialogDefaultName(options);
+    if (!panel || !name)
+    {
+      port.seal(loka::app::FileChooserResult::Error(1));
+      return;
+    }
+    // The 10.3 type API keeps Tiger support; UTType APIs require newer systems.
+    // Keep deprecation suppression local to the deliberate compatibility calls.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    [panel setAllowedFileTypes:loka::macos::MacSaveFileDialogAllowedTypes(options)];
+    [panel setAllowsOtherFileTypes:YES];
+    [panel setCanCreateDirectories:YES];
+    NSInteger response;
+    if ([panel respondsToSelector:@selector(setNameFieldStringValue:)])
+    {
+      // Name-field setup and parameterless SAVE runModal arrived in 10.6.
+      [panel setNameFieldStringValue:name];
+      response = [panel runModal];
+    }
+    else
+    {
+      response = [panel runModalForDirectory:nil file:name];
+    }
+    loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
+    if (response == LOKA_MAC_MODAL_RESPONSE_OK)
+    {
+      NSString *path = [panel respondsToSelector:@selector(URL)]
+          ? [[panel URL] path] : [panel filename];
+      if (path)
+      {
+        // Same selected-address construction as OPEN below; no filesystem write.
+        loka::file::File file = loka::file::File::FromPath(
+            loka::core::String(loka::macos::Utf8FromNSString(path)));
+        file.setKind(loka::file::File::KIND_FILE);
+        result = loka::app::FileChooserResult::File(file);
+      }
+      else
+      {
+        result = loka::app::FileChooserResult::Error(2);
+      }
+    }
+#pragma clang diagnostic pop
+    // The context may have detached or been reclaimed during the modal loop.
+    port.seal(result);
     return;
   }
 

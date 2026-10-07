@@ -8,6 +8,7 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
+#include "context/MacSaveFileDialogSetup.hpp"
 #include "app/core/App.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -336,19 +337,49 @@ void testMacOpenFileDialogRetargetDropsResult()
   [pool drain];
 }
 
-void testMacSaveFileDialogRefusesWithoutNativeDialog()
+void testMacSaveFileDialogSetup()
 {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   {
+    const FileDialogOptions defaults(FILE_DIALOG_SAVE, loka::core::String::Literal("Untitled"));
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(defaults) isEqualToString:@"Untitled"]);
+    LOKA_VERIFY(loka::macos::MacSaveFileDialogAllowedTypes(defaults) == nil);
+    const FileDialogOptions empty(FILE_DIALOG_SAVE);
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(empty) isEqualToString:@""]);
+    const char utf8[] = "notes-\xe6\x97\xa5\xe6\x9c\xac.txt";
+    const FileDialogOptions text(FILE_DIALOG_SAVE, loka::core::String::Utf8(utf8, sizeof(utf8) - 1),
+                                 FILE_DIALOG_FILTER_ALL_FILES_TEXT);
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(text)
+        isEqualToString:[NSString stringWithUTF8String:utf8]]);
+    NSArray *types = loka::macos::MacSaveFileDialogAllowedTypes(text);
+    LOKA_VERIFY([types count] == 1);
+    LOKA_VERIFY([[types objectAtIndex:0] isEqualToString:@"txt"]);
+  }
+  [pool drain];
+}
+
+void testMacSaveFileDialogRetargetBeforePresentation()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  for (int change = 0; change != 3; ++change)
+  {
     Fixture f(false, FileDialogOptions(FILE_DIALOG_SAVE, loka::core::String::Literal("Untitled")));
+    NSTimer *timer = [MacDialogResultTestAccess::scheduledTimer(f.context()) retain];
+    LOKA_VERIFY(timer != nil && [timer isValid]);
+    f.dialog()->props.options_ = change == 0 ? FileDialogOptions()
+        : FileDialogOptions(FILE_DIALOG_SAVE,
+                            loka::core::String::Literal(change == 1 ? "Changed" : "Untitled"),
+                            change == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
+    // matches() must refuse even before props notification cancels the timer.
     f.context().presentDeferred();
     f.silent();
+    f.context().onPropsApplied();
+    LOKA_VERIFY(![timer isValid]);
+    f.context().presentIfNeeded(); // Retarget stays abandoned until reattach.
     f.flush();
-    LOKA_VERIFY(f.probe.writes == 1 && f.probe.emits == 1);
-    LOKA_VERIFY(f.probe.root->result.get().kind == FileChooserResult::RESULT_ERROR);
-    LOKA_VERIFY(f.probe.root->result.get().errorCode == FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE);
-    f.flush();
-    LOKA_VERIFY(f.probe.writes == 1 && f.probe.emits == 1);
+    f.silent();
+    LOKA_VERIFY(TransportAccess::census(f.window->dialogResults()) == 0);
+    [timer release];
   }
   [pool drain];
 }
