@@ -4,7 +4,6 @@
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
 #include "app/core/WindowDefinition.hpp"
-#include "app/Menu.hpp"
 #include "MainNode.hpp"
 
 class SimpleTextAppConfig : public AppConfigurable
@@ -32,18 +31,8 @@ public:
                 ))                                    //
     );
   }
-  virtual void composeMenu(loka::app::MenuComposition &c)
+  virtual void composeMenu(loka::app::MenuComposition &)
   {
-    using namespace loka::app;
-    c << (                                           //
-        Menu("File")                                 //
-        << MenuItem("New").onClick(&this->newEvent_) //
-        << MenuItem("Open...").shortcut('o').onClick(&this->openEvent_)
-        << MenuItem("Save").shortcut('s').onClick(&this->saveEvent_)
-        << MenuItem("Save As...").onClick(&this->saveAsEvent_) //
-        << MenuSeparator()                                     //
-        << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP)   //
-    );
   }
 
 private:
