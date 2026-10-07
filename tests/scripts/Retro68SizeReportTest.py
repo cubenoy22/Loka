@@ -149,9 +149,16 @@ class Retro68SizeReportTest(unittest.TestCase):
                     else:
                         self.assertEqual(result.returncode, 0, result.stderr)
                         self.assertIn(expected, result.stdout.splitlines())
+                        lines = result.stdout.splitlines()
                         if is_pr == "true":
-                            self.assertIn("commit", result.stdout.splitlines())
+                            self.assertIn("commit", lines)
                             self.assertNotIn("--report-only", result.stdout)
+                            # The base's own bank tells the report which artifacts are new.
+                            option = lines.index("--compare-baseline")
+                            self.assertEqual(lines[option + 1], str(
+                                root / "retro68-size-base/tools/ci/retro68_68k_size_baseline.json"))
+                        else:
+                            self.assertNotIn("--compare-baseline", lines)
 
     def test_workflow_builds_the_immutable_target_of_the_ci_merge(self):
         script = self.workflow_script("Build the PR comparison commit")
