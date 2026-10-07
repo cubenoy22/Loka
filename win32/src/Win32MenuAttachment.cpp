@@ -19,12 +19,15 @@ namespace
     return (key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') ? key : 0;
   }
 
-  std::wstring MenuItemLabel(const loka::core::String &title, const std::wstring &shortcutSuffix)
+  // False when the title cannot be materialized: the caller keeps what it has
+  // (a build refuses, an update leaves the installed label) rather than
+  // committing an empty or suffix-only label (bot P2 on #1129).
+  bool MenuItemLabel(const loka::core::String &title, const std::wstring &shortcutSuffix, std::wstring &label)
   {
-    std::wstring label;
-    loka::win32::MaterializeWideString(title, label);
+    if (!loka::win32::MaterializeWideString(title, label))
+      return false;
     label += shortcutSuffix;
-    return label;
+    return true;
   }
 
   bool ApplyWindowMenuPreservingContentFrame(Win32Window *window, HMENU menu)
@@ -146,15 +149,17 @@ void Win32MenuAttachment::MenuTitleChangedThunk(void *userData)
   MenuBinding *binding = static_cast<MenuBinding *>(userData);
   if (!binding || !binding->titleState || !binding->menu)
     return;
-  std::wstring label = MenuItemLabel(binding->titleState->get(), binding->shortcutSuffix);
+  std::wstring label;
+  if (!MenuItemLabel(binding->titleState->get(), binding->shortcutSuffix, label))
+    return;
   MENUITEMINFOW info = {};
   info.cbSize = sizeof(info);
   info.fMask = MIIM_STRING;
   info.dwTypeData = const_cast<wchar_t *>(label.c_str());
-  if (SetMenuItemInfoW(binding->menu, binding->item,
-                       binding->byFlags == MF_BYPOSITION, &info) &&
-      binding->byFlags == MF_BYPOSITION && binding->hwnd &&
-      GetMenu(binding->hwnd) == binding->menu)
+  // SetMenuItemInfoW's contract: redraw the owning window's menu bar after
+  // every change, whichever menu the item lives in.
+  if (SetMenuItemInfoW(binding->menu, binding->item, binding->byFlags == MF_BYPOSITION, &info)
+      && binding->hwnd)
   {
     DrawMenuBar(binding->hwnd);
   }
@@ -239,8 +244,9 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
     shortcutSuffix = L"\tCtrl+";
     shortcutSuffix += static_cast<wchar_t>(key);
   }
-  const std::wstring titleWide = MenuItemLabel(
-      itemDef->titleState ? itemDef->titleState->get() : itemDef->title, shortcutSuffix);
+  std::wstring titleWide;
+  if (!MenuItemLabel(itemDef->titleState ? itemDef->titleState->get() : itemDef->title, shortcutSuffix, titleWide))
+    return false;
   UINT flags = MF_STRING;
   if (!itemDef->isEnabledInitial())
   {
