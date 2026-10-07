@@ -26,7 +26,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ALL_EXAMPLES=(tutorial floppybird smirkbench scrapbook helloworld lazylist minesweeper simpleviewer)
+ALL_EXAMPLES=(tutorial floppybird smirkbench scrapbook helloworld lazylist minesweeper simpleviewer simpletext)
 fail() { echo "measure-example-heaps: $*" >&2; exit 1; }
 
 . "$PROJECT_DIR/scripts/retro68-env.sh"
@@ -87,6 +87,9 @@ measure() {
       steps="K space;w 1;c 157 157;c 157 157;c 157 157;c 157 205;c 157 229;c 157 229;c 345 133;w 2;c 345 280;k five;k zero;w 2;s;c 449 368;c 449 368;c 449 368;w 2;s;" ;;
     lazylist) dir=LazyList app=LokaLazyList68K; tabs=1; steps="$(lazylist_steps)" ;;
     minesweeper) dir=MineSweeper app=LokaMine68K; tabs=1; steps="$(minesweeper_steps)" ;;
+    simpletext) dir=SimpleText app=LokaSimpleText68K; tabs=2
+      extras=("$PROJECT_DIR/tests/scenarios/fixtures/simpletext/ReadMe")
+      steps="w 5;K space;c 80 100;k l;k o;k l;k ret;k o;k ret;k l;k ret;w 5;s;" ;;
     simpleviewer) dir=SimpleViewer app=LokaSimpleViewer68K; tabs=3
       # The open dialog lists Desktop DB and Desktop DF first: four Downs reach
       # Sun.pict and five reach Zbulb.pict (Bulb.pict renamed to sort last).

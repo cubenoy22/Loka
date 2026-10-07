@@ -28,7 +28,7 @@ jobs:
       - name: Pull Retro68 toolchain
         run: docker pull "$RETRO68_IMAGE"
 
-      - name: Build all eight Toolbox 68K applications
+      - name: Build all nine Toolbox 68K applications
         run: |
           docker run --rm \
             --user "$(id -u):$(id -g)" \
@@ -41,7 +41,7 @@ jobs:
               cmake --preset retro68-68k-release -G "Unix Makefiles" \
                 -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-68k-release --target \
-                LokaHello68K_APPL LokaSimpleViewer68K_APPL \
+                LokaHello68K_APPL LokaSimpleViewer68K_APPL LokaSimpleText68K_APPL \
                 LokaFloppyBird68K_APPL LokaSmirkBench68K_APPL \
                 LokaMine68K_APPL LokaTutorial68K_APPL \
                 ScrapbookUI68K_APPL LokaLazyList68K_APPL

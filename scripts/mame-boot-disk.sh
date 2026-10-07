@@ -58,6 +58,7 @@ if [ $# -ge 1 ] && { [ "$1" = "--all" ] || [ "$1" = "-a" ]; }; then
     "$RELEASE_BUILD_ROOT/HelloWorld/LokaHello68K.bin"
     "$RELEASE_BUILD_ROOT/MineSweeper/LokaMine68K.bin"
     "$RELEASE_BUILD_ROOT/SimpleViewer/LokaSimpleViewer68K.bin"
+    "$RELEASE_BUILD_ROOT/SimpleText/LokaSimpleText68K.bin"
     "$RELEASE_BUILD_ROOT/FloppyBird/LokaFloppyBird68K.bin"
     "$RELEASE_BUILD_ROOT/SmirkBench/LokaSmirkBench68K.bin"
     "$RELEASE_BUILD_ROOT/LazyList/LokaLazyList68K.bin"

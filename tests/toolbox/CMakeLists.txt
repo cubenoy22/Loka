@@ -428,6 +428,30 @@ target_include_directories(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE
 )
 target_compile_definitions(${LOKA_SIMPLE_VIEWER_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
 
+# LokaSimpleTextTest68K_APPL.bin is 30 characters; HFS permits 31.
+set(LOKA_SIMPLE_TEXT_TESTS_TOOLBOX_TARGET
+  "LokaSimpleTextTest${LOKA_CLASSIC_TARGET_SUFFIX}"
+)
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/SimpleText/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/SimpleTextSize.r
+  COPYONLY
+)
+loka_add_toolbox_test_application(
+  ${LOKA_SIMPLE_TEXT_TESTS_TOOLBOX_TARGET}
+  LokaAppleToolboxTestCore
+  src/SimpleTextScenarioMain.cpp
+  src/SimpleTextScenarioDriver.cpp
+  src/ScenarioDriverSupport.cpp
+  ${CMAKE_SOURCE_DIR}/tests/TestingHooks.cpp
+  ${CMAKE_SOURCE_DIR}/tests/scenarios/ScenarioTypes.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/SimpleTextSize.r
+)
+target_include_directories(${LOKA_SIMPLE_TEXT_TESTS_TOOLBOX_TARGET} PRIVATE
+  ${CMAKE_SOURCE_DIR}/example/SimpleText/src
+)
+target_compile_definitions(${LOKA_SIMPLE_TEXT_TESTS_TOOLBOX_TARGET} PRIVATE TEST_BUILD LOKA_DIAG=1)
+
 function(loka_configure_toolbox_standalone_target
          target example_include_dir aggregate_target)
   set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)

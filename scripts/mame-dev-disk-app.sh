@@ -115,6 +115,10 @@ case "$key" in
         target=LokaSimpleViewer${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/SimpleViewer/LokaSimpleViewer${suffix}.bin
         ;;
+    SimpleText)
+        target=LokaSimpleText${suffix}_APPL
+        bin=build/retro68/${cpu}/Release/example/SimpleText/LokaSimpleText${suffix}.bin
+        ;;
     FloppyBird)
         target=LokaFloppyBird${suffix}_APPL
         bin=build/retro68/${cpu}/Release/example/FloppyBird/LokaFloppyBird${suffix}.bin
