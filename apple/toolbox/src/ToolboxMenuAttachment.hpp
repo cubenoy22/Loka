@@ -39,6 +39,7 @@ private:
     ToolboxApp *app;
     MenuHandle menu;
     short itemIndex;
+    loka::core::State<loka::core::String> *titleState;
     loka::core::State<bool> *enabledState;
     bool invertEnabled;
     loka::core::State<bool> *checkedState;
@@ -50,6 +51,7 @@ private:
     bool isAppMenu;
     loka::core::String title;
   };
+  static void MenuTitleChangedThunk(void *userData);
   static void MenuEnabledChangedThunk(void *userData);
   static void MenuCheckedChangedThunk(void *userData);
   static void ApplyMenuItemStates(ToolboxApp *app, MenuHandle menu, short itemIndex,
