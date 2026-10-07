@@ -1,7 +1,70 @@
 cmake_minimum_required(VERSION 3.15)
 project(LokaSimpleText LANGUAGES CXX)
 
-# Desktop targets are introduced in #1131 PR 7.
+if(APPLE)
+  enable_language(OBJCXX)
+  loka_suppress_arclite_link()
+endif()
+
+if(NOT WIN32 AND NOT APPLE AND NOT (CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$"))
+  add_custom_target(LokaSimpleText ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "LokaSimpleText has no supported platform target here."
+  )
+  return()
+endif()
+
+if(WIN32)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/LokaWin32VisualStyles.cmake)
+  set(SIMPLETEXT_SOURCES
+    src/main.cpp
+  )
+
+  if(NOT TARGET LokaWin32Core)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../win32 ${CMAKE_CURRENT_BINARY_DIR}/win32)
+  endif()
+
+  add_executable(LokaSimpleTextWin32 WIN32 ${SIMPLETEXT_SOURCES})
+  loka_enable_warnings(LokaSimpleTextWin32)
+  loka_enable_win32_visual_styles(LokaSimpleTextWin32)
+
+  target_include_directories(LokaSimpleTextWin32 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src
+  )
+
+  target_link_libraries(LokaSimpleTextWin32 PRIVATE LokaWin32Core)
+
+  if(MSVC)
+    target_compile_options(LokaSimpleTextWin32 PRIVATE /utf-8)
+  endif()
+endif()
+
+if(APPLE)
+  set(MACOS_SOURCES
+    src/MacOSMain.mm
+  )
+  file(GLOB_RECURSE MACOS_HEADERS src/*.hpp)
+
+  add_executable(LokaSimpleTextMacOS MACOSX_BUNDLE ${MACOS_SOURCES} ${MACOS_HEADERS})
+  loka_enable_warnings(LokaSimpleTextMacOS)
+  set_target_properties(LokaSimpleTextMacOS PROPERTIES
+    MACOSX_BUNDLE_GUI_IDENTIFIER "org.loka.simpletext"
+    MACOSX_BUNDLE_BUNDLE_NAME "LokaSimpleTextMacOS"
+  )
+
+  target_include_directories(LokaSimpleTextMacOS PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../apple/macos/src/context
+  )
+
+  target_link_libraries(LokaSimpleTextMacOS PRIVATE LokaMacOSCore)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND LOKA_MACOS_EXPLICIT_NO_ARC_FLAGS)
+    target_compile_options(LokaSimpleTextMacOS PRIVATE "-fno-objc-arc")
+  endif()
+endif()
+
 if(CMAKE_SYSTEM_NAME MATCHES "^Retro(68|PPC|Carbon)$")
   set(LOKA_SIMPLETEXT_CLASSIC_TARGET "LokaSimpleText${LOKA_CLASSIC_TARGET_SUFFIX}")
   set(RETRO_SOURCES
