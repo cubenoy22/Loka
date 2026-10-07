@@ -38,12 +38,15 @@ namespace loka
     struct ToolboxNativeImage
     {
       unsigned long magic;
-      short kind;
+      ToolboxNativeImageKind kind;
       void *payload;
-      unsigned char ownsPayload;
     };
 
-    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership);
+    /** Borrows picture. The caller must keep it alive past every Image copy
+        and dispose of it itself. A future owning producer must reserve through
+        loka::app::internal::Reservation before acquiring the native resource;
+        see docs/NativeResourceRetirementDesign.md. */
+    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height);
     loka::core::resource::Image
     MakeImageFromPictBlob(const loka::core::resource::Blob &blob,
                           std::size_t pictureOffset,

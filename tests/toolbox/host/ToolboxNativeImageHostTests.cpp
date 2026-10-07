@@ -1,6 +1,5 @@
-// Host pins for the Toolbox native image allocations (#1064): every refusal on
-// the path from a picture to an Image returns an invalid Image, releases what
-// the caller handed over exactly once, and leaves no gate allocation live.
+// Host pins for Toolbox native image allocations (#1065): refusals leave no
+// gate allocation live, and borrowed pictures are never disposed by Loka.
 #include "ToolboxNativeImage.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
@@ -27,38 +26,59 @@ namespace
     return &pointer;
   }
 
-  void verifyPicHandleRefusal(const char *owner, const char *type, bool takeOwnership)
+  void verifyPicHandleRefusal(const char *owner, const char *type)
   {
     gKilledPictures = 0;
     loka::core::testing::failLokaAllocRaw(owner, type, 1);
     {
       const loka::core::resource::Image image =
-          loka::toolbox::MakeImageFromPicHandle(fakePicture(), 4, 3, takeOwnership);
+          loka::toolbox::MakeImageFromPicHandle(fakePicture(), 4, 3);
       LOKA_VERIFY(!image.isValid());
     }
-    LOKA_VERIFY(gKilledPictures == (takeOwnership ? 1 : 0));
+    LOKA_VERIFY(gKilledPictures == 0);
     LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
     loka::core::testing::allowLokaAllocRaw();
   }
 
-  void testOwnedPictureKilledOnceOnNativeImageRefusal()
-  {
-    verifyPicHandleRefusal("ToolboxNativeImage", "Image", true);
-  }
-
   void testBorrowedPictureKeptOnNativeImageRefusal()
   {
-    verifyPicHandleRefusal("ToolboxNativeImage", "Image", false);
+    verifyPicHandleRefusal("ToolboxNativeImage", "Image");
   }
 
-  void testOwnedPictureKilledOnceOnImageRecordRefusal()
+  void testBorrowedPictureKeptOnImageRecordRefusal()
   {
-    verifyPicHandleRefusal("Image", "Record", true);
+    verifyPicHandleRefusal("Image", "Record");
   }
 
-  void testOwnedPictureKilledOnceOnControlBlockRefusal()
+  void testBorrowedPictureKeptOnControlBlockRefusal()
   {
-    verifyPicHandleRefusal("Managed", "ControlBlock", true);
+    verifyPicHandleRefusal("Managed", "ControlBlock");
+  }
+
+  void testBorrowedPictureKeptAfterLastImageCopy()
+  {
+    gKilledPictures = 0;
+    loka::core::testing::failLokaAllocRaw("ToolboxNativeImage", "Image", 0);
+    {
+      loka::core::resource::Image survivingCopy;
+      {
+        const loka::core::resource::Image image =
+            loka::toolbox::MakeImageFromPicHandle(fakePicture(), 4, 3);
+        LOKA_VERIFY(image.isValid());
+        survivingCopy = image;
+      }
+      LOKA_VERIFY(survivingCopy.isValid());
+      const loka::toolbox::ToolboxNativeImage *native =
+          loka::toolbox::TryGetToolboxNativeImage(survivingCopy);
+      LOKA_VERIFY(native != 0);
+      LOKA_VERIFY(native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT);
+      LOKA_VERIFY(native->payload == fakePicture());
+      LOKA_VERIFY(gKilledPictures == 0);
+      LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() > 0);
+    }
+    LOKA_VERIFY(gKilledPictures == 0);
+    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+    loka::core::testing::allowLokaAllocRaw();
   }
 
   void testPictBytesRefusalsReleaseEverything()
@@ -102,10 +122,10 @@ int main(int argc, char **argv)
   };
 #define PIN(name) {#name, &name}
   const Test tests[] = {
-    PIN(testOwnedPictureKilledOnceOnNativeImageRefusal),
     PIN(testBorrowedPictureKeptOnNativeImageRefusal),
-    PIN(testOwnedPictureKilledOnceOnImageRecordRefusal),
-    PIN(testOwnedPictureKilledOnceOnControlBlockRefusal),
+    PIN(testBorrowedPictureKeptOnImageRecordRefusal),
+    PIN(testBorrowedPictureKeptOnControlBlockRefusal),
+    PIN(testBorrowedPictureKeptAfterLastImageCopy),
     PIN(testPictBytesRefusalsReleaseEverything)
   };
 #undef PIN

@@ -20,16 +20,14 @@ namespace
       return;
     }
 
-    if (native->ownsPayload && native->payload)
+    switch (native->kind)
     {
-      if (native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT)
-      {
-        KillPicture(static_cast<PicHandle>(native->payload));
-      }
-      else if (native->kind == loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES)
-      {
-        loka::core::LokaDelete(static_cast<loka::toolbox::ToolboxPictBytesPayload *>(native->payload), PictBytesSite());
-      }
+    case loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_UNKNOWN:
+    case loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT:
+      break;
+    case loka::toolbox::TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES:
+      loka::core::LokaDelete(static_cast<loka::toolbox::ToolboxPictBytesPayload *>(native->payload), PictBytesSite());
+      break;
     }
 
     loka::core::LokaDelete(native, NativeImageSite());
@@ -40,7 +38,7 @@ namespace loka
 {
   namespace toolbox
   {
-    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height, bool takeOwnership)
+    loka::core::resource::Image MakeImageFromPicHandle(PicHandle picture, int width, int height)
     {
       if (!picture)
       {
@@ -50,16 +48,11 @@ namespace loka
       ToolboxNativeImage *native = loka::core::LokaNew<ToolboxNativeImage>(NativeImageSite());
       if (!native)
       {
-        // Refused before the Image took the picture: honor the ownership the
-        // caller handed over, as the Image's releaser would have (#1064).
-        if (takeOwnership)
-          KillPicture(picture);
         return loka::core::resource::Image::Empty();
       }
       native->magic = kToolboxNativeImageMagic;
       native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT;
       native->payload = picture;
-      native->ownsPayload = takeOwnership ? 1 : 0;
 
       return loka::core::resource::Image::FromNative(native, width, height, &ReleaseToolboxNativeImage, 0);
     }
@@ -121,7 +114,6 @@ namespace loka
       native->magic = kToolboxNativeImageMagic;
       native->kind = TOOLBOX_NATIVE_IMAGE_KIND_PICT_BYTES;
       native->payload = payload;
-      native->ownsPayload = 1;
 
       return loka::core::resource::Image::FromNative(native, width, height, &ReleaseToolboxNativeImage, 0);
     }
