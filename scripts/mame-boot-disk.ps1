@@ -89,6 +89,7 @@ if ($All) {
         "HelloWorld/LokaHello68K.bin",
         "MineSweeper/LokaMine68K.bin",
         "SimpleViewer/LokaSimpleViewer68K.bin",
+        "SimpleText/LokaSimpleText68K.bin",
         "FloppyBird/LokaFloppyBird68K.bin",
         "SmirkBench/LokaSmirkBench68K.bin",
         "LazyList/LokaLazyList68K.bin",

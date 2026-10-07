@@ -788,6 +788,24 @@
       "problemMatcher": "$gcc"
     },
     {
+      "label": "Build: Retro68 68K SimpleText",
+      "hide": true,
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/retro68-cmake.sh",
+      "args": [
+        "--build",
+        "--preset",
+        "retro68-68k-release",
+        "--target",
+        "LokaSimpleText68K_APPL"
+      ],
+      "dependsOn": [
+        "Configure: Retro68 68K"
+      ],
+      "group": "build",
+      "problemMatcher": "$gcc"
+    },
+    {
       "label": "Build: Retro68 68K FloppyBird",
       "hide": true,
       "type": "shell",
@@ -1312,7 +1330,7 @@
       "type": "pickString",
       "description": "Select the Retro68 68K target to build",
       "default": "All",
-      "options": ["All", "HelloWorld", "SmirkyCard", "MineSweeper", "SimpleViewer", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "ScrapbookUI"]
+      "options": ["All", "HelloWorld", "SmirkyCard", "MineSweeper", "SimpleViewer", "SimpleText", "FloppyBird", "SmirkBench", "LazyList", "Tutorial", "ScrapbookUI"]
     },
     {
       "id": "lokaScsiApp",
@@ -1325,6 +1343,7 @@
         "SmirkyCard",
         "MineSweeper",
         "SimpleViewer",
+        "SimpleText",
         "FloppyBird",
         "SmirkBench",
         "LazyList",

@@ -86,7 +86,7 @@ mkdir -p "$SANDBOX/repo/scripts" "$SANDBOX/repo/example/SmirkyCard"
 cp "$SUBJECT" "$SANDBOX/repo/scripts/mame-dev-disk.sh"
 cp "$REPO_DIR/scripts/retro68-env.sh" "$SANDBOX/repo/scripts/"
 cp "$REPO_DIR/scripts/env-file.sh" "$SANDBOX/repo/scripts/"
-for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
+for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer SimpleText/LokaSimpleText FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
   binary="$SANDBOX/repo/build/retro68/68k/Release/example/${app}68K.bin"
   mkdir -p "$(dirname "$binary")"
   touch "$binary"
@@ -105,7 +105,7 @@ run_all() {
 }
 run_all
 [ "$(grep -c '^hformat ' "$SANDBOX/all.log")" -eq 1 ] || fail "All reformatted more than once"
-[ "$(grep -c '^hcopy <-m>' "$SANDBOX/all.log")" -eq 9 ] || fail "All must copy nine apps"
+[ "$(grep -c '^hcopy <-m>' "$SANDBOX/all.log")" -eq 10 ] || fail "All must copy ten apps"
 [ "$(grep -c '^hcopy <-r>' "$SANDBOX/all.log")" -eq 4 ] || fail "All must copy all four assets"
 for script in MAIN.JS MINES.JS VIEWER.JS; do
   grep -Fx "hcopy <-r> <$SANDBOX/repo/example/SmirkyCard/$script> <:>" "$SANDBOX/all.log" >/dev/null ||
@@ -131,7 +131,7 @@ for script in MAIN.JS MINES.JS VIEWER.JS FOURTH.JS; do
   cmp "$SANDBOX/all.hd" "$SANDBOX/previous.hd" || fail "failed All replaced the previous disk"
   mv "$SANDBOX/missing.js" "$SANDBOX/repo/example/SmirkyCard/$script"
 done
-printf 'ok: All copies nine apps and assets in one disk transaction\n'
+printf 'ok: All copies ten apps and assets in one disk transaction\n'
 
 for cpu in 68k ppc; do
 export LOKA_MAME_CPU="$cpu"
