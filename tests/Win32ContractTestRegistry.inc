@@ -92,3 +92,5 @@ LOKA_TEST(testWin32MenuAcceleratorSwapsWithProjection)
 LOKA_TEST(testWin32TwoWindowsOwnTheirAccelerators)
 LOKA_TEST(testWin32MenuAcceleratorPrecedesDialogAndDispatch)
 LOKA_TEST(testWin32AppShutdownReleasesMenuBeforeAttachmentDestruction)
+
+LOKA_TEST(testWin32SaveFileDialogRefusesWithoutNativeDialog)

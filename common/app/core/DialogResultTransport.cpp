@@ -66,7 +66,8 @@ namespace loka
     bool DialogResultTransport::Registration::matches(const OpenFileDialogProps &props) const
     {
       return this->binding_.result_.state() == props.result_.state() && this->binding_.onResult_ == props.onResult_
-             && this->binding_.windowToAttach_ == props.windowToAttach_;
+             && this->binding_.windowToAttach_ == props.windowToAttach_
+             && this->binding_.options_.compare(props.options_) == 0;
     }
 
     DialogResultTransport::ReturnPort::ReturnPort(Registration *registration)

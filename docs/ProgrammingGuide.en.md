@@ -1062,6 +1062,23 @@ logical subtree. Completion is delivered only through `result` / `onResult`,
 and flipping the owning `Show()` condition back to false is the app's job — a
 debug assert enforces that at least one completion binding exists.
 
+`SaveFileDialog(defaultName).filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT)`
+returns the same definition type as `OpenFileDialog()` and uses the same
+`NodeState<FileChooserResult>` result door. The owned default name is used only
+for SAVE; the default filter policy preserves each rail's OPEN behavior.
+A `RESULT_FILE` is a selected address: it certifies neither existence nor
+writability. Toolbox implements SAVE with StandardPutFile and refuses names
+outside its 1–31 byte HFS limit. Default-name suggestions may be empty, must
+encode losslessly, and must fit within 31 native bytes.
+macOS implements SAVE with NSSavePanel: the text policy suggests `.txt` while
+allowing other file types, and the default policy imposes no type restriction.
+The panel handles overwrite confirmation; selection does not create or truncate
+the destination. Win32 currently delivers
+`Error(FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE)` without showing a native SAVE
+dialog. Null refuses both purposes. Changing purpose, default name or filter on a
+retained dialog abandons an active operation until reattach. Options changed
+while detached configure the next presentation.
+
 The design goal is that memory and lifecycle are visible from the DSL structure.
 
 ### `LazyView()` / `LazyColumn()` / `LazyRow()`

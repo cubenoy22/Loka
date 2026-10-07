@@ -4,4 +4,5 @@ void testWin32OpenFileDialogRetiredBeforePostedWake();
 void testWin32OpenFileDialogOwnerReclaimedBeforePostedWake();
 void testWin32OpenFileDialogLiveAdmissionAndLostHwnd();
 void testWin32OpenFileDialogMissingHwndUsesAdmission();
+void testWin32SaveFileDialogRefusesWithoutNativeDialog();
 #endif
