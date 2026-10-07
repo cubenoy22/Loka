@@ -69,4 +69,5 @@ LOKA_TEST(testMacAppShutdownReleasesMenuBeforeAttachmentDestruction)
 LOKA_TEST(testMacMenuAttachmentCloneRefusalClearsBaseline)
 LOKA_TEST(testMacMenuAttachmentDispatchMayDisconnect)
 
-LOKA_TEST(testMacSaveFileDialogRefusesWithoutNativeDialog)
+LOKA_TEST(testMacSaveFileDialogSetup)
+LOKA_TEST(testMacSaveFileDialogRetargetBeforePresentation)
