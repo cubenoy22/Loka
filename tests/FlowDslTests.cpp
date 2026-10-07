@@ -8902,3 +8902,18 @@ void testSimpleViewerReadStdioFaults()
   std::puts("[skip] stdio fault injection requires Linux linker wrapping");
 #endif
 }
+
+#include "app/FileImageSource.hpp"
+
+void testFileImageSourceRefusesUnresolvedApplicationFile()
+{
+  // An application-relative File that no context resolves has no path to
+  // flatten: the read must refuse, not assert in File::toString (#1133).
+  loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+  blob.setBytes(std::vector<unsigned char>(4, 'k'));
+  const loka::core::resource::Blob before = blob;
+  const loka::file::File absent = loka::file::File::Application() << loka::file::File("absent.pict");
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(0, absent, blob) == loka::platform::file::READ_NO_NATIVE_SPEC);
+  LOKA_VERIFY(blob == before);
+  LOKA_VERIFY(blob.bytes().size() == 4);
+}
