@@ -1166,3 +1166,7 @@ LOKA_TEST(testSimpleTextRepeatedOpenAndCaretReplacement)
 LOKA_TEST(testSimpleTextMenuAndDialogProps)
 LOKA_TEST(testSimpleTextDetachWithdrawsFlows)
 #endif
+
+LOKA_TEST(testSimpleViewerSceneDeclaresViewMenuWithCheckedBindings)
+
+LOKA_TEST(testHelloWorldShuffleRotatesSlotTitles)

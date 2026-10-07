@@ -271,20 +271,9 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   NullScenePlatformController platform;
   NullPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
-      simpleviewer::DISPLAY_FIT);
-  loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualEvent;
-  loka::core::EmitterState actualScrollEvent;
-  loka::core::PushStateTracker modeTracker;
-  modeTracker.addState(&displayMode);
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
-      .openDialogEvent(&openDialogEvent)
-      .displayMode(&displayMode)
-      .fitEvent(&fitEvent)
-      .actualEvent(&actualEvent)
-      .actualScrollEvent(&actualScrollEvent);
+      .openDialogEvent(&openDialogEvent);
   loka::app::scene::NodeDefinitionBase *rootDefinition =
       loka::app::scene::Boundary<simpleviewer::MainNode>(props).clone();
   LOKA_VERIFY(rootDefinition != 0);
@@ -298,10 +287,8 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_FILL_PARENT);
   loka::app::ImageViewNode *retainedImageView = imageView;
 
-  {
-    loka::core::StateTrackerGuard guard(&modeTracker);
-    displayMode.set(simpleviewer::DISPLAY_ACTUAL);
-  }
+  LOKA_VERIFY(scene.menuBar());
+  scene.menuBar()->menuAt(2)->itemsHead()->nextInComposition->onClickState->emit();
   if (scene.hasPendingInvalidation())
   {
     LOKA_VERIFY(scene.flushInvalidation());
@@ -313,10 +300,7 @@ void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
   LOKA_VERIFY(imageView != retainedImageView);
   LOKA_VERIFY(imageView->props.attr_.sizePolicyValue_ == loka::app::IMAGE_VIEW_SIZE_INTRINSIC);
 
-  {
-    loka::core::StateTrackerGuard guard(&modeTracker);
-    displayMode.set(simpleviewer::DISPLAY_FIT);
-  }
+  scene.menuBar()->menuAt(2)->itemsHead()->onClickState->emit();
   if (scene.hasPendingInvalidation())
   {
     LOKA_VERIFY(scene.flushInvalidation());

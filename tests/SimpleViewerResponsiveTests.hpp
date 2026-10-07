@@ -12,4 +12,6 @@ void testSimpleViewerProductionConfigStartsAtWideBreakpoint();
 
 void testSimpleViewerMainPropsCompareEveryBorrowedSource();
 
+void testSimpleViewerSceneDeclaresViewMenuWithCheckedBindings();
+
 #endif // LOKA_TESTS_SIMPLE_VIEWER_RESPONSIVE_TESTS_HPP
