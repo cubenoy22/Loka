@@ -1,4 +1,5 @@
 #include "platform/file/FileIO.hpp"
+#include "ToolboxBusy.hpp"
 
 #include <Files.h>
 
@@ -67,6 +68,16 @@ namespace loka
         };
       } // namespace
 
+      ReadResult ReadBytes(const loka::core::String &path,
+                           std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity)
+      {
+        // The stdio read (logical paths, System 6 application items) blocks
+        // like the native one (#1066).
+        const BusyScope busy(RegisteredToolboxBusyOwner());
+        return ReadBytesThroughStdio(path, out, capacity);
+      }
+
       ReadResult ReadBytes(const FileHandle &handle,
                            std::vector<unsigned char> &out,
                            const ReadCapacity *capacity)
@@ -76,6 +87,8 @@ namespace loka
         {
           return READ_NO_NATIVE_SPEC;
         }
+        // A whole-file read blocks the main thread without pumping (#1066).
+        const BusyScope busy(RegisteredToolboxBusyOwner());
         short refNum = 0;
         OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
         if (err != noErr)

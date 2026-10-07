@@ -7,12 +7,13 @@
 #include <Menus.h>
 #include <Quickdraw.h>
 #include "ToolboxActivationPhase.hpp"
+#include "ToolboxBusy.hpp"
 #include "ToolboxMenuAttachment.hpp"
 class ToolboxApp;
 class ToolboxSceneDebugStats;
 
 /** The app-wide cursor writer. Scopes borrow it only for non-yielding work. */
-class CursorOwner
+class CursorOwner : public ToolboxBusyOwner
 {
 public:
   enum HoverCursor { HOVER_ARROW, HOVER_IBEAM };
@@ -31,7 +32,6 @@ public:
 #endif
 
 private:
-  friend class BusyScope;
   /** Startup copy survives resource purging without update-cycle allocation. */
   class CachedCursor
   {
@@ -45,8 +45,8 @@ private:
   };
   CursorOwner(const CursorOwner &);
   CursorOwner &operator=(const CursorOwner &);
-  void enterBusy();
-  void exitBusy();
+  virtual void enterBusy();
+  virtual void exitBusy();
   ToolboxApp &app_;
   HoverCursor hoverCursor_;
   short busyDepth_;
@@ -56,28 +56,6 @@ private:
   unsigned long outerExits_;
   CachedCursor iBeam_;
   CachedCursor watch_;
-};
-
-/** Synchronous, non-copyable borrow; nested scopes issue no native writes. */
-class BusyScope
-{
-public:
-  explicit BusyScope(CursorOwner &owner) : owner_(&owner) { this->owner_->enterBusy(); }
-  /** A null owner makes a conditional borrow inert, without allocation. */
-  explicit BusyScope(CursorOwner *owner) : owner_(owner)
-  {
-    if (this->owner_)
-      this->owner_->enterBusy();
-  }
-  ~BusyScope()
-  {
-    if (this->owner_)
-      this->owner_->exitBusy();
-  }
-private:
-  BusyScope(const BusyScope &);
-  BusyScope &operator=(const BusyScope &);
-  CursorOwner *owner_;
 };
 
 class ToolboxApp : public App
