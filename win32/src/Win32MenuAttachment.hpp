@@ -5,6 +5,7 @@
 #include "core/util/OwnedDef.hpp"
 #include <windows.h>
 #include <vector>
+#include <string>
 
 class Win32Window;
 namespace loka { namespace app { namespace scene { class Scene; } } }
@@ -54,6 +55,9 @@ private:
 
   struct MenuBinding
   {
+    explicit MenuBinding(const std::wstring &suffix) : shortcutSuffix(suffix) {}
+    const std::wstring shortcutSuffix;
+    loka::core::State<loka::core::String> *titleState;
     HMENU menu;
     // Win32 addresses a menu item either by command id or by position: a
     // leaf carries its command id with MF_BYCOMMAND, a popup title has no
@@ -67,13 +71,14 @@ private:
   };
 
   void clearMenuBindings();
+  static void MenuTitleChangedThunk(void *userData);
   static void MenuEnabledChangedThunk(void *userData);
   static void MenuCheckedChangedThunk(void *userData);
   void bindMenuItemStates(HMENU menu,
                           UINT item,
                           UINT byFlags,
                           const loka::app::MenuItemDefinition *itemDef,
-                          HWND hwnd);
+                          HWND hwnd, const std::wstring &shortcutSuffix);
   bool buildMenuItem(HMENU menu, const loka::app::MenuItemDefinition *itemDef,
                      HWND hwnd, std::vector<ACCEL> &accelerators);
   bool buildMenuItems(HMENU menu, const loka::app::MenuItemDefinition *itemsHead,

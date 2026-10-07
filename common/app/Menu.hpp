@@ -139,6 +139,7 @@ namespace loka
     {
       MenuItemDefinition()
           : title(),
+            titleState(0),
             enabledState(0),
             enabledValue_(true),
             hasEnabledValue_(false),
@@ -156,6 +157,7 @@ namespace loka
 
       explicit MenuItemDefinition(const char *text)
           : title(loka::core::String::Literal(text)),
+            titleState(0),
             enabledState(0),
             enabledValue_(true),
             hasEnabledValue_(false),
@@ -173,6 +175,7 @@ namespace loka
 
       explicit MenuItemDefinition(const loka::core::String &text)
           : title(text),
+            titleState(0),
             enabledState(0),
             enabledValue_(true),
             hasEnabledValue_(false),
@@ -190,6 +193,7 @@ namespace loka
 
       MenuItemDefinition(const MenuItemDefinition &other)
           : title(other.title),
+            titleState(other.titleState),
             enabledState(other.enabledState),
             enabledValue_(other.enabledValue_),
             hasEnabledValue_(other.hasEnabledValue_),
@@ -221,6 +225,7 @@ namespace loka
         if (this == &other)
           return *this;
         title = other.title;
+        titleState = other.titleState;
         enabledState = other.enabledState;
         enabledValue_ = other.enabledValue_;
         hasEnabledValue_ = other.hasEnabledValue_;
@@ -250,12 +255,21 @@ namespace loka
       MenuItemDefinition &text(const loka::core::String &value)
       {
         title = value;
+        titleState = 0;
         return *this;
       }
 
       MenuItemDefinition &text(const char *value)
       {
         title = loka::core::String::Literal(value);
+        titleState = 0;
+        return *this;
+      }
+
+      /** Borrow a live title; a null state uses the declared fallback title. */
+      MenuItemDefinition &text(loka::core::State<loka::core::String> *state)
+      {
+        this->titleState = state;
         return *this;
       }
 
@@ -395,6 +409,8 @@ namespace loka
           return false;
         if (!title.equals(other.title))
           return false;
+        if (titleState != other.titleState)
+          return false;
         if (enabledState != other.enabledState)
           return false;
         if (enabledValue_ != other.enabledValue_)
@@ -446,6 +462,7 @@ namespace loka
       }
 
       loka::core::String title;
+      loka::core::State<loka::core::String> *titleState;
       loka::core::State<bool> *enabledState;
       bool enabledValue_;
       bool hasEnabledValue_;

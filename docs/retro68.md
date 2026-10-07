@@ -172,10 +172,14 @@ and design note for accepted growth. A failed main check remains visible until
 that refresh; a later per-PR ok verdict does not clear it.
 
 Malformed or missing artifacts and unlisted candidate applications still fail,
-including in report-only mode. A measured comparison requires every manifest
-artifact on both sides: adding or moving an application without that path in the
-base is refused, not silently measured as zero or against a stale bank. Such
-inventory migrations need a separately defined comparison policy.
+including in report-only mode. For a PR adding a required 68K example, CI passes
+`--compare-baseline <base manifest>`: if its artifact is absent from the comparison
+build and neither its path nor its name is declared in that manifest, the report compares against
+its own declared baseline numbers under the same PR growth bands and labels the
+row `(new)`. A moved application (its name declared at base under another
+path) and a required artifact declared at base (or compared without
+`--compare-baseline`) still fails when missing from the comparison build; optional
+artifacts retain their existing fallback and skip behavior.
 
 The size audit is a drift detector. A bank refresh updates the absolute record;
 it cannot waive the unconditional stop in a measured PR comparison. Changing

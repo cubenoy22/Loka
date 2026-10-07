@@ -81,6 +81,7 @@
 #include "NodeMatchTests.hpp"
 #include "AttrDslTests.hpp"
 #include "MenuCheckedTests.hpp"
+#include "MenuTitleTests.hpp"
 #include "SnapFormatTests.hpp"
 #include "ScenarioProfileTests.hpp"
 #include "LrpkFormatTests.hpp"
