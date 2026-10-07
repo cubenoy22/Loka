@@ -1154,3 +1154,19 @@ LOKA_TEST(testTextDocumentEditorParity)
 LOKA_TEST(testTextDocumentResolution)
 LOKA_TEST(testTextDocumentWriteFailures)
 LOKA_TEST(testTextDocumentRawAdmission)
+
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(LOKA_RETRO68)
+LOKA_TEST(testSimpleTextEditorReceivesRemainingWindow)
+LOKA_TEST(testSimpleTextOpenSaveAndSaveAs)
+LOKA_TEST(testSimpleTextNewAndSaveWithoutDestination)
+LOKA_TEST(testSimpleTextPendingCommandsAndTerminalResults)
+LOKA_TEST(testSimpleTextReadAndWriteFailuresPreserveDestination)
+LOKA_TEST(testSimpleTextCommitExhaustionPreservesDestination)
+LOKA_TEST(testSimpleTextRepeatedOpenAndCaretReplacement)
+LOKA_TEST(testSimpleTextMenuAndDialogProps)
+LOKA_TEST(testSimpleTextDetachWithdrawsFlows)
+#endif
+
+LOKA_TEST(testSimpleViewerSceneDeclaresViewMenuWithCheckedBindings)
+
+LOKA_TEST(testHelloWorldShuffleRotatesSlotTitles)

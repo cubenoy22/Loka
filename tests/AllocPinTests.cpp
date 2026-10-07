@@ -162,9 +162,9 @@ namespace allocpin
 {
   void RunZeroAllocPin()
   {
-    using loka::app::scene::NodeDefinition;
+    using loka::app::scene::BoundaryDefinition;
 
-    NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
+    BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> mainDef;
     loka::app::scene::NodeDefinitionBase *rootDefinition = mainDef.clone();
     LOKA_VERIFY(rootDefinition != 0);
     Scene scene(rootDefinition);

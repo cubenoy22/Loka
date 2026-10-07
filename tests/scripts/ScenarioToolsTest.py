@@ -217,7 +217,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
         registry = os.path.join(PROJECT_DIR, "tests", "scenarios", "scenarios.txt")
         with open(registry, "r", encoding="utf-8") as handle:
             entries = [line.split() for line in handle.read().splitlines()]
-        self.assertEqual(len(entries), 26)
+        self.assertEqual(len(entries), 29)
         self.assertEqual(len(entries), len({tuple(entry) for entry in entries}))
         self.assertEqual(
             [entry for entry in entries if entry[0] == "simpleviewer"],
@@ -255,6 +255,7 @@ class ExpectedAuditPinsTest(unittest.TestCase):
                 "floppybird": b"FloppyBird",
                 "smirkbench": b"SmirkBench",
                 "simpleviewer": b"SimpleViewer",
+                "simpletext": b"SimpleText",
             }
             identity = identities[example]
             self.assertIn(b"test\t" + identity + b"\n", audit)
@@ -855,6 +856,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
                 "Run (macOS HelloWorld)",
                 "Run (macOS MineSweeper)",
                 "Run (macOS SimpleViewer)",
+                "Run (macOS SimpleText)",
                 "Run (macOS SmirkBench)",
                 "Run (macOS LazyList)",
                 "Run (macOS ScrapbookUI)",
@@ -864,6 +866,7 @@ class StandaloneDebugEntryPointTest(unittest.TestCase):
                 "Run (Windows HelloWorld)",
                 "Run (Windows MineSweeper)",
                 "Run (Windows SimpleViewer)",
+                "Run (Windows SimpleText)",
                 "Run (Windows SmirkBench)",
                 "Run (Windows LazyList)",
                 "Run (Windows ScrapbookUI)",

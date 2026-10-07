@@ -20,6 +20,11 @@ namespace loka
       for (; item; item = item->nextInComposition)
       {
         item->onClickState = 0;
+        if (item->titleState)
+        {
+          item->title = item->titleState->get();
+          item->titleState = 0;
+        }
         ClearMenuItemDriving(item->childrenHead());
       }
     }

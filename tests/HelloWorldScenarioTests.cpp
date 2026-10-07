@@ -88,6 +88,30 @@ namespace
     LOKA_VERIFY(available);
     LOKA_VERIFY(actual == expected);
   }
+  void verifyHelloWorldSceneMenus(NullPlatformContext *context,
+                                 AppConfigurable &example,
+                                 AppConfigurable &standalone)
+  {
+    AppComposition exampleComposition(context), standaloneComposition(context);
+    example.compose(exampleComposition);
+    standalone.compose(standaloneComposition);
+    std::vector<AppComponent *> exampleComponents = exampleComposition.build();
+    std::vector<AppComponent *> standaloneComponents = standaloneComposition.build();
+    LOKA_VERIFY(exampleComponents.size() == 1 && standaloneComponents.size() == 1);
+    Window *exampleWindow = exampleComponents[0]->asWindow();
+    Window *standaloneWindow = standaloneComponents[0]->asWindow();
+    LOKA_VERIFY(exampleWindow && standaloneWindow);
+    const loka::app::MenuBarDefinition *exampleMenu = exampleWindow->scene()->menuBar();
+    const loka::app::MenuBarDefinition *standaloneMenu = standaloneWindow->scene()->menuBar();
+    LOKA_VERIFY(exampleMenu && standaloneMenu && !exampleMenu->empty());
+    LOKA_VERIFY(loka::testing::MenuPresentationsEqual(*exampleMenu, *standaloneMenu));
+    // Startup seeds must reach both Scene owners, not only their configs.
+    exampleMenu->menuAt(4)->itemsHead()->onClickState->emit();
+    standaloneMenu->menuAt(4)->itemsHead()->onClickState->emit();
+    LOKA_VERIFY(loka::testing::MenuPresentationsEqual(*exampleMenu, *standaloneMenu));
+    delete exampleWindow;
+    delete standaloneWindow;
+  }
 } // namespace
 
 void testHelloWorldVehiclePresentationUsesExampleDeclaration()
@@ -97,6 +121,7 @@ void testHelloWorldVehiclePresentationUsesExampleDeclaration()
   HelloWorldProductionAppConfig production(&context, menuSeed);
   loka::scenario_tests::HelloWorldScenarioPresentation vehicle(&context, menuSeed);
   loka::scenario_tests::VerifyVehiclePresentation(&context, production, vehicle, true);
+  verifyHelloWorldSceneMenus(&context, production, vehicle);
   std::printf("testHelloWorldVehiclePresentationUsesExampleDeclaration passed\n");
 }
 
@@ -240,18 +265,10 @@ void testHelloWorldBmiRoundtripDrivesEditTextInput()
 
 void testHelloWorldStandaloneMenuMatchesExample()
 {
-  HelloWorldAppConfig example(0, 0x13579BDFUL);
-  loka::standalone_tests::HelloWorldStandaloneFlowAppConfig standalone(0);
-  loka::app::MenuBarDefinition exampleMenu;
-  loka::app::MenuBarDefinition standaloneMenu;
-
-  std::srand(1);
-  loka::testing::ComposeMenuBar(example, exampleMenu);
-  std::srand(1);
-  loka::testing::ComposeMenuBar(standalone, standaloneMenu);
-
-  LOKA_VERIFY(!exampleMenu.empty());
-  LOKA_VERIFY(loka::testing::MenuPresentationsEqual(exampleMenu, standaloneMenu));
+  NullPlatformContext context;
+  HelloWorldAppConfig example(&context, 0x13579BDFUL);
+  loka::standalone_tests::HelloWorldStandaloneFlowAppConfig standalone(&context);
+  verifyHelloWorldSceneMenus(&context, example, standalone);
 
   std::printf("testHelloWorldStandaloneMenuMatchesExample passed\n");
 }
