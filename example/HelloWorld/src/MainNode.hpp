@@ -15,9 +15,28 @@ namespace helloworld
   using loka::app::Button;
 
   class MainNode;
-  typedef loka::app::scene::BoundaryPropsFor<MainNode> MainProps;
+  namespace testing { class MainAccess; }
 
-  class MainNode : public loka::app::scene::BoundaryNodeFor<MainNode>
+  struct MainTypeTag {};
+
+  /** Completed startup input; the Scene owns the evolving shuffle sequence. */
+  class MainProps : public loka::app::scene::NodePropsBase<MainProps>
+  {
+  public:
+    typedef MainTypeTag TypeTag;
+    typedef MainNode NodeType;
+    explicit MainProps(unsigned long menuSeed = 0) : menuSeed_(menuSeed) {}
+    unsigned long menuSeed() const { return this->menuSeed_; }
+    bool operator<(const loka::app::scene::PropsBase &rhs) const
+    {
+      return rhs.propsTypeId() == this->propsTypeId() &&
+             this->menuSeed_ < static_cast<const MainProps &>(rhs).menuSeed_;
+    }
+  private:
+    unsigned long menuSeed_;
+  };
+
+  class MainNode : public loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>
   {
   public:
     MainNode(const MainProps &p);
@@ -25,6 +44,31 @@ namespace helloworld
     virtual void composeNode(loka::app::scene::NodeComposition &c);
 
   private:
+#ifdef TEST_BUILD
+    friend class testing::MainAccess;
+#endif
+    class MenuRandom
+    {
+    public:
+      explicit MenuRandom(unsigned long seed)
+          : state_(seed)
+      {
+      }
+
+      int nextIndex(int upperBound)
+      {
+        // Fixed C++98 arithmetic keeps a seed's menu sequence independent
+        // of platform C-library rand() implementations and other app code.
+        this->state_ =
+            (this->state_ * 1664525UL + 1013904223UL) & 0xFFFFFFFFUL;
+        return static_cast<int>((this->state_ >> 16) %
+                                static_cast<unsigned long>(upperBound));
+      }
+
+    private:
+      unsigned long state_;
+    };
+
     class ActionSummaryEvalFn;
     class FruitMessageEvalFn;
     class BmiResultEvalFn;
@@ -35,6 +79,7 @@ namespace helloworld
     void toggleMessage();
     void toggleActionEnabled();
     void handleActionProbe();
+    void shuffleTitles();
 
     loka::app::scene::NodeState<loka::core::String> message_;
     loka::core::EmitterState toggleEvent_;
@@ -51,6 +96,9 @@ namespace helloworld
     loka::app::scene::NodeState<loka::app::StackAxis> axis_;
     loka::app::scene::NodeState<int> scrollOffset_;
     loka::Vector<loka::core::String> fruits_;
+    loka::app::scene::NodeState<loka::core::String> randomTitles_[6];
+    loka::core::EmitterState shuffleEvent_;
+    MenuRandom random_;
   };
 
 } // namespace helloworld
