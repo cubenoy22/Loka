@@ -35,6 +35,17 @@ void ToolboxMenuAttachment::releaseFrom(const loka::app::scene::Scene *scene)
     this->disconnect();
 }
 
+void ToolboxMenuAttachment::MenuTitleChangedThunk(void *userData)
+{
+  ToolboxMenuAttachment::MenuBinding *binding = static_cast<ToolboxMenuAttachment::MenuBinding *>(userData);
+  if (!binding || !binding->menu || !binding->titleState)
+    return;
+  Str255 title;
+  ToolboxEncodePascal(binding->titleState->get(), title);
+  SetMenuItemText(binding->menu, binding->itemIndex, title);
+  binding->app->requestMenuBarDraw();
+}
+
 void ToolboxMenuAttachment::MenuEnabledChangedThunk(void *userData)
 {
   ToolboxMenuAttachment::MenuBinding *binding = static_cast<ToolboxMenuAttachment::MenuBinding *>(userData);
@@ -73,15 +84,21 @@ void ToolboxMenuAttachment::ApplyMenuItemStates(ToolboxApp *app,
                                 const loka::app::MenuItemDefinition *itemDef,
                                 std::vector<ToolboxMenuAttachment::MenuBinding *> &bindings)
 {
-  if (!itemDef->isEnabledInitial())
+  Str255 title;
+  ToolboxEncodePascal(itemDef->titleState ? itemDef->titleState->get() : itemDef->title, title);
+  SetMenuItemText(menu, itemIndex, title);
+
+  // Openers previously bypassed bool bindings; retain that policy while binding titles.
+  if (!itemDef->hasChildren() && !itemDef->isEnabledInitial())
   {
     DisableItem(menu, itemIndex);
   }
-  CheckItem(menu, itemIndex, itemDef->isCheckedInitial());
+  if (!itemDef->hasChildren())
+    CheckItem(menu, itemIndex, itemDef->isCheckedInitial());
 
-  loka::core::State<bool> *enabledState = itemDef->enabledBindingState();
-  loka::core::State<bool> *checkedState = itemDef->checkedBindingState();
-  if (!enabledState && !checkedState)
+  loka::core::State<bool> *enabledState = itemDef->hasChildren() ? 0 : itemDef->enabledBindingState();
+  loka::core::State<bool> *checkedState = itemDef->hasChildren() ? 0 : itemDef->checkedBindingState();
+  if (!itemDef->titleState && !enabledState && !checkedState)
   {
     return;
   }
@@ -90,9 +107,14 @@ void ToolboxMenuAttachment::ApplyMenuItemStates(ToolboxApp *app,
   binding->app = app;
   binding->menu = menu;
   binding->itemIndex = itemIndex;
+  binding->titleState = itemDef->titleState;
   binding->enabledState = enabledState;
   binding->invertEnabled = itemDef->enabledBindingInvert();
   binding->checkedState = checkedState;
+  if (binding->titleState)
+  {
+    binding->titleState->deferBind(&ToolboxMenuAttachment::MenuTitleChangedThunk, binding);
+  }
   if (enabledState)
   {
     enabledState->deferBind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
@@ -111,6 +133,10 @@ void ToolboxMenuAttachment::clearMenuBindings()
     MenuBinding *binding = bindings_[i];
     if (binding)
     {
+      if (binding->titleState)
+      {
+        binding->titleState->deferUnbind(&ToolboxMenuAttachment::MenuTitleChangedThunk, binding);
+      }
       if (binding->enabledState)
       {
         binding->enabledState->deferUnbind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
@@ -120,6 +146,7 @@ void ToolboxMenuAttachment::clearMenuBindings()
         binding->checkedState->deferUnbind(&ToolboxMenuAttachment::MenuCheckedChangedThunk, binding);
       }
       binding->menu = 0;
+      binding->titleState = 0;
       binding->enabledState = 0;
       binding->checkedState = 0;
     }
@@ -136,6 +163,10 @@ void ToolboxMenuAttachment::clearMenuBindingsFor(MenuHandle menuHandle, short me
     MenuBinding *binding = bindings_[i];
     if (binding && binding->menu == menuHandle)
     {
+      if (binding->titleState)
+      {
+        binding->titleState->deferUnbind(&ToolboxMenuAttachment::MenuTitleChangedThunk, binding);
+      }
       if (binding->enabledState)
       {
         binding->enabledState->deferUnbind(&ToolboxMenuAttachment::MenuEnabledChangedThunk, binding);
@@ -145,6 +176,7 @@ void ToolboxMenuAttachment::clearMenuBindingsFor(MenuHandle menuHandle, short me
         binding->checkedState->deferUnbind(&ToolboxMenuAttachment::MenuCheckedChangedThunk, binding);
       }
       binding->menu = 0;
+      binding->titleState = 0;
       binding->enabledState = 0;
       binding->checkedState = 0;
       delete binding;
@@ -257,13 +289,12 @@ void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
       itemDef = itemDef->nextInComposition;
       continue;
     }
-    Str255 title;
-    ToolboxEncodePascal(itemDef->title, title);
     AppendMenu(menu, kPlaceholder);
     short itemIndex = CountMenuItems(menu);
-    SetMenuItemText(menu, itemIndex, title);
     if (itemDef->hasChildren())
     {
+      Str255 title;
+      ToolboxEncodePascal(itemDef->title, title);
       short subMenuId = nextMenuId++;
       MenuHandle subMenu = NewMenu(subMenuId, title);
       BuildMenuItems(app, subMenu, itemDef->childrenHead(), subMenuId, nextMenuId, commands, bindings, hierarchicalMenus);
@@ -287,6 +318,7 @@ void ToolboxMenuAttachment::BuildMenuItems(ToolboxApp *app,
       SetItemMark(menu, itemIndex, static_cast<CharParameter>(subMenuId & 0xFF));
 #endif
       hierarchicalMenus.push_back(subMenu);
+      ApplyMenuItemStates(app, menu, itemIndex, itemDef, bindings);
       itemDef = itemDef->nextInComposition;
       continue;
     }
@@ -418,10 +450,7 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
       {
         AppendResMenu(menu, 'DRVR');
         const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
-        Str255 aboutTitle;
-        ToolboxEncodePascal(itemDef->title, aboutTitle);
         InsertMenuItem(menu, kPlaceholder, 0);
-        SetMenuItemText(menu, 1, aboutTitle);
         short aboutIndex = 1;
         // Separator not needed; desk accessories already have one.
         ToolboxMenuAttachment::MenuCommand command;
@@ -557,10 +586,7 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
         }
         AppendResMenu(entry.menu, 'DRVR');
         const loka::app::MenuItemDefinition *itemDef = aboutItems[0];
-        Str255 aboutTitle;
-        ToolboxEncodePascal(itemDef->title, aboutTitle);
         InsertMenuItem(entry.menu, kPlaceholder, 0);
-        SetMenuItemText(entry.menu, 1, aboutTitle);
         short aboutIndex = 1;
         ToolboxMenuAttachment::MenuCommand command;
         command.menuId = entry.menuId;
