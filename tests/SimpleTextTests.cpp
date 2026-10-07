@@ -135,6 +135,7 @@ namespace
       std::remove((this->directory + "/first.txt").c_str());
       std::remove((this->directory + "/second.txt").c_str());
       std::remove((this->directory + "/bad.txt").c_str());
+      std::remove((this->directory + "/long.txt").c_str());
       LOKA_VERIFY(rmdir(this->directory.c_str()) == 0);
     }
     simpletext::MainNode &main() const
@@ -296,8 +297,15 @@ void testSimpleTextReadAndWriteFailuresPreserveDestination()
   const ListRevision revision = h.lines().revision().get();
   h.open("bad.txt");
   LOKA_VERIFY(h.hasError() && h.row(0) == "old" && h.lines().at(0).id == id);
-  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(h.main())) == "Cannot open the file.");
+  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(h.main())) == "Cannot open the file: it is not plain ASCII text.");
   LOKA_VERIFY(!(h.lines().revision().get() != revision));
+  h.currentIs("first.txt");
+  h.put("long.txt", std::string(9000, 'a'));
+  h.open("long.txt");
+  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(h.main())) == "Cannot open the file: it is too long for the editor.");
+  h.open("absent.txt");
+  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(h.main())) == "Cannot open the file.");
+  LOKA_VERIFY(h.row(0) == "old" && h.lines().at(0).id == id);
   h.currentIs("first.txt");
   SimpleTextTestAccess::saveAsEvent(h.config).emit();
   h.choose(true, FileChooserResult::File(h.file("missing/child.txt")));
