@@ -478,6 +478,12 @@ fi
 if ! HOME="$HFS_HOME" "$HMOUNT" "$DEV" 1 >"$WORK/hmount.out" 2>&1; then
   fail_stage extract "could not mount the development disk; see $WORK/hmount.out"
 fi
+# A vehicle that failed an assert leaves the expression here (#1093); read it
+# before the audit, which an early abort never writes.
+if HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.assert" "$WORK/LokaTestsToolbox.assert" \
+    >"$WORK/hcopy-assert.out" 2>&1; then
+  echo "classic assert failed: $(tr -d '\r' <"$WORK/LokaTestsToolbox.assert")"
+fi
 if ! HOME="$HFS_HOME" "$HCOPY" -t ":LokaTestsToolbox.audit" "$AUDIT" >"$WORK/hcopy.out" 2>&1; then
   HOME="$HFS_HOME" "$HUMOUNT" >/dev/null 2>&1 || true
   fail_stage extract "could not copy LokaTestsToolbox.audit; see $WORK/hcopy.out"
