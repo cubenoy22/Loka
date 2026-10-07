@@ -27,11 +27,25 @@ namespace
                                "A shorter note leaves no tail.",
                                "End of the note."};
 
+  const char kNotText[] = "Not saved: the file is not a text file.";
+
   std::string Utf8(const loka::core::String &value)
   {
     std::string text;
     (void)loka::platform::CollectUtf8(value, text);
     return text;
+  }
+
+  std::string Joined(unsigned rows, char separator)
+  {
+    std::string bytes;
+    for (unsigned i = 0; i < rows; ++i)
+    {
+      if (i)
+        bytes += separator;
+      bytes += kRows[i];
+    }
+    return bytes;
   }
 } // namespace
 
@@ -73,9 +87,9 @@ public:
     node.saveDocument();
   }
 
-  static bool matches(const simpletext::MainNode &node, unsigned rows, const char *current)
+  static bool matches(const simpletext::MainNode &node, unsigned rows, const char *current, const char *error = "")
   {
-    if (!node.error_.get().empty() || node.operation_.get() != simpletext::NONE || node.lines_.size() != rows)
+    if (Utf8(node.error_.get()) != error || node.operation_.get() != simpletext::NONE || node.lines_.size() != rows)
       return false;
     if (current ? Utf8(node.currentFile_.item.toString()) != current
                 : node.currentFile_.kind != loka::app::FileChooserResult::RESULT_NONE)
@@ -95,6 +109,7 @@ public:
                    : "none");
     record.set("document.error", node.error_.get().empty() ? "none" : Utf8(node.error_.get()).c_str());
     record.set("document.caret_row", "none");
+    record.set("document.caret_request", node.caret_.get().line == loka::core::ItemId::none() ? "none" : "pending");
     for (unsigned i = 0; i < node.lines_.size(); ++i)
     {
       char key[40];
@@ -190,22 +205,16 @@ namespace loka
           SimpleTextTestAccess::complete(*this->borrowedMain_, operation, app::FileChooserResult::File(captured));
           return SimpleTextTestAccess::matches(*this->borrowedMain_, rows, name);
         }
-        bool inspectSaved(unsigned number, unsigned rows)
+        /** Read a file beside the app raw and record its bytes and Finder info
+            under prefix; true when the read succeeded and the bytes match. */
+        bool inspect(const char *prefix, const char *name, const std::string &expected, FInfo &info)
         {
-          std::string expected;
-          for (unsigned i = 0; i < rows; ++i)
-          {
-            if (i)
-              expected += '\r';
-            expected += kRows[i];
-          }
           platform::file::FileHandle handle;
           long bytes = -1, cr = 0, lf = 0;
-          FInfo info = {};
           std::string actual;
           bool read = false;
           bool metadata = false;
-          if (this->getPlatformContext()->openFile(file::File::Application() << file::File("Saved"), handle)
+          if (this->getPlatformContext()->openFile(file::File::Application() << file::File(name), handle)
               && handle.hasSpec)
           {
             metadata = FSpGetFInfo(&handle.spec, &info) == noErr;
@@ -233,22 +242,23 @@ namespace loka
             if (actual[i] == '\n')
               ++lf;
           }
-          char key[40];
-          std::sprintf(key, "saved.%u.bytes", number);
-          this->facts_.setInt(key, bytes);
-          std::sprintf(key, "saved.%u.cr", number);
-          this->facts_.setInt(key, cr);
-          std::sprintf(key, "saved.%u.lf", number);
-          this->facts_.setInt(key, lf);
+          const std::string base(prefix);
+          this->facts_.setInt((base + ".bytes").c_str(), bytes);
+          this->facts_.setInt((base + ".cr").c_str(), cr);
+          this->facts_.setInt((base + ".lf").c_str(), lf);
           // Decimal OSType preserves every unexpected value and is safe audit text.
-          std::sprintf(key, "saved.%u.type", number);
-          this->facts_.setInt(key, static_cast<long>(info.fdType));
-          std::sprintf(key, "saved.%u.creator", number);
-          this->facts_.setInt(key, static_cast<long>(info.fdCreator));
+          this->facts_.setInt((base + ".type").c_str(), metadata ? static_cast<long>(info.fdType) : -1);
+          this->facts_.setInt((base + ".creator").c_str(), metadata ? static_cast<long>(info.fdCreator) : -1);
           const bool match = read && actual == expected;
-          std::sprintf(key, "saved.%u.match", number);
-          this->facts_.set(key, match ? "yes" : "no");
-          return match && metadata && info.fdType == 'TEXT' && info.fdCreator == 'ttxt';
+          this->facts_.set((base + ".match").c_str(), match ? "yes" : "no");
+          return match && metadata;
+        }
+        /** A Loka-written document: TEXT/ttxt, rows joined with CR, no trailing separator. */
+        bool inspectSaved(const char *prefix, unsigned rows)
+        {
+          FInfo info = {};
+          return this->inspect(prefix, "Saved", Joined(rows, '\r'), info) && info.fdType == 'TEXT'
+                 && info.fdCreator == 'ttxt';
         }
         void finish(Window *window, bool succeeded)
         {
@@ -316,24 +326,34 @@ namespace loka
           }
           else if (this->tick_ == 3)
           {
+            // The raw-copied ReadMe has no TEXT type: Save must refuse it
+            // before writing, keep the document and say nothing was saved.
+            step = "save-refused";
+            SimpleTextTestAccess::save(*this->borrowedMain_);
+            FInfo info = {};
+            ok = this->inspect("refused", "ReadMe", Joined(6, '\n'), info)
+                 && SimpleTextTestAccess::matches(*this->borrowedMain_, 6, "ReadMe", kNotText);
+          }
+          else if (this->tick_ == 4)
+          {
             step = "save-create";
             ok = this->choose("Saved", simpletext::SAVE, 6);
             // Capture file facts even when the production completion failed.
-            ok = this->inspectSaved(1, 6) && ok;
+            ok = this->inspectSaved("saved.1", 6) && ok;
           }
-          else if (this->tick_ == 4)
+          else if (this->tick_ == 5)
           {
             step = "shorten";
             ok = SimpleTextTestAccess::shorten(*this->borrowedMain_)
                  && SimpleTextTestAccess::matches(*this->borrowedMain_, 1, "Saved");
           }
-          else if (this->tick_ == 5)
+          else if (this->tick_ == 6)
           {
             step = "save-overwrite";
             SimpleTextTestAccess::save(*this->borrowedMain_);
-            ok = this->inspectSaved(2, 1) && SimpleTextTestAccess::matches(*this->borrowedMain_, 1, "Saved");
+            ok = this->inspectSaved("saved.2", 1) && SimpleTextTestAccess::matches(*this->borrowedMain_, 1, "Saved");
           }
-          else if (this->tick_ == 6)
+          else if (this->tick_ == 7)
           {
             step = "open-saved";
             ok = this->choose("Saved", simpletext::OPEN, 1);

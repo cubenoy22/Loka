@@ -87,9 +87,10 @@ measure() {
       steps="K space;w 1;c 157 157;c 157 157;c 157 157;c 157 205;c 157 229;c 157 229;c 345 133;w 2;c 345 280;k five;k zero;w 2;s;c 449 368;c 449 368;c 449 368;w 2;s;" ;;
     lazylist) dir=LazyList app=LokaLazyList68K; tabs=1; steps="$(lazylist_steps)" ;;
     minesweeper) dir=MineSweeper app=LokaMine68K; tabs=1; steps="$(minesweeper_steps)" ;;
-    simpletext) dir=SimpleText app=LokaSimpleText68K; tabs=2
-      extras=("$PROJECT_DIR/tests/scenarios/fixtures/simpletext/ReadMe")
-      steps="w 5;K space;c 80 100;k l;k o;k l;k ret;k o;k ret;k l;k ret;w 5;s;" ;;
+    simpletext) dir=SimpleText app=LokaSimpleText68K; tabs=1
+      # Open a document at the editor's caps through the real dialog (the first
+      # Down selects Desktop DF, the second Large), edit it, and save it.
+      steps="w 5;K space;K o;w 4;$(printf 'k down;%.0s' 1 2)s;k ret;w 10;s;c 80 100;k l;k o;k ret;k l;k ret;w 2;K s;w 5;s;" ;;
     simpleviewer) dir=SimpleViewer app=LokaSimpleViewer68K; tabs=3
       # The open dialog lists Desktop DB and Desktop DF first: four Downs reach
       # Sun.pict and five reach Zbulb.pict (Bulb.pict renamed to sort last).
@@ -118,11 +119,33 @@ measure() {
     HOME="$work/hfs-home" "$humount" >/dev/null 2>&1 || true
     extras=("$work/Sun.pict" "$work/Zbulb.pict")
   fi
+  if [ "$example" = simpletext ]; then
+    # 255 rows of 31 bytes plus LF separators: 8159 bytes, inside the 256-row
+    # and 8 KiB document caps, so the peak covers the largest openable file.
+    local row
+    : >"$work/Large"
+    for row in $(seq 1 255); do
+      printf 'Row %03d of the largest document' "$row" | cut -c1-31 >>"$work/Large.rows"
+    done
+    head -c -1 "$work/Large.rows" >"$work/Large"
+    rm -f "$work/Large.rows"
+    extras=("$work/Large")
+  fi
   . "$PROJECT_DIR/scripts/mame-boot-copy.sh"
   loka_prepare_boot_copy "$MAME_HDA" "$work/Boot.hd" >/dev/null
   MAME_DEV_HDA="$work/LokaDev.hd" MAME_CONTROL_DIR="$work/hfs-ctl" \
     "$PROJECT_DIR/scripts/mame-dev-disk.sh" "$bin" "${extras[@]}" >"$work/dev-disk.out" 2>&1 \
     || fail "dev disk creation; see $work/dev-disk.out"
+  if [ "$example" = simpletext ]; then
+    # A raw copy has no type, and Save refuses a non-TEXT file without writing;
+    # TEXT/ttxt lets Command-S measure the write path too.
+    local hmount hattrib humount
+    hmount="$(retro68_tool hmount)"; hattrib="$(retro68_tool hattrib)"; humount="$(retro68_tool humount)"
+    HOME="$work/hfs-home" "$hmount" "$work/LokaDev.hd" >"$work/large-hmount.out" 2>&1 \
+      && HOME="$work/hfs-home" "$hattrib" -t TEXT -c ttxt :Large >/dev/null 2>&1 \
+      || { HOME="$work/hfs-home" "$humount" >/dev/null 2>&1 || true; fail "could not mark Large as TEXT/ttxt"; }
+    HOME="$work/hfs-home" "$humount" >/dev/null 2>&1 || true
+  fi
   cp "$SCRIPT_DIR/mame-measure-heap.lua" "$work/mame-measure-heap.lua"
   local args=(
     "${MAME_MACHINE:-maciix}" -ramsize "${MAME_RAMSIZE:-8M}"

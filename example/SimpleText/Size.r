@@ -1,6 +1,12 @@
-// SIZE partition override for SimpleText (#1131 PR 6).
-// Measured need: PENDING (owner session measures with tests/toolbox/measure-example-heaps.sh before the PR)
-// 68K values are provisional; PPC values follow the unmeasured template.
+// SIZE partition override for the Retro68/Classic build.
+// SimpleText opens one document of at most 256 rows and 8 KiB.
+// Measured need (#1131, MAME maciix, 2026-10-07): 415.4K = peak live heap
+// 392600 B + stack/A5/zone 32720 B, under the workload in
+// tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change):
+// open a document at both caps through the open dialog, edit it, and save it.
+// 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
+// Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
+// is appended after and overrides it.
 #include "Processes.r"
 #include "LokaClassicTarget.r"
 
@@ -36,11 +42,12 @@ resource 'SIZE' (-1) {
 	1024 * 1024,
 	1024 * 1024
 #elif LOKA_CLASSIC_68K
-	576 * 1024,	/* preferred */
-	384 * 1024	/* minimum */
+	640 * 1024,	/* preferred */
+	480 * 1024	/* minimum */
 #else
-	/* PPC partitions are unmeasured. */
-	512 * 1024,	/* preferred */
-	384 * 1024	/* minimum */
+	/* PPC partitions are unmeasured; the code fragment also loads into the
+	   heap, so these follow SimpleViewer rather than the 68K measurement. */
+	1024 * 1024,	/* preferred */
+	512 * 1024	/* minimum */
 #endif
 };
