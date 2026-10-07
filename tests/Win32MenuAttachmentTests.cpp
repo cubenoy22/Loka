@@ -573,3 +573,104 @@ void testWin32MenuAcceleratorPrecedesDialogAndDispatch()
   LOKA_VERIFY(DestroyWindow(next));
   LOKA_VERIFY(DestroyWindow(edit));
 }
+
+namespace
+{
+  class MenuTitleState : public MutableState<String>
+  {
+  public:
+    explicit MenuTitleState(const char *value) : MutableState<String>(String::Literal(value)) {}
+    size_t subscriptions() const { return this->deferredHandlers.size(); }
+  };
+}
+
+void testWin32MenuTitleFollowsState()
+{
+  MenuTitleState state("Alpha");
+  PushStateTracker tracker;
+  tracker.addState(&state);
+  ShortcutFixture f;
+  MenuBarDefinition offered;
+  offered << (Menu("File") << MenuItem("Alpha").text(&state).shortcut('S').onClick(&f.emitter));
+  LOKA_VERIFY(f.window.menuAttachment().project(&offered, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Alpha\tCtrl+S");
+  const UINT command = firstCommand(f.window);
+  ControlKey control;
+  LOKA_VERIFY(f.translate('S'));
+  LOKA_VERIFY(f.calls == 1);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Beta"));
+  }
+  verifyLabel(f.window, L"Beta\tCtrl+S");
+  LOKA_VERIFY(firstCommand(f.window) == command);
+  LOKA_VERIFY(f.translate('S'));
+  LOKA_VERIFY(f.calls == 2);
+  // A fresh projection must read the current State, not the fallback title.
+  LOKA_VERIFY(f.window.menuAttachment().project(0, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  LOKA_VERIFY(f.window.menuAttachment().project(&offered, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Beta\tCtrl+S");
+}
+
+void testWin32MenuPopupTitleFollowsState()
+{
+  MenuTitleState state("Alpha");
+  PushStateTracker tracker;
+  tracker.addState(&state);
+  ShortcutFixture f;
+  MenuBarDefinition offered;
+  offered << (Menu("File") << (MenuItem("Fallback").text(&state).shortcut('P')
+      << MenuItem("Child").shortcut('S').onClick(&f.emitter)));
+  LOKA_VERIFY(f.window.menuAttachment().project(&offered, 0) == Win32MenuAttachment::PROJECT_APPLIED);
+  verifyLabel(f.window, L"Alpha");
+  const HMENU menu = GetSubMenu(GetMenu(f.window.hwnd()), 0);
+  const HMENU child = GetSubMenu(menu, 0);
+  LOKA_VERIFY(child);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Beta"));
+  }
+  verifyLabel(f.window, L"Beta");
+  LOKA_VERIFY(GetSubMenu(menu, 0) == child);
+  ControlKey control;
+  LOKA_VERIFY(!f.translate('P'));
+  LOKA_VERIFY(f.translate('S'));
+  LOKA_VERIFY(f.calls == 1);
+}
+
+void testWin32MenuTitleStateUnbindsOnRelease()
+{
+  MenuTitleState state("Alpha");
+  PushStateTracker tracker;
+  tracker.addState(&state);
+  ShortcutFixture f;
+  Scene source((Boundary<MenuRoot>()));
+  MenuBarDefinition offered;
+  offered << (Menu("File") << (MenuItem("Fallback").text(&state)
+      << MenuItem("Fallback").text(&state).shortcut('S')));
+  LOKA_VERIFY(f.window.menuAttachment().project(&offered, &source) == Win32MenuAttachment::PROJECT_APPLIED);
+  const HMENU installed = GetMenu(f.window.hwnd());
+  const HMENU child = GetSubMenu(GetSubMenu(installed, 0), 0);
+  LOKA_VERIFY(state.subscriptions() == 2);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Beta"));
+  }
+  verifyLabel(f.window, L"Beta");
+  wchar_t label[128];
+  LOKA_VERIFY(GetMenuStringW(child, 0, label, 128, MF_BYPOSITION) > 0);
+  LOKA_VERIFY(std::wcscmp(label, L"Beta\tCtrl+S") == 0);
+  // Bindings deliver inside set() today (the commit-time delivery is a
+  // recorded framework follow-up), so release outside a transaction and pin
+  // only that a later write reaches nothing.
+  f.window.menuAttachment().releaseFrom(&source);
+  LOKA_VERIFY(state.subscriptions() == 0);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Gamma"));
+  }
+  LOKA_VERIFY(GetMenu(f.window.hwnd()) == installed && IsMenu(installed));
+  verifyLabel(f.window, L"Beta");
+  LOKA_VERIFY(GetMenuStringW(child, 0, label, 128, MF_BYPOSITION) > 0);
+  LOKA_VERIFY(std::wcscmp(label, L"Beta\tCtrl+S") == 0);
+}
