@@ -290,6 +290,10 @@ void testWin32NativeRetirementCaptureRefusal()
   HWND window = CreateWindowExW(0, L"STATIC", L"capture refusal", WS_OVERLAPPEDWINDOW,
                                 0, 0, 160, 120, 0, 0, GetModuleHandleW(0), 0);
   LOKA_VERIFY(window);
+  // BitBlt from a never-shown window's DC fails with ERROR_INVALID_HANDLE, so
+  // the positive control needs a visible window.
+  ShowWindow(window, SW_SHOWNOACTIVATE);
+  UpdateWindow(window);
   {
     Win32ScenePlatformController controller(window,
         loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
