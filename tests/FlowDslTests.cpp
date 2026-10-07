@@ -8914,6 +8914,6 @@ void testFileImageSourceRefusesUnresolvedApplicationFile()
   const loka::core::resource::Blob before = blob;
   const loka::file::File absent = loka::file::File::Application() << loka::file::File("absent.pict");
   LOKA_VERIFY(loka::app::ReadFileImageBlob(0, absent, blob) == loka::platform::file::READ_NO_NATIVE_SPEC);
-  LOKA_VERIFY(blob == before);
-  LOKA_VERIFY(blob.bytes().size() == 4);
+  assert(blob == before);
+  assert(blob.bytes().size() == 4);
 }
