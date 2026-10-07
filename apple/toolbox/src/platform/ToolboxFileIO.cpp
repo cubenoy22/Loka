@@ -1,6 +1,8 @@
 #include "platform/file/FileIO.hpp"
+#include "ToolboxBusy.hpp"
 
 #include <Files.h>
+#include <Script.h>
 
 namespace loka
 {
@@ -67,6 +69,16 @@ namespace loka
         };
       } // namespace
 
+      ReadResult ReadBytes(const loka::core::String &path,
+                           std::vector<unsigned char> &out,
+                           const ReadCapacity *capacity)
+      {
+        // The stdio read (logical paths, System 6 application items) blocks
+        // like the native one (#1066).
+        const BusyScope busy(RegisteredToolboxBusyOwner());
+        return ReadBytesThroughStdio(path, out, capacity);
+      }
+
       ReadResult ReadBytes(const FileHandle &handle,
                            std::vector<unsigned char> &out,
                            const ReadCapacity *capacity)
@@ -76,6 +88,8 @@ namespace loka
         {
           return READ_NO_NATIVE_SPEC;
         }
+        // A whole-file read blocks the main thread without pumping (#1066).
+        const BusyScope busy(RegisteredToolboxBusyOwner());
         short refNum = 0;
         OSErr err = FSpOpenDF(&handle.spec, fsRdPerm, &refNum);
         if (err != noErr)
@@ -112,6 +126,25 @@ namespace loka
         }
         FSClose(refNum);
         return READ_OK;
+      }
+
+      PrepareResult PrepareTextDocumentDestination(const FileHandle &file)
+      {
+        if (!file.hasSpec)
+          return PREPARE_NO_NATIVE_SPEC;
+        // Numeric four-character codes avoid implementation-defined literals.
+        const OSType textType = 0x54455854UL; // 'TEXT'
+        const OSType simpleTextCreator = 0x74747874UL; // 'ttxt'
+        FInfo info;
+        const OSErr error = FSpGetFInfo(&file.spec, &info);
+        if (error == fnfErr)
+        {
+          return FSpCreate(&file.spec, simpleTextCreator, textType, smSystemScript) == noErr
+                     ? PREPARE_OK : PREPARE_CREATE_FAILED;
+        }
+        if (error != noErr)
+          return PREPARE_CATALOG_FAILED;
+        return info.fdType == textType ? PREPARE_OK : PREPARE_NOT_TEXT;
       }
 
       std::FILE *OpenWriteTruncate(const FileHandle &file)
