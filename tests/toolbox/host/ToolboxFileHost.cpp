@@ -31,6 +31,12 @@ namespace
   };
   std::map<Address, std::string> files;
   std::map<short, Reader> readers;
+  std::map<Address, FInfo> metadata;
+  OSErr catalogFailure = noErr;
+  OSErr createFailure = noErr;
+  unsigned catalogCalls = 0;
+  unsigned createCalls = 0;
+  ScriptCode createdScript = 0;
   FSSpec application;
   toolbox_file_host::ReadFailure readFailure = toolbox_file_host::NoFailure;
 }
@@ -51,10 +57,49 @@ namespace toolbox_file_host
     assert(spec.name[0] <= 63);
     files[Address(spec)] = contents;
   }
-  void Remove(const FSSpec &spec) { files.erase(Address(spec)); }
+  void SetMetadata(const FSSpec &spec, OSType type, OSType creator)
+  {
+    FInfo info = { type, creator };
+    metadata[Address(spec)] = info;
+  }
+  FInfo Metadata(const FSSpec &spec) { return metadata[Address(spec)]; }
+  void FailPrepare(OSErr catalog, OSErr create)
+  {
+    catalogFailure = catalog;
+    createFailure = create;
+    catalogCalls = createCalls = 0;
+  }
+  unsigned CatalogCalls() { return catalogCalls; }
+  unsigned CreateCalls() { return createCalls; }
+  ScriptCode CreatedScript() { return createdScript; }
+  void Remove(const FSSpec &spec)
+  {
+    files.erase(Address(spec));
+    metadata.erase(Address(spec));
+  }
   void FailRead(ReadFailure failure) { readFailure = failure; }
   void SetApplication(const FSSpec &spec) { application = spec; }
   std::size_t OpenCount() { return readers.size(); }
+}
+OSErr FSpGetFInfo(const FSSpec *spec, FInfo *out)
+{
+  ++catalogCalls;
+  if (catalogFailure != noErr) return catalogFailure;
+  if (!spec || !out) return paramErr;
+  const std::map<Address, FInfo>::const_iterator found = metadata.find(Address(*spec));
+  if (found == metadata.end()) return fnfErr;
+  *out = found->second;
+  return noErr;
+}
+OSErr FSpCreate(const FSSpec *spec, OSType creator, OSType type, ScriptCode script)
+{
+  ++createCalls;
+  createdScript = script;
+  if (createFailure != noErr) return createFailure;
+  if (!spec) return paramErr;
+  toolbox_file_host::Put(*spec, "");
+  toolbox_file_host::SetMetadata(*spec, type, creator);
+  return noErr;
 }
 OSErr FSpOpenDF(const FSSpec *spec, signed char permission, short *out)
 {
@@ -120,7 +165,7 @@ OSErr GetProcessInformation(const ProcessSerialNumber *, ProcessInfoRec *out)
   out->processName[0] = 0;
   return noErr;
 }
-// Write-side APIs are deliberately unsupported by this read-only fixture.
+// Stdio write-side APIs stay unsupported: preparation alone never calls them.
 OSErr HGetVol(unsigned char *, short *, long *) { return paramErr; }
 OSErr HSetVol(const unsigned char *, short, long) { return paramErr; }
 OSErr FlushVol(const unsigned char *, short) { return paramErr; }

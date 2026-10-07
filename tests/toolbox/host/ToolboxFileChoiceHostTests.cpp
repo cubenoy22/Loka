@@ -3,6 +3,7 @@
 #include "ToolboxFileChoice.hpp"
 #include "ToolboxByteSource.hpp"
 #include "app/FileImageSource.hpp"
+#include "app/TextDocumentFile.hpp"
 #include "support/TestVerify.hpp"
 #include "support/FileRefusalPin.hpp"
 #include <cstddef>
@@ -18,6 +19,7 @@
 #include "platform/StringUTF8.hpp"
 #include "SimpleViewerFlowAdapters.hpp"
 #include "support/LokaAllocFailure.hpp"
+#include "ToolboxBusy.hpp"
 
 static StandardFileReply reply;
 static unsigned getCalls = 0, putCalls = 0;
@@ -635,6 +637,131 @@ static void Refused()
   ToolboxPlatformContext context;
   VerifyFileRefusal(context);
 }
+static void Prepare()
+{
+  FileHandle file;
+  FailPrepare(noErr, noErr);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_NO_NATIVE_SPEC);
+  LOKA_VERIFY(CatalogCalls() == 0 && CreateCalls() == 0);
+  file.hasSpec = true;
+  file.spec = Spec(13, 42, "text");
+  Remove(file.spec);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_OK);
+  LOKA_VERIFY(CatalogCalls() == 1 && CreateCalls() == 1);
+  LOKA_VERIFY(Metadata(file.spec).fdType == 0x54455854UL);
+  LOKA_VERIFY(Metadata(file.spec).fdCreator == 0x74747874UL);
+  LOKA_VERIFY(CreatedScript() == smSystemScript);
+
+  SetMetadata(file.spec, 0x54455854UL, 0x4F544852UL);
+  FailPrepare(noErr, noErr);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_OK);
+  LOKA_VERIFY(CatalogCalls() == 1 && CreateCalls() == 0);
+  LOKA_VERIFY(Metadata(file.spec).fdCreator == 0x4F544852UL);
+
+  SetMetadata(file.spec, 0x42494E41UL, 0x4F544852UL);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_NOT_TEXT);
+  LOKA_VERIFY(CreateCalls() == 0);
+  LOKA_VERIFY(Metadata(file.spec).fdType == 0x42494E41UL);
+
+  Remove(file.spec);
+  FailPrepare(noErr, paramErr);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_CREATE_FAILED);
+  LOKA_VERIFY(CatalogCalls() == 1 && CreateCalls() == 1);
+  FailPrepare(paramErr, noErr);
+  LOKA_VERIFY(PrepareTextDocumentDestination(file) == PREPARE_CATALOG_FAILED);
+  LOKA_VERIFY(CatalogCalls() == 1 && CreateCalls() == 0);
+  FailPrepare(noErr, noErr);
+}
+static void PrepareRefusesWrite()
+{
+  const FSSpec spec = Spec(13, 42, "non-text-document");
+  Put(spec, "original binary contents");
+  SetMetadata(spec, 0x42494E41UL, 0x4F544852UL); // BINA / OTHR
+  const FInfo before = Metadata(spec);
+  File file;
+  LOKA_VERIFY(ToolboxCaptureChosenFile(spec, file));
+  LOKA_VERIFY(!file.locator().empty());
+  ToolboxPlatformContext context;
+  loka::core::PushStateTracker tracker;
+  loka::core::ObservableList<String> lines;
+  LOKA_VERIFY(lines.attach(&tracker, 1) == loka::core::ATTACH_OK);
+  LOKA_VERIFY(lines.insert(0, String::Literal("replacement text")) == loka::core::EDIT_OK);
+  FailPrepare(noErr, noErr);
+
+  // Removing the prepare-refusal guard reaches production OpenWriteTruncate,
+  // whose folder entry fails with paramErr from the unchanged HGetVol stub.
+  // The mutant therefore returns OPEN_FAILED instead of NOT_TEXT, and cannot
+  // reach host fopen. Never make HGetVol/HSetVol/FlushVol succeed for this pin.
+  const loka::app::TextDocumentResult result = loka::app::WriteTextDocument(&context, file, lines);
+  if (result != loka::app::TEXT_DOCUMENT_NOT_TEXT)
+    std::fprintf(stderr, "prepare-refusal write result: %d\n", static_cast<int>(result));
+  LOKA_VERIFY(result == loka::app::TEXT_DOCUMENT_NOT_TEXT);
+  LOKA_VERIFY(CatalogCalls() == 1 && CreateCalls() == 0);
+  LOKA_VERIFY(Metadata(spec).fdType == before.fdType);
+  LOKA_VERIFY(Metadata(spec).fdCreator == before.fdCreator);
+  LOKA_VERIFY(Read(context, file) == "original binary contents");
+}
+namespace
+{
+  class CountingBusyOwner : public ToolboxBusyOwner
+  {
+  public:
+    CountingBusyOwner() : depth(0), entries(0), exits(0) {}
+    int depth, entries, exits;
+
+  private:
+    virtual void enterBusy()
+    {
+      ++this->depth;
+      ++this->entries;
+    }
+    virtual void exitBusy()
+    {
+      --this->depth;
+      ++this->exits;
+    }
+  };
+}
+// A whole-file read borrows the registered busy owner once and returns it on
+// every exit after the open; with no registration the borrow is inert (#1066).
+static void Busy()
+{
+  const FSSpec spec = Spec(-7, 0x12345678, "Photo.PICT");
+  Put(spec, "abc");
+  ToolboxPlatformContext context;
+  FileHandle live;
+  LOKA_VERIFY(context.openFile(Choose(spec), live));
+  FileHandle missing;
+  LOKA_VERIFY(context.openFile(Choose(Spec(-7, 999, "Gone.PICT")), missing));
+  const FileHandle none;
+  std::vector<unsigned char> bytes;
+  CountingBusyOwner owner;
+  LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
+  LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
+  LOKA_VERIFY(owner.entries == 0);
+  {
+    const ToolboxBusyOwnerRegistration registration(owner);
+    LOKA_VERIFY(RegisteredToolboxBusyOwner() == &owner);
+    LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
+    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "abc");
+    LOKA_VERIFY(owner.entries == 1 && owner.exits == 1 && owner.depth == 0);
+    LOKA_VERIFY(ReadBytes(missing, bytes) == READ_NATIVE_OPEN_FAILED);
+    LOKA_VERIFY(owner.entries == 2 && owner.exits == 2 && owner.depth == 0);
+    LOKA_VERIFY(ReadBytes(none, bytes) == READ_NO_NATIVE_SPEC);
+    LOKA_VERIFY(owner.entries == 2 && owner.exits == 2);
+    // The stdio read behind logical paths borrows the same owner, including
+    // a failed open.
+    std::FILE *stream = std::fopen("busy-path.txt", "wb");
+    LOKA_VERIFY(stream && std::fwrite("xyz", 1, 3, stream) == 3 && std::fclose(stream) == 0);
+    LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_OK);
+    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "xyz");
+    LOKA_VERIFY(owner.entries == 3 && owner.exits == 3 && owner.depth == 0);
+    LOKA_VERIFY(std::remove("busy-path.txt") == 0);
+    LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_STDIO_OPEN_FAILED);
+    LOKA_VERIFY(owner.entries == 4 && owner.exits == 4 && owner.depth == 0);
+  }
+  LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
+}
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
@@ -656,6 +783,9 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "save")) SaveDialog();
   else if (!std::strcmp(argv[1], "save-retarget")) SaveRetarget();
   else if (!std::strcmp(argv[1], "validity")) Validity();
+  else if (!std::strcmp(argv[1], "prepare")) Prepare();
+  else if (!std::strcmp(argv[1], "prepare-refuses-write")) PrepareRefusesWrite();
+  else if (!std::strcmp(argv[1], "busy")) Busy();
   else return 2;
   LOKA_VERIFY(OpenCount() == 0);
   return 0;

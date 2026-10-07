@@ -34,6 +34,9 @@
 #include "core/util/StateTrackerGuard.hpp"
 #include "platform/file/AppLocation.hpp"
 #include "platform/file/FileIO.hpp"
+#include "ToolboxPlatformContext.hpp"
+#include "core/resource/Blob.hpp"
+#include "core/resource/Image.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 namespace loka
@@ -1417,6 +1420,7 @@ namespace
         SetPort(previousPort);
         self->recordArm("scrollview-first-text-placement", placedInside, COMPOSITED_WRITE);
         self->recordArm("startup-text-baseline", !above && inside, COMPOSITED_WRITE);
+        self->checkBlockingWorkCursor(*controller, COMPOSITED_WRITE);
         self->initial_ = controller->debugStatsForTesting();
         self->composited_->advance();
         self->phase_ = COMPOSITED_CHECK;
@@ -2325,6 +2329,38 @@ namespace
       MoveTo(pen.h, pen.v);
       TextFont(savedFont);
       TextSize(savedSize);
+    }
+
+    /** Blocking Toolbox work with no path to the app borrows the owner that
+        ToolboxApp registered around its run loop: a whole-file read and an
+        image decode each enter and leave the watch once (#1066). */
+    void checkBlockingWorkCursor(ToolboxScenePlatformController &controller, Phase next)
+    {
+      {
+        const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
+        std::vector<unsigned char> bytes;
+        const bool read = loka::platform::file::ReadBytes(this->file_, bytes) == loka::platform::file::READ_OK;
+        const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
+        this->recordArm("busy-file-read", read
+                        && after.cursorOuterEntries == before.cursorOuterEntries + 1
+                        && after.cursorOuterExits == before.cursorOuterExits + 1
+                        && after.cursorDepth == 0, next);
+      }
+      {
+        loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+        blob.setBytes(std::vector<unsigned char>(64, 0));
+        blob.setCompleted(true);
+        const ToolboxPlatformContext platform;
+        loka::core::resource::Image image;
+        const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
+        const bool decoded = platform.createImageFromBlob(blob, 0, blob.bytes().size(), image);
+        const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
+        // Not a picture: the decode refuses after its parse, still under one borrow.
+        this->recordArm("busy-image-decode", !decoded && !image.isValid()
+                        && after.cursorOuterEntries == before.cursorOuterEntries + 1
+                        && after.cursorOuterExits == before.cursorOuterExits + 1
+                        && after.cursorDepth == 0, next);
+      }
     }
 
     void checkTextFonts(ToolboxScenePlatformController &controller, GrafPtr port)
