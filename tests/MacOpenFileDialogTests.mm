@@ -85,6 +85,7 @@ namespace
     int emits;
     int unmounts;
     bool destroy;
+    FileDialogOptions options;
     static void count(void *data) { ++*static_cast<int *>(data); }
   };
   Probe *g_probe = 0;
@@ -110,7 +111,9 @@ namespace
       ShowDefinition seat = Show(*this->shown.state());
       if (this->probe_.destroy)
         seat.destroyOnDetach();
-      composition.declare(seat << OpenFileDialog().result(this->result).onResult(&this->emitter));
+      OpenFileDialogProps props;
+      props.options_ = this->probe_.options;
+      composition.declare(seat << OpenFileDialog(props).result(this->result).onResult(&this->emitter));
     }
     virtual void detachNode(NodeComposition &) { ++this->probe_.unmounts; }
     virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
@@ -151,10 +154,11 @@ namespace
 
   struct Fixture
   {
-    explicit Fixture(bool destroy = false) : window(0)
+    explicit Fixture(bool destroy = false, const FileDialogOptions &options = FileDialogOptions()) : window(0)
     {
       [NSApplication sharedApplication];
       this->probe.destroy = destroy;
+      this->probe.options = options;
       this->probe.app = &this->app;
       g_probe = &this->probe;
       WindowProps props;
@@ -328,6 +332,23 @@ void testMacOpenFileDialogRetargetDropsResult()
     LOKA_VERIFY(replacementEmits == 0);
     replacement.unbind(&Probe::count, &replacementEmits);
     LOKA_VERIFY(TransportAccess::census(fixture.window->dialogResults()) == 0);
+  }
+  [pool drain];
+}
+
+void testMacSaveFileDialogRefusesWithoutNativeDialog()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  {
+    Fixture f(false, FileDialogOptions(FILE_DIALOG_SAVE, loka::core::String::Literal("Untitled")));
+    f.context().presentDeferred();
+    f.silent();
+    f.flush();
+    LOKA_VERIFY(f.probe.writes == 1 && f.probe.emits == 1);
+    LOKA_VERIFY(f.probe.root->result.get().kind == FileChooserResult::RESULT_ERROR);
+    LOKA_VERIFY(f.probe.root->result.get().errorCode == FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE);
+    f.flush();
+    LOKA_VERIFY(f.probe.writes == 1 && f.probe.emits == 1);
   }
   [pool drain];
 }

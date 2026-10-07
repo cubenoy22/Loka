@@ -1,5 +1,6 @@
 #include "context/ToolboxOpenFileDialogContext.hpp"
 #include "ToolboxFileChoice.hpp"
+#include "platform/ToolboxPascalText.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <StandardFile.h>
@@ -67,8 +68,7 @@ struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNat
 
 ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner)
     : cursorOwner_(cursorOwner), node_(node),
-      resultState_(),
-      onResult_(0),
+      props_(),
       presentation_(),
       dialog_(0)
 {
@@ -136,21 +136,53 @@ void ToolboxOpenFileDialogContext::presentDialog()
   {
     return;
   }
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = resultState_;
-  loka::core::EmitterState *onResult = onResult_;
+  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = this->props_.result_;
+  loka::core::EmitterState *onResult = this->props_.onResult_;
 
+  const loka::app::FileDialogOptions options = this->props_.options_;
   StandardFileReply reply;
-  StandardGetFile(0, -1, 0, &reply);
+  reply.sfGood = false;
+  loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
+  switch (options.purpose())
+  {
+  case loka::app::FILE_DIALOG_OPEN:
+    // Both policies admit all files on Toolbox, preserving the OPEN behavior.
+    StandardGetFile(0, -1, 0, &reply);
+    break;
+  case loka::app::FILE_DIALOG_SAVE:
+  {
+    const unsigned char prompt[] = {8, 'S', 'a', 'v', 'e', ' ', 'a', 's', ':'};
+    Str255 defaultName;
+    loka::core::String roundTrip;
+    // The short-label door can substitute or cap text. A filename must survive
+    // its round trip exactly, in addition to fitting the HFS byte limit.
+    if (!ToolboxEncodePascal(options.defaultName(), defaultName)
+        || defaultName[0] > 31
+        || !ToolboxDecodeNative(defaultName + 1, defaultName[0], roundTrip)
+        || !roundTrip.equals(options.defaultName()))
+    {
+      result = loka::app::FileChooserResult::Error(paramErr);
+      break;
+    }
+    StandardPutFile(prompt, defaultName, &reply);
+    break;
+  }
+  }
   if (this->cursorOwner_)
     this->cursorOwner_->reconcile();
-  loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
 
   if (reply.sfGood)
   {
-    loka::file::File file;
-    result = ToolboxCaptureChosenFile(reply.sfFile, file)
-        ? loka::app::FileChooserResult::File(file)
-        : loka::app::FileChooserResult::Error(memFullErr);
+    if (options.purpose() == loka::app::FILE_DIALOG_SAVE
+        && (reply.sfFile.name[0] == 0 || reply.sfFile.name[0] > 31))
+      result = loka::app::FileChooserResult::Error(paramErr);
+    else
+    {
+      loka::file::File file;
+      result = ToolboxCaptureChosenFile(reply.sfFile, file)
+          ? loka::app::FileChooserResult::File(file)
+          : loka::app::FileChooserResult::Error(memFullErr);
+    }
   }
 
   dialog = this->detachDialogIfActive(dialog);
@@ -165,7 +197,7 @@ void ToolboxOpenFileDialogContext::presentDialog()
 
 void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
 {
-  DeliverOpenFileDialogResult(resultState_, onResult_, result);
+  DeliverOpenFileDialogResult(this->props_.result_, this->props_.onResult_, result);
 }
 
 void ToolboxOpenFileDialogContext::disposeDialog()
@@ -198,11 +230,15 @@ bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHand
 
 void ToolboxOpenFileDialogContext::captureProps()
 {
-  this->resultState_ = this->node_ ? this->node_->props.result_ : loka::app::scene::NodeState<loka::app::FileChooserResult>();
-  this->onResult_ = this->node_ ? this->node_->props.onResult_ : 0;
+  this->props_ = this->node_ ? this->node_->props : loka::app::OpenFileDialogProps();
 }
 
 void ToolboxOpenFileDialogContext::onPropsApplied()
 {
+  if (this->node_ && (this->props_ < this->node_->props || this->node_->props < this->props_))
+  {
+    this->disposeDialog();
+    this->presentation_.markPresented(); // Retarget abandons until reattach.
+  }
   this->captureProps();
 }

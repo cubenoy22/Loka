@@ -7,4 +7,5 @@ void testMacOpenFileDialogCompletionDuringSceneWaitsForAdmission();
 void testMacOpenFileDialogCloseDropsPendingAtDrain();
 void testMacOpenFileDialogRetargetDropsResult();
 
+void testMacSaveFileDialogRefusesWithoutNativeDialog();
 #endif
