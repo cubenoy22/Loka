@@ -1154,3 +1154,7 @@ LOKA_TEST(testTextDocumentEditorParity)
 LOKA_TEST(testTextDocumentResolution)
 LOKA_TEST(testTextDocumentWriteFailures)
 LOKA_TEST(testTextDocumentRawAdmission)
+
+LOKA_TEST(testSimpleViewerSceneDeclaresViewMenuWithCheckedBindings)
+
+LOKA_TEST(testHelloWorldShuffleRotatesSlotTitles)

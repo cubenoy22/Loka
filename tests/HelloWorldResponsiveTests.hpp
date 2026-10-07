@@ -5,4 +5,6 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats();
 void testHelloWorldNarrowMountComposesColumnFirst();
 void testHelloWorldDerivedTextSeatsCoverInputsAndActions();
 
+void testHelloWorldShuffleRotatesSlotTitles();
+
 #endif // LOKA_TESTS_HELLO_WORLD_RESPONSIVE_TESTS_HPP
