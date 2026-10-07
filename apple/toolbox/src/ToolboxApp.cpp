@@ -179,6 +179,9 @@ void ToolboxApp::run()
   InitDialogs(0);
   InitCursor();
   this->cursorOwner_.initialize();
+  // Blocking Toolbox work with no path to this app (file reads, image decodes)
+  // borrows the watch through the process registration while the loop runs.
+  const ToolboxBusyOwnerRegistration busyRegistration(this->cursorOwner_);
 
   App::run();
   if (group_)

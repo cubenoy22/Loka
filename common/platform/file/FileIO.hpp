@@ -73,6 +73,28 @@ namespace loka
       ReadResult ReadBytes(const loka::core::String &path, std::vector<unsigned char> &out,
                            const ReadCapacity *capacity = 0);
 
+      /** Outcome of preparing a resolved text destination before truncation. */
+      enum PrepareResult
+      {
+        PREPARE_OK,
+        PREPARE_NO_NATIVE_SPEC,
+        PREPARE_NOT_TEXT,
+        PREPARE_CATALOG_FAILED,
+        PREPARE_CREATE_FAILED
+      };
+
+      /** Classic requires a native spec, preserves existing TEXT metadata and
+          creates absent files as TEXT/ttxt using the system script. Other rails
+          succeed without side effects; creation and permission errors remain
+          OpenWriteTruncate's responsibility. Refusal must prevent writing. */
+      PrepareResult PrepareTextDocumentDestination(const FileHandle &file);
+
+      /** The stdio read behind every rail's ReadBytes(path): OpenRead, then the
+          same byte ownership and capacity contract. A rail whose ReadBytes(path)
+          wraps the read (Toolbox borrows its busy cursor, #1066) calls this. */
+      ReadResult ReadBytesThroughStdio(const loka::core::String &path, std::vector<unsigned char> &out,
+                                       const ReadCapacity *capacity);
+
       /** Opens an already platform-resolved file destination for binary
           write. This preserves native location data such as a Classic FSSpec. */
       std::FILE *OpenWriteTruncate(const FileHandle &file);

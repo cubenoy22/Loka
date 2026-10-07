@@ -449,6 +449,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     apple/toolbox/src/ToolboxString.cpp
     apple/toolbox/src/platform/ToolboxAppLocation.cpp
     apple/toolbox/src/platform/ToolboxFileIO.cpp
+    apple/toolbox/src/ToolboxBusy.cpp
     apple/toolbox/src/platform/ToolboxHfsName.cpp
     apple/toolbox/src/platform/ToolboxMacRoman.cpp
     ${LOKA_TOOLBOX_FILE_COMMON_SOURCES}
@@ -462,7 +463,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxFileChoiceHost.hpp)
   loka_enable_warnings(LokaToolboxFileChoiceTests)
   set_target_properties(LokaToolboxFileChoiceTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity)
+  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity busy prepare prepare-refuses-write)
     add_test(NAME testToolboxFileChoice_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
   endforeach()
 

@@ -1,3 +1,4 @@
+#include "ToolboxBusy.hpp"
 #include "ToolboxPlatformContext.hpp"
 
 #include "core/resource/BlobRange.hpp"
@@ -87,6 +88,8 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
     return false;
   }
   const std::size_t limit = offset + length;
+  // Parsing and wrapping a whole picture block the main thread (#1066).
+  const BusyScope busy(RegisteredToolboxBusyOwner());
 
   loka::toolbox::pict::PictParseResult picture;
   if (!loka::toolbox::pict::ParsePict(

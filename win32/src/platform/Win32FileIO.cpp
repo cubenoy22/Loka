@@ -36,6 +36,12 @@ namespace loka
         return ReadBytes(file.displayPath, out, capacity);
       }
 
+      PrepareResult PrepareTextDocumentDestination(const FileHandle &)
+      {
+        // No metadata precreation on this rail; OpenWriteTruncate owns creation.
+        return PREPARE_OK;
+      }
+
       std::FILE *OpenWriteTruncate(const FileHandle &file)
       {
         std::wstring wide;
