@@ -17,6 +17,7 @@ void testFlowMatchAuditWritesExactMatchAndSubstepLinesOnce();
 void testSimpleViewerClosesDialogFromChooserCompletion();
 void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage();
 void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable();
+void testFileImageSourceRefusesUnresolvedApplicationFile();
 void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure();
 void testSimpleViewerReadFailuresAndFallback();
 void testSimpleViewerReadStdioFaults();

@@ -1,12 +1,12 @@
 #ifndef LOKA_SIMPLE_TEXT_MAIN_NODE_HPP
 #define LOKA_SIMPLE_TEXT_MAIN_NODE_HPP
 
-#include <new>
 #include "app/scene/BorrowedKeys.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
-#include "app/nodes/nestable/Show.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Match.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/OpenFileDialog.hpp"
@@ -117,24 +117,6 @@ namespace simpletext
       SAVE_DOCUMENT
     };
 
-    class IsOperation : public loka::core::DerivedState<bool>::EvalFn
-    {
-    public:
-      IsOperation(const loka::app::scene::NodeState<Operation> &source, Operation value)
-          : source_(source),
-            value_(value)
-      {
-      }
-      virtual bool operator()()
-      {
-        return this->source_.get() == this->value_;
-      }
-
-    private:
-      const loka::app::scene::NodeState<Operation> &source_;
-      const Operation value_;
-    };
-
     /** Replay the owner's old IDs before inserting the sole empty row. */
     class EmptyDocument : public loka::core::ListOpCursor<loka::core::String>
     {
@@ -190,8 +172,6 @@ namespace simpletext
       this->state(this->error_, loka::core::String());
       this->state(this->cursor_, loka::app::LineCursor::None());
       this->state(this->caret_, loka::app::LineCursor::None());
-      this->derived(this->opening_, this->operation_, new (std::nothrow) IsOperation(this->operation_, OPEN));
-      this->derived(this->saving_, this->operation_, new (std::nothrow) IsOperation(this->operation_, SAVE));
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &)
@@ -226,20 +206,27 @@ namespace simpletext
     virtual void composeNode(loka::app::scene::NodeComposition &c)
     {
       using namespace loka::app;
+      using namespace loka::core;
+      // One seat on the operation: at most one dialog exists, and none while idle.
+      MatchDefinition<Operation> dialog = Match(*this->operation_.state());
+      dialog
+          .arm(OPEN, PolicyScopeDefinition().destroyOnDetach()
+                         << OpenFileDialog()
+                                .filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT)
+                                .result(this->openResult_)
+                                .testId("SimpleText.Open"))
+          .arm(SAVE, PolicyScopeDefinition().destroyOnDetach()
+                         << SaveFileDialog(String::Literal("untitled.txt"))
+                                .filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT)
+                                .result(this->saveResult_)
+                                .testId("SimpleText.Save"))
+          .otherwise(Fragment());
       c.declare(HStack()
-                << (VStack()
-                    << Text(this->error_.state()).TEST_ID("SimpleText.Error")
-                    << TextEditor(this->lines_, this->cursor_).moveCaretTo(this->caret_).TEST_ID("SimpleText.Editor"))
-                << (Show(*this->opening_.state()) << (PolicyScopeDefinition().destroyOnDetach()
-                                                      << OpenFileDialog()
-                                                             .filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT)
-                                                             .result(this->openResult_)
-                                                             .testId("SimpleText.Open")))
-                << (Show(*this->saving_.state()) << (PolicyScopeDefinition().destroyOnDetach()
-                                                     << SaveFileDialog(loka::core::String::Literal("untitled.txt"))
-                                                            .filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT)
-                                                            .result(this->saveResult_)
-                                                            .testId("SimpleText.Save"))));
+                << (VStack() << Text(this->error_.state()).TEST_ID("SimpleText.Error")
+                             << TextEditor(this->lines_, this->cursor_) //
+                                    .moveCaretTo(this->caret_)
+                                    .TEST_ID("SimpleText.Editor"))
+                << dialog);
     }
 
   private:
@@ -361,7 +348,6 @@ namespace simpletext
     loka::app::scene::Request<loka::app::LineCursor> caret_;
     Choice currentFile_;
     loka::app::scene::NodeState<Operation> operation_;
-    loka::app::scene::DerivedNodeState<bool> opening_, saving_;
     loka::app::scene::NodeState<Choice> openResult_, saveResult_;
     loka::app::scene::NodeState<loka::core::String> error_;
     loka::app::scene::FlowSlot<ChoiceFlow> openFlow_, saveFlow_;
