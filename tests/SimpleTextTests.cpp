@@ -296,6 +296,7 @@ void testSimpleTextReadAndWriteFailuresPreserveDestination()
   const ListRevision revision = h.lines().revision().get();
   h.open("bad.txt");
   LOKA_VERIFY(h.hasError() && h.row(0) == "old" && h.lines().at(0).id == id);
+  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(h.main())) == "Cannot open the file.");
   LOKA_VERIFY(!(h.lines().revision().get() != revision));
   h.currentIs("first.txt");
   SimpleTextTestAccess::saveAsEvent(h.config).emit();

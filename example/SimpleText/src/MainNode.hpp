@@ -298,6 +298,20 @@ namespace simpletext
       }
     }
 
+    static loka::core::String failureText(DocumentAction action)
+    {
+      switch (action)
+      {
+      case NEW_DOCUMENT:
+        return loka::core::String::Literal("Cannot start a new document.");
+      case OPEN_DOCUMENT:
+        return loka::core::String::Literal("Cannot open the file.");
+      case SAVE_DOCUMENT:
+        return loka::core::String::Literal("Save failed; the destination may have changed.");
+      }
+      return loka::core::String();
+    }
+
     /** The sole destination writer. Replacement success also supersedes stale caret IDs. */
     void commitDocument(DocumentAction action, const Choice &destination)
     {
@@ -322,9 +336,7 @@ namespace simpletext
       }
       if (!committed)
       {
-        this->error_.set(action == SAVE_DOCUMENT
-                             ? loka::core::String::Literal("Save failed; the destination may have changed.")
-                             : loka::core::String::Literal("Cannot replace document."));
+        this->error_.set(failureText(action));
         return;
       }
       this->currentFile_ = destination;
