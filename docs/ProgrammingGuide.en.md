@@ -1068,11 +1068,13 @@ returns the same definition type as `OpenFileDialog()` and uses the same
 for SAVE; the default filter policy preserves each rail's OPEN behavior.
 A `RESULT_FILE` is a selected address: it certifies neither existence nor
 writability. Toolbox implements SAVE with StandardPutFile and refuses names
-outside its 1–31 byte HFS limit (default names must also encode losslessly).
+outside its 1–31 byte HFS limit. Default-name suggestions may be empty, must
+encode losslessly, and must fit within 31 native bytes.
 Win32 and macOS currently deliver `Error(FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE)`
 without showing a native dialog; their SAVE implementations follow in separate
 PRs. Null refuses both purposes. Changing purpose, default name or filter on a
-retained dialog abandons that operation until reattach.
+retained dialog abandons an active operation until reattach. Options changed
+while detached configure the next presentation.
 
 The design goal is that memory and lifecycle are visible from the DSL structure.
 

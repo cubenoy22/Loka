@@ -606,6 +606,28 @@ static void SaveRetarget()
                          loka::app::scene::NODE_FACT_ATTACHED);
     LOKA_VERIFY(notifications == writes + 1 && putCalls + getCalls == before + 2);
   }
+  // A hidden retained dialog has no active operation to abandon. Props applied
+  // between detach and reattach must configure that next presentation.
+  for (unsigned field = 0; field != 3; ++field)
+  {
+    OpenFileDialogDefinition definition = SaveFileDialog(String::Literal("default")).onResult(&emitter);
+    OpenFileDialogNode node(definition.props);
+    ToolboxOpenFileDialogContext dialog(&node, 0);
+    dialog.presentIfNeeded();
+    const unsigned calls = putCalls + getCalls;
+    const unsigned writes = notifications;
+    dialog.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
+                         loka::app::scene::NODE_FACT_DETACHED_RETAINED);
+    node.props.options_ = FileDialogOptions(field == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
+        String::Literal(field == 1 ? "next default" : "default"),
+        field == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
+    dialog.onPropsApplied();
+    LOKA_VERIFY(putCalls + getCalls == calls && notifications == writes);
+    dialog.onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED,
+                         loka::app::scene::NODE_FACT_ATTACHED);
+    LOKA_VERIFY(putCalls + getCalls == calls + 1 && notifications == writes + 1);
+    if (field == 1) LOKA_VERIFY(savedDefault == "next default");
+  }
   emitter.unbind(&CountDelivery, &notifications);
 }
 static void Refused()

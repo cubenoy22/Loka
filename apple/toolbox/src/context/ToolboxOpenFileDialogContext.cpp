@@ -235,7 +235,8 @@ void ToolboxOpenFileDialogContext::captureProps()
 
 void ToolboxOpenFileDialogContext::onPropsApplied()
 {
-  if (this->node_ && (this->props_ < this->node_->props || this->node_->props < this->props_))
+  if (this->presentation_.isPresenting() && this->node_
+      && (this->props_ < this->node_->props || this->node_->props < this->props_))
   {
     this->disposeDialog();
     this->presentation_.markPresented(); // Retarget abandons until reattach.
