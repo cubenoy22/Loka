@@ -31,6 +31,8 @@ namespace loka
           result = ReadBytes(file.base() == loka::file::File::BASE_APPLICATION
               ? handle.displayPath : file.toString(), blob.mutableBytes(), &capacity);
       }
+      else if (file.base() == loka::file::File::BASE_APPLICATION)
+        return READ_NO_NATIVE_SPEC; // nothing resolved it, and it has no path to flatten (#1133)
       else
         result = ReadBytes(file.toString(), blob.mutableBytes(), &capacity);
       if (result == READ_OK)

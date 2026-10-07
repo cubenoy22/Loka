@@ -4,4 +4,9 @@ void testWin32OpenFileDialogRetiredBeforePostedWake();
 void testWin32OpenFileDialogOwnerReclaimedBeforePostedWake();
 void testWin32OpenFileDialogLiveAdmissionAndLostHwnd();
 void testWin32OpenFileDialogMissingHwndUsesAdmission();
+void testWin32SaveFileDialogInvalidNameUsesAdmission();
+void testWin32SaveFileDialogDefaultSetup();
+void testWin32SaveFileDialogTextSetup();
+void testWin32SaveFileDialogNameBounds();
+void testWin32SaveFileDialogInvalidBasenames();
 #endif

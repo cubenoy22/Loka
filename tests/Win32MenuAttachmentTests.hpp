@@ -13,4 +13,7 @@ void testWin32MenuAcceleratorInertAfterRelease();
 void testWin32MenuAcceleratorSwapsWithProjection();
 void testWin32TwoWindowsOwnTheirAccelerators();
 void testWin32MenuAcceleratorPrecedesDialogAndDispatch();
+void testWin32MenuTitleFollowsState();
+void testWin32MenuPopupTitleFollowsState();
+void testWin32MenuTitleStateUnbindsOnRelease();
 #endif

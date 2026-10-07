@@ -24,6 +24,7 @@ namespace
   typedef loka::app::testing::DialogResultTestAccess Access;
   NullWindow *g_window = 0;
   bool g_destroyOnDetach = false;
+  FileDialogOptions g_options;
   class DialogOwner;
   DialogOwner *g_owner = 0;
   class DialogContext;
@@ -141,7 +142,9 @@ namespace
       ShowDefinition seat = Show(*this->shown_.state());
       if (g_destroyOnDetach)
         seat.destroyOnDetach();
-      composition.declare(seat << OpenFileDialog().result(this->result_).onResult(&this->emitter_));
+      OpenFileDialogProps props;
+      props.options_ = g_options;
+      composition.declare(seat << OpenFileDialog(props).result(this->result_).onResult(&this->emitter_));
     }
     NodeState<bool> shown_;
     NodeState<FileChooserResult> result_;
@@ -155,11 +158,12 @@ namespace
 
   struct Fixture
   {
-    explicit Fixture(bool destroyOnDetach = false)
+    explicit Fixture(bool destroyOnDetach = false, const FileDialogOptions &options = FileDialogOptions())
         : window(0, WindowProps()),
           app(window)
     {
       g_destroyOnDetach = destroyOnDetach;
+      g_options = options;
       g_events = &this->events;
       g_window = &this->window;
       LOKA_VERIFY(this->window.scenePlatformController()->registerNodeHandler(&this->handler));
@@ -820,4 +824,95 @@ void testDialogSeatClockWindowCloseStillSuppresses()
   LOKA_VERIFY(deaths == 1 && emits == 0);
   delete registration;
   channel.unbind(&CloseProbe::close, &probe);
+}
+
+void testFileDialogOptionsIdentityAndNullRefusal()
+{
+  const loka::core::String name(std::string("Untitled"));
+  OpenFileDialogDefinition saved;
+  loka::core::OwnedDef<NodeDefinitionBase> clone;
+  {
+    OpenFileDialogDefinition temporary = SaveFileDialog(name)
+        .filterPolicy(FILE_DIALOG_FILTER_ALL_FILES_TEXT);
+    clone.reset(temporary.clone());
+    LOKA_VERIFY(clone.get() != 0);
+    saved = temporary;
+  }
+  const OpenFileDialogProps &cloned = static_cast<const OpenFileDialogProps &>(*clone->propsBase());
+  LOKA_VERIFY(cloned.options_.compare(saved.props.options_) == 0);
+  LOKA_VERIFY(saved.props.options_.purpose() == FILE_DIALOG_SAVE);
+  LOKA_VERIFY(saved.props.options_.defaultName().equals(name));
+  LOKA_VERIFY(saved.props.options_.filterPolicy() == FILE_DIALOG_FILTER_ALL_FILES_TEXT);
+  OpenFileDialogProps variants[5];
+  variants[0].options_ = FileDialogOptions(FILE_DIALOG_OPEN, name);
+  variants[1].options_ = FileDialogOptions(FILE_DIALOG_SAVE, name);
+  variants[2].options_ = FileDialogOptions(FILE_DIALOG_SAVE, loka::core::String::Literal("Other"));
+  variants[3] = saved.props;
+  variants[4].options_ = FileDialogOptions(FILE_DIALOG_OPEN, name, FILE_DIALOG_FILTER_ALL_FILES_TEXT);
+  LOKA_VERIFY(variants[0].options_.defaultName().empty());
+  LOKA_VERIFY(!(variants[0] < OpenFileDialogProps()) && !(OpenFileDialogProps() < variants[0]));
+  NullWindow window(0, WindowProps());
+  WindowAdmissionTestApp app(window);
+  for (unsigned i = 0; i != 5; ++i)
+  {
+    Transport::Registration *registration = window.dialogResults().reserve(variants[i]);
+    LOKA_VERIFY(registration != 0);
+    OpenFileDialogProps equal = variants[i];
+    equal.options_ = FileDialogOptions(variants[i].options_.purpose(),
+        loka::core::String(std::string(i == 2 ? "Other" : "Untitled")),
+        variants[i].options_.filterPolicy());
+    LOKA_VERIFY(registration->matches(equal));
+    LOKA_VERIFY(!(equal < variants[i]) && !(variants[i] < equal));
+    for (unsigned j = 0; j != 5; ++j)
+    {
+      LOKA_VERIFY(registration->matches(variants[j]) == (i == j));
+      LOKA_VERIFY(((variants[i] < variants[j]) || (variants[j] < variants[i])) == (i != j));
+      LOKA_VERIFY(!((variants[i] < variants[j]) && (variants[j] < variants[i])));
+    }
+    delete registration;
+    app.flush();
+  }
+  NullScenePlatformController controller;
+  loka::core::EmitterState emitter;
+  for (unsigned i = 0; i != 2; ++i)
+  {
+    OpenFileDialogDefinition definition = i ? SaveFileDialog(name) : OpenFileDialog();
+    definition.onResult(&emitter);
+    OpenFileDialogNode node(definition.props);
+    LayoutState layout;
+    LOKA_VERIFY(!controller.prepareProjectedLayout(&node, layout));
+    LOKA_VERIFY(node.getContext() == 0);
+  }
+}
+
+void testFileDialogOptionsRetarget()
+{
+  for (unsigned field = 0; field != 3; ++field)
+  {
+    Fixture fixture(false, FileDialogOptions(FILE_DIALOG_SAVE, loka::core::String::Literal("initial")));
+    LOKA_VERIFY(g_context->registration_ != 0);
+    g_context->produce();
+    OpenFileDialogDefinition equal = SaveFileDialog(loka::core::String(std::string("initial")));
+    equal.result(g_owner->result_).onResult(&g_owner->emitter_);
+    LOKA_VERIFY(equal.applyPropsToNode(g_context->node_));
+    LOKA_VERIFY(g_context->registration_ != 0);
+    OpenFileDialogDefinition changed = equal;
+    changed.props.options_ = FileDialogOptions(field == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
+        loka::core::String::Literal(field == 1 ? "changed" : "initial"),
+        field == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
+    LOKA_VERIFY(changed.applyPropsToNode(g_context->node_));
+    LOKA_VERIFY(g_context->registration_ == 0);
+    g_context->attach();
+    LOKA_VERIFY(g_context->registration_ == 0);
+    fixture.app.flush();
+    LOKA_VERIFY(g_owner->result_.get().kind == FileChooserResult::RESULT_NONE);
+    g_owner->shown_.set(false);
+    fixture.app.flush();
+    g_owner->shown_.set(true);
+    fixture.app.flush();
+    LOKA_VERIFY(g_context->registration_ != 0);
+    g_context->produce();
+    fixture.app.flush();
+    LOKA_VERIFY(g_owner->result_.get().kind == FileChooserResult::RESULT_FILE);
+  }
 }

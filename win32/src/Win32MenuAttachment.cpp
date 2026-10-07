@@ -19,6 +19,17 @@ namespace
     return (key >= 'A' && key <= 'Z') || (key >= '0' && key <= '9') ? key : 0;
   }
 
+  // False when the title cannot be materialized: the caller keeps what it has
+  // (a build refuses, an update leaves the installed label) rather than
+  // committing an empty or suffix-only label (bot P2 on #1129).
+  bool MenuItemLabel(const loka::core::String &title, const std::wstring &shortcutSuffix, std::wstring &label)
+  {
+    if (!loka::win32::MaterializeWideString(title, label))
+      return false;
+    label += shortcutSuffix;
+    return true;
+  }
+
   bool ApplyWindowMenuPreservingContentFrame(Win32Window *window, HMENU menu)
   {
     if (!window || !window->hwnd())
@@ -131,6 +142,29 @@ bool Win32MenuAttachment::dispatch(int commandId)
   return false;
 }
 
+// Deliberate twin of ToolboxMenuAttachment's title binding: Win32 preserves
+// the shortcut suffix and changes only MIIM_STRING, leaving id/submenu intact.
+void Win32MenuAttachment::MenuTitleChangedThunk(void *userData)
+{
+  MenuBinding *binding = static_cast<MenuBinding *>(userData);
+  if (!binding || !binding->titleState || !binding->menu)
+    return;
+  std::wstring label;
+  if (!MenuItemLabel(binding->titleState->get(), binding->shortcutSuffix, label))
+    return;
+  MENUITEMINFOW info = {};
+  info.cbSize = sizeof(info);
+  info.fMask = MIIM_STRING;
+  info.dwTypeData = const_cast<wchar_t *>(label.c_str());
+  // SetMenuItemInfoW's contract: redraw the owning window's menu bar after
+  // every change, whichever menu the item lives in.
+  if (SetMenuItemInfoW(binding->menu, binding->item, binding->byFlags == MF_BYPOSITION, &info)
+      && binding->hwnd)
+  {
+    DrawMenuBar(binding->hwnd);
+  }
+}
+
 void Win32MenuAttachment::MenuEnabledChangedThunk(void *userData)
 {
   MenuBinding *binding = static_cast<MenuBinding *>(userData);
@@ -166,6 +200,10 @@ void Win32MenuAttachment::clearMenuBindings()
   for (size_t i = 0; i < bindings_.size(); ++i)
   {
     MenuBinding *binding = bindings_[i];
+    if (binding && binding->titleState)
+    {
+      binding->titleState->deferUnbind(&Win32MenuAttachment::MenuTitleChangedThunk, binding);
+    }
     if (binding && binding->enabledState)
     {
       binding->enabledState->deferUnbind(&Win32MenuAttachment::MenuEnabledChangedThunk, binding);
@@ -199,8 +237,16 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
     return true;
   }
 
+  const WORD key = itemDef->hasChildren() ? 0 : MenuShortcutForAction(itemDef);
+  std::wstring shortcutSuffix;
+  if (key)
+  {
+    shortcutSuffix = L"\tCtrl+";
+    shortcutSuffix += static_cast<wchar_t>(key);
+  }
   std::wstring titleWide;
-  loka::win32::MaterializeWideString(itemDef->title, titleWide);
+  if (!MenuItemLabel(itemDef->titleState ? itemDef->titleState->get() : itemDef->title, shortcutSuffix, titleWide))
+    return false;
   UINT flags = MF_STRING;
   if (!itemDef->isEnabledInitial())
   {
@@ -234,7 +280,7 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
       DestroyMenu(subMenu);
       return false;
     }
-    bindMenuItemStates(menu, static_cast<UINT>(popupPosition), MF_BYPOSITION, itemDef, hwnd);
+    bindMenuItemStates(menu, static_cast<UINT>(popupPosition), MF_BYPOSITION, itemDef, hwnd, shortcutSuffix);
     return true;
   }
 
@@ -242,13 +288,10 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
   if (this->nextCommandId_ > 0xffff)
     return false;
   const int commandId = this->nextCommandId_++;
-  const WORD key = MenuShortcutForAction(itemDef);
   if (key)
   {
     ACCEL accelerator = {FCONTROL | FVIRTKEY, key, static_cast<WORD>(commandId)};
     accelerators.push_back(accelerator);
-    titleWide += L"\tCtrl+";
-    titleWide += static_cast<wchar_t>(key);
   }
   if (!AppendMenuW(menu, flags, static_cast<UINT_PTR>(commandId), titleWide.c_str()))
     return false;
@@ -257,7 +300,7 @@ bool Win32MenuAttachment::buildMenuItem(HMENU menu, const loka::app::MenuItemDef
   command.action = itemDef->action;
   command.emitter = itemDef->onClickState;
   commands_.push_back(command);
-  bindMenuItemStates(menu, static_cast<UINT>(commandId), MF_BYCOMMAND, itemDef, hwnd);
+  bindMenuItemStates(menu, static_cast<UINT>(commandId), MF_BYCOMMAND, itemDef, hwnd, shortcutSuffix);
   return true;
 }
 
@@ -265,15 +308,16 @@ void Win32MenuAttachment::bindMenuItemStates(HMENU menu,
                                   UINT item,
                                   UINT byFlags,
                                   const loka::app::MenuItemDefinition *itemDef,
-                                  HWND hwnd)
+                                  HWND hwnd, const std::wstring &shortcutSuffix)
 {
   loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
   loka::core::State<bool> *checkedBindingState = itemDef->checkedBindingState();
-  if (!enabledBindingState && !checkedBindingState)
+  if (!itemDef->titleState && !enabledBindingState && !checkedBindingState)
   {
     return;
   }
-  Win32MenuAttachment::MenuBinding *binding = new Win32MenuAttachment::MenuBinding();
+  Win32MenuAttachment::MenuBinding *binding = new Win32MenuAttachment::MenuBinding(shortcutSuffix);
+  binding->titleState = itemDef->titleState;
   binding->menu = menu;
   binding->item = item;
   binding->byFlags = byFlags;
@@ -281,6 +325,10 @@ void Win32MenuAttachment::bindMenuItemStates(HMENU menu,
   binding->enabledState = enabledBindingState;
   binding->invertEnabled = itemDef->enabledBindingInvert();
   binding->checkedState = checkedBindingState;
+  if (binding->titleState)
+  {
+    binding->titleState->deferBind(&Win32MenuAttachment::MenuTitleChangedThunk, binding);
+  }
   if (enabledBindingState)
   {
     enabledBindingState->deferBind(&Win32MenuAttachment::MenuEnabledChangedThunk, binding);

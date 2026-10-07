@@ -133,10 +133,52 @@ void Win32OpenFileDialogContext::presentIfNeeded()
   this->presentDialog();
 }
 
+bool Win32OpenFileDialogContext::configureSaveDialog(const loka::app::FileDialogOptions &options,
+                                                     wchar_t (&buffer)[MAX_PATH], OPENFILENAMEW &dialog)
+{
+  ZeroMemory(buffer, sizeof(buffer));
+  std::wstring defaultName;
+  if (!loka::win32::MaterializeWideString(options.defaultName(), defaultName)
+      || defaultName.size() >= MAX_PATH)
+    return false;
+
+  // A default is a basename, never a path. Empty lets the user supply a name.
+  // Native validation still owns reserved device names and destination validity.
+  for (std::size_t i = 0; i < defaultName.size(); ++i)
+  {
+    const wchar_t unit = defaultName[i];
+    if (unit < L' ' || unit == L'<' || unit == L'>' || unit == L':' || unit == L'"'
+        || unit == L'/' || unit == L'\\' || unit == L'|' || unit == L'?' || unit == L'*')
+      return false;
+  }
+  if (!defaultName.empty()
+      && (defaultName[defaultName.size() - 1] == L'.' || defaultName[defaultName.size() - 1] == L' '))
+    return false;
+
+  defaultName.copy(buffer, defaultName.size());
+  dialog.lpstrFile = buffer;
+  dialog.nMaxFile = MAX_PATH;
+  dialog.nFilterIndex = 1;
+  dialog.lpstrFilter = L"All Files\0*.*\0";
+  dialog.lpstrDefExt = 0;
+  switch (options.filterPolicy())
+  {
+  case loka::app::FILE_DIALOG_FILTER_DEFAULT:
+    break;
+  case loka::app::FILE_DIALOG_FILTER_ALL_FILES_TEXT:
+    dialog.lpstrFilter = L"Text\0*.txt\0All Files\0*.*\0";
+    dialog.lpstrDefExt = L"txt";
+    break;
+  }
+  dialog.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
+  return true;
+}
+
 void Win32OpenFileDialogContext::presentDialog()
 {
   loka::app::DialogResultTransport::ReturnPort port(this->registration_);
   const HWND parent = this->parent_;
+  const loka::app::FileDialogOptions options = this->node_->props.options_;
   this->presentation_.markPresented();
 
   // The W dialog, not the A one: GetOpenFileNameA returns the path in the
@@ -154,13 +196,23 @@ void Win32OpenFileDialogContext::presentDialog()
   ofn.lpstrFile = buffer;
   ofn.nMaxFile = MAX_PATH;
   ofn.lpstrFilter = L"Images\0*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff\0All Files\0*.*\0";
+  if (options.filterPolicy() == loka::app::FILE_DIALOG_FILTER_ALL_FILES_TEXT)
+    ofn.lpstrFilter = L"All Files\0*.*\0Text\0*.txt\0";
   ofn.nFilterIndex = 1;
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+
+  if (options.purpose() == loka::app::FILE_DIALOG_SAVE
+      && !configureSaveDialog(options, buffer, ofn))
+  {
+    queueDeferredResult(port, loka::app::FileChooserResult::Error(FNERR_INVALIDFILENAME));
+    return;
+  }
 
   BOOL accepted;
   {
     loka::win32::ThreadModalDialogScope threadModal(parent);
-    accepted = GetOpenFileNameW(&ofn);
+    accepted = options.purpose() == loka::app::FILE_DIALOG_SAVE
+        ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
   }
 
   loka::app::FileChooserResult result;

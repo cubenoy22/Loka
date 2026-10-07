@@ -566,11 +566,138 @@ void testToolboxShortcutChangeReprojectsThroughPartialRebuild()
   LOKA_VERIFY(!app.menuAttachment().project(&changed, 0, false));
   noCalls();
 }
+namespace
+{
+  MenuBarDefinition titleBar(State<String> *state)
+  {
+    MenuBarDefinition result;
+    result << (Menu("File") << MenuItem("Fallback").text(state));
+    result << (Menu("Edit") << MenuItem("Copy"));
+    return result;
+  }
+  void setTitle(PushStateTracker &tracker, MutableState<String> &state, const char *value)
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal(value));
+  }
+}
+void testToolboxMenuTitleFollowsState()
+{
+  MutableState<String> title(String::Literal("Alpha"));
+  PushStateTracker tracker;
+  tracker.addState(&title);
+  ToolboxApp app;
+  MenuBarDefinition offered = titleBar(&title);
+  clearCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "Alpha");
+  const int before = app.redraws;
+  clearCalls();
+  {
+    StateTrackerGuard guard(&tracker);
+    title.set(String::Literal("Beta"));
+  }
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Beta");
+  LOKA_VERIFY(app.redraws == before + 1);
+  clearCalls();
+  LOKA_VERIFY(!app.menuAttachment().project(&offered, 0, false));
+  noCalls(); // Live value is not definition identity.
+}
+void testToolboxMenuTitleStateUnbindsOnRelease()
+{
+  MutableState<String> title(String::Literal("Alpha"));
+  PushStateTracker tracker;
+  tracker.addState(&title);
+  ToolboxApp app;
+  Scene source((Boundary<Root>()));
+  MenuBarDefinition offered = titleBar(&title);
+  LOKA_VERIFY(app.menuAttachment().project(&offered, &source, false));
+  clearCalls();
+  setTitle(tracker, title, "Beta");
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1);
+  app.menuAttachment().releaseFrom(&source);
+  const int before = app.redraws;
+  clearCalls();
+  setTitle(tracker, title, "Gamma");
+  noCalls();
+  LOKA_VERIFY(app.redraws == before);
+}
+void testToolboxMenuTitleStateIdentityDrivesRebuild()
+{
+  MutableState<String> first(String::Literal("Alpha")), second(String::Literal("Alpha"));
+  PushStateTracker tracker;
+  tracker.addState(&first);
+  tracker.addState(&second);
+  ToolboxApp app;
+  MenuBarDefinition offered = titleBar(&first), equal = titleBar(&first), changed = titleBar(&second);
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  MenuHandle file = toolbox_host::installedMenus[0], edit = toolbox_host::installedMenus[1];
+  clearCalls();
+  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0, false));
+  noCalls();
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Alpha");
+  LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuDisposes == 0);
+  LOKA_VERIFY(toolbox_host::installedMenus[0] == file && toolbox_host::installedMenus[1] == edit);
+  clearCalls();
+  setTitle(tracker, first, "Old");
+  noCalls();
+  setTitle(tracker, second, "New");
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && file->items[0] == "New");
+}
+void testToolboxAboutTitleFollowsStateAcrossRebuild()
+{
+  MutableState<String> first(String::Literal("About Alpha")), second(String::Literal("About Beta"));
+  PushStateTracker tracker;
+  tracker.addState(&first);
+  tracker.addState(&second);
+  ToolboxApp app;
+  MenuBarDefinition offered, changed;
+  offered << (AppMenu() << MenuItem("Fallback").text(&first).actionType(MENU_ACTION_ABOUT_APP));
+  changed << (AppMenu() << MenuItem("Fallback").text(&second).actionType(MENU_ACTION_ABOUT_APP));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "About Alpha");
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "About Beta");
+  clearCalls();
+  setTitle(tracker, first, "Old");
+  noCalls();
+  setTitle(tracker, second, "About Gamma");
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "About Gamma");
+  LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
+  clearCalls();
+  setTitle(tracker, second, "Released");
+  noCalls();
+}
+void testToolboxSubmenuTitleFollowsState()
+{
+  MutableState<String> title(String::Literal("More"));
+  PushStateTracker tracker;
+  tracker.addState(&title);
+  ToolboxApp app;
+  MenuBarDefinition offered;
+  offered << (Menu("File") << (MenuItem("Fallback").text(&title) << MenuItem("Child")));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(toolbox_host::installedMenus[1]->items[0] == "More");
+  clearCalls();
+  setTitle(tracker, title, "Other");
+  LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Other");
+  LOKA_VERIFY(toolbox_host::itemCmdCalls.empty());
+  app.menuAttachment().disconnect();
+  clearCalls();
+  setTitle(tracker, title, "Released");
+  noCalls();
+}
 int main(int argc, char **argv)
 {
   struct Test { const char *name; void (*run)(); };
 #define PIN(name) {#name, &name}
   const Test tests[] = {
+    PIN(testToolboxMenuTitleFollowsState),
+    PIN(testToolboxSubmenuTitleFollowsState),
+    PIN(testToolboxMenuTitleStateUnbindsOnRelease),
+    PIN(testToolboxMenuTitleStateIdentityDrivesRebuild),
+    PIN(testToolboxAboutTitleFollowsStateAcrossRebuild),
     PIN(testToolboxMenuDoorFiltersRowsAndForwardsScene),
     PIN(testToolboxMenuProjectionDefersBackgroundDraws),
     PIN(testToolboxShortcutChangeReprojectsThroughPartialRebuild),
