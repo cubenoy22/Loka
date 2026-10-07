@@ -89,6 +89,12 @@ namespace loka
           OpenWriteTruncate's responsibility. Refusal must prevent writing. */
       PrepareResult PrepareTextDocumentDestination(const FileHandle &file);
 
+      /** The stdio read behind every rail's ReadBytes(path): OpenRead, then the
+          same byte ownership and capacity contract. A rail whose ReadBytes(path)
+          wraps the read (Toolbox borrows its busy cursor, #1066) calls this. */
+      ReadResult ReadBytesThroughStdio(const loka::core::String &path, std::vector<unsigned char> &out,
+                                       const ReadCapacity *capacity);
+
       /** Opens an already platform-resolved file destination for binary
           write. This preserves native location data such as a Classic FSSpec. */
       std::FILE *OpenWriteTruncate(const FileHandle &file);
