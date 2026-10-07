@@ -299,6 +299,80 @@ class Retro68SizeReportTest(unittest.TestCase):
             self.assertIn("+205824 since bank fixture-bank", result.stdout)
             self.assertEqual(self.run_cli(args + ["--report-only"]).returncode, 1)
 
+    def test_new_required_artifact_uses_declared_sizes_and_pr_bands(self):
+        for growth, acknowledge, status in ((128, False, 0),
+                                          (51200, False, 1),
+                                          (51200, True, 0),
+                                          (102401, True, 1)):
+            with self.subTest(growth=growth, acknowledge=acknowledge), \
+                    tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                args = self.comparison_fixture(root, head_code=100 + growth)
+                (root / "base/example/Fixture68K.bin").unlink()
+                bank = root / "bank.json"
+                bank.write_text(json.dumps(baseline_for(
+                    "example/Fixture68K.bin", 1, 100, 4, 4)))
+                compare_bank = root / "base-bank.json"
+                # The base declares another application, under another name and path.
+                existing = baseline_for("example/Existing68K.bin", 1, 1, 1, 1)
+                existing["artifacts"][0]["name"] = "Existing68K"
+                compare_bank.write_text(json.dumps(existing))
+                args += ["--compare-build-root", str(root / "base"),
+                         "--comparison-ref", "base", "--compare-baseline", str(compare_bank)]
+                if acknowledge:
+                    args += ["--acknowledge-growth"]
+                result = self.run_cli(args)
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertIn("REGRESSION (new)" if status else "ok (new)", result.stdout)
+                self.assertIn("+%d" % growth, result.stdout)
+                if status:
+                    self.assertIn("Fixture68K: +%d bytes" % growth, result.stderr)
+
+    def test_missing_required_comparison_artifact_needs_proof_it_is_new(self):
+        # None: no base manifest. "path": the base declared this path (under
+        # another name). "moved": the base declared this name under another path.
+        for declared in (None, "path", "moved"):
+            with self.subTest(declared=declared), tempfile.TemporaryDirectory() as directory:
+                root = pathlib.Path(directory)
+                args = self.comparison_fixture(root)
+                (root / "base/example/Fixture68K.bin").unlink()
+                args += ["--compare-build-root", str(root / "base"),
+                         "--comparison-ref", "base"]
+                if declared:
+                    compare_bank = root / "base-bank.json"
+                    if declared == "path":
+                        baseline = baseline_for("example/Fixture68K.bin", 1, 1, 1, 1)
+                        baseline["artifacts"][0]["name"] = "RenamedAtBase"
+                    else:
+                        baseline = baseline_for("example/Old/Fixture68K.bin", 1, 1, 1, 1)
+                    compare_bank.write_text(json.dumps(baseline))
+                    args += ["--compare-baseline", str(compare_bank)]
+                result = self.run_cli(args)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertIn("required artifact is missing:", result.stderr)
+                self.assertIn("base/example/Fixture68K.bin", result.stderr)
+
+    def test_compare_baseline_requires_compare_build_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root)
+            result = self.run_cli(args + ["--compare-baseline", str(root / "bank.json")])
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("retro68_size_report: --compare-baseline requires --compare-build-root",
+                          result.stderr)
+
+    def test_compare_baseline_uses_baseline_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            args = self.comparison_fixture(root)
+            compare_bank = root / "base-bank.json"
+            compare_bank.write_text("[]")
+            result = self.run_cli(args + ["--compare-build-root", str(root / "base"),
+                                          "--comparison-ref", "base",
+                                          "--compare-baseline", str(compare_bank)])
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("baseline must be an object", result.stderr)
+
     def test_missing_or_corrupt_base_never_falls_back_to_the_bank(self):
         for corrupt in (False, True):
             with self.subTest(corrupt=corrupt), tempfile.TemporaryDirectory() as directory:
