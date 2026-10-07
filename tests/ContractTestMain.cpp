@@ -12,6 +12,7 @@
 #include "MacFocusTests.hpp"
 #endif
 #include "TextEditorTests.hpp"
+#include "TextDocumentFileTests.hpp"
 #include "RailMetricsTests.hpp"
 #include "BorrowedKeysTests.hpp"
 #include "StrictNodeRouteTests.hpp"

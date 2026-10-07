@@ -7,6 +7,9 @@ typedef unsigned char Str63[64];
 typedef unsigned char Str31[32];
 typedef unsigned char Str255[256];
 typedef int16_t OSErr;
+typedef uint32_t OSType;
+typedef int16_t ScriptCode;
+struct FInfo { OSType fdType; OSType fdCreator; };
 
 // Classic alignment and field widths, independent of LP64 host long.
 #pragma pack(push, 2)
@@ -23,6 +26,8 @@ enum { noErr = 0, memFullErr = -108, fnfErr = -43, eofErr = -39, paramErr = -50,
 
 // Production uses long out-parameters. Model their values, not the host ABI;
 // the stored spec above must retain the Classic ABI.
+OSErr FSpGetFInfo(const FSSpec *, FInfo *);
+OSErr FSpCreate(const FSSpec *, OSType, OSType, ScriptCode);
 OSErr FSpOpenDF(const FSSpec *, signed char, short *);
 OSErr FSRead(short, long *, void *);
 OSErr GetEOF(short, long *);

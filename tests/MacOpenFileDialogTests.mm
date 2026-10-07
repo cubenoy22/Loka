@@ -8,6 +8,7 @@
 #include "MacWindow.hpp"
 #include "MacApp.hpp"
 #include "context/MacOpenFileDialogContext.hpp"
+#include "context/MacSaveFileDialogSetup.hpp"
 #include "app/core/App.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/nestable/Show.hpp"
@@ -85,6 +86,7 @@ namespace
     int emits;
     int unmounts;
     bool destroy;
+    FileDialogOptions options;
     static void count(void *data) { ++*static_cast<int *>(data); }
   };
   Probe *g_probe = 0;
@@ -110,7 +112,9 @@ namespace
       ShowDefinition seat = Show(*this->shown.state());
       if (this->probe_.destroy)
         seat.destroyOnDetach();
-      composition.declare(seat << OpenFileDialog().result(this->result).onResult(&this->emitter));
+      OpenFileDialogProps props;
+      props.options_ = this->probe_.options;
+      composition.declare(seat << OpenFileDialog(props).result(this->result).onResult(&this->emitter));
     }
     virtual void detachNode(NodeComposition &) { ++this->probe_.unmounts; }
     virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
@@ -151,10 +155,11 @@ namespace
 
   struct Fixture
   {
-    explicit Fixture(bool destroy = false) : window(0)
+    explicit Fixture(bool destroy = false, const FileDialogOptions &options = FileDialogOptions()) : window(0)
     {
       [NSApplication sharedApplication];
       this->probe.destroy = destroy;
+      this->probe.options = options;
       this->probe.app = &this->app;
       g_probe = &this->probe;
       WindowProps props;
@@ -328,6 +333,53 @@ void testMacOpenFileDialogRetargetDropsResult()
     LOKA_VERIFY(replacementEmits == 0);
     replacement.unbind(&Probe::count, &replacementEmits);
     LOKA_VERIFY(TransportAccess::census(fixture.window->dialogResults()) == 0);
+  }
+  [pool drain];
+}
+
+void testMacSaveFileDialogSetup()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  {
+    const FileDialogOptions defaults(FILE_DIALOG_SAVE, loka::core::String::Literal("Untitled"));
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(defaults) isEqualToString:@"Untitled"]);
+    LOKA_VERIFY(loka::macos::MacSaveFileDialogAllowedTypes(defaults) == nil);
+    const FileDialogOptions empty(FILE_DIALOG_SAVE);
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(empty) isEqualToString:@""]);
+    const char utf8[] = "notes-\xe6\x97\xa5\xe6\x9c\xac.txt";
+    const FileDialogOptions text(FILE_DIALOG_SAVE, loka::core::String::Utf8(utf8, sizeof(utf8) - 1),
+                                 FILE_DIALOG_FILTER_ALL_FILES_TEXT);
+    LOKA_VERIFY([loka::macos::MacSaveFileDialogDefaultName(text)
+        isEqualToString:[NSString stringWithUTF8String:utf8]]);
+    NSArray *types = loka::macos::MacSaveFileDialogAllowedTypes(text);
+    LOKA_VERIFY([types count] == 1);
+    LOKA_VERIFY([[types objectAtIndex:0] isEqualToString:@"txt"]);
+  }
+  [pool drain];
+}
+
+void testMacSaveFileDialogRetargetBeforePresentation()
+{
+  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  for (int change = 0; change != 3; ++change)
+  {
+    Fixture f(false, FileDialogOptions(FILE_DIALOG_SAVE, loka::core::String::Literal("Untitled")));
+    NSTimer *timer = [MacDialogResultTestAccess::scheduledTimer(f.context()) retain];
+    LOKA_VERIFY(timer != nil && [timer isValid]);
+    f.dialog()->props.options_ = change == 0 ? FileDialogOptions()
+        : FileDialogOptions(FILE_DIALOG_SAVE,
+                            loka::core::String::Literal(change == 1 ? "Changed" : "Untitled"),
+                            change == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
+    // matches() must refuse even before props notification cancels the timer.
+    f.context().presentDeferred();
+    f.silent();
+    f.context().onPropsApplied();
+    LOKA_VERIFY(![timer isValid]);
+    f.context().presentIfNeeded(); // Retarget stays abandoned until reattach.
+    f.flush();
+    f.silent();
+    LOKA_VERIFY(TransportAccess::census(f.window->dialogResults()) == 0);
+    [timer release];
   }
   [pool drain];
 }

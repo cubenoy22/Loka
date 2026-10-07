@@ -13,6 +13,48 @@ namespace loka
   namespace app
   {
 
+    enum FileDialogPurpose { FILE_DIALOG_OPEN, FILE_DIALOG_SAVE };
+
+    /** DEFAULT preserves each rail's OPEN filters. ALL_FILES_TEXT admits all
+        files, with a text filter choice where the native dialog supports it. */
+    enum FileDialogFilterPolicy { FILE_DIALOG_FILTER_DEFAULT, FILE_DIALOG_FILTER_ALL_FILES_TEXT };
+
+    /** Completed, owned options for the shared Open/Save family. Copyable and
+        assignable in C++98; OPEN has no default name. */
+    class FileDialogOptions
+    {
+    public:
+      FileDialogOptions(FileDialogPurpose purpose = FILE_DIALOG_OPEN,
+                        const core::String &defaultName = core::String(),
+                        FileDialogFilterPolicy filter = FILE_DIALOG_FILTER_DEFAULT)
+          : purpose_(purpose),
+            defaultName_(purpose == FILE_DIALOG_SAVE ? defaultName : core::String()),
+            filter_(filter) {}
+
+      FileDialogPurpose purpose() const { return this->purpose_; }
+      const core::String &defaultName() const { return this->defaultName_; }
+      FileDialogFilterPolicy filterPolicy() const { return this->filter_; }
+
+      int compare(const FileDialogOptions &other) const
+      {
+        if (this->purpose_ != other.purpose_)
+          return this->purpose_ < other.purpose_ ? -1 : 1;
+        if (this->filter_ != other.filter_)
+          return this->filter_ < other.filter_ ? -1 : 1;
+        return this->defaultName_.compare(other.defaultName_);
+      }
+
+    private:
+      FileDialogPurpose purpose_;
+      core::String defaultName_;
+      FileDialogFilterPolicy filter_;
+    };
+
+    /** Rail has not implemented this purpose; no native dialog was shown. */
+    enum FileDialogError { FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE = -1 };
+
+    /** RESULT_FILE is a selected address, not a certificate of existence or
+        writability. A SAVE destination may not exist yet. */
     struct FileChooserResult
     {
       enum Kind
@@ -137,10 +179,12 @@ namespace loka
 
     class OpenFileDialogNode;
 
+    /** Internal OpenFileDialog names serve both OPEN and SAVE. */
     struct OpenFileDialogProps : public loka::app::scene::NodePropsBase<OpenFileDialogProps>
     {
       typedef OpenFileDialogTypeTag TypeTag;
       typedef OpenFileDialogNode NodeType;
+      FileDialogOptions options_;
       loka::app::scene::NodeState<FileChooserResult> result_;
       loka::core::EmitterState *onResult_;
       void *windowToAttach_;
@@ -174,6 +218,9 @@ namespace loka
         if (rhs.propsTypeId() != propsTypeId())
           return false;
         const OpenFileDialogProps &other = static_cast<const OpenFileDialogProps &>(rhs);
+        const int optionsOrder = this->options_.compare(other.options_);
+        if (optionsOrder != 0)
+          return optionsOrder < 0;
         if (result_.state() != other.result_.state())
           return result_.state() < other.result_.state();
         if (onResult_ != other.onResult_)
@@ -241,6 +288,13 @@ namespace loka
       {
       }
 
+      OpenFileDialogDefinition &filterPolicy(FileDialogFilterPolicy filter)
+      {
+        this->props.options_ = FileDialogOptions(this->props.options_.purpose(),
+                                                this->props.options_.defaultName(), filter);
+        return *this;
+      }
+
       OpenFileDialogDefinition &attachToWindow(void *window)
       {
         this->props.windowToAttach_ = window;
@@ -263,6 +317,14 @@ namespace loka
     };
 
     typedef OpenFileDialogDefinition OpenFileDialog;
+
+    /** Select a SAVE destination using the existing file-dialog result door. */
+    inline OpenFileDialogDefinition SaveFileDialog(const core::String &defaultName)
+    {
+      OpenFileDialogProps props;
+      props.options_ = FileDialogOptions(FILE_DIALOG_SAVE, defaultName);
+      return OpenFileDialogDefinition(props);
+    }
   } // namespace app
 } // namespace loka
 
