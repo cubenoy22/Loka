@@ -1,6 +1,7 @@
 #ifndef LOKA_SIMPLE_TEXT_MAIN_NODE_HPP
 #define LOKA_SIMPLE_TEXT_MAIN_NODE_HPP
 
+#include <new>
 #include "app/scene/BorrowedKeys.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
@@ -189,8 +190,8 @@ namespace simpletext
       this->state(this->error_, loka::core::String());
       this->state(this->cursor_, loka::app::LineCursor::None());
       this->state(this->caret_, loka::app::LineCursor::None());
-      this->derived(this->opening_, this->operation_, new IsOperation(this->operation_, OPEN));
-      this->derived(this->saving_, this->operation_, new IsOperation(this->operation_, SAVE));
+      this->derived(this->opening_, this->operation_, new (std::nothrow) IsOperation(this->operation_, OPEN));
+      this->derived(this->saving_, this->operation_, new (std::nothrow) IsOperation(this->operation_, SAVE));
     }
 
     virtual void attachNode(loka::app::scene::NodeComposition &)
