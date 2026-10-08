@@ -1,4 +1,5 @@
 #include "MainNode.hpp"
+#include "app/Menu.hpp"
 
 #include "app/nodes/Text.hpp"
 #include "app/core/Window.hpp"
@@ -117,7 +118,7 @@ namespace helloworld
   };
 
   MainNode::MainNode(const MainProps &p)
-      : loka::app::scene::BoundaryNodeFor<MainNode>(p),
+      : loka::app::scene::StdCompositionBoundaryNodeBase<MainProps>(p),
         message_(),
         toggleEvent_(),
         actionEnabled_(),
@@ -132,8 +133,11 @@ namespace helloworld
         fruitMessage_(),
         axis_(),
         scrollOffset_(),
-        fruits_()
+        fruits_(),
+        random_(p.menuSeed())
   {
+    for (int i = 0; i < 6; ++i)
+      this->state(this->randomTitles_[i], String::Literal("Random ") + String::FromInt(i + 1));
     this->state(this->message_, String::Literal("Hello, Loka!"));
     this->state(this->actionEnabled_, true);
     this->state(this->actionProbeCount_, 0);
@@ -159,6 +163,7 @@ namespace helloworld
 
   void MainNode::declareBindings(loka::app::scene::BindingToken &t)
   {
+    t.action(this->shuffleEvent_, this, &MainNode::shuffleTitles);
     t.action(this->toggleEvent_, this, &MainNode::toggleMessage);
     t.action(this->toggleActionEnabledEvent_, this, &MainNode::toggleActionEnabled);
     t.action(this->actionProbeEvent_, this, &MainNode::handleActionProbe);
@@ -251,9 +256,44 @@ namespace helloworld
     this->actionProbeCount_.set(this->actionProbeCount_.get() + 1);
   }
 
+  void MainNode::shuffleTitles()
+  {
+    String titles[6];
+    for (int i = 0; i < 6; ++i)
+      titles[i] = this->randomTitles_[i].get();
+    for (int i = 5; i > 0; --i)
+    {
+      const int j = this->random_.nextIndex(i + 1);
+      const String tmp = titles[i];
+      titles[i] = titles[j];
+      titles[j] = tmp;
+    }
+    StateTrackerGuard guard(this->tracker());
+    for (int i = 0; i < 6; ++i)
+      this->randomTitles_[i].set(titles[i]);
+  }
+
   void MainNode::composeNode(loka::app::scene::NodeComposition &c)
   {
     using namespace loka::app;
+    MenuDefinition randomMenu("Random");
+    randomMenu.opaqueChildren(false);
+    randomMenu << MenuItem("Shuffle").onClick(&this->shuffleEvent_) << MenuSeparator();
+    for (int i = 0; i < 6; ++i)
+      randomMenu << MenuItem(String::Literal("Random ") + String::FromInt(i + 1))
+                        .text(this->randomTitles_[i].state());
+    c.menuBar(MenuBarDefinition()
+              << (AppMenu()
+                  << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
+                  << MenuSeparator()
+                  << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP))
+              << (Menu("View")
+                  << MenuItem("Color Picker").actionType(MENU_ACTION_SHOW_COLOR_PICKER))
+              << (Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP))
+              << (Menu("Special")
+                  << (MenuItem("Item") << MenuItem("Sub Item"))
+                  << MenuItem("Item 2"))
+              << randomMenu);
     ZStack rootDefinition;
     rootDefinition.TEST_ID("HelloWorld.Root");
     ZStack &root = c.declare(rootDefinition);

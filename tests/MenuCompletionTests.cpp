@@ -35,7 +35,6 @@ namespace
     }
     using App::admitAndApplyWindows;
     using App::reclaimWindows;
-    using App::clearMenuDiff;
     void operationLoop()
     {
       RunWindowAdmissionOperation(*this);
@@ -75,38 +74,25 @@ namespace
       LOKA_VERIFY(c.menuBar(bar));
     }
   };
-  template <int Kind> NullWindow *addWindow(RecordingApp &app, NullPlatformContext &platform,
-                                           const MenuBarDefinition *bar = 0)
+  template <int Kind> NullWindow *addWindow(RecordingApp &app, NullPlatformContext &platform)
   {
     WindowProps props;
     props.scene(new Scene(Boundary<MenuRoot<Kind> >()));
-    if (bar) props.menuBar(*bar);
     NullWindow *window = new NullWindow(&platform, props);
     app.own(window);
     return window;
   }
-  class RefreshMenu : public MenuBoundary
+  class BootstrapConfig : public AppConfigurable
   {
   public:
-    // Legacy MenuBoundary owns its tracked input until N3; this pin preserves
-    // the refresh path while removing only its synchronous apply callback.
-    RefreshMenu() : changed_(this->dangerouslyUseState(false)) {}
-    virtual void composeMenu(MenuComposition &c)
-    {
-      c << (Menu("File") << MenuItem(this->changed_.get() ? "After" : "Before"));
-    }
-    void change() { StateTrackerGuard guard(this->tracker()); this->changed_.set(true); }
-  private:
-    MutableState<bool> &changed_;
-  };
-  class RefreshConfig : public AppConfigurable
-  {
-  public:
-    RefreshConfig() : AppConfigurable(0), composes(0) {}
+    explicit BootstrapConfig(PlatformContext *platform) : AppConfigurable(platform) {}
     virtual void compose(AppComposition &) {}
-    virtual void composeMenu(MenuComposition &c) { ++this->composes; c << this->menu; }
-    RefreshMenu menu;
-    int composes;
+    virtual void composeDefaultMenu(MenuComposition &c)
+    {
+      this->compositions.push_back(defaultBar());
+      c << this->compositions.back();
+    }
+    std::vector<MenuBarDefinition> compositions;
   };
 
 }
@@ -156,29 +142,23 @@ void testMenuSourceMergesDefaultAndActiveScene()
   NullPlatformContext platform;
   RecordingApp app;
   const MenuBarDefinition base = defaultBar();
-  MenuBarDefinition custom;
-  custom << (Menu("Window") << MenuItem("Own"));
   app.setDefaultMenuBar(&base);
   NullWindow *a = addWindow<1>(app, platform);
   NullWindow *b = addWindow<2>(app, platform);
   NullWindow *plain = addWindow<0>(app, platform);
-  NullWindow *own = addWindow<1>(app, platform, &custom);
   app.setActiveWindow(a);
   app.operationLoop();
-  LOKA_VERIFY(app.offers.size() == 8);
+  LOKA_VERIFY(app.offers.size() == 6);
   MenuBarDefinition expectedA = defaultBar();
   expectedA << (Menu("View") << MenuItem("Zoom"));
   MenuBarDefinition expectedB;
   expectedB << (Menu("File") << MenuItem("Save")) << (Menu("Help") << MenuItem("Help"));
-  custom << (Menu("View") << MenuItem("Zoom"));
   LOKA_VERIFY(app.offers[0].window == a && app.offers[0].source == a->scene());
   LOKA_VERIFY(app.offers[0].bar.equalsProjection(expectedA));
   LOKA_VERIFY(app.offers[1].window == b && app.offers[1].source == b->scene());
   LOKA_VERIFY(app.offers[1].bar.equalsProjection(expectedB));
   LOKA_VERIFY(app.offers[2].window == plain && app.offers[2].source == 0);
   LOKA_VERIFY(app.offers[2].bar.equalsProjection(base));
-  LOKA_VERIFY(app.offers[3].window == own && app.offers[3].source == own->scene());
-  LOKA_VERIFY(app.offers[3].bar.equalsProjection(custom));
 }
 void testMergeMenuBarsReplacesInPlaceAndAppendsInOrder()
 {
@@ -246,55 +226,6 @@ void testInactiveWindowCloseKeepsActiveBar()
   turn.close();
   app.reclaimWindows();
 }
-void testDefaultRefreshIsVisibleToTheSameCompletion()
-{
-  NullPlatformContext platform;
-  RefreshConfig config;
-  RecordingApp app(&config);
-  NullWindow *window = addWindow<0>(app, platform);
-  app.setActiveWindow(window);
-  app.requestMenuInvalidation();
-  LOKA_VERIFY(app.flushMenuInvalidation());
-  app.operationLoop();
-  LOKA_VERIFY(app.offers.size() == 2);
-  // MenuBoundary makes menus opaque; compare snapshots from its own declaration.
-  const MenuBarDefinition initial = app.offers[0].bar;
-  app.offers.clear();
-  {
-    Operation turn;
-    config.menu.change();
-    LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
-    // operationLoop joins this turn and performs the modeled rail completion.
-    app.operationLoop();
-    LOKA_VERIFY(app.offers.size() == 2);
-    LOKA_VERIFY(!app.offers[0].bar.equalsProjection(initial));
-    LOKA_VERIFY(app.offers[0].bar.menuAt(0)->itemsHead()->title.equals(String::Literal("After")));
-    turn.close();
-  }
-}
-void testCleanCompletionsDoNotRecomposeDefault()
-{
-  NullPlatformContext platform;
-  RefreshConfig config;
-  RecordingApp app(&config);
-  NullWindow *window = addWindow<0>(app, platform);
-  app.setActiveWindow(window);
-  app.requestMenuInvalidation();
-  LOKA_VERIFY(app.flushMenuInvalidation());
-  app.operationLoop();
-  const int composed = config.composes;
-  LOKA_VERIFY(composed >= 1);
-  app.offers.clear();
-  // Rails clear the controller diff after projecting; a clean completion must
-  // still read the cached default instead of recomposing it (codex review).
-  for (int i = 0; i < 5; ++i)
-  {
-    app.clearMenuDiff();
-    app.operationLoop();
-  }
-  LOKA_VERIFY(config.composes == composed);
-  LOKA_VERIFY(app.offers.size() == 10 && app.offers[9].hasBar);
-}
 void testTwoAdmissionsReofferSameSource()
 {
   NullPlatformContext platform;
@@ -325,4 +256,66 @@ void testBootstrapProjectsOnce()
   // No-group completion, distinct from last-close's empty group.
   app.operationLoop();
   LOKA_VERIFY(app.offers.size() == 2 && app.offers[0].bar.equalsProjection(base));
+}
+
+void testDefaultBarComposedOnceAtBootstrap()
+{
+  NullPlatformContext platform;
+  BootstrapConfig config(&platform);
+  RecordingApp app(&config);
+  app.run();
+  for (int i = 0; i < 5; ++i)
+    app.operationLoop();
+  LOKA_VERIFY(config.compositions.size() == 1);
+  LOKA_VERIFY(app.defaultMenuBar() != 0);
+  LOKA_VERIFY(app.offers.size() == 11);
+  for (size_t i = 0; i < app.offers.size(); ++i)
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(defaultBar()));
+}
+
+void testDefaultBarBootstrapCloneRefusalLeavesNoDefault()
+{
+  NullPlatformContext platform;
+  BootstrapConfig config(&platform);
+  RecordingApp app(&config);
+  loka::app::testing::failNextMenuBarDefinitionClone();
+  app.run();
+  loka::app::testing::allowMenuBarDefinitionClones();
+  LOKA_VERIFY(app.defaultMenuBar() == 0);
+  NullWindow *window = addWindow<1>(app, platform);
+  app.setActiveWindow(window);
+  app.offers.clear();
+  for (int i = 0; i < 5; ++i)
+    app.operationLoop();
+  LOKA_VERIFY(config.compositions.size() == 1);
+  LOKA_VERIFY(app.defaultMenuBar() == 0);
+  MenuBarDefinition expected;
+  expected << (Menu("View") << MenuItem("Zoom"));
+  LOKA_VERIFY(app.offers.size() == 10);
+  for (size_t i = 0; i < app.offers.size(); ++i)
+  {
+    LOKA_VERIFY(app.offers[i].window == window && app.offers[i].source == window->scene());
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(expected));
+  }
+}
+
+void testDefaultBarReplacementCloneRefusalPreservesInstalledValue()
+{
+  RecordingApp app;
+  const MenuBarDefinition initial = defaultBar();
+  MenuBarDefinition replacement;
+  replacement << (Menu("Other") << MenuItem("Replace"));
+  app.setDefaultMenuBar(&initial);
+  const MenuBarDefinition *installed = app.defaultMenuBar();
+  LOKA_VERIFY(installed != 0);
+  loka::app::testing::failNextMenuBarDefinitionClone();
+  app.setDefaultMenuBar(&replacement);
+  loka::app::testing::allowMenuBarDefinitionClones();
+  LOKA_VERIFY(app.defaultMenuBar() == installed);
+  app.operationLoop();
+  LOKA_VERIFY(app.offers.size() == 2);
+  for (size_t i = 0; i < app.offers.size(); ++i)
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(initial));
+  app.setDefaultMenuBar(0);
+  LOKA_VERIFY(app.defaultMenuBar() == 0);
 }

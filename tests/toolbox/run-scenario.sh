@@ -145,6 +145,11 @@ case "$EXAMPLE" in
     FINDER_TAB_COUNT=4
     FINDER_SETTLE_TIMEOUT=120
     ;;
+  simpletext)
+    APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSimpleTextTest68K.bin"
+    TARGET="LokaSimpleTextTest68K_APPL"
+    FINDER_TAB_COUNT=2
+    ;;
   simpleviewer)
     APPL="$PROJECT_DIR/build/retro68/68k/Release/tests/toolbox/LokaSimpleViewerTestsToolbox68K.bin"
     TARGET="LokaSimpleViewerTestsToolbox68K_APPL"
@@ -327,6 +332,13 @@ if ! cp -f "$SCRIPT_DIR/mame-launch.lua" "$LAUNCHER"; then
 fi
 
 DEV_DISK_ARGUMENTS=("$APPL")
+if [ "$EXAMPLE" = simpletext ] && [ "$SCENARIO" != startup ]; then
+  README="$PROJECT_DIR/tests/scenarios/fixtures/simpletext/ReadMe"
+  [ -f "$README" ] || fail_stage mame "SimpleText fixture not found: $README"
+  cp "$README" "$WORK/ReadMe" || fail_stage mame "could not stage SimpleText ReadMe"
+  DEV_DISK_ARGUMENTS+=("$WORK/ReadMe")
+  FINDER_TAB_COUNT=3
+fi
 if [ "$EXAMPLE" = "scrapbook" ]; then
   ASSETS="$PROJECT_DIR/example/ScrapbookUI/ASSETS.LRP"
   if [ ! -f "$ASSETS" ]; then

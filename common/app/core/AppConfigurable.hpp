@@ -1,8 +1,6 @@
 #ifndef LOKA_APPCONFIGURABLE_HPP
 #define LOKA_APPCONFIGURABLE_HPP
 
-#include "core/scheduler/NextTickTracker.hpp"
-
 class AppComposition;
 class PlatformContext;
 
@@ -57,20 +55,15 @@ class AppConfigurable
 {
 protected:
   PlatformContext *ctx_;
-  loka::core::NextTickTracker menuRefresh_;
 
 public:
   AppConfigurable(PlatformContext *ctx)
-      : ctx_(ctx),
-        menuRefresh_()
+      : ctx_(ctx)
   {
-  }
-  loka::core::NextTickTracker &menuRefresh()
-  {
-    return menuRefresh_;
   }
   virtual void compose(AppComposition &c) = 0;
-  virtual void composeMenu(loka::app::MenuComposition &c)
+  /** Composed once at bootstrap. Borrowed State must live as long as the App. */
+  virtual void composeDefaultMenu(loka::app::MenuComposition &c)
   {
     (void)c;
   }

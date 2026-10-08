@@ -312,19 +312,14 @@ void testLegacyExamplesHaveNoCompositedOrOpaquePaintHints()
   NullPlatformContext context;
   floppybird::SharedModel bird;
   smirkbench::SmirkModel smirk(640, 400, true);
-  loka::core::EmitterState open, fit, actual, scroll;
-  loka::core::MutableState<simpleviewer::DisplayMode> mode(simpleviewer::DISPLAY_FIT);
-  checkExample("HelloWorld", Boundary<helloworld::MainNode>());
+  loka::core::EmitterState open;
+  checkExample("HelloWorld", Boundary<helloworld::MainNode>(helloworld::MainProps()));
   checkExample("ScrapbookUI", Boundary<scrapbook::MainNode>(scrapbook::MainProps().platformContext(&context)));
   checkExample("MineSweeper", Boundary<minesweeper::MainNode>(minesweeper::MainProps(123)));
   checkExample("SimpleViewer",
                Boundary<simpleviewer::MainNode>(simpleviewer::MainProps()
                                                     .platformContext(&context)
-                                                    .openDialogEvent(&open)
-                                                    .displayMode(&mode)
-                                                    .fitEvent(&fit)
-                                                    .actualEvent(&actual)
-                                                    .actualScrollEvent(&scroll)));
+                                                    .openDialogEvent(&open)));
   checkExample("FloppyBird", Boundary<floppybird::MainNode>(floppybird::MainProps(&bird)));
   checkExample("SmirkBench", Boundary<smirkbench::MainNode>(smirkbench::MainProps(&smirk)));
 }

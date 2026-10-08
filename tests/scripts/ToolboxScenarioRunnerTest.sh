@@ -429,6 +429,35 @@ grep -Fq 'could not extract template picture :Desktop Folder:Images:Sun.pict' \
   || fail "missing picture did not unmount the template"
 [ ! -f "$SANDBOX/tab-count" ] || fail "missing picture launched MAME"
 [ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "missing picture staged stale bytes"
+# SimpleText uses original raw ASCII, with no fixture on startup.
+printf '%s\n' 'simpletext startup' 'simpletext open-readme' 'simpletext save-roundtrip' >>"$SANDBOX/repo/tests/scenarios/scenarios.txt"
+touch "$SANDBOX/repo/build/retro68/68k/Release/tests/toolbox/LokaSimpleTextTest68K.bin"
+mkdir -p "$SANDBOX/repo/tests/scenarios/fixtures/simpletext" "$SANDBOX/repo/tests/scenarios/expected/simpletext"
+cp "$REPO_DIR/tests/scenarios/fixtures/simpletext/ReadMe" "$SANDBOX/repo/tests/scenarios/fixtures/simpletext/ReadMe"
+cp "$REPO_DIR/tests/scenarios/expected/simpletext/"*.audit "$SANDBOX/repo/tests/scenarios/expected/simpletext/"
+run_case simpletext startup 2 unset
+[ "$(wc -l <"$SANDBOX/dev-disk-arguments" | tr -d ' ')" = 2 ] || fail "SimpleText startup staged extra items"
+for cell in open-readme save-roundtrip; do
+  run_case simpletext "$cell" 3 unset
+  staged="$SANDBOX/repo/build/mame-scenario/simpletext/$cell/ReadMe"
+  grep -Fxq -- "$staged" "$SANDBOX/dev-disk-arguments" || fail "SimpleText did not stage ReadMe"
+  cmp "$REPO_DIR/tests/scenarios/fixtures/simpletext/ReadMe" "$staged" || fail "ReadMe bytes changed"
+  [ "$(wc -l <"$SANDBOX/dev-disk-arguments" | tr -d ' ')" = 3 ] || fail "SimpleText staged wrong item count"
+done
+rm "$SANDBOX/repo/tests/scenarios/fixtures/simpletext/ReadMe"
+for cell in open-readme save-roundtrip; do
+  rm -f "$SANDBOX/tab-count" "$SANDBOX/dev-disk-arguments"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" env -u WSL_INTEROP \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" simpletext "$cell" \
+      >"$SANDBOX/readme-failure.log" 2>&1; then
+    fail "missing ReadMe was accepted"
+  fi
+  grep -Fq 'SimpleText fixture not found:' "$SANDBOX/readme-failure.log" || fail "missing ReadMe refusal"
+  [ ! -f "$SANDBOX/tab-count" ] || fail "missing ReadMe launched MAME"
+  [ ! -f "$SANDBOX/dev-disk-arguments" ] || fail "missing ReadMe created a disk"
+done
+# Startup does not depend on the fixture.
+run_case simpletext startup 2 unset
 cp "$SANDBOX/shared-scenarios.txt" "$SANDBOX/repo/tests/scenarios/scenarios.txt"
 run_case helloworld toggle-action-probe 9 unset 9
 

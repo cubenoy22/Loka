@@ -105,6 +105,7 @@ for app in \
   HelloWorld/LokaHello68K.bin \
   MineSweeper/LokaMine68K.bin \
   SimpleViewer/LokaSimpleViewer68K.bin \
+  SimpleText/LokaSimpleText68K.bin \
   FloppyBird/LokaFloppyBird68K.bin \
   SmirkBench/LokaSmirkBench68K.bin \
   LazyList/LokaLazyList68K.bin \
@@ -127,6 +128,9 @@ RETRO68_TOOLCHAIN_BIN="$SANDBOX/bin" \
   /bin/bash "$ALL_PROJECT/scripts/mame-boot-disk.sh" --all >/dev/null
 }
 run_all
+[ "$(grep -c '^hcopy <-m>' "$SANDBOX/all-apps.log")" -eq 10 ] || fail "all-apps must copy ten apps"
+grep -Fx "hcopy <-m> <$ALL_PROJECT/build/retro68/68k/Release/example/SimpleText/LokaSimpleText68K.bin> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
+  fail "all-apps did not copy SimpleText"
 grep -Fx "hcopy <-m> <$ALL_PROJECT/build/retro68/68k/Release/example/SmirkyCard/LokaSmirkyCard68K.bin> <:Loka:>" "$SANDBOX/all-apps.log" >/dev/null ||
   fail "all-apps did not copy SmirkyCard"
 for script in MAIN.JS MINES.JS VIEWER.JS; do

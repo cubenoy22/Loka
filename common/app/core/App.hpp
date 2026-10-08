@@ -4,9 +4,9 @@
 #include "app/core/AppComponentGroup.hpp"
 #include "app/core/AppComponent.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/core/MenuController.hpp"
-#include "app/core/DialogResultDelivery.hpp"
 #include "app/Menu.hpp"
+#include "core/util/OwnedDef.hpp"
+#include "app/core/DialogResultDelivery.hpp"
 #include <cassert>
 
 class Window;
@@ -51,13 +51,11 @@ public:
   bool consumeIdle(double elapsedSeconds, double &dispatchElapsedSeconds);
   void handleIdle(double elapsedSeconds);
   bool handleKeyPress(char key);
-  void requestMenuInvalidation();
-  bool flushMenuInvalidation();
-  void invalidateMenu();
+  /** Clone and replace the default; clone refusal preserves the installed value. */
   void setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar);
   const loka::app::MenuBarDefinition *defaultMenuBar() const
   {
-    return menuController_.defaultMenuBar();
+    return this->defaultMenuBar_.get();
   }
   void setActiveWindow(Window *window);
   Window *activeWindow() const
@@ -78,24 +76,16 @@ protected:
   AppComponentGroup *group_;
   bool quitWhenLastWindowClosed_;
   AppConfigurable *config_;
-  MenuController menuController_;
+  loka::core::OwnedDef<loka::app::MenuBarDefinition> defaultMenuBar_;
   Window *activeWindow_;
   double idleAccumulatedSeconds_;
 
-  const loka::app::MenuBarDefinition *resolveMenuBar(Window *window);
   /** Synchronous borrowed offer from completion or bootstrap. A null window
       means no active window: project the default. Global rails accept only
       window == activeWindow() (including both null); per-window rails accept
       every non-null row and ignore null. Attachments revoke source on detach. */
   virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
                            const loka::app::scene::Scene *source);
-  bool refreshDefaultMenuBar();
-
-  const loka::app::MenuCompositionDiff &menuDiff() const
-  {
-    return menuController_.diff();
-  }
-  void clearMenuDiff();
 
   void projectInitialVisibilityChunks();
   /** Admits seats before Scene runs. The first admission of a tail captures
