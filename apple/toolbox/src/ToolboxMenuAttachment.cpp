@@ -355,7 +355,7 @@ bool ToolboxMenuAttachment::HasHierarchicalItems(const loka::app::MenuItemDefini
 }
 
 bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
-                                    const loka::app::scene::Scene *source, bool forceFullRebuild)
+                                    const loka::app::scene::Scene *source)
 {
   if (!menuBar)
   {
@@ -374,12 +374,11 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
       loka::app::MenuCompositionDiff::DiffProjection(this->applied_.get(), *menuBar);
   if (!diff.fullRebuild && !diff.hasChanged() && this->source_ == source)
     return false;
-  forceFullRebuild = forceFullRebuild || this->source_ != source;
   // The snapshot is a cache, not native truth. Capture refusal must not lose
   // an acknowledged legacy refresh: still project, then clear the baseline so
   // the next offer rebuilds fully. The source continues to own the live borrows.
   loka::core::OwnedDef<loka::app::MenuBarDefinition> candidate(menuBar->clone());
-  bool canPartial = diff.valid && !diff.fullRebuild && !forceFullRebuild;
+  bool canPartial = diff.valid && !diff.fullRebuild && this->source_ == source;
   bool hasHierarchical = false;
   loka::dsl::CompositionCursor<loka::app::MenuDefinition> hierarchyIt(menuBar->menusHead(), menuCount);
   for (loka::app::MenuDefinition *menuDef = hierarchyIt.next(); menuDef; menuDef = hierarchyIt.next())
@@ -392,7 +391,6 @@ bool ToolboxMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
   }
   if (hasHierarchical || !hierarchicalMenus_.empty())
   {
-    forceFullRebuild = true;
     canPartial = false;
   }
   if (canPartial && menuEntries_.size() != menuCount)
@@ -661,8 +659,7 @@ void ToolboxApp::projectMenu(Window *activeWindow, const loka::app::MenuBarDefin
 {
   if (activeWindow != this->activeWindow())
     return;
-  const bool force = activeWindow && activeWindow->menuBar();
-  if (this->menuAttachment_.project(bar, source, force) && activeWindow && activeWindow->asToolboxWindow())
+  if (this->menuAttachment_.project(bar, source) && activeWindow && activeWindow->asToolboxWindow())
     activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
   this->clearMenuDiff();
 }
