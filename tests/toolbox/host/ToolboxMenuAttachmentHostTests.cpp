@@ -134,7 +134,7 @@ void testToolboxMenuAttachmentProjectsOnceForEqualBar()
   LOKA_VERIFY(!app.menuAttachment().project(&equal, 0));
   noCalls();
 }
-void testToolboxMenuAttachmentSeesOpaqueMenuItemChange()
+void testToolboxMenuAttachmentSeesItemChange()
 {
   ToolboxApp app;
   const MenuBarDefinition first = checkedBar(false), second = checkedBar(true);
@@ -228,8 +228,8 @@ void testMenuProjectionDiffValueCopiesOwnRows()
     LOKA_VERIFY(copy.changedCount() == 1 && copy.changedHead() != original.changedHead());
   }
   LOKA_VERIFY(copied.valid && !copied.fullRebuild && copied.changedHead()->value == 0);
-  LOKA_VERIFY(!first.equalsProjection(changed));
-  LOKA_VERIFY(first.equalsProjection(first));
+  LOKA_VERIFY(!first.equalsStructure(changed));
+  LOKA_VERIFY(first.equalsStructure(first));
 }
 void testToolboxMenuAttachmentCloneRefusalClearsAppliedBaseline()
 {
@@ -680,7 +680,7 @@ int main(int argc, char **argv)
     PIN(testToolboxQuitDefaultsToCommandQ),
     PIN(testToolboxMenuShortcutProjectsItemCmd),
     PIN(testToolboxMenuAttachmentProjectsOnceForEqualBar),
-    PIN(testToolboxMenuAttachmentSeesOpaqueMenuItemChange),
+    PIN(testToolboxMenuAttachmentSeesItemChange),
     PIN(testToolboxMenuAttachmentPartialRebuildFromBaseline),
     PIN(testToolboxMenuAttachmentReleaseFromSourceDisconnects),
     PIN(testToolboxSceneDetachReleasesMenu),

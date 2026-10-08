@@ -111,7 +111,7 @@ void testMenuProjectedAtCompletionNotOnActivation()
   turn.settle();
   app.admitAndApplyWindows();
   LOKA_VERIFY(app.offers.size() == 1);
-  LOKA_VERIFY(app.offers[0].window == window && app.offers[0].bar.equalsProjection(bar));
+  LOKA_VERIFY(app.offers[0].window == window && app.offers[0].bar.equalsStructure(bar));
   turn.close();
   app.reclaimWindows();
 }
@@ -132,7 +132,7 @@ void testLastWindowCloseProjectsDefaultInSameTurn()
   app.admitAndApplyWindows();
   LOKA_VERIFY(app.offers.size() == 1);
   LOKA_VERIFY(app.offers[0].window == 0 && app.offers[0].source == 0);
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(bar));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(bar));
   turn.close();
   app.reclaimWindows();
 }
@@ -154,11 +154,11 @@ void testMenuSourceMergesDefaultAndActiveScene()
   MenuBarDefinition expectedB;
   expectedB << (Menu("File") << MenuItem("Save")) << (Menu("Help") << MenuItem("Help"));
   LOKA_VERIFY(app.offers[0].window == a && app.offers[0].source == a->scene());
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(expectedA));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(expectedA));
   LOKA_VERIFY(app.offers[1].window == b && app.offers[1].source == b->scene());
-  LOKA_VERIFY(app.offers[1].bar.equalsProjection(expectedB));
+  LOKA_VERIFY(app.offers[1].bar.equalsStructure(expectedB));
   LOKA_VERIFY(app.offers[2].window == plain && app.offers[2].source == 0);
-  LOKA_VERIFY(app.offers[2].bar.equalsProjection(base));
+  LOKA_VERIFY(app.offers[2].bar.equalsStructure(base));
 }
 void testMergeMenuBarsReplacesInPlaceAndAppendsInOrder()
 {
@@ -169,12 +169,12 @@ void testMergeMenuBarsReplacesInPlaceAndAppendsInOrder()
   expected << (Menu("File") << MenuItem("Save")) << (Menu("Help") << MenuItem("Help"))
            << (Menu("View") << MenuItem("Zoom")) << (Menu("Tools") << MenuItem("Run"));
   OwnedDef<MenuBarDefinition> merged(MergeMenuBars(&base, &overlay));
-  LOKA_VERIFY(merged.isSet() && merged->equalsProjection(expected));
-  LOKA_VERIFY(base.equalsProjection(defaultBar()));
+  LOKA_VERIFY(merged.isSet() && merged->equalsStructure(expected));
+  LOKA_VERIFY(base.equalsStructure(defaultBar()));
   OwnedDef<MenuBarDefinition> baseOnly(MergeMenuBars(&base, 0));
   OwnedDef<MenuBarDefinition> overlayOnly(MergeMenuBars(0, &overlay));
-  LOKA_VERIFY(baseOnly.isSet() && baseOnly->equalsProjection(base));
-  LOKA_VERIFY(overlayOnly.isSet() && overlayOnly->equalsProjection(overlay));
+  LOKA_VERIFY(baseOnly.isSet() && baseOnly->equalsStructure(base));
+  LOKA_VERIFY(overlayOnly.isSet() && overlayOnly->equalsStructure(overlay));
   OwnedDef<MenuBarDefinition> absent(MergeMenuBars(0, 0));
   LOKA_VERIFY(!absent.isSet());
   loka::app::testing::failMenuBarDefinitionClones(2);
@@ -201,7 +201,7 @@ void testMenuMergeCloneRefusalSkipsRowKeepsNextCompletion()
   expected << (Menu("View") << MenuItem("Zoom"));
   LOKA_VERIFY(app.offers.size() == 2);
   LOKA_VERIFY(app.offers[0].source == window->scene());
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(expected));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(expected));
 }
 void testInactiveWindowCloseKeepsActiveBar()
 {
@@ -222,7 +222,7 @@ void testInactiveWindowCloseKeepsActiveBar()
   app.admitAndApplyWindows();
   LOKA_VERIFY(app.offers.size() == 1);
   LOKA_VERIFY(app.offers[0].window == active && app.offers[0].source == before.source);
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(before.bar));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(before.bar));
   turn.close();
   app.reclaimWindows();
 }
@@ -235,7 +235,7 @@ void testTwoAdmissionsReofferSameSource()
   app.operationLoop();
   LOKA_VERIFY(app.offers.size() == 2);
   LOKA_VERIFY(app.offers[0].source == window->scene() && app.offers[1].source == window->scene());
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(app.offers[1].bar));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(app.offers[1].bar));
 }
 void testBootstrapProjectsOnce()
 {
@@ -251,11 +251,11 @@ void testBootstrapProjectsOnce()
   app.run();
   LOKA_VERIFY(app.offers.size() == 1);
   LOKA_VERIFY(app.offers[0].window == 0 && app.offers[0].source == 0);
-  LOKA_VERIFY(app.offers[0].bar.equalsProjection(base));
+  LOKA_VERIFY(app.offers[0].bar.equalsStructure(base));
   app.offers.clear();
   // No-group completion, distinct from last-close's empty group.
   app.operationLoop();
-  LOKA_VERIFY(app.offers.size() == 2 && app.offers[0].bar.equalsProjection(base));
+  LOKA_VERIFY(app.offers.size() == 2 && app.offers[0].bar.equalsStructure(base));
 }
 
 void testDefaultBarComposedOnceAtBootstrap()
@@ -270,7 +270,7 @@ void testDefaultBarComposedOnceAtBootstrap()
   LOKA_VERIFY(app.defaultMenuBar() != 0);
   LOKA_VERIFY(app.offers.size() == 11);
   for (size_t i = 0; i < app.offers.size(); ++i)
-    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(defaultBar()));
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsStructure(defaultBar()));
 }
 
 void testDefaultBarBootstrapCloneRefusalLeavesNoDefault()
@@ -295,7 +295,7 @@ void testDefaultBarBootstrapCloneRefusalLeavesNoDefault()
   for (size_t i = 0; i < app.offers.size(); ++i)
   {
     LOKA_VERIFY(app.offers[i].window == window && app.offers[i].source == window->scene());
-    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(expected));
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsStructure(expected));
   }
 }
 
@@ -315,7 +315,7 @@ void testDefaultBarReplacementCloneRefusalPreservesInstalledValue()
   app.operationLoop();
   LOKA_VERIFY(app.offers.size() == 2);
   for (size_t i = 0; i < app.offers.size(); ++i)
-    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsProjection(initial));
+    LOKA_VERIFY(app.offers[i].hasBar && app.offers[i].bar.equalsStructure(initial));
   app.setDefaultMenuBar(0);
   LOKA_VERIFY(app.defaultMenuBar() == 0);
 }
