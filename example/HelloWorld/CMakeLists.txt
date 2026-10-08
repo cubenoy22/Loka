@@ -73,6 +73,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32MenuAttachment.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32Window.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32RetirableContext.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32PlatformContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/Win32BitmapCapture.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32ButtonContext.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../win32/src/context/Win32CellContext.cpp
@@ -125,7 +126,7 @@ if(WIN32)
   )
 
   target_compile_definitions(LokaTestsWin32 PRIVATE TEST_BUILD)
-  target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32WideApiContract)
+  target_link_libraries(LokaTestsWin32 PRIVATE LokaWin32WideApiContract ole32 windowscodecs)
 
   if(MSVC)
     target_compile_options(LokaTestsWin32 PRIVATE /utf-8)

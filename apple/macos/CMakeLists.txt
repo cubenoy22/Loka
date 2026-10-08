@@ -123,6 +123,7 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacTextEditorTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacScrollViewTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacFocusTests.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacPlatformContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacApp.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowAdmissionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowFrameClampTests.mm
