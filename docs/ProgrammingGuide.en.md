@@ -652,10 +652,10 @@ refused or no clock is active. Its optional callback is not invoked when joined;
 observe the State or use `StandaloneTransactionGuard` for post-commit work.
 
 `StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
-commit-before-read preparation: menu composition, Scene installation/rearm, and
-bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
-construction, so earlier handler writes cannot enroll them in the turn clock.
-Their seat writes and ordinary tracker guards keep synchronous transactions.
+commit-before-read preparation: Scene installation/rearm and
+bootstrap. SceneManager declares a standalone ledger at
+construction, so earlier handler writes cannot enroll it in the turn clock.
+Its seat writes and ordinary tracker guards keep synchronous transactions.
 Window retains a joining ledger; bootstrap uses the standalone bracket before
 any turn. Flow's run bracket and its `onSuccess` state assignment join the active
 clock too. Step writes keep source values and direct observers synchronous, but

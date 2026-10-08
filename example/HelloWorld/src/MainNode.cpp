@@ -277,7 +277,6 @@ namespace helloworld
   {
     using namespace loka::app;
     MenuDefinition randomMenu("Random");
-    randomMenu.opaqueChildren(false);
     randomMenu << MenuItem("Shuffle").onClick(&this->shuffleEvent_) << MenuSeparator();
     for (int i = 0; i < 6; ++i)
       randomMenu << MenuItem(String::Literal("Random ") + String::FromInt(i + 1))
