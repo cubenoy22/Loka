@@ -5,7 +5,7 @@ crop_left	0
 crop_right	480
 crop_top	0
 document.caret_request	none
-document.caret_row	none
+document.caret_row	0
 document.current	none
 document.error	none
 document.row.0	

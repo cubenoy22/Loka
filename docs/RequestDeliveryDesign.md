@@ -499,7 +499,9 @@ row. Single-seat behavior and command-free golden records remain unchanged
 ## Where each rail consumes
 
 Null: attach, props sync, input completion. Toolbox: `onPropsApplied`,
-`finishInput`, native creation in `render`, `retryProjection`. Win32:
+`finishInput`, native creation in `render`, `retryProjection`; layout settles
+only when the TextEdit record exists, and before it render's attach settle
+delivers (#1141). Win32:
 `syncFromNode`, outside-input `handleCommand`, the outer `WindowProc` after a
 rejected input is restored, the RETRY timer handler. macOS: ordinary sync
 completion, selection completion, `VIEW_CHANGE` completion, the deferred
