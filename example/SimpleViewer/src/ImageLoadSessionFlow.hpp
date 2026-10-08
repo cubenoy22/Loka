@@ -184,7 +184,7 @@ namespace simpleviewer
     }
     if (error.code == SIMPLE_VIEWER_FLOW_ERROR_CODE_IMAGE_LOAD_REQUIRES_RELEASE)
     {
-      return loka::core::String::Literal("Not enough memory to load image.");
+      return loka::core::String::Literal("Not enough contiguous memory to load image.");
     }
     return loka::core::String::Literal("Unexpected flow error code: ") + loka::core::String::FromInt(error.code);
   }

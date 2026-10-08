@@ -40,7 +40,7 @@ public:
   {
     LOKA_VERIFY(!node.imageLoad_.flow_.isValid());
     LOKA_VERIFY(!node.image_.get().isValid());
-    LOKA_VERIFY(node.chooserMessage_.get().equals(loka::core::String::Literal("Not enough memory to load image.")));
+    LOKA_VERIFY(node.chooserMessage_.get().equals(loka::core::String::Literal("Not enough contiguous memory to load image.")));
   }
 };
 
