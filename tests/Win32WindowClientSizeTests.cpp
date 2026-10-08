@@ -31,7 +31,6 @@ namespace
         this->group_ = new AppComponentGroup(std::vector<AppComponent *>());
       this->group_->adopt(&window);
       loka::core::Operation turn;
-      this->flushMenuInvalidation();
       turn.settle();
       this->admitAndApplyWindows();
       turn.close();

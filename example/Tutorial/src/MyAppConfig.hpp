@@ -32,7 +32,7 @@ public:
         loka::app::scene::Boundary<TutorialNode>()));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &c)
+  virtual void composeDefaultMenu(loka::app::MenuComposition &c)
   {
     tutorial::DeclareTutorialMenu(c);
   }

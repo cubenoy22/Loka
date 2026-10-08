@@ -154,7 +154,6 @@ void Win32App::run()
 
 void Win32App::flushIterationTail(loka::core::Operation &turn)
 {
-  this->flushMenuInvalidation();
   turn.settle();
   this->admitAndApplyWindows();
   this->reconcileFocus();
@@ -165,11 +164,9 @@ void Win32App::flushIterationTail(loka::core::Operation &turn)
 
 bool Win32App::handleMenuCommand(int commandId, Window *window)
 {
-  // Lookup and emission belong to the Window attachment. Only the legacy
-  // synchronous REBUILD_MENU continuation remains here until N2a.
+  // Lookup and emission belong to the Window attachment; acknowledge dispatch.
   (void)commandId;
   (void)window;
-  this->invalidateMenu();
   return true;
 }
 
@@ -179,7 +176,5 @@ void Win32App::projectMenu(Window *activeWindow, const loka::app::MenuBarDefinit
   Win32Window *win = activeWindow ? activeWindow->asWin32Window() : 0;
   if (!win || !win->hwnd())
     return;
-  // A refused native swap keeps the pending diff so the next apply retries.
-  if (win->menuAttachment().project(bar, source) != Win32MenuAttachment::PROJECT_REFUSED)
-    this->clearMenuDiff();
+  win->menuAttachment().project(bar, source);
 }

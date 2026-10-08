@@ -15,6 +15,17 @@
 #include "testing/app/WindowTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
+namespace helloworld { namespace testing {
+class MainAccess
+{
+public:
+  static loka::core::State<loka::core::String> *randomTitle(MainNode &node, int index)
+  {
+    return node.randomTitles_[index].state();
+  }
+};
+} }
+
 namespace
 {
   void driveNativeFrameAndLayout(NullWindow &window,
@@ -176,7 +187,7 @@ void testHelloWorldResponsivePanelsFollowNativeFrameAndRetainSeats()
   NullPlatformContext context;
   NullScenePlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition =
-      loka::app::scene::Boundary<helloworld::MainNode>().clone();
+      loka::app::scene::Boundary<helloworld::MainNode>(helloworld::MainProps()).clone();
   LOKA_VERIFY(rootDefinition != 0);
   WindowProps props;
   props.frame(50, 50, 420, 330);
@@ -303,7 +314,7 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   using loka::dsl::testing::SceneTestAccess;
 
   NullScenePlatformController platform;
-  loka::app::scene::Scene scene((loka::app::scene::Boundary<helloworld::MainNode>()));
+  loka::app::scene::Scene scene((loka::app::scene::Boundary<helloworld::MainNode>(helloworld::MainProps())));
   scene.mount(&platform);
   SceneTestAccess::updateAttached(scene, true);
   loka::app::scene::Node *root = SceneTestAccess::rootNode(scene);
@@ -392,4 +403,54 @@ void testHelloWorldDerivedTextSeatsCoverInputsAndActions()
   // of by emitting through it.
   LOKA_VERIFY(probe->props.enabled_ && !probe->props.enabled_->get());
   SceneTestAccess::unmount(scene);
+}
+
+void testHelloWorldShuffleRotatesSlotTitles()
+{
+  using namespace loka::app;
+  using loka::core::String;
+  NullScenePlatformController platform;
+  scene::Scene scene((scene::Boundary<helloworld::MainNode>(helloworld::MainProps(0x13579BDFUL))));
+  scene.mount(&platform);
+  loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+  const MenuBarDefinition *bar = scene.menuBar();
+  LOKA_VERIFY(bar != 0);
+  LOKA_VERIFY(bar->menusCount() == 5);
+  const char *menuTitles[] = {"", "View", "File", "Special", "Random"};
+  for (int i = 1; i < 5; ++i)
+    LOKA_VERIFY(bar->menuAt(i)->title.equals(String::Literal(menuTitles[i])));
+  const MenuDefinition *random = bar->menuAt(4);
+  LOKA_VERIFY(random->itemsCount() == 8);
+  const MenuItemDefinition *shuffle = random->itemsHead();
+  LOKA_VERIFY(shuffle->title.equals(String::Literal("Shuffle")) && shuffle->onClickState);
+  helloworld::MainNode *main = static_cast<helloworld::MainNode *>(
+      loka::dsl::testing::SceneTestAccess::rootNode(scene));
+  const MenuItemDefinition *item = shuffle->nextInComposition->nextInComposition;
+  String before[6];
+  for (int i = 0; i < 6; ++i, item = item->nextInComposition)
+  {
+    LOKA_VERIFY(item && item->titleState == helloworld::testing::MainAccess::randomTitle(*main, i));
+    before[i] = item->titleState->get();
+    LOKA_VERIFY(before[i].equals(String::Literal("Random ") + String::FromInt(i + 1)));
+  }
+  const int expected[2][6] = {{3, 5, 4, 1, 6, 2}, {3, 4, 6, 1, 5, 2}};
+  for (int pass = 0; pass < 2; ++pass)
+  {
+    shuffle->onClickState->emit();
+    LOKA_VERIFY(scene.menuBar() == bar);
+    item = shuffle->nextInComposition->nextInComposition;
+    bool changed = false;
+    int counts[6] = {0, 0, 0, 0, 0, 0};
+    for (int i = 0; i < 6; ++i, item = item->nextInComposition)
+    {
+      LOKA_VERIFY(item->titleState == helloworld::testing::MainAccess::randomTitle(*main, i));
+      const String title = item->titleState->get();
+      LOKA_VERIFY(title.equals(String::Literal("Random ") + String::FromInt(expected[pass][i])));
+      if (!title.equals(before[i])) changed = true;
+      for (int j = 0; j < 6; ++j)
+        if (title.equals(before[j])) ++counts[j];
+    }
+    LOKA_VERIFY(changed);
+    for (int i = 0; i < 6; ++i) LOKA_VERIFY(counts[i] == 1);
+  }
 }

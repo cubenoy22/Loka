@@ -43,7 +43,7 @@ namespace loka
     void HelloWorldStandaloneFlowAppConfig::compose(AppComposition &composition)
     {
       composition << scenario_tests::MakeScenarioWindow<helloworld::MainProps, helloworld::MainNode>(
-          helloworld::MainProps(),
+          this->productionMainProps(),
           &this->borrowedMainNode_,
           420,
           330,

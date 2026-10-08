@@ -55,7 +55,7 @@ namespace loka
           this->runControl_.displayTitleState(kTutorialStandaloneTitle));
     }
 
-    void TutorialStandaloneFlowAppConfig::composeMenu(app::MenuComposition &composition)
+    void TutorialStandaloneFlowAppConfig::composeDefaultMenu(app::MenuComposition &composition)
     {
       tutorial::DeclareTutorialMenu(composition);
     }

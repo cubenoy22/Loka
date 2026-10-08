@@ -53,7 +53,7 @@ template <class PropsT> struct WindowDefinition : public WindowDefinitionBase
   {
     assert(context && "WindowDefinition::create requires PlatformContext");
     WindowProps resolved = props;
-    if ((props.rootDefinition && !resolved.rootDefinition) || (props.menuBarDefinition && !resolved.menuBarDefinition))
+    if (props.rootDefinition && !resolved.rootDefinition)
     {
       return 0;
     }

@@ -23,6 +23,7 @@ switch ($Key) {
     "HelloWorld" { $target = "LokaHelloWin32" }
     "MineSweeper" { $target = "LokaMineWin32" }
     "SimpleViewer" { $target = "LokaSimpleViewerWin32" }
+    "SimpleText" { $target = "LokaSimpleTextWin32" }
     "ScrapbookUI" { $target = "ScrapbookUIWin32" }
     "FloppyBird" { $target = "LokaFloppyBirdWin32" }
     "SmirkBench" { $target = "LokaSmirkBenchWin32" }
