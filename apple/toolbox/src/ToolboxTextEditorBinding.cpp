@@ -5,16 +5,18 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
                                                                  const Rect &rect,
                                                                  loka::app::scene::NativeLifetimeHint hint)
 {
+  // The binding's rect is the visible box (hit testing, invalidation); only
+  // TextEdit's own rects sit inside the frame.
   const Rect textRect = ToolboxTextEditorTextRect(rect);
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(textRect, clipped))
+  Rect visibleBox, clipped;
+  if (!this->intersectWithProjectionClip(rect, visibleBox) || !this->intersectWithProjectionClip(textRect, clipped))
     return 0;
   std::size_t index = 0;
   if (this->editControls_.find(context, index))
   {
     EditTextControlBinding &binding = this->editControls_[index];
     binding.usedThisFrame = true;
-    binding.rect = clipped;
+    binding.rect = visibleBox;
     (**binding.te).viewRect = clipped;
     return binding.te;
   }
@@ -31,7 +33,7 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
   entry.editor = context;
   entry.text = 0;
   entry.te = te;
-  entry.rect = clipped;
+  entry.rect = visibleBox;
   entry.usedThisFrame = true;
   entry.lifetimeHint = hint;
   this->editControls_.add(entry);
