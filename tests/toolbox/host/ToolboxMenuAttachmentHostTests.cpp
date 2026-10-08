@@ -124,7 +124,7 @@ namespace
       this->observation.attachment = &this->app.menuAttachment();
       this->window.scene()->mount(&this->controller);
       LOKA_VERIFY(this->window.scene()->menuBar());
-      LOKA_VERIFY(this->app.menuAttachment().project(this->window.scene()->menuBar(), this->window.scene(), false));
+      LOKA_VERIFY(this->app.menuAttachment().project(this->window.scene()->menuBar(), this->window.scene()));
     }
     ~Mounted() { this->window.unmount(); }
     static WindowProps props()
@@ -145,12 +145,10 @@ void testToolboxMenuAttachmentProjectsOnceForEqualBar()
   ToolboxApp app;
   MenuBarDefinition first = bar(), equal = bar();
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
   LOKA_VERIFY(toolbox_host::menuTitles.size() == 2 && toolbox_host::menuSets.size() == 2);
   clearCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0, false));
-  noCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0, true));
+  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0));
   noCalls();
 }
 void testToolboxMenuAttachmentSeesOpaqueMenuItemChange()
@@ -173,16 +171,16 @@ void testToolboxMenuAttachmentPartialRebuildFromBaseline()
 {
   ToolboxApp app;
   MenuBarDefinition first = bar(), changed = bar("Save");
-  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
   MenuHandle unchanged = toolbox_host::installedMenus[1];
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuDisposes == 0);
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Save");
   LOKA_VERIFY(toolbox_host::installedMenus[1] == unchanged && unchanged->items[0] == "Copy");
   changed << (Menu("Help") << MenuItem("Help"));
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY(toolbox_host::menuDisposes == 2 && toolbox_host::menuTitles.size() == 3);
 }
 void testToolboxMenuAttachmentReleaseFromSourceDisconnects()
@@ -204,7 +202,7 @@ void testToolboxMenuAttachmentReleaseFromSourceDisconnects()
   f.root()->disable();
   noCalls();
   MenuBarDefinition replacement = bar();
-  LOKA_VERIFY(f.app.menuAttachment().project(&replacement, 0, false));
+  LOKA_VERIFY(f.app.menuAttachment().project(&replacement, 0));
   LOKA_VERIFY(toolbox_host::menuDisposes == 1);
   f.app.menuAttachment().disconnect();
 }
@@ -287,14 +285,14 @@ void testToolboxMenuDispatchKeepsActionAcrossReplacement()
     {
       ToolboxApp *app = static_cast<ToolboxApp *>(data);
       MenuBarDefinition replacement = bar("Replacement");
-      LOKA_VERIFY(app->menuAttachment().project(&replacement, 0, false));
+      LOKA_VERIFY(app->menuAttachment().project(&replacement, 0));
     }
   };
   EmitterState emitter;
   emitter.deferBind(&Replace::run, &app);
   MenuBarDefinition original;
   original << (Menu("File") << MenuItem("Rebuild").actionType(MENU_ACTION_REBUILD_MENU).onClick(&emitter));
-  LOKA_VERIFY(app.menuAttachment().project(&original, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&original, 0));
   LOKA_VERIFY(!config.menuRefresh().hasPendingRequest());
   LOKA_VERIFY(app.menuAttachment().dispatch(128, 1));
   LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
@@ -305,19 +303,19 @@ void testToolboxMenuAttachmentSwitchesSourceAndClearsNullBar()
   ToolboxApp app;
   Scene first((Boundary<Root>())), second((Boundary<Root>()));
   MenuBarDefinition offered = bar();
-  LOKA_VERIFY(app.menuAttachment().project(&offered, &first, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, &first));
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&offered, &second, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, &second));
   LOKA_VERIFY(toolbox_host::menuDisposes == 2 && toolbox_host::menuTitles.size() == 2);
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(0, 0));
   LOKA_VERIFY(toolbox_host::menuDisposes == 2 && toolbox_host::menuClears == 1 && toolbox_host::menuDraws == 1);
   LOKA_VERIFY(toolbox_host::installedMenus.empty());
   // Completion re-offers every turn: an absent bar over an empty projection
   // must neither clear nor draw again (codex review of N2a).
   clearCalls();
   const int redrawsBefore = app.redraws;
-  LOKA_VERIFY(!app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(!app.menuAttachment().project(0, 0));
   LOKA_VERIFY(toolbox_host::menuClears == 0 && toolbox_host::menuDraws == 0 && app.redraws == redrawsBefore);
 }
 void testToolboxMenuAttachmentMissingEntryFallsBackWithPreparedClone()
@@ -326,17 +324,17 @@ void testToolboxMenuAttachmentMissingEntryFallsBackWithPreparedClone()
   MenuBarDefinition before, after;
   before << (Menu("File") << MenuItem("Open")) << Menu("Empty");
   after << (Menu("File") << MenuItem("Save")) << (Menu("Empty") << MenuItem("New"));
-  LOKA_VERIFY(app.menuAttachment().project(&before, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&before, 0));
   clearCalls();
   // Refuse any clone attempted after the first native item mutation. The
   // partial-to-full fallback must reuse the snapshot prepared before it.
   toolbox_host::afterMenuSet = &loka::app::testing::failNextMenuBarDefinitionClone;
-  LOKA_VERIFY(app.menuAttachment().project(&after, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&after, 0));
   toolbox_host::afterMenuSet = 0;
   loka::app::testing::allowMenuBarDefinitionClones();
   LOKA_VERIFY(toolbox_host::menuTitles.size() == 2 && toolbox_host::menuDraws == 1);
   clearCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&after, 0, false));
+  LOKA_VERIFY(!app.menuAttachment().project(&after, 0));
   noCalls();
 }
 namespace
@@ -381,7 +379,7 @@ namespace
       observation.attachment = &app.menuAttachment();
       ShutdownWindow *window = new ShutdownWindow(&platform, &app);
       app.own(window);
-      LOKA_VERIFY(app.menuAttachment().project(window->scene()->menuBar(), window->scene(), false));
+      LOKA_VERIFY(app.menuAttachment().project(window->scene()->menuBar(), window->scene()));
       LOKA_VERIFY(app.menuAttachment().dispatch(128, 1));
       LOKA_VERIFY(observation.calls == 1);
       if (queued)
@@ -461,7 +459,7 @@ void testToolboxMenuProjectionDefersBackgroundDraws()
   MenuBarDefinition first = bar(), partial = bar("Save");
   app.phase(ACTIVATION_BACKGROUND);
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
   LOKA_VERIFY(toolbox_host::menuTitles.size() == 2);
   LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
   app.phase(ACTIVATION_FOREGROUND);
@@ -470,20 +468,20 @@ void testToolboxMenuProjectionDefersBackgroundDraws()
   LOKA_VERIFY(toolbox_host::menuDraws == 1);
   app.phase(ACTIVATION_BACKGROUND);
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&partial, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&partial, 0));
   LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuSets.size() == 1);
   LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
   app.phase(ACTIVATION_FOREGROUND);
   LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
   app.phase(ACTIVATION_BACKGROUND);
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(0, 0));
   LOKA_VERIFY(toolbox_host::installedMenus.empty());
   LOKA_VERIFY(toolbox_host::menuDraws == 0 && app.drawOwed());
   app.phase(ACTIVATION_FOREGROUND);
   LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
   LOKA_VERIFY(toolbox_host::menuDraws == 1 && !app.drawOwed());
 }
 void testToolboxMenuShortcutProjectsItemCmd()
@@ -497,7 +495,7 @@ void testToolboxMenuShortcutProjectsItemCmd()
                        // A control byte is a Classic marker, never a key (bot P2 on #1122).
                        << MenuItem("Marker").shortcut('\x1b'));
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0));
   LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 2);
   LOKA_VERIFY(toolbox_host::itemCmdCalls[0].menu == toolbox_host::installedMenus[0]);
   LOKA_VERIFY(toolbox_host::itemCmdCalls[0].item == 3);
@@ -514,7 +512,7 @@ void testToolboxQuitDefaultsToCommandQ()
                        << MenuItem("Override").actionType(MENU_ACTION_QUIT_APP).shortcut('X')
                        << MenuItem("Empty").actionType(MENU_ACTION_QUIT_APP).shortcut(0));
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0));
   LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 3);
   for (std::size_t i = 0; i < 3; ++i)
   {
@@ -531,7 +529,7 @@ void testToolboxHierarchicalOpenerKeepsMarkerOverShortcut()
   MenuBarDefinition menu;
   menu << (Menu("File") << (MenuItem("More").shortcut('K') << MenuItem("Child").shortcut('C')));
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&menu, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&menu, 0));
   LOKA_VERIFY(toolbox_host::installedMenus.size() == 2);
   LOKA_VERIFY(toolbox_host::itemCmdCalls.size() == 2);
   LOKA_VERIFY(toolbox_host::itemCmdCalls[0].menu == toolbox_host::installedMenus[0]);
@@ -549,10 +547,10 @@ void testToolboxShortcutChangeReprojectsThroughPartialRebuild()
         << (Menu("Help") << MenuItem("Help").shortcut('H'));
   changed << (Menu("File") << MenuItem("Save").shortcut('X'))
           << (Menu("Help") << MenuItem("Help").shortcut('H'));
-  LOKA_VERIFY(app.menuAttachment().project(&first, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&first, 0));
   MenuHandle file = toolbox_host::installedMenus[0], help = toolbox_host::installedMenus[1];
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuDisposes == 0);
   LOKA_VERIFY(toolbox_host::menuClears == 0 && toolbox_host::menuInserts.empty());
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Save");
@@ -563,7 +561,7 @@ void testToolboxShortcutChangeReprojectsThroughPartialRebuild()
   LOKA_VERIFY(toolbox_host::itemCmdCalls[0].item == 1);
   LOKA_VERIFY(toolbox_host::itemCmdCalls[0].cmd == 'X');
   clearCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(!app.menuAttachment().project(&changed, 0));
   noCalls();
 }
 namespace
@@ -589,7 +587,7 @@ void testToolboxMenuTitleFollowsState()
   ToolboxApp app;
   MenuBarDefinition offered = titleBar(&title);
   clearCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
   LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "Alpha");
   const int before = app.redraws;
   clearCalls();
@@ -600,7 +598,7 @@ void testToolboxMenuTitleFollowsState()
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Beta");
   LOKA_VERIFY(app.redraws == before + 1);
   clearCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(!app.menuAttachment().project(&offered, 0));
   noCalls(); // Live value is not definition identity.
 }
 void testToolboxMenuTitleStateUnbindsOnRelease()
@@ -611,7 +609,7 @@ void testToolboxMenuTitleStateUnbindsOnRelease()
   ToolboxApp app;
   Scene source((Boundary<Root>()));
   MenuBarDefinition offered = titleBar(&title);
-  LOKA_VERIFY(app.menuAttachment().project(&offered, &source, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, &source));
   clearCalls();
   setTitle(tracker, title, "Beta");
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1);
@@ -630,12 +628,12 @@ void testToolboxMenuTitleStateIdentityDrivesRebuild()
   tracker.addState(&second);
   ToolboxApp app;
   MenuBarDefinition offered = titleBar(&first), equal = titleBar(&first), changed = titleBar(&second);
-  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
   MenuHandle file = toolbox_host::installedMenus[0], edit = toolbox_host::installedMenus[1];
   clearCalls();
-  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0, false));
+  LOKA_VERIFY(!app.menuAttachment().project(&equal, 0));
   noCalls();
-  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Alpha");
   LOKA_VERIFY(toolbox_host::menuTitles.empty() && toolbox_host::menuDisposes == 0);
   LOKA_VERIFY(toolbox_host::installedMenus[0] == file && toolbox_host::installedMenus[1] == edit);
@@ -655,16 +653,16 @@ void testToolboxAboutTitleFollowsStateAcrossRebuild()
   MenuBarDefinition offered, changed;
   offered << (AppMenu() << MenuItem("Fallback").text(&first).actionType(MENU_ACTION_ABOUT_APP));
   changed << (AppMenu() << MenuItem("Fallback").text(&second).actionType(MENU_ACTION_ABOUT_APP));
-  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
   LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "About Alpha");
-  LOKA_VERIFY(app.menuAttachment().project(&changed, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY(toolbox_host::installedMenus[0]->items[0] == "About Beta");
   clearCalls();
   setTitle(tracker, first, "Old");
   noCalls();
   setTitle(tracker, second, "About Gamma");
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "About Gamma");
-  LOKA_VERIFY(app.menuAttachment().project(0, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(0, 0));
   clearCalls();
   setTitle(tracker, second, "Released");
   noCalls();
@@ -677,7 +675,7 @@ void testToolboxSubmenuTitleFollowsState()
   ToolboxApp app;
   MenuBarDefinition offered;
   offered << (Menu("File") << (MenuItem("Fallback").text(&title) << MenuItem("Child")));
-  LOKA_VERIFY(app.menuAttachment().project(&offered, 0, false));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
   LOKA_VERIFY(toolbox_host::installedMenus[1]->items[0] == "More");
   clearCalls();
   setTitle(tracker, title, "Other");

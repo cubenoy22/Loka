@@ -75,12 +75,10 @@ namespace
       LOKA_VERIFY(c.menuBar(bar));
     }
   };
-  template <int Kind> NullWindow *addWindow(RecordingApp &app, NullPlatformContext &platform,
-                                           const MenuBarDefinition *bar = 0)
+  template <int Kind> NullWindow *addWindow(RecordingApp &app, NullPlatformContext &platform)
   {
     WindowProps props;
     props.scene(new Scene(Boundary<MenuRoot<Kind> >()));
-    if (bar) props.menuBar(*bar);
     NullWindow *window = new NullWindow(&platform, props);
     app.own(window);
     return window;
@@ -156,29 +154,23 @@ void testMenuSourceMergesDefaultAndActiveScene()
   NullPlatformContext platform;
   RecordingApp app;
   const MenuBarDefinition base = defaultBar();
-  MenuBarDefinition custom;
-  custom << (Menu("Window") << MenuItem("Own"));
   app.setDefaultMenuBar(&base);
   NullWindow *a = addWindow<1>(app, platform);
   NullWindow *b = addWindow<2>(app, platform);
   NullWindow *plain = addWindow<0>(app, platform);
-  NullWindow *own = addWindow<1>(app, platform, &custom);
   app.setActiveWindow(a);
   app.operationLoop();
-  LOKA_VERIFY(app.offers.size() == 8);
+  LOKA_VERIFY(app.offers.size() == 6);
   MenuBarDefinition expectedA = defaultBar();
   expectedA << (Menu("View") << MenuItem("Zoom"));
   MenuBarDefinition expectedB;
   expectedB << (Menu("File") << MenuItem("Save")) << (Menu("Help") << MenuItem("Help"));
-  custom << (Menu("View") << MenuItem("Zoom"));
   LOKA_VERIFY(app.offers[0].window == a && app.offers[0].source == a->scene());
   LOKA_VERIFY(app.offers[0].bar.equalsProjection(expectedA));
   LOKA_VERIFY(app.offers[1].window == b && app.offers[1].source == b->scene());
   LOKA_VERIFY(app.offers[1].bar.equalsProjection(expectedB));
   LOKA_VERIFY(app.offers[2].window == plain && app.offers[2].source == 0);
   LOKA_VERIFY(app.offers[2].bar.equalsProjection(base));
-  LOKA_VERIFY(app.offers[3].window == own && app.offers[3].source == own->scene());
-  LOKA_VERIFY(app.offers[3].bar.equalsProjection(custom));
 }
 void testMergeMenuBarsReplacesInPlaceAndAppendsInOrder()
 {

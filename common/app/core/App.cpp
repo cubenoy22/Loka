@@ -463,7 +463,7 @@ void App::projectMenuSources()
       // invalidation flush's job before this step, and a clean completion
       // must not recompose the default menu.
       const loka::app::MenuBarDefinition *base =
-          window->menuBar() ? window->menuBar() : this->menuController_.defaultMenuBar();
+          this->menuController_.defaultMenuBar();
       const loka::app::scene::Scene *scene = window->scene();
       const loka::app::MenuBarDefinition *overlay = scene ? scene->menuBar() : 0;
       loka::core::OwnedDef<loka::app::MenuBarDefinition> merged(

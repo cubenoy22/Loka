@@ -537,3 +537,8 @@ loka_compile_pin(lazyview-props-requires-recipe
 loka_compile_pin(save_file_dialog_result
   REFUSES pins/refuses_save_file_dialog_result.cpp
   ACCEPTS pins/accepts_save_file_dialog_result.cpp)
+
+loka_compile_pin(window_props_menu_bar_retired
+  REFUSES pins/refuses_window_props_menu_bar.cpp
+  ACCEPTS pins/accepts_window_props_title.cpp
+)

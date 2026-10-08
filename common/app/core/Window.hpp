@@ -71,7 +71,6 @@ struct WindowProps
   OnKeyPressFn onKeyPressFn;
   void *onKeyPressUserData;
   loka::app::scene::NodeDefinitionBase *rootDefinition;
-  loka::app::MenuBarDefinition *menuBarDefinition;
 
 private:
   struct InitialSceneHandoff
@@ -112,26 +111,14 @@ private:
   }
 
   static bool tryCloneOwnedDefinitions(const WindowProps &rhs,
-                                       loka::app::scene::NodeDefinitionBase *&outRootDefinition,
-                                       loka::app::MenuBarDefinition *&outMenuBarDefinition)
+                                       loka::app::scene::NodeDefinitionBase *&outRootDefinition)
   {
     outRootDefinition = 0;
-    outMenuBarDefinition = 0;
     if (rhs.rootDefinition)
     {
       outRootDefinition = rhs.rootDefinition->clone();
       if (!outRootDefinition)
       {
-        return false;
-      }
-    }
-    if (rhs.menuBarDefinition)
-    {
-      outMenuBarDefinition = rhs.menuBarDefinition->clone();
-      if (!outMenuBarDefinition)
-      {
-        delete outRootDefinition;
-        outRootDefinition = 0;
         return false;
       }
     }
@@ -158,7 +145,6 @@ public:
         onKeyPressFn(0),
         onKeyPressUserData(0),
         rootDefinition(0),
-        menuBarDefinition(0),
         initialSceneHandoff_(0)
   {
   }
@@ -182,16 +168,13 @@ public:
         onKeyPressFn(rhs.onKeyPressFn),
         onKeyPressUserData(rhs.onKeyPressUserData),
         rootDefinition(0),
-        menuBarDefinition(0),
         initialSceneHandoff_(rhs.initialSceneHandoff_)
   {
     this->retainInitialSceneHandoff();
     loka::app::scene::NodeDefinitionBase *nextRootDefinition = 0;
-    loka::app::MenuBarDefinition *nextMenuBarDefinition = 0;
-    if (tryCloneOwnedDefinitions(rhs, nextRootDefinition, nextMenuBarDefinition))
+    if (tryCloneOwnedDefinitions(rhs, nextRootDefinition))
     {
       rootDefinition = nextRootDefinition;
-      menuBarDefinition = nextMenuBarDefinition;
     }
   }
 
@@ -203,11 +186,6 @@ public:
       delete rootDefinition;
       rootDefinition = 0;
     }
-    if (menuBarDefinition)
-    {
-      delete menuBarDefinition;
-      menuBarDefinition = 0;
-    }
   }
 
   WindowProps &operator=(const WindowProps &rhs)
@@ -217,8 +195,7 @@ public:
       return *this;
     }
     loka::app::scene::NodeDefinitionBase *nextRootDefinition = 0;
-    loka::app::MenuBarDefinition *nextMenuBarDefinition = 0;
-    if (!tryCloneOwnedDefinitions(rhs, nextRootDefinition, nextMenuBarDefinition))
+    if (!tryCloneOwnedDefinitions(rhs, nextRootDefinition))
     {
       return *this;
     }
@@ -252,12 +229,6 @@ public:
       rootDefinition = 0;
     }
     rootDefinition = nextRootDefinition;
-    if (menuBarDefinition)
-    {
-      delete menuBarDefinition;
-      menuBarDefinition = 0;
-    }
-    menuBarDefinition = nextMenuBarDefinition;
     return *this;
   }
 
@@ -419,22 +390,6 @@ public:
     this->releaseInitialSceneHandoff();
     return *this;
   }
-
-  WindowProps &menuBar(const loka::app::MenuBarDefinition &bar)
-  {
-    loka::app::MenuBarDefinition *nextMenuBarDefinition = bar.clone();
-    if (!nextMenuBarDefinition)
-    {
-      return *this;
-    }
-    if (menuBarDefinition)
-    {
-      delete menuBarDefinition;
-      menuBarDefinition = 0;
-    }
-    menuBarDefinition = nextMenuBarDefinition;
-    return *this;
-  }
 };
 
 class Window : public AppComponent LOKA_AUDITED_AS(Window)
@@ -529,8 +484,7 @@ public:
         onIdleFn_(props.onIdleFn),
         onIdleUserData_(props.onIdleUserData),
         onKeyPressFn_(props.onKeyPressFn),
-        onKeyPressUserData_(props.onKeyPressUserData),
-        menuBarDefinition_(0)
+        onKeyPressUserData_(props.onKeyPressUserData)
   {
     if (props.titleStatePtr)
     {
@@ -575,10 +529,6 @@ public:
       }
       frameStatePtr_->set(frame);
     }
-    if (props.menuBarDefinition)
-    {
-      menuBarDefinition_.reset(props.menuBarDefinition->clone());
-    }
     sceneManager_.setWindow(this);
     loka::app::scene::Scene *initialScene = props.takeInitialScene();
     if (initialScene)
@@ -595,7 +545,6 @@ public:
       delete this->tracker_;
       this->tracker_ = 0;
     }
-    menuBarDefinition_.reset();
   }
 
   PlatformContext *context() const
@@ -690,10 +639,6 @@ public:
   const loka::core::State<loka::core::Frame> &nativeFrame() const
   {
     return this->nativeFrame_;
-  }
-  const loka::app::MenuBarDefinition *menuBar() const
-  {
-    return menuBarDefinition_.get();
   }
 
   loka::core::StateTracker *getTracker() const
@@ -906,7 +851,6 @@ protected:
   void *onIdleUserData_;
   WindowProps::OnKeyPressFn onKeyPressFn_;
   void *onKeyPressUserData_;
-  loka::core::OwnedDef<loka::app::MenuBarDefinition> menuBarDefinition_;
   NativeStateObserverLedger nativeStateObservers_;
 
 #ifdef TEST_BUILD
