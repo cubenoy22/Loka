@@ -429,6 +429,13 @@ int main(int argc, char **argv)
     const Rect frame = f.context->chromeRect();
     LOKA_VERIFY(expected.left > frame.left && expected.top > frame.top
                 && expected.right < frame.right && expected.bottom < frame.bottom);
+    // The visible box is the hit target: a click in the padding between the
+    // frame and the text rect focuses the editor instead of blurring it.
+    Point padding = {21, 11};
+    LOKA_VERIFY(!PtInRect(padding, &expected) && PtInRect(padding, &frame));
+    LOKA_VERIFY(f.controller.handleEditClick(padding));
+    NodeContext *focusedEditor = 0;
+    LOKA_VERIFY(f.controller.readNativeFocus(focusedEditor) && focusedEditor == f.context);
     LayoutState state;
     state.x = 10;
     state.y = 20;
@@ -460,6 +467,11 @@ int main(int argc, char **argv)
     LOKA_VERIFY(EqualRect(&(**f.te()).viewRect, &expected));
     f.context->render(&f.controller);
     LOKA_VERIFY(EqualRect(&(**f.te()).viewRect, &expected));
+    // After relayout the refreshed binding still hits on its padding.
+    f.controller.activateEditControl(f.controller.editControls_.size());
+    Point movedPadding = {41, 11};
+    LOKA_VERIFY(!PtInRect(movedPadding, &expected) && f.controller.handleEditClick(movedPadding));
+    LOKA_VERIFY(f.controller.readNativeFocus(focusedEditor) && focusedEditor == f.context);
     // Clip includes frame pixels on two edges; only the text intersection is visible.
     SetRect(&f.controller.projectionClip, 10, 40, 100, 80);
     state.y = 40;
