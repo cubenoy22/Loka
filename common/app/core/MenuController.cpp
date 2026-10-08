@@ -66,12 +66,8 @@ const loka::app::MenuBarDefinition *MenuController::defaultMenuBar() const
   return menuBar_.get();
 }
 
-const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *window)
+const loka::app::MenuBarDefinition *MenuController::resolveMenuBar(Window *)
 {
-  if (window && window->menuBar())
-  {
-    return window->menuBar();
-  }
   if (!diff_.valid)
   {
     this->refreshDefaultMenuBar();
