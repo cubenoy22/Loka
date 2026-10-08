@@ -12,7 +12,6 @@ void RunWindowAdmissionOperation(TestApp &app, void (*collect)(void *) = 0, void
   loka::core::Operation turn;
   if (collect)
     collect(data);
-  app.flushMenuInvalidation();
   turn.settle();
   app.admitAndApplyWindows();
   app.reconcileFocus();

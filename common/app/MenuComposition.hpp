@@ -22,9 +22,8 @@ namespace loka
     MenuBarDefinition *MergeMenuBars(const MenuBarDefinition *base, const MenuBarDefinition *overlay);
 
     /**
-     * An AppConfigurable-owned menu composition scope. A MenuBoundary is owned
-     * by and composed by exactly one AppConfigurable; its tracker may retain
-     * that owner's menu-refresh callback for the boundary's lifetime.
+     * A standalone menu composition scope retained for legacy declarations.
+     * The caller owns the boundary and any invalidation callback lifetime.
      */
     class MenuBoundary
     {
@@ -63,7 +62,7 @@ namespace loka
        * been unbound. Menu scopes have no node state-declaration window, so
        * construction uses the same explicit allocation door as menu values.
        * Events remain untracked: emitting dispatches actions without making
-       * the emitter itself a menu-refresh dirty source.
+       * the emitter itself a standalone dirty source.
        */
       loka::core::EmitterState &dangerouslyUseEmitter()
       {

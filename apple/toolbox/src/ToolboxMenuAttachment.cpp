@@ -249,7 +249,6 @@ static char MenuShortcutForAction(const loka::app::MenuItemDefinition *itemDef)
     return 'Q';
   case loka::app::MENU_ACTION_ABOUT_APP:
   case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
-  case loka::app::MENU_ACTION_REBUILD_MENU:
   case loka::app::MENU_ACTION_NONE:
     return 0;
   }
@@ -636,14 +635,11 @@ bool ToolboxMenuAttachment::dispatch(short menuId, short item)
     case loka::app::MENU_ACTION_QUIT_APP:
       this->app_.quit();
       return true;
-    case loka::app::MENU_ACTION_REBUILD_MENU:
     case loka::app::MENU_ACTION_NONE:
       break;
     }
     if (command.emitter)
       command.emitter->emit();
-    if (command.action == loka::app::MENU_ACTION_REBUILD_MENU)
-      this->app_.requestMenuInvalidation();
     return true;
   }
   return false;
@@ -661,7 +657,6 @@ void ToolboxApp::projectMenu(Window *activeWindow, const loka::app::MenuBarDefin
     return;
   if (this->menuAttachment_.project(bar, source) && activeWindow && activeWindow->asToolboxWindow())
     activeWindow->asToolboxWindow()->preserveNativeContentPositionAfterMenuBarChange();
-  this->clearMenuDiff();
 }
 
 void ToolboxApp::handleMenuSelection(short menuId, short item)

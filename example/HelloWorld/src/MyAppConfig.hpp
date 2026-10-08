@@ -23,7 +23,6 @@ public:
         loka::app::scene::Boundary<helloworld::MainNode>(this->mainProps_)));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &) {}
 
 protected:
   const helloworld::MainProps &productionMainProps() const { return this->mainProps_; }

@@ -19,7 +19,6 @@ public:
   virtual ~ToolboxApp();
   virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
                            const loka::app::scene::Scene *source);
-  const loka::app::MenuBarDefinition *resolveForTest() { return this->resolveMenuBar(0); }
   void handleMenuSelection(short menuId, short item);
   ToolboxMenuAttachment &menuAttachment() { return this->menuAttachment_; }
   void requestMenuBarDraw()

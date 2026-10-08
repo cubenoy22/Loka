@@ -11,7 +11,7 @@ namespace loka
     inline void ComposeMenuBar(AppConfigurable &config, app::MenuBarDefinition &bar)
     {
       app::MenuComposition composition(&bar);
-      config.composeMenu(composition);
+      config.composeDefaultMenu(composition);
       composition.finish();
     }
 

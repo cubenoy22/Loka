@@ -3,7 +3,6 @@
 #include "support/StandaloneMountTestSupport.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/core/MenuController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "core/util/StateTrackerGuard.hpp"
 #include "Script.h"
@@ -53,28 +52,12 @@ namespace
     result << (Menu("Edit") << MenuItem("Copy"));
     return result;
   }
-  class OpaqueMenu : public MenuBoundary
+  MenuBarDefinition checkedBar(bool checked)
   {
-  public:
-    // This legacy fixture intentionally exercises MenuBoundary's state door;
-    // it is the production contract N2b must keep until N3 removes that owner.
-    OpaqueMenu() : checked_(this->dangerouslyUseState(false)) {}
-    virtual void composeMenu(MenuComposition &c)
-    {
-      c << (Menu("View") << MenuItem("Actual").attr(MenuItemAttr().checked(this->checked_.get())));
-    }
-    void flip() { StateTrackerGuard guard(this->tracker()); this->checked_.set(true); }
-  private:
-    MutableState<bool> &checked_;
-  };
-  class Config : public AppConfigurable
-  {
-  public:
-    Config() : AppConfigurable(0) {}
-    virtual void compose(AppComposition &) {}
-    virtual void composeMenu(MenuComposition &c) { c << this->menu; }
-    OpaqueMenu menu;
-  };
+    MenuBarDefinition result;
+    result << (Menu("View") << MenuItem("Actual").attr(MenuItemAttr().checked(checked)));
+    return result;
+  }
   struct Observer
   {
     Observer() : attachment(0), calls(0), detaches(0), disconnectInAction(false) {}
@@ -153,18 +136,18 @@ void testToolboxMenuAttachmentProjectsOnceForEqualBar()
 }
 void testToolboxMenuAttachmentSeesOpaqueMenuItemChange()
 {
-  Config config;
-  ToolboxApp app(&config);
-  app.projectMenu(0, app.resolveForTest(), 0);
+  ToolboxApp app;
+  const MenuBarDefinition first = checkedBar(false), second = checkedBar(true);
+  app.setDefaultMenuBar(&first);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.back() == "Actual");
-  config.menu.flip();
+  app.setDefaultMenuBar(&second);
   clearCalls();
-  LOKA_VERIFY(app.flushMenuInvalidation());
   app.projectMenu(0, app.defaultMenuBar(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Actual");
   LOKA_VERIFY(toolbox_host::menuTitles.empty());
   clearCalls();
-  app.projectMenu(0, app.resolveForTest(), 0);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   noCalls();
 }
 void testToolboxMenuAttachmentPartialRebuildFromBaseline()
@@ -250,35 +233,29 @@ void testMenuProjectionDiffValueCopiesOwnRows()
 }
 void testToolboxMenuAttachmentCloneRefusalClearsAppliedBaseline()
 {
-  struct RefreshApp : ToolboxApp
-  {
-    explicit RefreshApp(AppConfigurable *config) : ToolboxApp(config) {}
-    void refresh() { LOKA_VERIFY(this->refreshDefaultMenuBar()); }
-  };
-  Config config;
-  RefreshApp app(&config);
-  app.projectMenu(0, app.resolveForTest(), 0);
-  config.menu.flip();
-  app.refresh(); // Legacy controller has captured and acknowledged the new bar.
+  ToolboxApp app;
+  const MenuBarDefinition first = checkedBar(false), second = checkedBar(true);
+  app.setDefaultMenuBar(&first);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
+  app.setDefaultMenuBar(&second);
   loka::app::testing::failMenuBarDefinitionClones(1);
   clearCalls();
-  app.projectMenu(0, app.resolveForTest(), 0);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   LOKA_VERIFY(toolbox_host::menuSets.size() == 1 && toolbox_host::menuSets[0] == "Actual");
   LOKA_VERIFY(app.defaultMenuBar()->menuAt(0)->itemsHead()->isCheckedInitial());
   loka::app::testing::allowMenuBarDefinitionClones();
   clearCalls();
-  app.projectMenu(0, app.resolveForTest(), 0);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   // Failed capture left no baseline, so even an equal offer must rebuild fully.
   LOKA_VERIFY(toolbox_host::menuTitles.size() == 1 && toolbox_host::menuDisposes == 1);
   clearCalls();
-  app.projectMenu(0, app.resolveForTest(), 0);
+  app.projectMenu(0, app.defaultMenuBar(), 0);
   noCalls();
 }
 
 void testToolboxMenuDispatchKeepsActionAcrossReplacement()
 {
-  Config config;
-  ToolboxApp app(&config);
+  ToolboxApp app;
   struct Replace
   {
     static void run(void *data)
@@ -291,11 +268,11 @@ void testToolboxMenuDispatchKeepsActionAcrossReplacement()
   EmitterState emitter;
   emitter.deferBind(&Replace::run, &app);
   MenuBarDefinition original;
-  original << (Menu("File") << MenuItem("Rebuild").actionType(MENU_ACTION_REBUILD_MENU).onClick(&emitter));
+  original << (Menu("File") << MenuItem("Replace").onClick(&emitter));
   LOKA_VERIFY(app.menuAttachment().project(&original, 0));
-  LOKA_VERIFY(!config.menuRefresh().hasPendingRequest());
+  clearCalls();
   LOKA_VERIFY(app.menuAttachment().dispatch(128, 1));
-  LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
+  LOKA_VERIFY(!toolbox_host::menuSets.empty() && toolbox_host::menuSets[0] == "Replacement");
   emitter.deferUnbind(&Replace::run, &app);
 }
 void testToolboxMenuAttachmentSwitchesSourceAndClearsNullBar()
