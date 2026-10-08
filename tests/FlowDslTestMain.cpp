@@ -1,3 +1,4 @@
+#include "CommandSetTests.hpp"
 #include "SimpleTextTests.hpp"
 #include "MenuCompletionTests.hpp"
 #include "SceneMenuBarTests.hpp"
