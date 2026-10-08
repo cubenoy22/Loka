@@ -101,3 +101,5 @@ LOKA_TEST(testWin32SaveFileDialogDefaultSetup)
 LOKA_TEST(testWin32SaveFileDialogTextSetup)
 LOKA_TEST(testWin32SaveFileDialogNameBounds)
 LOKA_TEST(testWin32SaveFileDialogInvalidBasenames)
+
+LOKA_TEST(testWin32ImageDecodeRetainsOutputOwnedBlob)

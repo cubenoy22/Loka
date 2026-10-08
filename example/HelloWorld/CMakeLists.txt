@@ -98,6 +98,7 @@ if(WIN32)
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32OpenFileDialogTransportTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32FilePathTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32AppLocationTests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32ImageBlobTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32PropsReconciliationTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfacePaintTests.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../tests/Win32RectSurfaceRedrawTests.cpp

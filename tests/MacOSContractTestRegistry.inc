@@ -73,3 +73,5 @@ LOKA_TEST(testMacMenuSubmenuTitleFollowsState)
 LOKA_TEST(testMacMenuTitleStateUnbindsOnRelease)
 LOKA_TEST(testMacSaveFileDialogSetup)
 LOKA_TEST(testMacSaveFileDialogRetargetBeforePresentation)
+
+LOKA_TEST(testMacImageDecodeRetainsOutputOwnedBlob)
