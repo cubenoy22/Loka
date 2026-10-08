@@ -9,6 +9,7 @@
 #include "app/nodes/nestable/Match.hpp"
 #include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/Text.hpp"
+#include "app/Menu.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/TextDocumentFile.hpp"
 #include "app/scene/state/FlowSlot.hpp"
@@ -207,6 +208,14 @@ namespace simpletext
     {
       using namespace loka::app;
       using namespace loka::core;
+      c.menuBar(MenuBarDefinition()
+                << (Menu("File")
+                    << MenuItem("New").onClick(this->props.newEvent())
+                    << MenuItem("Open...").shortcut('o').onClick(this->props.openEvent())
+                    << MenuItem("Save").shortcut('s').onClick(this->props.saveEvent())
+                    << MenuItem("Save As...").onClick(this->props.saveAsEvent())
+                    << MenuSeparator()
+                    << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP)));
       // One seat on the operation: at most one dialog exists, and none while idle.
       MatchDefinition<Operation> dialog = Match(*this->operation_.state());
       dialog

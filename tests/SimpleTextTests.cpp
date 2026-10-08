@@ -4,7 +4,7 @@
 // libraries, so they must not instantiate this POSIX fixture or file rail.
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(LOKA_RETRO68)
 #include "../example/SimpleText/src/MyAppConfig.hpp"
-#include "app/core/MenuController.hpp"
+#include "app/MenuComposition.hpp"
 #include "app/layout/RowLayout.hpp"
 #include "app/layout/ColumnLayout.hpp"
 #include <sys/stat.h>
@@ -384,19 +384,31 @@ void testSimpleTextRepeatedOpenAndCaretReplacement()
 void testSimpleTextMenuAndDialogProps()
 {
   Harness h;
-  MenuController menu(&h.config);
-  menu.requestInvalidation();
-  LOKA_VERIFY(menu.flushInvalidation());
-  const MenuBarDefinition *bar = menu.defaultMenuBar();
+  const MenuBarDefinition *bar = h.scene->menuBar();
   LOKA_VERIFY(bar && bar->menusCount() == 1);
   const MenuDefinition *file = bar->menuAt(0);
   LOKA_VERIFY(file && file->itemsCount() == 6);
+  LOKA_VERIFY(file->title.equals(String("File")));
+  const char *titles[] = {"New", "Open...", "Save", "Save As...", "", "Quit"};
+  for (int i = 0; i < 6; ++i)
+  {
+    const MenuItemDefinition *item = itemAt(*file, i);
+    LOKA_VERIFY(item && item->title.equals(String(titles[i])));
+    LOKA_VERIFY(item->titleState == 0);
+    LOKA_VERIFY(item->isSeparator == (i == 4));
+    LOKA_VERIFY(item->hasShortcut == (i == 1 || i == 2));
+  }
   LOKA_VERIFY(itemAt(*file, 1)->shortcutKey == 'o' && itemAt(*file, 2)->shortcutKey == 's');
   LOKA_VERIFY(itemAt(*file, 5)->action == MENU_ACTION_QUIT_APP);
   LOKA_VERIFY(itemAt(*file, 0)->onClickState == &SimpleTextTestAccess::newEvent(h.config));
   LOKA_VERIFY(itemAt(*file, 1)->onClickState == &SimpleTextTestAccess::openEvent(h.config));
   LOKA_VERIFY(itemAt(*file, 2)->onClickState == &SimpleTextTestAccess::saveEvent(h.config));
   LOKA_VERIFY(itemAt(*file, 3)->onClickState == &SimpleTextTestAccess::saveAsEvent(h.config));
+  MenuBarDefinition defaultBar;
+  MenuComposition defaultComposition(&defaultBar);
+  h.config.composeMenu(defaultComposition);
+  defaultComposition.finish();
+  LOKA_VERIFY(defaultBar.menusCount() == 0);
   SimpleTextTestAccess::openEvent(h.config).emit();
   h.flush();
   OpenFileDialogNode *open = static_cast<OpenFileDialogNode *>(find(&h.main(), "SimpleText.Open"));
