@@ -11,7 +11,7 @@ namespace loka
     inline void ComposeMenuBar(AppConfigurable &config, app::MenuBarDefinition &bar)
     {
       app::MenuComposition composition(&bar);
-      config.composeMenu(composition);
+      config.composeDefaultMenu(composition);
       composition.finish();
     }
 
@@ -20,6 +20,11 @@ namespace loka
       for (; item; item = item->nextInComposition)
       {
         item->onClickState = 0;
+        if (item->titleState)
+        {
+          item->title = item->titleState->get();
+          item->titleState = 0;
+        }
         ClearMenuItemDriving(item->childrenHead());
       }
     }

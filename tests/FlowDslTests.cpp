@@ -6340,20 +6340,11 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
 {
   FlowTestPlatformContext platformContext;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
-      simpleviewer::DISPLAY_FIT);
-  loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualEvent;
-  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
-      .openDialogEvent(&openDialogEvent)
-      .displayMode(&displayMode)
-      .fitEvent(&fitEvent)
-      .actualEvent(&actualEvent)
-      .actualScrollEvent(&actualScrollEvent);
+      .openDialogEvent(&openDialogEvent);
   loka::app::scene::Scene scene(
-      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+      new loka::app::scene::BoundaryDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
@@ -6426,20 +6417,11 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   SimpleViewerRetainingPlatformContext platformContext;
   platformContext.createImageResult_ = true;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
-      simpleviewer::DISPLAY_FIT);
-  loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualEvent;
-  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
-      .openDialogEvent(&openDialogEvent)
-      .displayMode(&displayMode)
-      .fitEvent(&fitEvent)
-      .actualEvent(&actualEvent)
-      .actualScrollEvent(&actualScrollEvent);
+      .openDialogEvent(&openDialogEvent);
   loka::app::scene::Scene scene(
-      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+      new loka::app::scene::BoundaryDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
@@ -6504,20 +6486,11 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
   platformContext.capacityReleaseWitness_ = &unavailableCapacity;
   loka::core::EmitterState openDialogEvent;
-  loka::core::MutableState<simpleviewer::DisplayMode> displayMode(
-      simpleviewer::DISPLAY_FIT);
-  loka::core::EmitterState fitEvent;
-  loka::core::EmitterState actualEvent;
-  loka::core::EmitterState actualScrollEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
-      .openDialogEvent(&openDialogEvent)
-      .displayMode(&displayMode)
-      .fitEvent(&fitEvent)
-      .actualEvent(&actualEvent)
-      .actualScrollEvent(&actualScrollEvent);
+      .openDialogEvent(&openDialogEvent);
   loka::app::scene::Scene scene(
-      new loka::app::scene::NodeDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
+      new loka::app::scene::BoundaryDefinition<simpleviewer::MainProps, simpleviewer::MainNode>(props));
   FlowScenePlatformController platform;
   scene.mount(&platform);
   loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
@@ -8901,4 +8874,19 @@ void testSimpleViewerReadStdioFaults()
 #else
   std::puts("[skip] stdio fault injection requires Linux linker wrapping");
 #endif
+}
+
+#include "app/FileImageSource.hpp"
+
+void testFileImageSourceRefusesUnresolvedApplicationFile()
+{
+  // An application-relative File that no context resolves has no path to
+  // flatten: the read must refuse, not assert in File::toString (#1133).
+  loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+  blob.setBytes(std::vector<unsigned char>(4, 'k'));
+  const loka::core::resource::Blob before = blob;
+  const loka::file::File absent = loka::file::File::Application() << loka::file::File("absent.pict");
+  LOKA_VERIFY(loka::app::ReadFileImageBlob(0, absent, blob) == loka::platform::file::READ_NO_NATIVE_SPEC);
+  assert(blob == before);
+  assert(blob.bytes().size() == 4);
 }

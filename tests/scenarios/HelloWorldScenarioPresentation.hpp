@@ -27,7 +27,7 @@ namespace loka
 
       virtual void compose(AppComposition &composition)
       {
-        ObservedMainDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition(helloworld::MainProps(), 0);
+        ObservedMainDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition(this->productionMainProps(), 0);
         WindowProps windowProps = this->productionWindowProps(mainDefinition);
         this->applyScenarioWindowPresentation(windowProps);
         composition << WindowDef(windowProps.idlePolicy(app::IdlePolicy::everyTick())

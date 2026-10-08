@@ -62,7 +62,7 @@ if [ "$1" = "--all-loops" ] || [ "$1" = "--all-flows" ]; then
   set -- "$batch_root/ASSETS.LRP"
 elif [ "$1" = "--all" ]; then
   [ "$#" -eq 1 ] || exit 2
-  for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
+  for app in HelloWorld/LokaHello MineSweeper/LokaMine SimpleViewer/LokaSimpleViewer SimpleText/LokaSimpleText FloppyBird/LokaFloppyBird SmirkBench/LokaSmirkBench LazyList/LokaLazyList Tutorial/LokaTutorial ScrapbookUI/ScrapbookUI SmirkyCard/LokaSmirkyCard; do
     MACBINARY_PATHS+=("$PROJECT_DIR/build/retro68/${cpu}/Release/example/${app}${suffix}.bin")
   done
   set -- "$PROJECT_DIR/build/retro68/${cpu}/Release/example/ScrapbookUI/ASSETS.LRP"

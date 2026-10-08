@@ -42,8 +42,12 @@ namespace loka
       app::MenuBarDefinition vehicleMenu;
       loka::testing::ComposeMenuBar(production, productionMenu);
       loka::testing::ComposeMenuBar(vehicle, vehicleMenu);
-      LOKA_VERIFY(!expectProductionMenu || !productionMenu.empty());
-      LOKA_VERIFY(loka::testing::MenuPresentationsEqual(productionMenu, vehicleMenu));
+      const app::MenuBarDefinition *productionBar = productionWindow->scene()->menuBar();
+      const app::MenuBarDefinition *vehicleBar = vehicleWindow->scene()->menuBar();
+      if (!productionBar) productionBar = &productionMenu;
+      if (!vehicleBar) vehicleBar = &vehicleMenu;
+      LOKA_VERIFY(!expectProductionMenu || !productionBar->empty());
+      LOKA_VERIFY(loka::testing::MenuPresentationsEqual(*productionBar, *vehicleBar));
 
       for (std::size_t i = 0; i < productionComponents.size(); ++i)
       {

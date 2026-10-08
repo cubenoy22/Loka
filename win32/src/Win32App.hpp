@@ -18,7 +18,7 @@ protected:
 public:
   virtual void run();
   virtual void quit();
-  /** Continuation for an already dispatched REBUILD_MENU action. */
+  /** Acknowledges a command already dispatched by the Window attachment. */
   bool handleMenuCommand(int commandId, Window *window);
 
 protected:

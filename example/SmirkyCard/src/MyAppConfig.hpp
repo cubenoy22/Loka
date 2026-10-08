@@ -27,7 +27,7 @@ public:
                                  .scene(smirkycard::CreateCard(SMIRKY_CARD_FIRST, this->runtime_)));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &composition)
+  virtual void composeDefaultMenu(loka::app::MenuComposition &composition)
   {
     using namespace loka::app;
     composition.declare(AppMenu() << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));

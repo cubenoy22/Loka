@@ -1,3 +1,4 @@
+#include "../example/SimpleText/src/MyAppConfig.hpp"
 #include "../example/FloppyBird/src/MyAppConfig.hpp"
 #include "../example/SmirkBench/src/MyAppConfig.hpp"
 #include "../example/LazyList/src/MyAppConfig.hpp"

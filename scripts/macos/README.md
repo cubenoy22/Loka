@@ -140,7 +140,8 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Defaults: `DEPLOYMENT_TARGET=10.4`, `ARCHS=ppc;i386`, `MAC_OS_10_4=1`
   - Intended for Snow Leopard environments with CMake/Ninja and the 10.4u SDK installed.
   - The previous five-target default set is build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc i386`. The newly enumerated ScrapbookUI bundle has not yet been build-verified on that toolchain.
-  - By default builds all eight shipping app targets, including the bundled `ScrapbookUIMacOS`. Plain executables are merged directly under `universal`; ScrapbookUI is merged as `universal/ScrapbookUIMacOS.app` so its `Resources/ASSETS.LRP` remains with the executable.
+  - SimpleText desktop build and runtime verification are pending on the owning rigs.
+  - By default builds all nine shipping app targets, including the bundled `ScrapbookUIMacOS`. Plain executables are merged directly under `universal`; ScrapbookUI is merged as `universal/ScrapbookUIMacOS.app` so its `Resources/ASSETS.LRP` remains with the executable.
   - Xcode UI builds using a Snow Leopard-partition Xcode 3.2.6 install have also been build-verified from Lion/Mountain Lion hosts.
   - CLI builds through an Xcode 3.2.6 install on a newer host (`xcode-select` cannot select it there) work by bypassing `xcode-select`/`xcrun` rather than fighting them — verified end to end on Mavericks 10.9.5 (all five example targets, `ppc i386` fat binaries):
 
@@ -168,7 +169,8 @@ while UB2 (`arm64;x86_64`) starts with Apple Silicon-capable Xcode releases.
   - Prefers `gcc-4.2` / `g++-4.2` resolved through `xcrun` from the selected Xcode, then falls back to `PATH`.
   - The previous five-target default set is build-verified on Snow Leopard with Xcode 3.2.6; expected merged slices are `ppc7400 i386 x86_64`. The newly enumerated ScrapbookUI bundle has not yet been build-verified on that toolchain.
   - Treat this as a Snow Leopard CLI verification path, not a Leopard-hosted script path.
-  - By default builds all eight shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
+  - SimpleText desktop build and runtime verification are pending on the owning rigs.
+  - By default builds all nine shipping app targets, including the bundled `ScrapbookUIMacOS`, and creates merged outputs in `build/macos-10.5-ub1/universal`. Plain executables are emitted directly there; ScrapbookUI remains a bundle so its Resources stay intact.
 
 macOS bundle targets use the project-owned
 `cmake/macos/MacOSXBundleInfo.plist.in` through CMake's default-template lookup.
@@ -214,7 +216,8 @@ metadata still needs legacy build verification and Retina runtime verification.
 - `scripts/macos/build-ub2.sh`
   - Universal Binary 2 path for modern macOS.
   - Defaults: `DEPLOYMENT_TARGET=11.0`, `ARCHS=arm64;x86_64`, `MAC_OS_10_4=0`
-  - By default builds all eight shipping app targets: `LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaSmirkBenchMacOS`, `LokaLazyListMacOS`, `ScrapbookUIMacOS`, and `LokaTutorialMacOS`.
+  - SimpleText desktop build and runtime verification are pending on the owning rigs.
+  - By default builds all nine shipping app targets: `LokaFloppyBirdMacOS`, `LokaHelloMacOS`, `LokaMineMacOS`, `LokaSimpleViewerMacOS`, `LokaSimpleTextMacOS`, `LokaSmirkBenchMacOS`, `LokaLazyListMacOS`, `ScrapbookUIMacOS`, and `LokaTutorialMacOS`.
   - Treat this as a direct CLI build path for the UB2 generation, not as a fallback for legacy UB1 project generation.
 
 - `scripts/macos/build.sh`
@@ -282,6 +285,7 @@ metadata still needs legacy build verification and Retina runtime verification.
 
 # 10.4 target for one app target only
 TARGET=LokaSimpleViewerMacOS ./scripts/macos/build-10_4.sh
+TARGET=LokaSimpleTextMacOS ./scripts/macos/build-10_4.sh
 
 # 10.5 target (ppc + i386 + x86_64, no ppc64)
 ./scripts/macos/build-10_5.sh

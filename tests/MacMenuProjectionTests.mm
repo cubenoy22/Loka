@@ -389,3 +389,87 @@ void testMacMenuAttachmentDispatchMayDisconnect()
   LOKA_VERIFY(fixture.observation.calls == 1);
   LOKA_VERIFY(!fixture.observation.attachment->dispatch(fixture.observation.tag));
 }
+
+void testMacMenuTitleFollowsState()
+{
+  CocoaHost host;
+  // The same build door must cover ordinary leaves and application commands.
+  const MenuActionType actions[] = {MENU_ACTION_NONE, MENU_ACTION_ABOUT_APP, MENU_ACTION_QUIT_APP};
+  for (size_t i = 0; i < sizeof(actions) / sizeof(actions[0]); ++i)
+  {
+    MutableState<String> state(String::Literal("Alpha"));
+    PushStateTracker tracker;
+    tracker.addState(&state);
+    TestApp app;
+    MenuDefinition menu = i == 0 ? Menu("File") : AppMenu();
+    MenuItemDefinition command = MenuItem("Fallback").text(&state).actionType(actions[i]);
+    if (i == 0)
+      command.shortcut('a');
+    menu << command;
+    MenuBarDefinition offered;
+    offered << menu;
+    LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
+    NSMenuItem *item = commandItem();
+    LOKA_VERIFY([[item title] isEqualToString:@"Alpha"]);
+    NSString *shortcut = i == 0 ? @"a" : (i == 2 ? @"q" : @"");
+    LOKA_VERIFY([[item keyEquivalent] isEqualToString:shortcut]);
+    {
+      StateTrackerGuard guard(&tracker);
+      state.set(String::Literal("Beta"));
+    }
+    LOKA_VERIFY(commandItem() == item);
+    LOKA_VERIFY([[item title] isEqualToString:@"Beta"]);
+    LOKA_VERIFY([[item keyEquivalent] isEqualToString:shortcut]);
+  }
+}
+
+void testMacMenuSubmenuTitleFollowsState()
+{
+  CocoaHost host;
+  MutableState<String> state(String::Literal("Alpha"));
+  PushStateTracker tracker;
+  tracker.addState(&state);
+  TestApp app;
+  MenuBarDefinition offered;
+  offered << (Menu("File") << (MenuItem("Fallback").text(&state) << MenuItem("Child")));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, 0));
+  NSMenu *menu = [[[NSApp mainMenu] itemAtIndex:0] submenu];
+  LOKA_VERIFY(menu && [menu numberOfItems] == 1);
+  NSMenuItem *item = [menu itemAtIndex:0];
+  NSMenu *submenu = [item submenu];
+  LOKA_VERIFY(submenu != nil);
+  LOKA_VERIFY([[item title] isEqualToString:@"Alpha"]);
+  LOKA_VERIFY([[submenu title] isEqualToString:@"Alpha"]);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Beta"));
+  }
+  LOKA_VERIFY([[item title] isEqualToString:@"Beta"]);
+  LOKA_VERIFY([[submenu title] isEqualToString:@"Beta"]);
+}
+
+void testMacMenuTitleStateUnbindsOnRelease()
+{
+  CocoaHost host;
+  MutableState<String> state(String::Literal("Alpha"));
+  PushStateTracker tracker;
+  tracker.addState(&state);
+  Scene source((Boundary<Root>()));
+  TestApp app;
+  MenuBarDefinition offered;
+  offered << (Menu("File") << MenuItem("Fallback").text(&state));
+  LOKA_VERIFY(app.menuAttachment().project(&offered, &source));
+  NSMenuItem *item = [commandItem() retain];
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Beta"));
+  }
+  LOKA_VERIFY([[item title] isEqualToString:@"Beta"]);
+  app.menuAttachment().releaseFrom(&source);
+  {
+    StateTrackerGuard guard(&tracker);
+    state.set(String::Literal("Gamma"));
+  }
+  LOKA_VERIFY([[item title] isEqualToString:@"Beta"]);
+  [item release];
+}

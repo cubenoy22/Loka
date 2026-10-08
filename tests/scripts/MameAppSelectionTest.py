@@ -34,6 +34,7 @@ class SelectionTest(unittest.TestCase):
                            CALL_LOG=str(root / "calls"))
                 for key, target, location in (
                     ("HelloWorld", "LokaHello" + suffix, "Release/example/HelloWorld"),
+                    ("SimpleText", "LokaSimpleText" + suffix, "Release/example/SimpleText"),
                     ("SmirkyCard", "LokaSmirkyCard" + suffix, "Release/example/SmirkyCard"),
                     ("ScrapbookUI", "ScrapbookUI" + suffix, "Release/example/ScrapbookUI"),
                     ("FloppyBirdStandaloneLoop", "LokaFloppyStandaloneLoop" + suffix,

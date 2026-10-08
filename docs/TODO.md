@@ -89,7 +89,6 @@ These items address recurring bug patterns and structural risks identified durin
 - Props in/out pattern for `State<T>*` and `EmitterState*` props (bidirectional vs one-way).
 - requestDiscard protocol for save/confirm flows via EmitterState.
 - Menu architecture status: treat the current Menu/App menu implementation as provisional. Clarify platform convention ownership before promoting the API: macOS/Classic Mac use an application menu bar, while Win32 attaches native menus to windows. Keep App-wide `MenuBarDefinition`/`MenuCompositionDiff` usage limited to the default/app menu snapshot for now, and avoid building future Win32 per-window menu diff/apply behavior on a single App-owned diff state.
-- Menu rebuild contract: `MENU_ACTION_REBUILD_MENU` and menu-local state changes do not yet produce reliable reactive rebuild/apply across platforms, especially on macOS menu tracking. Add dedicated contract tests before expanding reactive menu samples.
 - DSL definition lifetime safety: `ConditionalDefinition` now owns cloned trueDef/falseDef (fixed). Remaining: audit other definition types for similar raw-pointer-to-temporary patterns; see "Definition ownership clarity" in Highly recommended.
 - Dynamic subtree granularity: sibling context preservation now works via local diff RETAIN + removal of `clearContexts()` from platform layout (fixed). Remaining: `NODE_DIRTY_CHILD` still rebuilds the whole dynamic boundary subtree; lighter-weight partial-child diff is a future optimization.
 - Local dynamic diff follow-up: scene-side local rebuild planning is now split into comparison summary (`NodeCompositionDiff`) and boundary-local apply plan (`LocalRebuildPlan`). Remaining work is to decide how much of that kernel should be shared with menu diff/apply without forcing premature abstraction.
@@ -161,8 +160,7 @@ These items address recurring bug patterns and structural risks identified durin
 - Toolbox redraw profiling support: HelloWorld can dump/reset Toolbox debug stats to timestamped files for local interaction analysis.
 - Support matrix in README: split compatibility claims into `build-verified` and `runtime-verified`.
 - Menu bar support implemented across macOS/Win32/Toolbox app layers.
-- MenuItemAttr `visible` is evaluated during menu build. Runtime visibility toggles currently require menu invalidation/rebuild to reapply.
-- Menu/Scene architecture convergence: keep boundary-local tracking, minimal diff output, and immediate-vs-deferred policy split aligned now that both scene and menu use `NextTickTracker`; remaining work is to converge scheduling entry points and shared semantics without duplicating dirty logic.
+- MenuItemAttr `visible` is evaluated during menu build. A runtime visibility toggle needs a new Scene bar declaration (Keyed-type seat, menu rally page 3); the App default bar is composed once at bootstrap and never rebuilt.
 - ConditionalDefinition/ConditionalNode and `NodeComposition::conditional(..., node)` default false/Empty path implemented.
 - BoundaryNode owns StateTracker; useState auto-registers; Context API removed; RootBoundaryWrapper in Scene; DSL naming cleanup.
 - `VStack/HStack` alignment props are wired into platform layout engines (Win32/macOS/Toolbox), including remaining-height handling for `VStack + ImageView(FILL_PARENT)`.
