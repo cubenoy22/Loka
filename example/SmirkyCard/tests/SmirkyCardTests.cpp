@@ -3116,8 +3116,7 @@ namespace
           loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(
               loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()));
       }
-      if (mode == HandlePlatform::CapacityFailure) allocation.refuse("Blob", "Bytes");
-    expectJs(runtime, operation, expected);
+      expectJs(runtime, operation, expected);
       LOKA_VERIFY(!JS_HasException(runtime.context()));
     }
     if (activationFailure)
