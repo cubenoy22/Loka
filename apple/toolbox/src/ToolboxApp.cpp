@@ -217,10 +217,6 @@ void ToolboxApp::run()
   loka::core::Operation::Regime regime;
   while (running_)
   {
-    if (activationPhase_ == ACTIVATION_FOREGROUND)
-    {
-      this->flushMenuInvalidation();
-    }
     EventRecord event;
     WaitNextEvent(everyEvent, &event, 1, 0);
     loka::core::Operation turn;

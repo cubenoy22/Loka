@@ -664,8 +664,9 @@ the tail. Outside a turn, or when enrollment is refused (including standalone
 ledgers), the run bracket ends at PENDING or terminal cleanup before `finally`.
 Public resume starts a fresh bracket; an internal flow-success continuation
 shares the original bracket without opening another level. Dialog transport
-and Menu's own NextTick remain unchanged. Cleanup writes do not reopen a closing
-clock.
+remains unchanged; the App default menu bar is composed once at bootstrap and
+has no clock of its own, and a Scene's menu bar follows the Scene's clock.
+Cleanup writes do not reopen a closing clock.
 
 In ordinary code, prefer RAII guard helpers instead of manually opening and
 closing transactions.
@@ -1073,9 +1074,12 @@ encode losslessly, and must fit within 31 native bytes.
 macOS implements SAVE with NSSavePanel: the text policy suggests `.txt` while
 allowing other file types, and the default policy imposes no type restriction.
 The panel handles overwrite confirmation; selection does not create or truncate
-the destination. Win32 currently delivers
-`Error(FILE_DIALOG_ERROR_UNSUPPORTED_PURPOSE)` without showing a native SAVE
-dialog. Null refuses both purposes. Changing purpose, default name or filter on a
+the destination. Win32 implements SAVE with `GetSaveFileNameW`: it asks before
+replacing an existing file, and `FILE_DIALOG_FILTER_ALL_FILES_TEXT` adds a Text
+(`*.txt`) filter and appends `.txt` to a name typed without an extension. A
+default name Windows cannot use as a file name (a path separator, a reserved
+character, a trailing dot or space) completes with an `Error` result without
+showing the dialog. Null refuses both purposes. Changing purpose, default name or filter on a
 retained dialog abandons an active operation until reattach. Options changed
 while detached configure the next presentation.
 

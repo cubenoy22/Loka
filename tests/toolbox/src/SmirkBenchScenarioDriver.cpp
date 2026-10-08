@@ -101,9 +101,9 @@ namespace loka
                                        .onIdle(&SmirkBenchScenarioAppConfig::OnIdle, this));
         }
 
-        virtual void composeMenu(app::MenuComposition &composition)
+        virtual void composeDefaultMenu(app::MenuComposition &composition)
         {
-          // Keep paired with SmirkBenchAppConfig::composeMenu.
+          // Keep paired with SmirkBenchAppConfig::composeDefaultMenu.
           using namespace app;
           composition.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) << MenuSeparator()
                                         << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));

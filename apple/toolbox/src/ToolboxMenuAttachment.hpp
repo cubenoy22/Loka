@@ -19,7 +19,7 @@ public:
   /** Returns true when native menus were projected; equal offers return false.
       Snapshot refusal clears the baseline without dropping the projection. */
   bool project(const loka::app::MenuBarDefinition *bar,
-               const loka::app::scene::Scene *source, bool forceFullRebuild);
+               const loka::app::scene::Scene *source);
   void disconnect();
   void releaseFrom(const loka::app::scene::Scene *scene);
   bool dispatch(short menuId, short item);

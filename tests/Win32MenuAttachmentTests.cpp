@@ -1,6 +1,7 @@
 #include "Win32MenuAttachmentTests.hpp"
 #include <cstdio>
 #include <cwchar>
+#include <functional>
 #include "Win32App.hpp"
 #include "Win32Window.hpp"
 #include "Win32ScenePlatformController.hpp"
@@ -93,13 +94,42 @@ namespace
     int calls;
     int detaches;
   };
-  Observation *composingObservation = 0;
+  class MenuRoot;
+  struct MenuRootTypeTag {};
 
-  class MenuRoot : public BoundaryNodeFor<MenuRoot>
+  class MenuRootProps : public NodePropsBase<MenuRootProps>
   {
   public:
-    explicit MenuRoot(const BoundaryPropsFor<MenuRoot> &p)
-        : BoundaryNodeFor<MenuRoot>(p), observation_(*composingObservation)
+    typedef MenuRootTypeTag TypeTag;
+    typedef MenuRoot NodeType;
+    explicit MenuRootProps(Observation *observation = 0,
+                           const char *title = "Run", EmitterState *emitter = 0)
+        : observation_(observation), title_(title), emitter_(emitter) {}
+    Observation *observation() const { return this->observation_; }
+    const char *title() const { return this->title_; }
+    EmitterState *emitter() const { return this->emitter_; }
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+        return this->propsTypeId() < rhs.propsTypeId();
+      const MenuRootProps &other = static_cast<const MenuRootProps &>(rhs);
+      if (this->observation_ != other.observation_)
+        return std::less<Observation *>()(this->observation_, other.observation_);
+      if (this->title_ != other.title_)
+        return std::less<const char *>()(this->title_, other.title_);
+      return std::less<EmitterState *>()(this->emitter_, other.emitter_);
+    }
+  private:
+    Observation *observation_;
+    const char *title_;
+    EmitterState *emitter_;
+  };
+
+  class MenuRoot : public StdCompositionBoundaryNodeBase<MenuRootProps>
+  {
+  public:
+    explicit MenuRoot(const MenuRootProps &p)
+        : StdCompositionBoundaryNodeBase<MenuRootProps>(p)
     {
       this->state(this->enabled_, true);
     }
@@ -109,22 +139,30 @@ namespace
     }
     virtual void composeNode(NodeComposition &c)
     {
+      if (this->props.emitter())
+      {
+        LOKA_VERIFY(c.menuBar(bar(this->props.title(), this->props.emitter())));
+        return;
+      }
       MenuBarDefinition offered;
-      offered << (Menu("File") << MenuItem("Run").shortcut('R').enabled(this->enabled_.state()).onClick(&this->clicked_));
+      offered << (Menu("File") << MenuItem(this->props.title()).shortcut('R').enabled(this->enabled_.state()).onClick(&this->clicked_));
       LOKA_VERIFY(c.menuBar(offered));
     }
     virtual void detachNode(NodeComposition &)
     {
-      ++this->observation_.detaches;
-      Win32Window &window = *this->observation_.window;
+      if (!this->props.observation())
+        return;
+      Observation &observation = *this->props.observation();
+      ++observation.detaches;
+      Win32Window &window = *observation.window;
       LOKA_VERIFY(GetMenu(window.hwnd()) != NULL);
-      LOKA_VERIFY(!window.menuAttachment().dispatch(this->observation_.command));
-      if (this->observation_.ownerAtShutdown)
+      LOKA_VERIFY(!window.menuAttachment().dispatch(observation.command));
+      if (observation.ownerAtShutdown)
       {
         // Virtual dispatch through the base borrow witnesses that Win32App is
         // still alive. Without its retireComponents(), App's default returns
         // false here. No active window means this continuation projects nothing.
-        LOKA_VERIFY(this->observation_.ownerAtShutdown->handleMenuCommand(-1, &window));
+        LOKA_VERIFY(observation.ownerAtShutdown->handleMenuCommand(-1, &window));
       }
     }
     void enabled(bool value)
@@ -133,17 +171,15 @@ namespace
       this->enabled_.set(value);
     }
   private:
-    void clicked() { ++this->observation_.calls; }
-    Observation &observation_;
+    void clicked() { ++this->props.observation()->calls; }
     NodeState<bool> enabled_;
     EmitterState clicked_;
   };
 
   WindowProps sceneProps(Observation &observation)
   {
-    composingObservation = &observation;
     WindowProps result = props();
-    result.scene(new Scene(Boundary<MenuRoot>()));
+    result.scene(new Scene(Boundary<MenuRoot>(MenuRootProps(&observation))));
     return result;
   }
 
@@ -207,7 +243,7 @@ void testWin32MenuAttachmentProjectsOnceForEqualBar()
 void testWin32MenuAttachmentReleaseFromSourceDisconnects()
 {
   Mounted f;
-  Scene other((Boundary<MenuRoot>()));
+  Scene other((Boundary<MenuRoot>(MenuRootProps())));
   HMENU installed = GetMenu(f.window.hwnd());
   const UINT id = f.observation.command;
   HMENU popup = GetSubMenu(installed, 0);
@@ -256,20 +292,22 @@ void testWin32TwoWindowsOwnTheirMenus()
   EmitterState emitterA, emitterB;
   emitterA.deferBind(&count, &callsA);
   emitterB.deferBind(&count, &callsB);
-  // Each Window owns its bar and native attachment.
-  MenuBarDefinition barA = bar("A", &emitterA), barB = bar("B", &emitterB);
-  Win32Window a(&context, props().menuBar(barA)), b(&context, props().menuBar(barB));
+  // Each Scene owns its bar; each Window owns its native attachment.
+  WindowProps propsA = props(), propsB = props();
+  propsA.scene(new Scene(Boundary<MenuRoot>(MenuRootProps(0, "A", &emitterA))));
+  propsB.scene(new Scene(Boundary<MenuRoot>(MenuRootProps(0, "B", &emitterB))));
+  Win32Window a(&context, propsA), b(&context, propsB);
   a.setApp(&app);
   b.setApp(&app);
   show(a, true);
   show(b, true);
   // Exercise the production rail door: B's projection used to detach A.
   app.setActiveWindow(&a);
-  app.projectMenu(&a, a.menuBar(), 0);
+  app.projectMenu(&a, a.scene()->menuBar(), a.scene());
   HMENU menuA = GetMenu(a.hwnd());
   LOKA_VERIFY(menuA);
   app.setActiveWindow(&b);
-  app.projectMenu(&b, b.menuBar(), 0);
+  app.projectMenu(&b, b.scene()->menuBar(), b.scene());
   HMENU menuB = GetMenu(b.hwnd());
   LOKA_VERIFY(menuB && menuB != menuA);
   LOKA_VERIFY(GetMenu(a.hwnd()) == menuA && IsMenu(menuA));
@@ -644,7 +682,7 @@ void testWin32MenuTitleStateUnbindsOnRelease()
   PushStateTracker tracker;
   tracker.addState(&state);
   ShortcutFixture f;
-  Scene source((Boundary<MenuRoot>()));
+  Scene source((Boundary<MenuRoot>(MenuRootProps())));
   MenuBarDefinition offered;
   offered << (Menu("File") << (MenuItem("Fallback").text(&state)
       << MenuItem("Fallback").text(&state).shortcut('S')));

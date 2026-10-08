@@ -965,10 +965,11 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     {
       continue;
     }
-    // binding.rect is the inset text rect that TEUpdate needs; draw() frames
-    // the outer rect, so the region that has to trigger a redraw is the outer
-    // one. Gating on the inner rect would skip a dirty strip covering only the
-    // chrome and leave the frame erased.
+    // An EditText's binding.rect is the inset text rect that TEUpdate needs and
+    // draw() frames the outer rect, so the region that has to trigger a redraw
+    // is the outer one: gating on the inner rect would skip a dirty strip
+    // covering only the chrome and leave the frame erased. A TextEditor's
+    // binding.rect is already its clipped frame; chromeRect() covers both.
     if (!RectsIntersect(rect, (binding.editor ? binding.editor->chromeRect() : static_cast<ToolboxEditTextContext *>(binding.ownerContext)->chromeRect())))
     {
       continue;

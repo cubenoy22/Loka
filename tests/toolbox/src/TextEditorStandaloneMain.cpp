@@ -124,7 +124,7 @@ namespace
                                    .visible(true)
                                    .scene(scene::Boundary<TextEditorContent>()));
     }
-    virtual void composeMenu(MenuComposition &composition)
+    virtual void composeDefaultMenu(MenuComposition &composition)
     {
       composition.declare(Menu("File") << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP));
     }

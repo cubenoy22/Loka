@@ -91,7 +91,7 @@ if ($MacBinaryPath -in @("--all-loops", "--all-flows")) {
 if ($MacBinaryPath -eq "--all") {
     if ($PlainDataPaths.Count) { throw "--all does not accept additional files" }
     $binaryPaths = @(
-        foreach ($app in @("HelloWorld/LokaHello", "MineSweeper/LokaMine", "SimpleViewer/LokaSimpleViewer", "FloppyBird/LokaFloppyBird", "SmirkBench/LokaSmirkBench", "LazyList/LokaLazyList", "Tutorial/LokaTutorial", "ScrapbookUI/ScrapbookUI", "SmirkyCard/LokaSmirkyCard")) {
+        foreach ($app in @("HelloWorld/LokaHello", "MineSweeper/LokaMine", "SimpleViewer/LokaSimpleViewer", "SimpleText/LokaSimpleText", "FloppyBird/LokaFloppyBird", "SmirkBench/LokaSmirkBench", "LazyList/LokaLazyList", "Tutorial/LokaTutorial", "ScrapbookUI/ScrapbookUI", "SmirkyCard/LokaSmirkyCard")) {
             Join-Path $ProjectDirectory "build/retro68/${cpu}/Release/example/${app}${suffix}.bin"
         }
     )

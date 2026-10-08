@@ -5,15 +5,18 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
                                                                  const Rect &rect,
                                                                  loka::app::scene::NativeLifetimeHint hint)
 {
-  Rect clipped;
-  if (!this->intersectWithProjectionClip(rect, clipped))
+  // The binding's rect is the visible box (hit testing, invalidation); only
+  // TextEdit's own rects sit inside the frame.
+  const Rect textRect = ToolboxTextEditorTextRect(rect);
+  Rect visibleBox, clipped;
+  if (!this->intersectWithProjectionClip(rect, visibleBox) || !this->intersectWithProjectionClip(textRect, clipped))
     return 0;
   std::size_t index = 0;
   if (this->editControls_.find(context, index))
   {
     EditTextControlBinding &binding = this->editControls_[index];
     binding.usedThisFrame = true;
-    binding.rect = clipped;
+    binding.rect = visibleBox;
     (**binding.te).viewRect = clipped;
     return binding.te;
   }
@@ -22,7 +25,7 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
   TextFont(4); // Monaco; Universal Interfaces omit the legacy monaco constant.
   TextSize(9);
   TextFace(0);
-  TEHandle te = TENew(&rect, &clipped);
+  TEHandle te = TENew(&textRect, &clipped);
   if (!te)
     return 0;
   EditTextControlBinding entry;
@@ -30,7 +33,7 @@ TEHandle ToolboxScenePlatformController::ensureTextEditorControl(ToolboxTextEdit
   entry.editor = context;
   entry.text = 0;
   entry.te = te;
-  entry.rect = clipped;
+  entry.rect = visibleBox;
   entry.usedThisFrame = true;
   entry.lifetimeHint = hint;
   this->editControls_.add(entry);

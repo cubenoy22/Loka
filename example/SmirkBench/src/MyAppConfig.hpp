@@ -29,7 +29,7 @@ public:
             .onIdle(&SmirkBenchAppConfig::WindowIdleThunk, this));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &composition)
+  virtual void composeDefaultMenu(loka::app::MenuComposition &composition)
   {
     using namespace loka::app;
     composition.declare(AppMenu() << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP) << MenuSeparator()
