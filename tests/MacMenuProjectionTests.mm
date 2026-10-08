@@ -62,7 +62,6 @@ namespace
   {
     MenuBarDefinition result;
     MenuDefinition menu = Menu("File") << MenuItem("Run").attr(MenuItemAttr().checked(checked));
-    menu.opaqueChildren(true);
     result << menu;
     return result;
   }
@@ -199,7 +198,7 @@ void testMacMenuAttachmentProjectsOnceForEqualBar()
   NSMenu *installed = [[NSApp mainMenu] retain];
   LOKA_VERIFY(!app.menuAttachment().project(&equal, 0));
   LOKA_VERIFY([NSApp mainMenu] == installed);
-  // Opacity is composition policy, not projection equality (N2b).
+  // An item-level change must replace the installed projection.
   LOKA_VERIFY(app.menuAttachment().project(&changed, 0));
   LOKA_VERIFY([NSApp mainMenu] != installed);
   [installed release];

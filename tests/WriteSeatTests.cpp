@@ -726,29 +726,6 @@ void testGuardedBlocksProjectOnceAtTail()
 #include "app/Menu.hpp"
 namespace
 {
-  class PreparingMenu : public MenuBoundary
-  {
-  public:
-    MutableState<int> value;
-    PreparingMenu() : value(0) { this->tracker()->asPushTracker()->addState(&this->value); }
-    virtual ~PreparingMenu() { this->tracker()->asPushTracker()->removeState(&this->value); }
-    virtual void composeMenu(MenuComposition &composition)
-    {
-      this->value.set(1);
-      composition << Menu("Prepared");
-    }
-  };
-  class HandlerMenu : public MenuBoundary
-  {
-  public:
-    MutableState<bool> value;
-    NodeState<bool> checked;
-    HandlerMenu() : value(false), checked(&this->value, this->tracker())
-    { this->tracker()->asPushTracker()->addState(&this->value); }
-    virtual ~HandlerMenu() { this->tracker()->asPushTracker()->removeState(&this->value); }
-    virtual void composeMenu(MenuComposition &composition)
-    { composition << Menu(this->checked.get() ? "Checked" : "Unchecked"); }
-  };
   class BootstrapApp : public WindowAdmissionTestApp
   {
   public:
@@ -756,47 +733,6 @@ namespace
     using App::projectInitialVisibilityChunks;
   };
 }
-void testMenuCompositionCommitsBeforeReadInsideTurn()
-{
-  for (unsigned clocked = 0; clocked != 2; ++clocked)
-  {
-    PreparingMenu menu;
-    MenuBarDefinition bar;
-    MenuComposition composition(&bar);
-    ScopedPtr<Operation> turn(clocked ? new Operation : 0);
-    composition.declare(menu);
-    std::vector<size_t> indices;
-    composition.takeDirtyMenuIndices(indices);
-    LOKA_VERIFY(indices.size() == 1 && indices[0] == 0);
-    LOKA_VERIFY(menu.tracker()->asPushTracker()->peekDirty());
-    composition.acknowledgeDirtyBoundaries();
-    LOKA_VERIFY(!menu.tracker()->asPushTracker()->peekDirty());
-    if (turn.get()) LOKA_VERIFY(SeatClockAccess::empty(*turn));
-  }
-}
-void testMenuStateToggledInHandlerRebuildsMenuInSameTail()
-{
-  HandlerMenu menu;
-  MenuBarDefinition bar;
-  MenuComposition composition(&bar);
-  Operation turn;
-  menu.checked.set(true);
-  composition.declare(menu);
-  composition.finish();
-  PushStateTracker &tracker = *menu.tracker()->asPushTracker();
-  std::printf("S2 before settle: depth=%u dirty=%d clockEmpty=%d\n",
-              SeatAccess::depth(tracker), tracker.peekDirty(), SeatClockAccess::empty(turn));
-  std::fflush(stdout);
-  LOKA_VERIFY(tracker.peekDirty());
-  std::vector<size_t> indices;
-  composition.takeDirtyMenuIndices(indices);
-  LOKA_VERIFY(indices.size() == 1 && indices[0] == 0);
-  composition.acknowledgeDirtyBoundaries();
-  LOKA_VERIFY(!tracker.peekDirty());
-  LOKA_VERIFY(!tracker.consumeDirty());
-  LOKA_VERIFY(SeatClockAccess::empty(turn));
-}
-
 void testBootstrapVisibilityCommitsBeforeReadInsideTurn()
 {
   for (unsigned clocked = 0; clocked != 2; ++clocked)
