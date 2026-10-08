@@ -6,8 +6,9 @@ void testMenuSourceMergesDefaultAndActiveScene();
 void testMergeMenuBarsReplacesInPlaceAndAppendsInOrder();
 void testMenuMergeCloneRefusalSkipsRowKeepsNextCompletion();
 void testInactiveWindowCloseKeepsActiveBar();
-void testDefaultRefreshIsVisibleToTheSameCompletion();
-void testCleanCompletionsDoNotRecomposeDefault();
 void testTwoAdmissionsReofferSameSource();
 void testBootstrapProjectsOnce();
+void testDefaultBarComposedOnceAtBootstrap();
+void testDefaultBarBootstrapCloneRefusalLeavesNoDefault();
+void testDefaultBarReplacementCloneRefusalPreservesInstalledValue();
 #endif

@@ -25,11 +25,7 @@ public:
   {
     return simpleviewer::MainProps()
         .platformContext(config.getPlatformContext())
-        .openDialogEvent(&config.openDialogEvent_)
-        .displayMode(config.menu_.displayModeState())
-        .fitEvent(config.menu_.fitEvent())
-        .actualEvent(config.menu_.actualEvent())
-        .actualScrollEvent(config.menu_.actualScrollEvent());
+        .openDialogEvent(&config.openDialogEvent_);
   }
 
   static void open(simpleviewer::MainNode &node, const loka::app::FileChooserResult &result)

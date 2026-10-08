@@ -131,8 +131,7 @@ namespace loka
       MENU_ACTION_NONE = 0,
       MENU_ACTION_ABOUT_APP,
       MENU_ACTION_QUIT_APP,
-      MENU_ACTION_SHOW_COLOR_PICKER,
-      MENU_ACTION_REBUILD_MENU
+      MENU_ACTION_SHOW_COLOR_PICKER
     };
 
     struct MenuItemDefinition

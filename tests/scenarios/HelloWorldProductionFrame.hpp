@@ -33,14 +33,14 @@ namespace loka
       int width() const
       {
         return this->productionWindowProps(
-                       loka::app::scene::Boundary<helloworld::MainNode>())
+                       loka::app::scene::Boundary<helloworld::MainNode>(helloworld::MainProps()))
             .width;
       }
 
       int height() const
       {
         return this->productionWindowProps(
-                       loka::app::scene::Boundary<helloworld::MainNode>())
+                       loka::app::scene::Boundary<helloworld::MainNode>(helloworld::MainProps()))
             .height;
       }
     };

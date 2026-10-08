@@ -39,6 +39,11 @@ namespace
     return [NSString stringWithUTF8String:fallback];
   }
 
+  static NSString *MenuItemTitleFromString(const loka::core::String &title)
+  {
+    return MenuTitleFromString(title, "Menu Item");
+  }
+
   // AppKit can retain an item after its graph leaves the main menu. Unlike
   // Toolbox, clearing command lookup alone cannot revoke that native callback.
   static void StripMenuActions(NSMenu *menu)
@@ -95,6 +100,18 @@ void MacMenuAttachment::reset()
   this->menu_ = 0;
 }
 
+// Deliberately mirrors the Toolbox title binding at the native projection seam.
+void MacMenuAttachment::MenuTitleChangedThunk(void *userData)
+{
+  MacMenuAttachment::MenuBinding *binding = static_cast<MacMenuAttachment::MenuBinding *>(userData);
+  if (!binding || !binding->menuItem || !binding->titleState)
+    return;
+  NSMenuItem *item = (NSMenuItem *)binding->menuItem;
+  NSString *title = MenuItemTitleFromString(binding->titleState->get());
+  [item setTitle:title];
+  [[item submenu] setTitle:title];
+}
+
 void MacMenuAttachment::MenuEnabledChangedThunk(void *userData)
 {
   MacMenuAttachment::MenuBinding *binding = static_cast<MacMenuAttachment::MenuBinding *>(userData);
@@ -123,6 +140,10 @@ void MacMenuAttachment::clearMenuBindings()
   for (size_t i = 0; i < this->bindings_.size(); ++i)
   {
     MenuBinding *binding = this->bindings_[i];
+    if (binding && binding->titleState)
+    {
+      binding->titleState->deferUnbind(&MacMenuAttachment::MenuTitleChangedThunk, binding);
+    }
     if (binding && binding->enabledState)
     {
       binding->enabledState->deferUnbind(&MacMenuAttachment::MenuEnabledChangedThunk, binding);
@@ -153,7 +174,6 @@ static NSString *MenuShortcutForAction(const loka::app::MenuItemDefinition *item
     return @"q";
   case loka::app::MENU_ACTION_ABOUT_APP:
   case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
-  case loka::app::MENU_ACTION_REBUILD_MENU:
   case loka::app::MENU_ACTION_NONE:
     return @"";
   }
@@ -176,7 +196,7 @@ std::size_t MacMenuAttachment::BuildMenuItem(void *nativeMenu,
     return 1;
   }
 
-  NSString *title = MenuTitleFromString(itemDef->title, "Menu Item");
+  NSString *title = MenuItemTitleFromString(itemDef->titleState ? itemDef->titleState->get() : itemDef->title);
   NSString *shortcut = MenuShortcutForAction(itemDef);
   NSMenuItem *menuItem = [[NSMenuItem alloc] initWithTitle:title action:nil keyEquivalent:shortcut];
 
@@ -213,7 +233,7 @@ std::size_t MacMenuAttachment::BuildMenuItem(void *nativeMenu,
 
   loka::core::State<bool> *enabledBindingState = itemDef->enabledBindingState();
   loka::core::State<bool> *checkedBindingState = itemDef->checkedBindingState();
-  if (enabledBindingState || checkedBindingState)
+  if (itemDef->titleState || enabledBindingState || checkedBindingState)
   {
     if (enabledBindingState)
     {
@@ -221,9 +241,14 @@ std::size_t MacMenuAttachment::BuildMenuItem(void *nativeMenu,
     }
     MacMenuAttachment::MenuBinding *binding = new MacMenuAttachment::MenuBinding();
     binding->menuItem = (void *)menuItem;
+    binding->titleState = itemDef->titleState;
     binding->enabledState = enabledBindingState;
     binding->invertEnabled = itemDef->enabledBindingInvert();
     binding->checkedState = checkedBindingState;
+    if (binding->titleState)
+    {
+      binding->titleState->deferBind(&MacMenuAttachment::MenuTitleChangedThunk, binding);
+    }
     if (enabledBindingState)
     {
       enabledBindingState->deferBind(&MacMenuAttachment::MenuEnabledChangedThunk, binding);
@@ -337,7 +362,6 @@ bool MacMenuAttachment::dispatch(int commandId)
     case loka::app::MENU_ACTION_QUIT_APP:
       this->app_.quit();
       return true;
-    case loka::app::MENU_ACTION_REBUILD_MENU:
     case loka::app::MENU_ACTION_NONE:
       break;
     }
@@ -346,10 +370,6 @@ bool MacMenuAttachment::dispatch(int commandId)
       command.emitter->emit();
       // State writes/adoptions leave pending invalidation for handleFlush's App clock.
       // Keep replacement and relayout out of this native menu callback.
-    }
-    if (command.action == loka::app::MENU_ACTION_REBUILD_MENU)
-    {
-      this->app_.requestMenuInvalidation();
     }
     return true;
   }

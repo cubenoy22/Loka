@@ -1,6 +1,7 @@
 #include "OwnershipDumpTests.hpp"
 
 #include "support/TestVerify.hpp"
+#include "platform/null/NullPlatformContext.hpp"
 
 #include <cassert>
 #include <cstdio>
@@ -649,15 +650,12 @@ namespace
     LOKA_VERIFY(scene.flushInvalidation());
   }
 
-  std::vector<int> captureHelloWorldRandomMenu(HelloWorldAppConfig &config)
+  std::vector<int> captureHelloWorldRandomMenu(loka::app::scene::Scene &scene)
   {
-    loka::app::MenuBarDefinition bar;
-    loka::app::MenuComposition composition(&bar);
-    config.composeMenu(composition);
-    composition.finish();
-
+    const loka::app::MenuBarDefinition *bar = scene.menuBar();
+    LOKA_VERIFY(bar);
     loka::app::MenuDefinition *randomMenu = 0;
-    for (loka::app::MenuDefinition *menu = bar.menusHead();
+    for (loka::app::MenuDefinition *menu = bar->menusHead();
          menu;
          menu = menu->nextInComposition)
     {
@@ -669,6 +667,8 @@ namespace
     }
     LOKA_VERIFY(randomMenu != 0);
 
+    LOKA_VERIFY(randomMenu->itemsHead()->onClickState);
+    randomMenu->itemsHead()->onClickState->emit();
     std::vector<int> order;
     for (loka::app::MenuItemDefinition *item = randomMenu->itemsHead();
          item;
@@ -679,7 +679,7 @@ namespace
         const loka::core::String expected =
             loka::core::String::Literal("Random ") +
             loka::core::String::FromInt(label);
-        if (item->title.equals(expected))
+        if (item->titleState && item->titleState->get().equals(expected))
         {
           order.push_back(label);
           break;
@@ -694,11 +694,14 @@ namespace
       unsigned long seed,
       int menuCount)
   {
-    HelloWorldAppConfig config(0, seed);
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((loka::app::scene::Boundary<helloworld::MainNode>(helloworld::MainProps(seed))));
+    scene.mount(&platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
     std::vector<std::vector<int> > sequence;
     for (int i = 0; i < menuCount; ++i)
     {
-      sequence.push_back(captureHelloWorldRandomMenu(config));
+      sequence.push_back(captureHelloWorldRandomMenu(scene));
     }
     return sequence;
   }
@@ -726,13 +729,13 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
   LOKA_VERIFY(firstSequence == repeatedSequence);
   LOKA_VERIFY(firstSequence[0] != differentSeedSequence[0]);
   const int expectedFirst[6] = {3, 5, 4, 1, 6, 2};
-  const int expectedSecond[6] = {1, 3, 5, 4, 2, 6};
-  const int expectedThird[6] = {5, 6, 2, 3, 4, 1};
+  const int expectedSecond[6] = {3, 4, 6, 1, 5, 2};
+  const int expectedThird[6] = {5, 2, 4, 6, 1, 3};
   verifyHelloWorldMenuOrder(firstSequence[0], expectedFirst);
   verifyHelloWorldMenuOrder(firstSequence[1], expectedSecond);
   verifyHelloWorldMenuOrder(firstSequence[2], expectedThird);
 
-  NodeDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
+  BoundaryDefinition<helloworld::MainProps, helloworld::MainNode> mainDefinition;
   SceneTestSupport::RecordingPlatformController platform;
   loka::app::scene::NodeDefinitionBase *rootDefinition = mainDefinition.clone();
   LOKA_VERIFY(rootDefinition != 0);
@@ -743,9 +746,8 @@ void testOwnershipDumpPinsRepresentativeHelloWorld()
   const std::string expected(
       "scene\n"
       "  boundary\n"
-      "    boundary\n"
-      "      states: 11 (arena 11, heap 0)\n"
-      "      observed: 10\n");
+      "    states: 17 (arena 17, heap 0)\n"
+      "    observed: 10\n");
   verifyOwnershipDump(
       loka::dsl::testing::OwnershipDump::dump(scene), expected);
 }
@@ -758,13 +760,27 @@ void testHelloWorldProductionSeedAdapterPassesDerivedSeed()
       HelloWorldMenuSeed::FromWallClock(wallClockSeconds);
   LOKA_VERIFY(seed.value() == 0x13579BDFUL);
 
-  HelloWorldProductionAppConfig production(0, seed);
-  HelloWorldAppConfig expected(0, seed.value());
+  NullPlatformContext context;
+  HelloWorldProductionAppConfig production(&context, seed);
+  HelloWorldAppConfig expected(&context, seed.value());
+  AppComposition productionComposition(&context), expectedComposition(&context);
+  production.compose(productionComposition);
+  expected.compose(expectedComposition);
+  std::vector<AppComponent *> actualWindows = productionComposition.build();
+  std::vector<AppComponent *> expectedWindows = expectedComposition.build();
+  LOKA_VERIFY(actualWindows.size() == 1 && expectedWindows.size() == 1);
+  Window *actualWindow = actualWindows[0]->asWindow();
+  Window *expectedWindow = expectedWindows[0]->asWindow();
+  LOKA_VERIFY(actualWindow && expectedWindow);
+  const int first[6] = {3, 5, 4, 1, 6, 2};
   for (int i = 0; i < 3; ++i)
   {
-    LOKA_VERIFY(captureHelloWorldRandomMenu(production) ==
-                captureHelloWorldRandomMenu(expected));
+    const std::vector<int> actual = captureHelloWorldRandomMenu(*actualWindow->scene());
+    LOKA_VERIFY(actual == captureHelloWorldRandomMenu(*expectedWindow->scene()));
+    if (i == 0) verifyHelloWorldMenuOrder(actual, first);
   }
+  delete actualWindow;
+  delete expectedWindow;
 }
 
 void testOwnershipDumpPinsMineSweeperSections()

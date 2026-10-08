@@ -11,7 +11,7 @@ App::App(AppConfigurable *config)
     : group_(0),
       quitWhenLastWindowClosed_(true),
       config_(config),
-      menuController_(config),
+      defaultMenuBar_(0),
       activeWindow_(0),
       idleAccumulatedSeconds_(0.0),
       pendingWindowClosures_(),
@@ -54,7 +54,12 @@ void App::run()
   {
     AppComposition composition(config_->getPlatformContext());
     config_->compose(composition);
-    menuController_.refreshDefaultMenuBar();
+    // Bootstrap owns the only composition; clone refusal leaves no default.
+    loka::app::MenuBarDefinition bar;
+    loka::app::MenuComposition menuComposition(&bar);
+    config_->composeDefaultMenu(menuComposition);
+    menuComposition.finish();
+    this->setDefaultMenuBar(bar.empty() ? 0 : &bar);
     group_ = new AppComponentGroup(composition.build());
   }
   projectInitialVisibilityChunks();
@@ -408,29 +413,17 @@ bool App::handleMenuCommand(int commandId, Window *window)
   return false;
 }
 
-void App::invalidateMenu()
-{
-  menuController_.invalidate();
-}
-
-void App::requestMenuInvalidation()
-{
-  menuController_.requestInvalidation();
-}
-
-bool App::flushMenuInvalidation()
-{
-  return menuController_.flushInvalidation();
-}
-
 void App::setDefaultMenuBar(const loka::app::MenuBarDefinition *menuBar)
 {
-  menuController_.setDefaultMenuBar(menuBar);
-}
-
-const loka::app::MenuBarDefinition *App::resolveMenuBar(Window *window)
-{
-  return menuController_.resolveMenuBar(window);
+  if (menuBar)
+  {
+    loka::core::OwnedDef<loka::app::MenuBarDefinition> next(menuBar->clone());
+    if (!next.isSet())
+      return;
+    this->defaultMenuBar_.reset(next.take());
+  }
+  else
+    this->defaultMenuBar_.reset();
 }
 
 void App::setActiveWindow(Window *window)
@@ -462,11 +455,8 @@ void App::projectMenuSources()
       Window *window = rows[i] ? rows[i]->asWindow() : 0;
       if (!window || this->isWindowClosePending(window))
         continue;
-      // The cached default, never resolveMenuBar: a refresh is the
-      // invalidation flush's job before this step, and a clean completion
-      // must not recompose the default menu.
       const loka::app::MenuBarDefinition *base =
-          window->menuBar() ? window->menuBar() : this->menuController_.defaultMenuBar();
+          this->defaultMenuBar();
       const loka::app::scene::Scene *scene = window->scene();
       const loka::app::MenuBarDefinition *overlay = scene ? scene->menuBar() : 0;
       loka::core::OwnedDef<loka::app::MenuBarDefinition> merged(
@@ -477,17 +467,7 @@ void App::projectMenuSources()
     }
   }
   if (!this->activeWindow_)
-    this->projectMenu(0, this->menuController_.defaultMenuBar(), 0);
-}
-
-bool App::refreshDefaultMenuBar()
-{
-  return menuController_.refreshDefaultMenuBar();
-}
-
-void App::clearMenuDiff()
-{
-  menuController_.clearDiff();
+    this->projectMenu(0, this->defaultMenuBar(), 0);
 }
 
 void App::reconcileFocus()

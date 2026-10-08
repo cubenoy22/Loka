@@ -20,6 +20,8 @@ class NativeBuildPickerTest(unittest.TestCase):
         self.assertIn(configure_name, {p["name"] for p in PRESETS["configurePresets"]})
         preset = next(p for p in PRESETS["buildPresets"] if p["name"] == build_name)
         self.assertEqual(preset["configurePreset"], configure_name)
+        if key == "SimpleText":
+            self.assertEqual(build[-2:], ["--target", "LokaSimpleText" + ("MacOS" if platform == "macos" else "Win32")])
         if key == "Tests":
             self.assertEqual(configure_name, platform + "-debug")
             self.assertEqual(build_name, platform + "-tests")
@@ -31,7 +33,7 @@ class NativeBuildPickerTest(unittest.TestCase):
             stub = root / "cmake"
             stub.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$PICKER_LOG"\n')
             stub.chmod(0o755)
-            for key in ("Tests", "HelloWorld", "All", "SmirkyCard", "HelloWorldStandaloneLoop"):
+            for key in ("Tests", "HelloWorld", "SimpleText", "All", "SmirkyCard", "HelloWorldStandaloneLoop"):
                 with self.subTest(key=key):
                     log = root / "calls"
                     log.write_text("")
@@ -51,7 +53,7 @@ class NativeBuildPickerTest(unittest.TestCase):
         script = str(ROOT / "scripts/vscode-build-target.ps1")
         if os.name != "nt":
             script = subprocess.check_output(["wslpath", "-w", script], text=True).strip()
-        for key in ("Tests", "HelloWorld", "All", "SmirkyCard", "HelloWorldStandaloneLoop"):
+        for key in ("Tests", "HelloWorld", "SimpleText", "All", "SmirkyCard", "HelloWorldStandaloneLoop"):
             with self.subTest(key=key):
                 command = ("function global:cmake { 'CMAKE:' + (ConvertTo-Json -Compress -InputObject @($args)); "
                            "$global:LASTEXITCODE = 0 }; & '" + script.replace("'", "''") + "' win32 " + key)
@@ -60,6 +62,22 @@ class NativeBuildPickerTest(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 calls = [json.loads(line[6:]) for line in result.stdout.splitlines() if line.startswith("CMAKE:")]
                 self.check_calls(calls, "win32", key)
+
+    def test_simpletext_desktop_inventory(self):
+        tasks = json.loads((ROOT / ".vscode/tasks.json").read_text())
+        inputs = {item["id"]: item for item in tasks["inputs"]}
+        launches = json.loads((ROOT / ".vscode/launch.json").read_text())["configurations"]
+        for platform, picker, run_name in (("MacOS", "lokaMacosBuild", "macOS"),
+                                           ("Win32", "lokaWin32Build", "Windows")):
+            with self.subTest(platform=platform):
+                self.assertIn("SimpleText", inputs[picker]["options"])
+                launch = next(c for c in launches if c["name"] == "Run (" + run_name + " SimpleText)")
+                task = next(t for t in tasks["tasks"] if t["label"] == launch["preLaunchTask"])
+                self.assertEqual(task["args"][-2:], ["--target", "LokaSimpleText" + platform])
+                self.assertIn("example/SimpleText/LokaSimpleText" + platform, launch["program"])
+        # Windows command execution is separately gated on Windows PowerShell.
+        self.assertRegex((ROOT / "scripts/vscode-build-target.ps1").read_text(),
+                         r'"SimpleText"\s*\{\s*\$target = "LokaSimpleTextWin32"')
 
     def test_bash32_empty_array_expansion_is_guarded(self):
         source = (ROOT / "scripts/vscode-build-target.sh").read_text()

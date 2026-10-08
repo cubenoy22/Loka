@@ -29,7 +29,7 @@ namespace loka
       int exitCode() const;
       void setApp(App *app);
       virtual void compose(AppComposition &composition);
-      virtual void composeMenu(app::MenuComposition &composition);
+      virtual void composeDefaultMenu(app::MenuComposition &composition);
 
     private:
       static void OnWindowIdle(Window *window, double elapsedSeconds, void *userData);

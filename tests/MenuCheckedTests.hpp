@@ -3,9 +3,6 @@
 
 void testMenuBoundaryOwnedEmitterSurvivesDerivedTeardown();
 void testMenuItemCheckedAttrProjectsValueAndState();
-void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh();
-void testMenuBoundaryRefreshSurvivesMenuControllerReplacement();
-void testMenuControllerOutlivedByBoundaryDoesNotTouchIt();
 void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps();
 
 #endif // LOKA_TESTS_MENU_CHECKED_TESTS_HPP
