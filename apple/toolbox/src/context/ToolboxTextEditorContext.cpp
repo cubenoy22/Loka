@@ -7,6 +7,18 @@
 #include <algorithm>
 #include <cstring>
 using namespace loka::app;
+Rect ToolboxTextEditorTextRect(const Rect &frame)
+{
+  const short inset = 3;
+  Rect text = frame;
+  if (static_cast<long>(frame.right) - frame.left <= 2 * inset
+      || static_cast<long>(frame.bottom) - frame.top <= 2 * inset)
+    SetRect(&text, frame.left, frame.top, frame.left, frame.top);
+  else
+    SetRect(&text, frame.left + inset, frame.top + inset, frame.right - inset, frame.bottom - inset);
+  return text;
+}
+
 namespace
 {
   class Handler : public scene::RetainedNodeHandler<Handler, TextEditorNode, ToolboxTextEditorContext>
@@ -364,7 +376,7 @@ private:
 #endif
 };
 /** Plain TE has fixed-height visual lines. Count CR-delimited groups only
-    when every wrapped visual line is inside the editor's unclipped frame. */
+    when every wrapped visual line is inside the editor's unclipped text rectangle. */
 bool ToolboxTextEditorContext::queryVisibleLines(unsigned &lines) const
 {
   lines = 0;
@@ -374,6 +386,7 @@ bool ToolboxTextEditorContext::queryVisibleLines(unsigned &lines) const
   if (!text.bytes())
     return false;
   const TERec &te = **this->te_;
+  const Rect textRect = ToolboxTextEditorTextRect(this->rect_);
   const long height = te.lineHeight;
   short first = 0;
   for (short end = 1; end <= te.nLines; ++end)
@@ -381,15 +394,15 @@ bool ToolboxTextEditorContext::queryVisibleLines(unsigned &lines) const
     const short offset = te.lineStarts[end];
     if (end != te.nLines && (offset == 0 || text.bytes()[offset - 1] != '\r'))
       continue;
-    if (te.destRect.top + first * height >= this->rect_.top && te.destRect.top + end * height <= this->rect_.bottom)
+    if (te.destRect.top + first * height >= textRect.top && te.destRect.top + end * height <= textRect.bottom)
       ++lines;
     first = end;
   }
   // TE's nLines excludes the empty visual line after a final CR (and empty text).
   if ((te.teLength == 0 || text.bytes()[te.teLength - 1] == '\r')
       && (te.nLines == 0 || te.lineStarts[te.nLines - 1] < te.teLength)
-      && te.destRect.top + te.nLines * height >= this->rect_.top
-      && te.destRect.top + (te.nLines + 1L) * height <= this->rect_.bottom)
+      && te.destRect.top + te.nLines * height >= textRect.top
+      && te.destRect.top + (te.nLines + 1L) * height <= textRect.bottom)
     ++lines;
   return lines != 0;
 }
@@ -397,6 +410,7 @@ void ToolboxTextEditorContext::scrollTo(LineCursor target)
 {
   const short offset = this->offsetOf(target);
   const TERec &te = **this->te_;
+  const Rect textRect = ToolboxTextEditorTextRect(this->rect_);
   short visual = 0;
   while (visual < te.nLines && te.lineStarts[visual + 1] <= offset)
     ++visual;
@@ -405,9 +419,9 @@ void ToolboxTextEditorContext::scrollTo(LineCursor target)
     --visual;
   const long top = te.destRect.top + static_cast<long>(visual) * te.lineHeight;
   const long bottom = top + te.lineHeight;
-  const long delta = top < this->rect_.top         ? this->rect_.top - top
-                     : bottom > this->rect_.bottom ? this->rect_.bottom - bottom
-                                                   : 0;
+  const long delta = top < textRect.top           ? textRect.top - top
+                     : bottom > textRect.bottom ? textRect.bottom - bottom
+                                                : 0;
   if (delta)
     TEScroll(0, static_cast<short>(delta), this->te_);
 }
@@ -676,15 +690,20 @@ void ToolboxTextEditorContext::updateRect(const Rect &rect)
     SetRect(&this->paintRect_, 0, 0, 0, 0);
   if (this->te_)
   {
+    const Rect textRect = ToolboxTextEditorTextRect(rect);
     if (!EqualRect(&rect, &this->rect_))
     {
-      const short dx = (**this->te_).destRect.left - this->rect_.left;
-      const short dy = (**this->te_).destRect.top - this->rect_.top;
-      (**this->te_).destRect = rect;
+      const Rect previousTextRect = ToolboxTextEditorTextRect(this->rect_);
+      const short dx = (**this->te_).destRect.left - previousTextRect.left;
+      const short dy = (**this->te_).destRect.top - previousTextRect.top;
+      (**this->te_).destRect = textRect;
       OffsetRect(&(**this->te_).destRect, dx, dy);
       TECalText(this->te_);
     }
-    (**this->te_).viewRect = this->paintRect_;
+    Rect view = textRect;
+    if (this->controller() && !this->controller()->intersectWithProjectionClip(textRect, view))
+      SetRect(&view, 0, 0, 0, 0);
+    (**this->te_).viewRect = view;
   }
   this->rect_ = rect;
 }

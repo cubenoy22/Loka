@@ -6,7 +6,7 @@
 #include <ctime>
 
 /** Immutable startup fact derived from wall-clock seconds for HelloWorld's
-    intentionally varying production menu order. Tests and non-production
+    intentionally varying production shuffle sequence. Tests and non-production
     adapters may supply an explicit clock reading without changing the policy. */
 class HelloWorldMenuSeed
 {

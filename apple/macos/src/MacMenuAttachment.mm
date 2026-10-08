@@ -174,7 +174,6 @@ static NSString *MenuShortcutForAction(const loka::app::MenuItemDefinition *item
     return @"q";
   case loka::app::MENU_ACTION_ABOUT_APP:
   case loka::app::MENU_ACTION_SHOW_COLOR_PICKER:
-  case loka::app::MENU_ACTION_REBUILD_MENU:
   case loka::app::MENU_ACTION_NONE:
     return @"";
   }
@@ -363,7 +362,6 @@ bool MacMenuAttachment::dispatch(int commandId)
     case loka::app::MENU_ACTION_QUIT_APP:
       this->app_.quit();
       return true;
-    case loka::app::MENU_ACTION_REBUILD_MENU:
     case loka::app::MENU_ACTION_NONE:
       break;
     }
@@ -372,10 +370,6 @@ bool MacMenuAttachment::dispatch(int commandId)
       command.emitter->emit();
       // State writes/adoptions leave pending invalidation for handleFlush's App clock.
       // Keep replacement and relayout out of this native menu callback.
-    }
-    if (command.action == loka::app::MENU_ACTION_REBUILD_MENU)
-    {
-      this->app_.requestMenuInvalidation();
     }
     return true;
   }

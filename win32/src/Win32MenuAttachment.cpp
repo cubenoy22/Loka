@@ -135,8 +135,6 @@ bool Win32MenuAttachment::dispatch(int commandId)
     }
     if (command.emitter)
       command.emitter->emit();
-    if (command.action == loka::app::MENU_ACTION_REBUILD_MENU && app)
-      app->handleMenuCommand(commandId, &this->window_);
     return true;
   }
   return false;

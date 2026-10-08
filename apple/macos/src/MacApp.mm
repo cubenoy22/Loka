@@ -156,10 +156,6 @@ void MacApp::flushInvalidationsTick()
     {
       this->handleIdle(dispatchElapsedSeconds);
     }
-    if (!IsEventTrackingRunLoopMode())
-    {
-      this->flushMenuInvalidation();
-    }
     turn.settle();
     this->admitAndApplyWindows();
     MacScenePlatformController::flushPendingRelayouts();
@@ -223,5 +219,4 @@ void MacApp::projectMenu(Window *window, const loka::app::MenuBarDefinition *bar
   if (window != this->activeWindow() || IsEventTrackingRunLoopMode())
     return;
   this->menuAttachment_.project(bar, source);
-  this->clearMenuDiff();
 }

@@ -1,0 +1,28 @@
+loka_scenario_audit version=1 scenario=open-readme
+step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=open-readme
+checkpoint	final
+crop_bottom	320
+crop_left	0
+crop_right	480
+crop_top	0
+document.caret_request	none
+document.caret_row	0
+document.current	ReadMe
+document.error	none
+document.row.0	Loka writes a small note.
+document.row.1	Six rows fit on this page.
+document.row.2	
+document.row.3	Open, edit, and save.
+document.row.4	A shorter note leaves no tail.
+document.row.5	End of the note.
+document.rows	6
+format_version	1
+node	SimpleText.Editor
+rail	toolbox
+scenario_version	1
+schema_version	1
+status	ok
+step	open-readme
+test	SimpleText
+tick	3
+terminal status=succeeded
