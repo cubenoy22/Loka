@@ -1,3 +1,4 @@
+LOKA_TEST(testRibbonFixedSeatsAndClicks)
 LOKA_TEST(testNullInputDoorLifetime)
 LOKA_TEST(testNullInputDoorNestedSettlement)
 LOKA_TEST(testPlatformOperationNativeDrain)
@@ -1153,6 +1154,7 @@ LOKA_TEST(testSimpleTextReadAndWriteFailuresPreserveDestination)
 LOKA_TEST(testSimpleTextCommitExhaustionPreservesDestination)
 LOKA_TEST(testSimpleTextRepeatedOpenAndCaretReplacement)
 LOKA_TEST(testSimpleTextMenuAndDialogProps)
+LOKA_TEST(testSimpleTextRibbonFiresTheMenuEmitters)
 LOKA_TEST(testSimpleTextDetachWithdrawsFlows)
 #endif
 

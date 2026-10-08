@@ -543,6 +543,16 @@ loka_compile_pin(window_props_menu_bar_retired
   ACCEPTS pins/accepts_window_props_title.cpp
 )
 
+loka_compile_pin(ribbon-control-accepts-only-items
+  REFUSES pins/refuses_ribbon-control-accepts-only-items.cpp
+  ACCEPTS pins/accepts_ribbon-control-accepts-only-items.cpp
+)
+
+loka_compile_pin(ribbon-item-is-not-a-node
+  REFUSES pins/refuses_ribbon-item-is-not-a-node.cpp
+  ACCEPTS pins/accepts_ribbon-item-is-not-a-node.cpp
+)
+
 loka_compile_pin(command-set-slot
   REFUSES pins/refuses_command_set_slot.cpp
   ACCEPTS pins/accepts_command_set_slot.cpp

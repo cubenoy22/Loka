@@ -1219,6 +1219,17 @@ VStack()
     << Button("Save").onClick(saveEmitter.state());
 ```
 
+`RibbonControl` (from `app/nodes/controls/Ribbon.hpp`) declares a left-to-right
+band of native push buttons. Each `RibbonItem` has a default width of 80;
+`.width(n)` overrides it. Items fire borrowed emitters like menu items.
+
+```cpp
+RibbonControl()
+    << RibbonItem("New").onClick(newEmitter.state())
+    << RibbonItem("Open...").onClick(openEmitter.state())
+    << RibbonItem("Save As...").onClick(saveAsEmitter.state()).width(120);
+```
+
 Prefer chained DSL composition when it keeps the structure visible. Avoid local
 temporaries whose only purpose is to assemble a tree in a less readable way.
 
