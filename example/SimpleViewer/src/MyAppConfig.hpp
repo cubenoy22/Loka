@@ -36,7 +36,6 @@ public:
             .visible(true));
   }
 
-  virtual void composeMenu(loka::app::MenuComposition &) {}
 
 private:
   loka::core::EmitterState openDialogEvent_;

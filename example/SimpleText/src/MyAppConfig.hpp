@@ -31,9 +31,6 @@ public:
                 ))                                    //
     );
   }
-  virtual void composeMenu(loka::app::MenuComposition &)
-  {
-  }
 
 private:
 #ifdef TEST_BUILD

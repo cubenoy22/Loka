@@ -7,7 +7,6 @@
 #include "app/PlatformContext.hpp"
 #include "app/Menu.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/core/MenuController.hpp"
 #include "app/core/WindowDefinition.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/nodes/nestable/Match.hpp"
@@ -91,96 +90,6 @@ namespace
     bool sawRootDefinition;
   };
 
-  class MenuCloneTestConfig : public AppConfigurable
-  {
-  public:
-    MenuCloneTestConfig()
-        : AppConfigurable(0),
-          includeSecondMenu(false)
-    {
-    }
-
-    virtual void compose(AppComposition &)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &composition)
-    {
-      composition << loka::app::Menu("Replacement");
-      if (includeSecondMenu)
-      {
-        composition << loka::app::Menu("Second");
-      }
-    }
-
-    bool includeSecondMenu;
-  };
-
-  bool hasSingleMenuNamed(const loka::app::MenuBarDefinition *menuBar, const char *title)
-  {
-    return menuBar && menuBar->menusCount() == 1 && menuBar->menuAt(0)
-           && menuBar->menuAt(0)->title.equals(loka::core::String::Literal(title));
-  }
-
-  class ToggleMenuBoundary : public loka::app::MenuBoundary
-  {
-  public:
-    ToggleMenuBoundary()
-        : requestAfter(false),
-          flag_(0)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &c)
-    {
-      if (!flag_)
-      {
-        flag_ = &this->dangerouslyUseState<bool>(false);
-      }
-      if (requestAfter && !flag_->get())
-      {
-        flag_->set(true);
-      }
-      c << (loka::app::Menu("Boundary") << loka::app::MenuItem(flag_->get() ? "After" : "Before"));
-    }
-
-    bool requestAfter;
-
-  private:
-    loka::core::MutableState<bool> *flag_;
-  };
-
-  class MenuBoundaryCloneTestConfig : public AppConfigurable
-  {
-  public:
-    MenuBoundaryCloneTestConfig()
-        : AppConfigurable(0)
-    {
-    }
-
-    virtual void compose(AppComposition &)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &composition)
-    {
-      composition << boundary;
-    }
-
-    ToggleMenuBoundary boundary;
-  };
-
-  bool hasSingleItemLabeled(const loka::app::MenuBarDefinition *menuBar, const char *label)
-  {
-    if (!menuBar || menuBar->menusCount() != 1 || !menuBar->menuAt(0))
-    {
-      return false;
-    }
-    const loka::app::MenuDefinition *menu = menuBar->menuAt(0);
-    return menu->itemsCount() == 1 && menu->itemsHead()
-           && menu->itemsHead()->title.equals(loka::core::String::Literal(label));
-  }
-
   bool cloneMatchPredicate(const int &value, void *userData)
   {
     const int *expected = static_cast<const int *>(userData);
@@ -194,8 +103,6 @@ namespace
 
 void testOwnedDefOwnership()
 {
-  (void)&hasSingleMenuNamed;
-  (void)&hasSingleItemLabeled;
   printf("\n==== [testOwnedDefOwnership] start ====\n");
 
   int baseline = g_probePropsAlive;
@@ -547,104 +454,6 @@ void testWindowDefinitionCreateTransfersSingleRootClone()
   assert(!context.sawRootDefinition);
 
   printf("==== [testWindowDefinitionCreateTransfersSingleRootClone] end ====\n");
-}
-
-void testMenuControllerPreservesDefaultMenuBarOnOomClone()
-{
-  printf("\n==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] start ====\n");
-
-  MenuCloneTestConfig config;
-  MenuController controller(&config);
-  loka::app::MenuBarDefinition stableMenuBar;
-  stableMenuBar << loka::app::Menu("Stable");
-  controller.setDefaultMenuBar(&stableMenuBar);
-  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-
-  loka::app::MenuBarDefinition replacementMenuBar;
-  replacementMenuBar << loka::app::Menu("Replacement");
-  loka::app::testing::failNextMenuBarDefinitionClone();
-  controller.setDefaultMenuBar(&replacementMenuBar);
-
-  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-  loka::app::testing::allowMenuBarDefinitionClones();
-
-  printf("==== [testMenuControllerPreservesDefaultMenuBarOnOomClone] end ====\n");
-}
-
-void testMenuControllerPreservesRefreshedMenuBarOnOomClone()
-{
-  printf("\n==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] start ====\n");
-
-  MenuCloneTestConfig config;
-  MenuController controller(&config);
-  loka::app::MenuBarDefinition stableMenuBar;
-  stableMenuBar << loka::app::Menu("Stable");
-  controller.setDefaultMenuBar(&stableMenuBar);
-  controller.clearDiff();
-  config.includeSecondMenu = true;
-
-  loka::app::testing::failNextMenuBarDefinitionClone();
-  controller.requestInvalidation();
-  bool refreshed = controller.flushInvalidation();
-
-  (void)refreshed;
-  assert(!refreshed);
-  assert(hasSingleMenuNamed(controller.defaultMenuBar(), "Stable"));
-  LOKA_VERIFY(!controller.diff().valid);
-  loka::app::testing::allowMenuBarDefinitionClones();
-
-  printf("==== [testMenuControllerPreservesRefreshedMenuBarOnOomClone] end ====\n");
-}
-
-void testMenuControllerRequeuesDirtyMenusAfterOomClone()
-{
-  printf("\n==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] start ====\n");
-
-  MenuBoundaryCloneTestConfig config;
-  MenuController controller(&config);
-  controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation());
-  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
-
-  config.boundary.requestAfter = true;
-  loka::app::testing::failMenuBarDefinitionClones(2);
-  controller.requestInvalidation();
-  LOKA_VERIFY(!controller.flushInvalidation());
-  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "Before"));
-  assert(config.boundary.tracker()->asPushTracker()->peekDirty());
-  loka::app::testing::allowMenuBarDefinitionClones();
-
-  LOKA_VERIFY(controller.flushInvalidation());
-  assert(hasSingleItemLabeled(controller.defaultMenuBar(), "After"));
-  assert(!config.boundary.tracker()->asPushTracker()->peekDirty());
-
-  printf("==== [testMenuControllerRequeuesDirtyMenusAfterOomClone] end ====\n");
-}
-
-void testMenuControllerSchedulesRetryAfterDirectRefreshFailure()
-{
-  printf("\n==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] start ====\n");
-
-  MenuCloneTestConfig config;
-  MenuController controller(&config);
-  controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation());
-  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
-
-  // Structural change with no boundary dirt: a direct refresh failure must
-  // schedule its own retry, because no invalidation was requested by compose.
-  config.includeSecondMenu = true;
-  loka::app::testing::failNextMenuBarDefinitionClone();
-  LOKA_VERIFY(!controller.refreshDefaultMenuBar());
-  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 1);
-  loka::app::testing::allowMenuBarDefinitionClones();
-
-  // No explicit requestInvalidation here: the failed direct refresh must
-  // have queued the retry itself.
-  LOKA_VERIFY(controller.flushInvalidation());
-  assert(controller.defaultMenuBar() && controller.defaultMenuBar()->menusCount() == 2);
-
-  printf("==== [testMenuControllerSchedulesRetryAfterDirectRefreshFailure] end ====\n");
 }
 
 void testConditionalDefinitionCopyDegradesToEmptyOnCloneFailure()

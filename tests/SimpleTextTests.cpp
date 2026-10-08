@@ -406,7 +406,7 @@ void testSimpleTextMenuAndDialogProps()
   LOKA_VERIFY(itemAt(*file, 3)->onClickState == &SimpleTextTestAccess::saveAsEvent(h.config));
   MenuBarDefinition defaultBar;
   MenuComposition defaultComposition(&defaultBar);
-  h.config.composeMenu(defaultComposition);
+  h.config.composeDefaultMenu(defaultComposition);
   defaultComposition.finish();
   LOKA_VERIFY(defaultBar.menusCount() == 0);
   SimpleTextTestAccess::openEvent(h.config).emit();

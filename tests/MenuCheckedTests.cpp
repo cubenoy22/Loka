@@ -3,7 +3,6 @@
 #include "../example/SimpleViewer/src/MainNode.hpp"
 #include "app/Menu.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/core/MenuController.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/scene/Scene.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -44,114 +43,6 @@ namespace
     loka::core::EmitterState &event_;
     int &actions_;
   };
-
-  class CheckedMenuBoundary : public loka::app::MenuBoundary
-  {
-  public:
-    CheckedMenuBoundary()
-        : displayMode_(0)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &composition)
-    {
-      using namespace loka::app;
-      if (!this->displayMode_)
-      {
-        this->displayMode_ = &this->dangerouslyUseState<int>(0);
-      }
-      composition << (Menu("View")
-                      << MenuItem("Fit to Window").attr(MenuItemAttr().checked(this->displayMode_->get() == 0))
-                      << MenuItem("Actual Size").attr(MenuItemAttr().checked(this->displayMode_->get() == 1))
-                      << MenuItem("Actual Size (Scroll)").attr(MenuItemAttr().checked(this->displayMode_->get() == 2)));
-    }
-
-    void setDisplayMode(int value)
-    {
-      assert(this->displayMode_);
-      loka::core::StateTrackerGuard guard(this->tracker());
-      this->displayMode_->set(value);
-    }
-
-    loka::core::PushStateTracker *pushTracker()
-    {
-      return static_cast<loka::core::PushStateTracker *>(this->tracker());
-    }
-
-  private:
-    loka::core::MutableState<int> *displayMode_;
-  };
-
-  class CheckedMenuConfig : public AppConfigurable
-  {
-  public:
-    CheckedMenuConfig()
-        : AppConfigurable(0),
-          menu()
-    {
-    }
-
-    virtual void compose(AppComposition &)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &composition)
-    {
-      composition << this->menu;
-    }
-
-    CheckedMenuBoundary menu;
-  };
-
-  class HeapCheckedMenuConfig : public AppConfigurable
-  {
-  public:
-    HeapCheckedMenuConfig()
-        : AppConfigurable(0),
-          menu_(new CheckedMenuBoundary())
-    {
-    }
-
-    virtual ~HeapCheckedMenuConfig()
-    {
-      delete this->menu_;
-    }
-
-    virtual void compose(AppComposition &)
-    {
-    }
-
-    virtual void composeMenu(loka::app::MenuComposition &composition)
-    {
-      if (this->menu_)
-      {
-        composition << *this->menu_;
-      }
-    }
-
-    CheckedMenuBoundary *menu()
-    {
-      return this->menu_;
-    }
-
-    void destroyMenu()
-    {
-      delete this->menu_;
-      this->menu_ = 0;
-    }
-
-  private:
-    CheckedMenuBoundary *menu_;
-  };
-
-  const loka::app::MenuDefinition *singleViewMenu(const loka::app::MenuBarDefinition *bar)
-  {
-    if (!bar || bar->menusCount() != 1)
-    {
-      return 0;
-    }
-    return bar->menuAt(0);
-  }
 
   loka::app::ImageViewNode *findOnlyImageView(loka::app::scene::Node *node)
   {
@@ -201,69 +92,6 @@ void testMenuItemCheckedAttrProjectsValueAndState()
     checkedState.set(true);
   }
   LOKA_VERIFY(checkedByState.isCheckedInitial());
-}
-
-void testMenuBoundaryCheckedValuesSwapOnTrackedStateRefresh()
-{
-  CheckedMenuConfig config;
-  MenuController controller(&config);
-  controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation());
-
-  const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
-  LOKA_VERIFY(view != 0);
-  LOKA_VERIFY(view->itemsCount() == 3);
-  LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
-  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
-  LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
-
-  config.menu.setDisplayMode(2);
-  LOKA_VERIFY(controller.flushInvalidation());
-  view = singleViewMenu(controller.defaultMenuBar());
-  LOKA_VERIFY(view != 0);
-  LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
-  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
-  LOKA_VERIFY(view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
-  LOKA_VERIFY(controller.diff().valid);
-  LOKA_VERIFY(!controller.diff().fullRebuild);
-  LOKA_VERIFY(controller.diff().changedCount() == 1);
-  LOKA_VERIFY(controller.diff().changedHead()->value == 0);
-}
-
-void testMenuBoundaryRefreshSurvivesMenuControllerReplacement()
-{
-  CheckedMenuConfig config;
-  {
-    MenuController controller(&config);
-    controller.requestInvalidation();
-    LOKA_VERIFY(controller.flushInvalidation());
-    const loka::app::MenuDefinition *view = singleViewMenu(controller.defaultMenuBar());
-    LOKA_VERIFY(view != 0);
-    LOKA_VERIFY(view->itemsHead()->isCheckedInitial());
-    LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
-    LOKA_VERIFY(!view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
-  }
-
-  config.menu.setDisplayMode(2);
-  LOKA_VERIFY(config.menuRefresh().hasPendingRequest());
-
-  MenuController replacement(&config);
-  LOKA_VERIFY(replacement.flushInvalidation());
-  const loka::app::MenuDefinition *view = singleViewMenu(replacement.defaultMenuBar());
-  LOKA_VERIFY(view != 0);
-  LOKA_VERIFY(!view->itemsHead()->isCheckedInitial());
-  LOKA_VERIFY(!view->itemsHead()->nextInComposition->isCheckedInitial());
-  LOKA_VERIFY(view->itemsHead()->nextInComposition->nextInComposition->isCheckedInitial());
-}
-
-void testMenuControllerOutlivedByBoundaryDoesNotTouchIt()
-{
-  HeapCheckedMenuConfig config;
-  MenuController controller(&config);
-  controller.requestInvalidation();
-  LOKA_VERIFY(controller.flushInvalidation());
-
-  config.destroyMenu();
 }
 
 void testSimpleViewerDisplayModeUpdatesRetainedImageViewProps()
