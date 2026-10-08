@@ -1,3 +1,4 @@
+LOKA_TEST(testRibbonFixedSeatsAndClicks)
 LOKA_TEST(testNullInputDoorLifetime)
 LOKA_TEST(testNullInputDoorNestedSettlement)
 LOKA_TEST(testPlatformOperationNativeDrain)
