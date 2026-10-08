@@ -2685,9 +2685,9 @@ void testBlobSealBytesFreezesSizeAndCompletion()
          0);
   LOKA_VERIFY(reader.readBagInto(0, &loaded.mutableBytes()[0], stored) ==
          Reader::BAG_OK);
-  assert(loaded.size() == 0 && "the size is announced by the seal, not the fill");
+  assert(loaded.size() == stored);
+  assert(!loaded.isCompleted());
   loaded.sealBytes();
-  assert(loaded.size() == loaded.bytes().size());
   assert(loaded.size() == stored);
   assert(loaded.isCompleted());
   assert(!loaded.isMutable());
@@ -2698,10 +2698,10 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   Asset asset;
   LOKA_VERIFY(reader.get(11, facts, asset) == Reader::GET_OK);
   assert(loaded.isValid());
-  assert(BlobRangeIsUsable(loaded.bytes().size(),
+  assert(BlobRangeIsUsable(loaded.size(),
                            asset.offsetInBag,
                            asset.length));
-  assert(std::memcmp(&loaded.bytes()[asset.offsetInBag],
+  assert(std::memcmp(&loaded.data()[asset.offsetInBag],
                      kDefault,
                      sizeof(kDefault)) == 0);
 
@@ -2715,14 +2715,14 @@ void testBlobSealBytesFreezesSizeAndCompletion()
   LOKA_VERIFY(reader.readBagInto(1, 0, 0) == Reader::BAG_OK);
   empty.sealBytes();
   assert(empty.isValid());
-  assert(empty.size() == 0 && empty.bytes().size() == 0);
+  assert(empty.size() == 0 && empty.data() == 0);
   assert(empty.isCompleted());
   assert(!empty.isMutable());
   // A zero-length asset is not a decodable range, which is the image seam's
   // own rule and not a defect in the bag that carries it.
   Asset zeroLength;
   LOKA_VERIFY(reader.get(12, facts, zeroLength) == Reader::GET_OK);
-  assert(!BlobRangeIsUsable(loaded.bytes().size(),
+  assert(!BlobRangeIsUsable(loaded.size(),
                             zeroLength.offsetInBag,
                             zeroLength.length));
 

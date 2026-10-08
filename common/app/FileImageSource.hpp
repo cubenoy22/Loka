@@ -47,7 +47,7 @@ namespace loka
                                     const loka::core::resource::Blob &blob,
                                     loka::core::resource::Image &image)
     {
-      return context && context->createImageFromBlob(blob, 0, blob.bytes().size(), image);
+      return context && context->createImageFromBlob(blob, 0, blob.size(), image);
     }
     /** Stable diagnostic vocabulary at the read/decode boundary. */
     inline const char *FileImageReadResultName(loka::platform::file::ReadResult result)

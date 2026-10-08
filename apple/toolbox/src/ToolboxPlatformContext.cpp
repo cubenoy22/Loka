@@ -15,7 +15,6 @@
 #include "ToolboxNativeImage.hpp"
 #include <LowMem.h>
 #include <MacMemory.h>
-#include <vector>
 #if LOKA_RETRO68_DIAGNOSTICS
 #include "debug/ToolboxSceneDebugStats.hpp"
 #endif
@@ -81,9 +80,10 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
                                                  std::size_t length,
                                                  loka::core::resource::Image &out) const
 {
-  const std::vector<unsigned char> &bytes = blob.bytes();
+  const loka::core::resource::Blob source = blob;
   out = loka::core::resource::Image::Empty();
-  if (!loka::core::resource::BlobRangeIsUsable(bytes.size(), offset, length))
+  const unsigned char *bytes = source.data();
+  if (!loka::core::resource::BlobRangeIsUsable(source.size(), offset, length))
   {
     return false;
   }
@@ -93,7 +93,7 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
 
   loka::toolbox::pict::PictParseResult picture;
   if (!loka::toolbox::pict::ParsePict(
-          bytes, offset, limit, picture))
+          bytes, source.size(), offset, limit, picture))
   {
     return false;
   }
@@ -118,6 +118,6 @@ bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blo
   // are still streamed, as they always were; excluding them needs a real
   // version 2 parse, not a field that cannot describe them.
   out = loka::toolbox::MakeImageFromPictBlob(
-      blob, picture.pictureOffset, limit, picture.width, picture.height);
+      source, picture.pictureOffset, limit, picture.width, picture.height);
   return out.isValid();
 }

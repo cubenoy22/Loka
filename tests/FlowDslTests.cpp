@@ -5824,11 +5824,11 @@ void testLokaFlowDslV1Core()
     LOKA_VERIFY(chain.run());
     assert(capture.calls == 0);
     assert(blob.isValid());
-    assert(blob.bytes().size() == 4);
-    assert(blob.bytes()[0] == 0xDE);
-    assert(blob.bytes()[1] == 0xAD);
-    assert(blob.bytes()[2] == 0xBE);
-    assert(blob.bytes()[3] == 0xEF);
+    assert(blob.size() == 4);
+    assert(blob.data()[0] == 0xDE);
+    assert(blob.data()[1] == 0xAD);
+    assert(blob.data()[2] == 0xBE);
+    assert(blob.data()[3] == 0xEF);
     assert(blob.isCompleted());
 
     std::remove(tmpPath);
@@ -6529,7 +6529,7 @@ void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure()
   assert(output.isCompleted());
   assert(!output.isMutable());
   assert(output.size() == 4);
-  assert(output.bytes().size() == 4);
+  assert(output.size() == 4);
 
   loka::core::Managed<loka::core::resource::BlobRecord> previousBlob = output.handle();
   assert(previousBlob.useCount() == 2);
@@ -8748,7 +8748,7 @@ void testSimpleViewerReadFailuresAndFallback()
   SimpleViewerReadContext missing("_loka_missing_read_file_", 4);
   simpleviewer::ProjectionToBlobAdapter fallback(&missing);
   LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-  assert(output.size() == 4 && output.bytes()[3] == 'd' && output.isCompleted());
+  assert(output.size() == 4 && output.data()[3] == 'd' && output.isCompleted());
   assert(missing.queries_ == 1);
 
   SimpleViewerReadContext small(path, 3);
@@ -8839,7 +8839,7 @@ void testSimpleViewerReadStdioFaults()
   {
     ReadFaultScope fault(READ_FAULT_END_SEEK);
     LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-    assert(output.size() == sizeof(data) && output.bytes()[8192] == 0x5a);
+    assert(output.size() == sizeof(data) && output.data()[8192] == 0x5a);
   }
   {
     ReadFaultScope fault(READ_FAULT_SHORT);
@@ -8859,7 +8859,7 @@ void testSimpleViewerReadStdioFaults()
   {
     ReadFaultScope fault(READ_FAULT_CHUNK);
     LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-    assert(output.size() == sizeof(data) && output.bytes()[8192] == 0x5a);
+    assert(output.size() == sizeof(data) && output.data()[8192] == 0x5a);
     SimpleViewerReadContext context(path, static_cast<std::size_t>(-1), 1);
     simpleviewer::ProjectionToBlobAdapter limited(&context);
     LOKA_VERIFY(limited.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
@@ -8888,5 +8888,5 @@ void testFileImageSourceRefusesUnresolvedApplicationFile()
   const loka::file::File absent = loka::file::File::Application() << loka::file::File("absent.pict");
   LOKA_VERIFY(loka::app::ReadFileImageBlob(0, absent, blob) == loka::platform::file::READ_NO_NATIVE_SPEC);
   assert(blob == before);
-  assert(blob.bytes().size() == 4);
+  assert(blob.size() == 4);
 }

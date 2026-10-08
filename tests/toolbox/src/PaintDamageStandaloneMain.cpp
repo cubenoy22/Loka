@@ -2353,7 +2353,7 @@ namespace
         const ToolboxPlatformContext platform;
         loka::core::resource::Image image;
         const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
-        const bool decoded = platform.createImageFromBlob(blob, 0, blob.bytes().size(), image);
+        const bool decoded = platform.createImageFromBlob(blob, 0, blob.size(), image);
         const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
         // Not a picture: the decode refuses after its parse, still under one borrow.
         this->recordArm("busy-image-decode", !decoded && !image.isValid()

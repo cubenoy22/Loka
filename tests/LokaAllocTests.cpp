@@ -254,8 +254,8 @@ void testBlobOwnedWriteLeavesNoLiveGateAllocation()
   {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
     blob.mutableBytes().push_back(42);
-    assert(blob.bytes().size() == 1);
-    assert(blob.bytes()[0] == 42);
+    assert(blob.size() == 1);
+    assert(blob.data()[0] == 42);
   }
   assert(loka::core::LokaAllocAuditLiveCount(
       loka::core::ManagedControlBlockSite()) == managedBefore);
@@ -269,9 +269,9 @@ void testBlobEmptyWritePreservesSharedRecord()
   loka::core::resource::Blob writable = empty;
   writable.mutableBytes().push_back(42);
   assert(writable != empty);
-  assert(empty.bytes().empty());
+  assert(empty.data() == 0);
   assert(empty == loka::core::resource::Blob::Empty());
-  assert(writable.bytes()[0] == 42);
+  assert(writable.data()[0] == 42);
 }
 
 namespace

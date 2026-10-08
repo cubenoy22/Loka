@@ -3447,10 +3447,10 @@ namespace
                                     std::size_t length, loka::core::resource::Image &out) const
     {
       ++decodes;
-      LOKA_VERIFY(offset == 0 && length == 3 && blob.bytes().size() == 3);
+      LOKA_VERIFY(offset == 0 && length == 3 && blob.size() == 3);
       if (mode == DecodeFailure)
         return false;
-      out = loka::core::resource::Image::FromNative(const_cast<HandlePlatform *>(this), blob.bytes()[0] == 't' ? 4 : 2, 3, release,
+      out = loka::core::resource::Image::FromNative(const_cast<HandlePlatform *>(this), blob.data()[0] == 't' ? 4 : 2, 3, release,
                                                    const_cast<HandlePlatform *>(this));
       if (mode == Navigate)
         smirkycard::testing::CardFlowAccess::navigate();
@@ -3468,7 +3468,7 @@ namespace
                                     std::size_t length, loka::core::resource::Image &out) const
     {
       ++this->decodes;
-      LOKA_VERIFY(offset == 0 && length == 3 && blob.bytes().size() == 3);
+      LOKA_VERIFY(offset == 0 && length == 3 && blob.size() == 3);
       out = loka::core::resource::Image::FromNative(const_cast<ViewerPlatform *>(this), 256, 256,
                                                    release, const_cast<ViewerPlatform *>(this));
       return true;

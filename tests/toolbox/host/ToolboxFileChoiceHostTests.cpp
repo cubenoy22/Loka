@@ -218,7 +218,8 @@ static void Decoy()
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED);
   loka::core::resource::Blob blob;
   const ReadResult result = loka::app::ReadFileImageBlob(&context, chosen, blob);
-  const std::string actual(blob.bytes().begin(), blob.bytes().end());
+  const std::string actual(blob.size() == 0 ? "" :
+      reinterpret_cast<const char *>(blob.data()), blob.size());
   const FSSpec live = Spec(-7, 999, "Photo.PICT");
   Put(live, "native");
   FailRead(SizeFailure);
@@ -234,7 +235,8 @@ static void Decoy()
   const File refused = chosen << File("child");
   LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, refused, blob) == READ_NO_NATIVE_SPEC);
   LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, File("Photo.PICT"), blob) == READ_OK);
-  LOKA_VERIFY(std::string(blob.bytes().begin(), blob.bytes().end()) == "decoy");
+  LOKA_VERIFY(std::string(blob.size() == 0 ? "" :
+      reinterpret_cast<const char *>(blob.data()), blob.size()) == "decoy");
   // Both failed native entries must stay terminal through the real viewer client.
   const File failures[] = {chosen, malformed, refused};
   for (unsigned i = 0; i < 3; ++i)
@@ -398,7 +400,7 @@ static void Copies()
   LOKA_VERIFY(Read(context, projection.fileItem) == "B");
   loka::core::resource::Blob blob;
   LOKA_VERIFY(simpleviewer::ProjectionToBlobAdapter(&context).run(projection, blob, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(blob.bytes().size() == 1 && blob.bytes()[0] == 'B');
+  LOKA_VERIFY(blob.size() == 1 && blob.data()[0] == 'B');
   storage.unbind(&CountDelivery, &notifications);
   tracker.removeState(&storage);
 }
