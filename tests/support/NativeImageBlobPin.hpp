@@ -1,6 +1,7 @@
 #ifndef LOKA_TEST_NATIVE_IMAGE_BLOB_PIN_HPP
 #define LOKA_TEST_NATIVE_IMAGE_BLOB_PIN_HPP
 
+#include <cstring>
 #include "app/PlatformContext.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
@@ -26,9 +27,10 @@ namespace native_image_blob_pin
 
   inline void fill(Blob &blob)
   {
-    blob.mutableBytes().assign(offset, 0xa5);
-    blob.mutableBytes().insert(blob.mutableBytes().end(), png, png + sizeof(png));
-    blob.mutableBytes().insert(blob.mutableBytes().end(), 5, 0x5a);
+    LOKA_VERIFY(blob.tryResize(offset + sizeof(png) + 5));
+    std::memset(blob.mutableData(), 0xa5, offset);
+    std::memcpy(blob.mutableData() + offset, png, sizeof(png));
+    std::memset(blob.mutableData() + offset + sizeof(png), 0x5a, 5);
   }
 
   struct Payload

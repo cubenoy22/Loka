@@ -2,7 +2,7 @@
 #define LOKA_PLATFORM_FILE_FILEIO_HPP
 
 #include <cstdio>
-#include <vector>
+#include "core/resource/Blob.hpp"
 
 #include "core/String.hpp"
 #include "platform/file/FileHandle.hpp"
@@ -44,11 +44,12 @@ namespace loka
         READ_STDIO_OPEN_FAILED,
         READ_STDIO_SEEK_FAILED,
         READ_STDIO_READ_FAILED,
-        READ_CAPACITY_REFUSED,
+        READ_CAPACITY_REFUSED, /** Caller ceiling, not a heap prediction. */
+        READ_ALLOCATION_REFUSED, /** Record, control block, or byte allocation refused. */
         READ_SIZE_OVERFLOW
       };
 
-      /** Borrowed admission policy, called synchronously before initial byte
+      /** Borrowed caller-ceiling policy, called synchronously before initial byte
           allocation and each chunk growth. It is never retained by a reader. */
       class ReadCapacity
       {
@@ -60,17 +61,18 @@ namespace loka
       };
 
       /** Reads a resolved file into caller-owned bytes, preserving native
-          location data (Classic uses the FSSpec data fork). Clears out first;
+          location data (Classic uses the FSSpec data fork). Requires fresh unsealed
+          scratch; clears it first;
           a failure leaves it empty. A null capacity policy imposes no limit.
           The reader closes its native/stdio handle on every exit. No fallback
           is implicit: callers choose whether to retry using a logical path. */
-      ReadResult ReadBytes(const FileHandle &file, std::vector<unsigned char> &out,
+      ReadResult ReadBytes(const FileHandle &file, loka::core::resource::Blob &out,
                            const ReadCapacity *capacity = 0);
 
       /** Reads through OpenRead using the platform's native path encoding.
           Same byte ownership and capacity contract as the resolved overload;
           also serves callers explicitly retrying a resolved read via stdio. */
-      ReadResult ReadBytes(const loka::core::String &path, std::vector<unsigned char> &out,
+      ReadResult ReadBytes(const loka::core::String &path, loka::core::resource::Blob &out,
                            const ReadCapacity *capacity = 0);
 
       /** Outcome of preparing a resolved text destination before truncation. */
@@ -92,7 +94,7 @@ namespace loka
       /** The stdio read behind every rail's ReadBytes(path): OpenRead, then the
           same byte ownership and capacity contract. A rail whose ReadBytes(path)
           wraps the read (Toolbox borrows its busy cursor, #1066) calls this. */
-      ReadResult ReadBytesThroughStdio(const loka::core::String &path, std::vector<unsigned char> &out,
+      ReadResult ReadBytesThroughStdio(const loka::core::String &path, loka::core::resource::Blob &out,
                                        const ReadCapacity *capacity);
 
       /** Opens an already platform-resolved file destination for binary

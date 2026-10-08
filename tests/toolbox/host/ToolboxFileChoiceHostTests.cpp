@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "ToolboxFileHost.hpp"
 #include "ToolboxPlatformContext.hpp"
 #include "ToolboxFileChoice.hpp"
@@ -84,10 +85,10 @@ static std::string Read(ToolboxPlatformContext &context, const File &file)
   FileHandle handle;
   LOKA_VERIFY(context.openFile(file, handle));
   LOKA_VERIFY(handle.hasSpec);
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_OK);
   LOKA_VERIFY(OpenCount() == 0);
-  return std::string(bytes.begin(), bytes.end());
+  return std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 static void Tuple()
 {
@@ -214,7 +215,7 @@ static void Decoy()
   const File chosen = Choose(Spec(-7, 999, "Photo.PICT")); // No native file installed.
   FileHandle handle;
   LOKA_VERIFY(context.openFile(chosen, handle));
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED);
   loka::core::resource::Blob blob;
   const ReadResult result = loka::app::ReadFileImageBlob(&context, chosen, blob);
@@ -489,7 +490,7 @@ static void SaveDialog()
   ToolboxPlatformContext platform;
   FileHandle handle;
   LOKA_VERIFY(platform.openFile(first, handle));
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED); // No file created.
 
   const unsigned invalidLengths[] = {0, 32, 63};
@@ -644,6 +645,7 @@ namespace
 // every exit after the open; with no registration the borrow is inert (#1066).
 static void Busy()
 {
+  BlobAllocationProbe allocation;
   const FSSpec spec = Spec(-7, 0x12345678, "Photo.PICT");
   Put(spec, "abc");
   ToolboxPlatformContext context;
@@ -652,16 +654,20 @@ static void Busy()
   FileHandle missing;
   LOKA_VERIFY(context.openFile(Choose(Spec(-7, 999, "Gone.PICT")), missing));
   const FileHandle none;
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   CountingBusyOwner owner;
   LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
   LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
   LOKA_VERIFY(owner.entries == 0);
+  allocation.refuse("Blob", "Bytes");
+  LOKA_VERIFY(ReadBytes(live, bytes) == READ_ALLOCATION_REFUSED);
+  LOKA_VERIFY(bytes.size() == 0 && OpenCount() == 0);
+
   {
     const ToolboxBusyOwnerRegistration registration(owner);
     LOKA_VERIFY(RegisteredToolboxBusyOwner() == &owner);
     LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
-    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "abc");
+    LOKA_VERIFY(std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size()) == "abc");
     LOKA_VERIFY(owner.entries == 1 && owner.exits == 1 && owner.depth == 0);
     LOKA_VERIFY(ReadBytes(missing, bytes) == READ_NATIVE_OPEN_FAILED);
     LOKA_VERIFY(owner.entries == 2 && owner.exits == 2 && owner.depth == 0);
@@ -672,7 +678,7 @@ static void Busy()
     std::FILE *stream = std::fopen("busy-path.txt", "wb");
     LOKA_VERIFY(stream && std::fwrite("xyz", 1, 3, stream) == 3 && std::fclose(stream) == 0);
     LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_OK);
-    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "xyz");
+    LOKA_VERIFY(std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size()) == "xyz");
     LOKA_VERIFY(owner.entries == 3 && owner.exits == 3 && owner.depth == 0);
     LOKA_VERIFY(std::remove("busy-path.txt") == 0);
     LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_STDIO_OPEN_FAILED);

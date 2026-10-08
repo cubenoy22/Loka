@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "platform/file/FileLocatorAccess.hpp"
 #include "core/resource/Blob.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
@@ -3115,7 +3116,8 @@ namespace
           loka::app::scene::LifecycleFactTestAccess::MarkSubtreeRetired(
               loka::dsl::testing::SceneTestAccess::rootNode(*window.scene()));
       }
-      expectJs(runtime, operation, expected);
+      if (mode == HandlePlatform::CapacityFailure) allocation.refuse("Blob", "Bytes");
+    expectJs(runtime, operation, expected);
       LOKA_VERIFY(!JS_HasException(runtime.context()));
     }
     if (activationFailure)
@@ -3521,6 +3523,7 @@ namespace
                        HandlePlatform::Mode mode = HandlePlatform::Success, bool contextMissing = false,
                        bool exhaust = false, bool details = false)
   {
+    BlobAllocationProbe allocation;
     std::fprintf(stderr, "[pin] handles %s\n", name);
     FILE *file = std::fopen("_handle_image.bin", "wb");
     LOKA_VERIFY(file);
@@ -3549,12 +3552,13 @@ namespace
     loka::dsl::testing::SceneTestAccess::updateAttached(*window.scene(), true);
     smirkycard::testing::CardFlowAccess::scene = window.scene();
     smirkycard::testing::CardFlowAccess::writeFile(loka::app::FileChooserResult::File(HandleChoice(1)));
+    if (mode == HandlePlatform::CapacityFailure) allocation.refuse("Blob", "Bytes");
     expectJs(runtime, operation, expected);
     if (mode == HandlePlatform::NoNativeWork)
       LOKA_VERIFY(context.opens == 0 && context.decodes == 0);
     if (mode == HandlePlatform::CapacityFailure)
     {
-      LOKA_VERIFY(context.capacityCalls == 1 && context.decodes == 0);
+      LOKA_VERIFY(allocation.refusals == 1 && context.capacityCalls == 0 && context.decodes == 0);
     }
     if (mode == HandlePlatform::ReleaseProbe || mode == HandlePlatform::Navigate)
       LOKA_VERIFY(context.releases == 1);
@@ -3840,7 +3844,7 @@ namespace
       "f.run();log.join(':')", "true", HandlePlatform::ReadFailure);
     checkHandleCase("decode error", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('decode failure'))))",
       "f.run();log.join(':')", "true", HandlePlatform::DecodeFailure);
-    checkHandleCase("capacity has no stdio retry", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('READ_CAPACITY_REFUSED'))))",
+    checkHandleCase("allocation has no stdio retry", "f=c.flow(Flow().step(()=>c.native.loadImage(fs.get().file)).onFailure(e=>log.push(e.includes('READ_ALLOCATION_REFUSED'))))",
       "f.run();log.join(':')", "true", HandlePlatform::CapacityFailure);
     checkHandleCase("missing runtime context", "f=c.flow(Flow().step(()=>log.push(refuses(()=>c.native.loadImage(fs.get().file)))))",
       "f.run();log.join(':')", "true", HandlePlatform::Success, true);

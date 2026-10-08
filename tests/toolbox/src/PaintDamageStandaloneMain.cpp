@@ -2338,7 +2338,7 @@ namespace
     {
       {
         const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
-        std::vector<unsigned char> bytes;
+        loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
         const bool read = loka::platform::file::ReadBytes(this->file_, bytes) == loka::platform::file::READ_OK;
         const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
         this->recordArm("busy-file-read", read
@@ -2348,8 +2348,9 @@ namespace
       }
       {
         loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-        blob.setBytes(std::vector<unsigned char>(64, 0));
-        blob.setCompleted(true);
+        LOKA_VERIFY(blob.tryResize(64));
+  std::memset(blob.mutableData(), 0, 64);
+        blob.sealBytes();
         const ToolboxPlatformContext platform;
         loka::core::resource::Image image;
         const ToolboxSceneDebugStats before = controller.debugStatsForTesting();

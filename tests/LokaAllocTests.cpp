@@ -253,7 +253,7 @@ void testBlobOwnedWriteLeavesNoLiveGateAllocation()
       loka::core::ManagedControlBlockSite());
   {
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-    blob.mutableBytes().push_back(42);
+    LOKA_VERIFY(blob.tryAssign(reinterpret_cast<const unsigned char *>("*"), 1));
     assert(blob.size() == 1);
     assert(blob.data()[0] == 42);
   }
@@ -266,11 +266,11 @@ void testBlobOwnedWriteLeavesNoLiveGateAllocation()
 void testBlobEmptyWritePreservesSharedRecord()
 {
   loka::core::resource::Blob empty = loka::core::resource::Blob::Empty();
-  loka::core::resource::Blob writable = empty;
-  writable.mutableBytes().push_back(42);
+  loka::core::resource::Blob writable = loka::core::resource::Blob::Create();
+  LOKA_VERIFY(writable.tryAssign(reinterpret_cast<const unsigned char *>("*"), 1));
   assert(writable != empty);
   assert(empty.data() == 0);
-  assert(empty == loka::core::resource::Blob::Empty());
+  LOKA_VERIFY(empty == loka::core::resource::Blob::Empty());
   assert(writable.data()[0] == 42);
 }
 
@@ -328,4 +328,130 @@ void testImageFromNativeReleasesNativeOnceAfterLastCopy()
   LOKA_VERIFY(releases == 1);
   LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
   loka::core::testing::allowLokaAllocRaw();
+}
+
+#include "support/BlobAllocationProbe.hpp"
+
+void testBlobRefusingStorageAndSeal()
+{
+  using loka::core::resource::Blob;
+  BlobAllocationProbe allocation;
+  const char *sites[][2] = {{"Blob", "Record"}, {"Managed", "ControlBlock"}};
+  for (unsigned i = 0; i < 2; ++i)
+  {
+    allocation.refuse(sites[i][0], sites[i][1]);
+    LOKA_VERIFY(!Blob::Create().isValid());
+    LOKA_VERIFY(allocation.live == 0);
+  }
+  {
+    Blob invalid;
+    const int attempts = allocation.attempts;
+    LOKA_VERIFY(invalid == Blob::Empty() && Blob::Empty() == Blob::Empty());
+    LOKA_VERIFY(!invalid.tryResize(1) && !invalid.tryAssign(0, 0));
+    invalid.setLoading(true);
+    invalid.setProgress(0.5f);
+    invalid.sealBytes();
+    LOKA_VERIFY(!invalid.mutableData() && !invalid.isCompleted() && !invalid.isLoading());
+    LOKA_VERIFY(allocation.attempts == attempts);
+    Blob blob = Blob::Create();
+    LOKA_VERIFY(blob.isValid() && blob != invalid && blob.size() == 0);
+    const unsigned char bytes[] = {1, 2, 3, 4};
+    LOKA_VERIFY(blob.tryAssign(bytes, 4));
+    blob.setLoading(true);
+    blob.setProgress(0.5f);
+    const Blob alias = blob;
+    const unsigned char *before = blob.data();
+    for (unsigned i = 0; i < 2; ++i)
+    {
+      allocation.refuse("Blob", "Bytes");
+      LOKA_VERIFY(!(i ? blob.tryAssign(bytes, 4) : blob.tryResize(9)));
+      LOKA_VERIFY(blob.data() == before && blob.size() == 4 && std::memcmp(blob.data(), bytes, 4) == 0);
+      LOKA_VERIFY(blob.isLoading() && blob.progress() == 0.5f && !blob.isCompleted() && alias == blob);
+    }
+    LOKA_VERIFY(!blob.tryAssign(0, 1));
+    LOKA_VERIFY(blob.tryResize(9) && std::memcmp(blob.data(), bytes, 4) == 0);
+    const int growthAttempts = allocation.attempts;
+    LOKA_VERIFY(blob.tryResize(4) && blob.tryResize(4));
+    LOKA_VERIFY(allocation.attempts == growthAttempts);
+    LOKA_VERIFY(blob.tryAssign(blob.data(), 4));
+    LOKA_VERIFY(blob.tryAssign(blob.data() + 1, 2));
+    LOKA_VERIFY(blob.size() == 2 && blob.data()[0] == 2 && blob.data()[1] == 3);
+    const int shrinkAttempts = allocation.attempts;
+    LOKA_VERIFY(blob.tryResize(0) && blob.tryAssign(0, 0));
+    LOKA_VERIFY(!blob.data() && allocation.attempts == shrinkAttempts);
+    LOKA_VERIFY(blob.tryAssign(bytes, 4));
+    blob.setLoading(false);
+    blob.setProgress(1.0f);
+    blob.sealBytes();
+    const int sealAttempts = allocation.attempts;
+    before = blob.data();
+    LOKA_VERIFY(!blob.tryResize(0) && !blob.tryResize(10) && !blob.tryAssign(bytes, 4) && !blob.tryAssign(0, 0));
+    LOKA_VERIFY(!blob.mutableData());
+    blob.setLoading(true);
+    blob.setProgress(0.0f);
+    blob.sealBytes();
+    LOKA_VERIFY(blob.isCompleted() && !blob.isLoading() && blob.progress() == 1.0f);
+    LOKA_VERIFY(blob.data() == before && blob.size() == 4 && allocation.attempts == sealAttempts);
+  }
+  LOKA_VERIFY(allocation.live == 0);
+  const int frees = allocation.byteFrees;
+  {
+    Blob blob = Blob::Create();
+    LOKA_VERIFY(blob.tryResize(8));
+    {
+      Blob alias = blob;
+      blob = Blob::Empty();
+      LOKA_VERIFY(allocation.live == 3 && allocation.byteFrees == frees);
+    }
+    LOKA_VERIFY(allocation.live == 0 && allocation.byteFrees == frees + 1);
+  }
+}
+
+#include "core/resource/BlobLoader.hpp"
+#include "core/StateTracker.hpp"
+#include "core/util/StateTrackerGuard.hpp"
+#include "app/FileImageSource.hpp"
+
+void testBlobLoaderPublishesOnlySealedSuccess()
+{
+  using namespace loka::core;
+  using namespace loka::core::resource;
+  BlobAllocationProbe allocation;
+  MutableState<BlobLoaderRequest> input;
+  MutableState<Blob> output;
+  PushStateTracker tracker;
+  tracker.addState(&input);
+  tracker.addState(&output);
+  {
+    StateTrackerGuard guard(&tracker);
+    BlobLoader loader(&input, &output);
+    BlobLoaderRequest request;
+    request.setInlineBytes(std::vector<unsigned char>(3, 42), true);
+    input.set(request, true);
+    LOKA_VERIFY(output.get().isCompleted() && !output.get().isLoading());
+    LOKA_VERIFY(output.get().progress() == 1.0f && output.get().size() == 3);
+    const char *sites[][2] = {{"Blob", "Record"}, {"Managed", "ControlBlock"}, {"Blob", "Bytes"}};
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      allocation.refuse(sites[i][0], sites[i][1]);
+      input.set(request, true);
+      LOKA_VERIFY(output.get() == Blob::Empty());
+    }
+    const char *path = "_blob_loader.bin";
+    FILE *file = std::fopen(path, "wb");
+    LOKA_VERIFY(file && std::fwrite("abc", 1, 3, file) == 3);
+    LOKA_VERIFY(std::fclose(file) == 0);
+    request.setFilePath(path).setIncremental(true);
+    input.set(request, true);
+    LOKA_VERIFY(output.get().isCompleted() && output.get().size() == 3 && output.get().data()[2] == 'c');
+    LOKA_VERIFY(output.get().progress() == Blob::UnknownProgress() && !output.get().isLoading());
+    allocation.refuse("Blob", "Bytes");
+    input.set(request, true);
+    LOKA_VERIFY(!output.get().isValid());
+    LOKA_VERIFY(std::remove(path) == 0);
+    LOKA_VERIFY(std::strcmp(loka::app::FileImageReadResultName(loka::platform::file::READ_ALLOCATION_REFUSED),
+                           "READ_ALLOCATION_REFUSED") == 0);
+  }
+  tracker.removeState(&output);
+  tracker.removeState(&input);
 }
