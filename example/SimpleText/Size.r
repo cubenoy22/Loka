@@ -1,7 +1,7 @@
 // SIZE partition override for the Retro68/Classic build.
 // SimpleText opens one document of at most 256 rows and 8 KiB.
-// Measured need (#1131, MAME maciix, 2026-10-07): 415.4K = peak live heap
-// 392600 B + stack/A5/zone 32720 B, under the workload in
+// Measured need (#1123 PR B, MAME maciix, 2026-10-08): 408.6K = peak live heap
+// 386156 B + stack/A5/zone 32212 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change):
 // open a document at both caps through the open dialog, edit it, and save it.
 // 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
