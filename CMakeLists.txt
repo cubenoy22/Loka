@@ -533,6 +533,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxTextEditorTests)
   set_target_properties(LokaToolboxTextEditorTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   add_test(NAME LokaToolboxTextEditorTests COMMAND LokaToolboxTextEditorTests)
+  add_test(NAME testToolboxTextEditorFrameInset COMMAND LokaToolboxTextEditorTests frame-inset)
 
   add_executable(LokaToolboxPascalTextTests tests/toolbox/host/ToolboxPascalTextHostTests.cpp
     apple/toolbox/src/platform/ToolboxHfsName.cpp ${_editor_host_sources})

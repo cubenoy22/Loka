@@ -13,6 +13,9 @@ namespace loka
     struct ToolboxTextEditorAdmission;
   }
 } // namespace loka
+/** TextEdit interior: one frame pixel and two margin pixels; empty at frame origin if too small. */
+Rect ToolboxTextEditorTextRect(const Rect &frame);
+
 /** Plain whole-document projection. The controller's edit ledger owns TE;
     this context owns cancellation storage and the synchronous input phase. */
 class ToolboxTextEditorContext : public ToolboxProjectedNodeContext
