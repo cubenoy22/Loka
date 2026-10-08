@@ -178,6 +178,11 @@ if [ "$1" = "-r" ]; then
   printf 'template data fork: %s\n' "$2" >"$destination"
   exit 0
 fi
+if [ "$2" = ":LokaTestsToolbox.assert" ]; then
+  [ -n "${FAKE_ASSERT:-}" ] || exit 1
+  printf '%s\n' "$FAKE_ASSERT" >"$destination"
+  exit 0
+fi
 if [ "$2" = ":LokaTestsToolbox.capture" ]; then
   if [ "${FAKE_CAPTURE_MISSING:-0}" = "1" ]; then
     exit 1
@@ -618,6 +623,25 @@ verify_capture_rectangle_failure FAKE_CAPTURE_MISSING=1 extract --structural-aud
 verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE= normalize
 verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE='20 10 nope 140' normalize
 verify_capture_rectangle_failure FAKE_CAPTURE_RECTANGLE='20 10 201 140' normalize
+
+# A vehicle that failed an assert leaves LokaTestsToolbox.assert (#1093). The
+# cell fails at extract and prints the expression, even when the audit and
+# capture were written before the abort.
+verify_assert_artifact_fails() {
+  local log="$SANDBOX/runner-assert-artifact.log"
+  if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
+      FAKE_MAME_RESULT=success FAKE_EXAMPLE=helloworld \
+      FAKE_ASSERT='loka_assert file=Fake.cpp line=7 func=fake expr=false' \
+      env -u WSL_INTEROP -u LOKA_TAB_COUNT \
+      bash "$SANDBOX/repo/tests/toolbox/run-scenario.sh" helloworld startup "$@" \
+        >"$log" 2>&1; then
+    fail "an assert artifact unexpectedly passed (${*:-default})"
+  fi
+  grep -Fq 'extract stage failed: classic assert failed: loka_assert file=Fake.cpp line=7 func=fake expr=false' "$log" \
+    || fail "an assert artifact did not fail the extract stage with its expression (${*:-default})"
+}
+verify_assert_artifact_fails
+verify_assert_artifact_fails --structural-audit
 
 verify_moved_window_is_pixel_failure() {
   if MAME_ENV_FILE="$SANDBOX/mame.env" RETRO68_TOOLCHAIN_BIN="$SANDBOX/retro-tools" \
