@@ -1,6 +1,7 @@
 #ifndef LOKA_APP_FILE_IMAGE_SOURCE_HPP
 #define LOKA_APP_FILE_IMAGE_SOURCE_HPP
-#include "app/PlatformReadCapacity.hpp"
+#include "app/PlatformContext.hpp"
+#include "platform/file/FileIO.hpp"
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 namespace loka
@@ -22,19 +23,20 @@ namespace loka
       if (located && !resolved)
         return READ_NO_NATIVE_SPEC;
       loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-      const PlatformReadCapacity capacity(context);
+      if (!blob.isValid())
+        return READ_ALLOCATION_REFUSED;
       ReadResult result;
       if (resolved)
       {
-        result = ReadBytes(handle, blob.mutableBytes(), &capacity);
-        if (!located && result != READ_OK && result != READ_CAPACITY_REFUSED)
+        result = ReadBytes(handle, blob);
+        if (!located && result != READ_OK && result != READ_CAPACITY_REFUSED && result != READ_ALLOCATION_REFUSED)
           result = ReadBytes(file.base() == loka::file::File::BASE_APPLICATION
-              ? handle.displayPath : file.toString(), blob.mutableBytes(), &capacity);
+              ? handle.displayPath : file.toString(), blob);
       }
       else if (file.base() == loka::file::File::BASE_APPLICATION)
         return READ_NO_NATIVE_SPEC; // nothing resolved it, and it has no path to flatten (#1133)
       else
-        result = ReadBytes(file.toString(), blob.mutableBytes(), &capacity);
+        result = ReadBytes(file.toString(), blob);
       if (result == READ_OK)
       {
         blob.sealBytes();
@@ -47,7 +49,7 @@ namespace loka
                                     const loka::core::resource::Blob &blob,
                                     loka::core::resource::Image &image)
     {
-      return context && context->createImageFromBlob(blob, 0, blob.bytes().size(), image);
+      return context && context->createImageFromBlob(blob, 0, blob.size(), image);
     }
     /** Stable diagnostic vocabulary at the read/decode boundary. */
     inline const char *FileImageReadResultName(loka::platform::file::ReadResult result)
@@ -73,6 +75,8 @@ namespace loka
         return "READ_STDIO_READ_FAILED";
       case READ_CAPACITY_REFUSED:
         return "READ_CAPACITY_REFUSED";
+      case READ_ALLOCATION_REFUSED:
+        return "READ_ALLOCATION_REFUSED";
       case READ_SIZE_OVERFLOW:
         return "READ_SIZE_OVERFLOW";
       }

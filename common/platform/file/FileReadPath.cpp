@@ -10,7 +10,7 @@ namespace loka
   {
     namespace file
     {
-      ReadResult ReadBytes(const loka::core::String &path, std::vector<unsigned char> &out,
+      ReadResult ReadBytes(const loka::core::String &path, loka::core::resource::Blob &out,
                            const ReadCapacity *capacity)
       {
         return ReadBytesThroughStdio(path, out, capacity);

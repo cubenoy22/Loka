@@ -2,10 +2,9 @@
 #define LOKA_CORE2_RESOURCE_BLOB_HPP
 
 #include <cstddef>
-#include <vector>
-
+#include <cstring>
+#include "core/LokaAlloc.hpp"
 #include "core/Managed.hpp"
-#include "core/State.hpp"
 
 namespace loka
 {
@@ -13,26 +12,31 @@ namespace loka
   {
     namespace resource
     {
-      struct BlobRecord
+      /** Shared record; only Blob can change storage or metadata. */
+      class BlobRecord
       {
+      public:
         BlobRecord()
-            : data(),
-              sizeState(0),
-              loadingState(false),
-              mutableState(false),
-              completedState(false),
-              progressState(0.0f)
+            : data_(0),
+              length_(0),
+              loading_(false),
+              completed_(false),
+              progress_(-1.0f)
         {
         }
 
-        std::vector<unsigned char> data;
-        MutableState<std::size_t> sizeState;
-        MutableState<bool> loadingState;
-        MutableState<bool> mutableState;
-        MutableState<bool> completedState;
-        MutableState<float> progressState;
+      private:
+        friend class Blob;
+        BlobRecord(const BlobRecord &);
+        BlobRecord &operator=(const BlobRecord &);
+        unsigned char *data_;
+        std::size_t length_;
+        bool loading_;
+        bool completed_;
+        float progress_;
       };
 
+      /** Shared bytes built through refusing doors, then sealed once for readers. */
       class Blob
       {
       public:
@@ -40,152 +44,117 @@ namespace loka
             : handle_()
         {
         }
-        explicit Blob(const Managed<BlobRecord> &handle)
-            : handle_(handle)
-        {
-        }
-
         static Blob Empty()
         {
-          return Blob(SharedEmptyHandle());
+          return Blob();
         }
-
         static Blob Create()
         {
-          return Blob(CreateHandle());
+          BlobRecord *record = LokaNew<BlobRecord>(RecordSite());
+          if (!record)
+            return Blob();
+          const Managed<BlobRecord> handle = Managed<BlobRecord>::TryWrap(record, &ReleaseRecord, 0);
+          if (!handle.isValid())
+          {
+            ReleaseRecord(record, 0);
+            return Blob();
+          }
+          return Blob(handle);
         }
-
         bool isValid() const
         {
-          return handle_.isValid();
+          return this->handle_.isValid();
         }
         Managed<BlobRecord> handle() const
         {
-          return handle_;
+          return this->handle_;
         }
-
         std::size_t size() const
         {
-          return handle_.isValid() ? handle_->sizeState.get() : 0;
+          return this->isValid() ? this->handle_->length_ : 0;
         }
-
         bool isLoading() const
         {
-          return handle_.isValid() ? handle_->loadingState.get() : false;
+          return this->isValid() && this->handle_->loading_;
         }
-
-        bool isMutable() const
-        {
-          return handle_.isValid() ? handle_->mutableState.get() : false;
-        }
-
         bool isCompleted() const
         {
-          return handle_.isValid() ? handle_->completedState.get() : false;
+          return this->isValid() && this->handle_->completed_;
         }
-
-        State<std::size_t> *sizeState() const
-        {
-          return handle_.isValid() ? &handle_->sizeState : 0;
-        }
-
-        State<bool> *loadingState() const
-        {
-          return handle_.isValid() ? &handle_->loadingState : 0;
-        }
-
-        State<bool> *mutableState() const
-        {
-          return handle_.isValid() ? &handle_->mutableState : 0;
-        }
-
-        State<bool> *completedState() const
-        {
-          return handle_.isValid() ? &handle_->completedState : 0;
-        }
-
         float progress() const
         {
-          return handle_.isValid() ? handle_->progressState.get() : UnknownProgress();
+          return this->isValid() ? this->handle_->progress_ : UnknownProgress();
         }
-
-        State<float> *progressState() const
+        /** Borrows end at a storage-changing success, seal, or last-owner release. */
+        const unsigned char *data() const
         {
-          return handle_.isValid() ? &handle_->progressState : 0;
+          return this->size() ? this->handle_->data_ : 0;
         }
-
-        const std::vector<unsigned char> &bytes() const
+        unsigned char *mutableData()
         {
-          if (handle_.isValid())
+          return this->canWrite() && this->size() ? this->handle_->data_ : 0;
+        }
+        /** Logical extent; growth copies the prefix before committing. */
+        bool tryResize(std::size_t n)
+        {
+          if (!this->canWrite())
+            return false;
+          if (n > this->size())
           {
-            return handle_->data;
+            unsigned char *next = static_cast<unsigned char *>(LokaAllocRaw(n, BytesSite()));
+            if (!next)
+              return false;
+            if (this->size())
+              std::memcpy(next, this->handle_->data_, this->size());
+            LokaFreeRaw(this->handle_->data_, BytesSite());
+            this->handle_->data_ = next;
           }
-          return EmptyBytes();
+          else if (!n)
+          {
+            LokaFreeRaw(this->handle_->data_, BytesSite());
+            this->handle_->data_ = 0;
+          }
+          this->handle_->length_ = n;
+          return true;
         }
-
-        std::vector<unsigned char> &mutableBytes()
+        /** Copy before release permits self and subrange assignment. */
+        bool tryAssign(const unsigned char *p, std::size_t n)
         {
-          ensureHandle();
-          return handle_->data;
+          if (!this->canWrite() || (n && !p))
+            return false;
+          if (!n)
+            return this->tryResize(0);
+          unsigned char *next = static_cast<unsigned char *>(LokaAllocRaw(n, BytesSite()));
+          if (!next)
+            return false;
+          std::memcpy(next, p, n);
+          LokaFreeRaw(this->handle_->data_, BytesSite());
+          this->handle_->data_ = next;
+          this->handle_->length_ = n;
+          return true;
         }
-
-        void setBytes(const std::vector<unsigned char> &data)
-        {
-          ensureHandle();
-          handle_->data = data;
-          handle_->sizeState.set(handle_->data.size());
-        }
-
-        /** Seals bytes that were written in place through `mutableBytes()`:
-            synchronizes `sizeState` with what is actually there, marks the
-            blob completed, and takes mutability away. This exists because the
-            fill-then-publish path never goes through `setBytes` -- copying a
-            multi-megabyte bag to announce it would defeat the reason it was
-            read into the caller's buffer in the first place.
-
-            Precondition: a blob that has not been shared yet, sealed exactly
-            once. Resealing, or writing after a seal, is #186's one-way
-            territory and deliberately not this seam's business. */
         void sealBytes()
         {
-          ensureHandle();
-          handle_->sizeState.set(handle_->data.size());
-          handle_->mutableState.set(false);
-          handle_->completedState.set(true);
+          if (this->canWrite())
+            this->handle_->completed_ = true;
         }
-
         void setLoading(bool value)
         {
-          ensureHandle();
-          handle_->loadingState.set(value);
+          if (this->canWrite())
+            this->handle_->loading_ = value;
         }
-
-        void setMutable(bool flag)
-        {
-          ensureHandle();
-          handle_->mutableState.set(flag);
-        }
-
-        void setCompleted(bool flag)
-        {
-          ensureHandle();
-          handle_->completedState.set(flag);
-        }
-
         void setProgress(float value)
         {
-          ensureHandle();
-          handle_->progressState.set(value);
+          if (this->canWrite())
+            this->handle_->progress_ = value;
         }
-
         static float UnknownProgress()
         {
           return -1.0f;
         }
-
         bool operator==(const Blob &other) const
         {
-          return handle_ == other.handle_;
+          return this->handle_ == other.handle_;
         }
         bool operator!=(const Blob &other) const
         {
@@ -193,57 +162,30 @@ namespace loka
         }
 
       private:
-        static Managed<BlobRecord> CreateHandle()
+        explicit Blob(const Managed<BlobRecord> &handle)
+            : handle_(handle)
         {
-          BlobRecord *record = new BlobRecord();
-          record->sizeState.set(0);
-          record->loadingState.set(false);
-          record->mutableState.set(false);
-          record->completedState.set(false);
-          record->progressState.set(UnknownProgress());
-          return Managed<BlobRecord>::Wrap(record);
         }
-
-        static Managed<BlobRecord> &EmptyHandleStorage()
+        bool canWrite() const
         {
-          static Managed<BlobRecord> empty;
-          return empty;
+          return this->isValid() && !this->isCompleted();
         }
-
-        static Managed<BlobRecord> &SharedEmptyHandle()
+        static LokaAllocationSite RecordSite()
         {
-          Managed<BlobRecord> &empty = EmptyHandleStorage();
-          if (!empty.isValid())
-          {
-            empty = CreateHandle();
-          }
-          LOKA_AUDIT_PROCESS_GLOBAL(BlobSharedEmptyState);
-          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->sizeState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
-          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->loadingState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
-          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->mutableState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
-          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->completedState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
-          LOKA_AUDIT_RECLASSIFY_ALIVE(empty->progressState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
-          return empty;
+          return LokaAllocationSite("Blob", "Record");
         }
-
-        static const std::vector<unsigned char> &EmptyBytes()
+        static LokaAllocationSite BytesSite()
         {
-          static std::vector<unsigned char> emptyVector;
-          return emptyVector;
+          return LokaAllocationSite("Blob", "Bytes");
         }
-
-        void ensureHandle()
+        static void ReleaseRecord(BlobRecord *record, void *)
         {
-          if (!handle_.isValid() || handle_ == EmptyHandleStorage())
-          {
-            handle_ = CreateHandle();
-          }
+          LokaFreeRaw(record->data_, BytesSite());
+          LokaDelete(record, RecordSite());
         }
-
         Managed<BlobRecord> handle_;
       };
     } // namespace resource
   } // namespace core
 } // namespace loka
-
-#endif // LOKA_CORE2_RESOURCE_BLOB_HPP
+#endif
