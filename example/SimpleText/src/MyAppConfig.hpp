@@ -22,20 +22,9 @@ public:
             .title("LokaSimpleText")
             .visible(true)
             .scene(loka::app::scene::Boundary<MainNode>( //
-                MainProps()
-                    .platformContext(this->getPlatformContext())
-                    .newEvent(&this->newEvent_)
-                    .openEvent(&this->openEvent_)
-                    .saveEvent(&this->saveEvent_)
-                    .saveAsEvent(&this->saveAsEvent_) //
-                ))                                    //
+                MainProps().platformContext(this->getPlatformContext()) //
+                )) //
     );
   }
-
-private:
-#ifdef TEST_BUILD
-  friend class ::SimpleTextTestAccess;
-#endif
-  loka::core::EmitterState newEvent_, openEvent_, saveEvent_, saveAsEvent_;
 };
 #endif
