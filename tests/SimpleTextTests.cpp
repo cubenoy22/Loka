@@ -69,6 +69,10 @@ namespace
     LOKA_VERIFY(loka::platform::CollectUtf8(value, out));
     return out;
   }
+  // About, separator, Quit: the Null attachment numbers items across menus,
+  // so File's commands follow these.
+  const unsigned kAppMenuItems = 3;
+
   const MenuItemDefinition *itemAt(const MenuDefinition &menu, unsigned index)
   {
     const MenuItemDefinition *item = menu.itemsHead();
@@ -373,9 +377,16 @@ void testSimpleTextMenuAndDialogProps()
 {
   Harness h;
   const MenuBarDefinition *bar = h.scene->menuBar();
-  LOKA_VERIFY(bar && bar->menusCount() == 1);
-  const MenuDefinition *file = bar->menuAt(0);
-  LOKA_VERIFY(file && file->itemsCount() == 6);
+  LOKA_VERIFY(bar && bar->menusCount() == 2);
+  // The app menu comes first: Classic shows the Apple menu only for a declared
+  // app menu, and macOS takes the first menu as the application menu.
+  const MenuDefinition *app = bar->menuAt(0);
+  LOKA_VERIFY(app && app->isAppMenu && app->itemsCount() == kAppMenuItems);
+  LOKA_VERIFY(itemAt(*app, 0)->action == MENU_ACTION_ABOUT_APP);
+  LOKA_VERIFY(itemAt(*app, 1)->isSeparator);
+  LOKA_VERIFY(itemAt(*app, 2)->action == MENU_ACTION_QUIT_APP);
+  const MenuDefinition *file = bar->menuAt(1);
+  LOKA_VERIFY(file && !file->isAppMenu && file->itemsCount() == 6);
   LOKA_VERIFY(file->title.equals(String("File")));
   const char *titles[] = {"New", "Open...", "Save", "Save As...", "", "Quit"};
   for (int i = 0; i < 6; ++i)
@@ -403,13 +414,13 @@ void testSimpleTextMenuAndDialogProps()
   LOKA_VERIFY(defaultBar.menusCount() == 0);
   NullMenuAttachment &attachment = h.platform.menuAttachment();
   LOKA_VERIFY(attachment.open(*bar));
-  attachment.dispatch(2);
+  attachment.dispatch(kAppMenuItems + 2);
   h.flush();
   OpenFileDialogNode *open = static_cast<OpenFileDialogNode *>(find(&h.main(), "SimpleText.Open"));
   LOKA_VERIFY(open && open->props.options_.purpose() == FILE_DIALOG_OPEN);
   LOKA_VERIFY(open->props.options_.filterPolicy() == FILE_DIALOG_FILTER_ALL_FILES_TEXT);
   h.choose(false, FileChooserResult::Canceled());
-  attachment.dispatch(4);
+  attachment.dispatch(kAppMenuItems + 4);
   h.flush();
   OpenFileDialogNode *save = static_cast<OpenFileDialogNode *>(find(&h.main(), "SimpleText.Save"));
   LOKA_VERIFY(save && save->props.options_.purpose() == FILE_DIALOG_SAVE);
@@ -418,10 +429,10 @@ void testSimpleTextMenuAndDialogProps()
   LOKA_VERIFY(find(&h.main(), "SimpleText.Editor") && find(&h.main(), "SimpleText.Error"));
   h.choose(true, FileChooserResult::File(h.file("first.txt")));
   LOKA_VERIFY(h.lines().update(h.lines().at(0).id, String("saved through menu")) == EDIT_OK);
-  attachment.dispatch(3);
+  attachment.dispatch(kAppMenuItems + 3);
   LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::NONE);
   LOKA_VERIFY(h.bytes("first.txt") == "saved through menu");
-  attachment.dispatch(1);
+  attachment.dispatch(kAppMenuItems + 1);
   LOKA_VERIFY(h.lines().size() == 1 && h.row(0).empty());
   LOKA_VERIFY(SimpleTextTestAccess::current(h.main()).kind == FileChooserResult::RESULT_NONE);
 }
@@ -496,7 +507,7 @@ void testSimpleTextMenuDisconnectsOnUnmount()
   Harness h;
   NullMenuAttachment &attachment = h.platform.menuAttachment();
   LOKA_VERIFY(attachment.open(*h.scene->menuBar()));
-  attachment.dispatch(2);
+  attachment.dispatch(kAppMenuItems + 2);
   h.flush();
   LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::OPEN);
   LOKA_VERIFY(find(&h.main(), "SimpleText.Open"));
@@ -505,7 +516,7 @@ void testSimpleTextMenuDisconnectsOnUnmount()
   LOKA_VERIFY(attachment.applied() == 0 && attachment.subscriptionCount() == 0);
   // Main and its slots are gone. Dispatch only through the released table.
   // Fixture-owned emitter withdrawal is pinned by testCommandSetWithdrawsOnDetach.
-  for (unsigned id = 1; id <= 4; ++id)
+  for (unsigned id = kAppMenuItems + 1; id <= kAppMenuItems + 4; ++id)
     attachment.dispatch(id);
   LOKA_VERIFY(!attachment.connected());
 }
