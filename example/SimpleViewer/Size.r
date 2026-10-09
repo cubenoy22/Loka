@@ -1,11 +1,11 @@
 // SIZE partition override for the Retro68/Classic build.
 // SimpleViewer decodes whole PICTs into the heap, so its need grows with the picture.
-// Measured need (#1103, MAME maciix, 2026-10-03): 520.0K = peak live heap
-// 494460 B + stack/A5/zone 38060 B, under the workload in
+// Measured need (#1123 PR B, MAME maciix, 2026-10-08): 521.4K = peak live heap
+// 496112 B + stack/A5/zone 37772 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
 // 68K: minimum = need x 1.1 rounded up to 32K. Preferred stays 1024K instead of
 // need x 1.5 (832K): the 13.8 KB picture above is small, and larger ones
-// raise the need until the open probe refuses them.
+// raise the need until the read refuses them (READ_ALLOCATION_REFUSED).
 // Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
 // is appended after and overrides it.
 #include "Processes.r"

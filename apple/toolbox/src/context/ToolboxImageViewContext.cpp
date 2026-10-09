@@ -48,14 +48,14 @@ namespace
     {
       return;
     }
-    const std::vector<unsigned char> &bytes = gActivePictBytes->blob.bytes();
+    const unsigned char *bytes = gActivePictBytes->blob.data();
     // The picture's end, not the buffer's. A blob can hold a whole LRPK bag,
     // so streaming to the end of it would feed DrawPicture the asset stored
     // after this one once the size field or terminator was unreliable.
     std::size_t end = gActivePictBytes->pictureEnd;
-    if (end > bytes.size())
+    if (end > gActivePictBytes->blob.size())
     {
-      end = bytes.size();
+      end = gActivePictBytes->blob.size();
     }
     unsigned char *dst = static_cast<unsigned char *>(dataPtr);
     long remain = byteCount;
@@ -85,9 +85,9 @@ namespace
     {
       return false;
     }
-    const std::vector<unsigned char> &bytes = payload->blob.bytes();
+    const unsigned char *bytes = payload->blob.data();
     const std::size_t headerSize = sizeof(Picture) + sizeof(long) * 8;
-    if (payload->pictureEnd > bytes.size() ||
+    if (payload->pictureEnd > payload->blob.size() ||
         payload->pictureOffset + headerSize > payload->pictureEnd)
     {
       return false;

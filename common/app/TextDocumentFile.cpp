@@ -1,5 +1,6 @@
 #include "app/TextDocumentFile.hpp"
-#include "app/PlatformReadCapacity.hpp"
+#include "app/PlatformContext.hpp"
+#include "platform/file/FileIO.hpp"
 #include "app/nodes/controls/TextDocumentLine.hpp"
 #include <string>
 
@@ -13,17 +14,10 @@ namespace loka
       class TextReadCapacity : public platform::file::ReadCapacity
       {
       public:
-        explicit TextReadCapacity(PlatformContext *context)
-            : platform_(context)
-        {
-        }
         virtual bool allows(std::size_t bytes) const
         {
-          return bytes <= TextEditorProps::kMaxBytes + TextEditorProps::kMaxLines - 1 && this->platform_.allows(bytes);
+          return bytes <= TextEditorProps::kMaxBytes + TextEditorProps::kMaxLines - 1;
         }
-
-      private:
-        const PlatformReadCapacity platform_;
       };
 
       /** Both passes borrow the same live IDs and completed payloads. Reverse
@@ -115,13 +109,15 @@ namespace loka
       const bool located = !file.locator().empty();
       if (located && !resolved)
         return TEXT_DOCUMENT_READ_FAILED;
-      std::vector<unsigned char> bytes;
-      const TextReadCapacity capacity(context);
+      core::resource::Blob bytes = core::resource::Blob::Create();
+      if (!bytes.isValid())
+        return TEXT_DOCUMENT_ALLOCATION;
+      const TextReadCapacity capacity;
       ReadResult result;
       if (resolved)
       {
         result = ReadBytes(handle, bytes, &capacity);
-        if (!located && result != READ_OK && result != READ_CAPACITY_REFUSED)
+        if (!located && result != READ_OK && result != READ_CAPACITY_REFUSED && result != READ_ALLOCATION_REFUSED)
           result = ReadBytes(file.base() == loka::file::File::BASE_APPLICATION ? handle.displayPath : file.toString(),
                              bytes,
                              &capacity);
@@ -130,6 +126,8 @@ namespace loka
         return TEXT_DOCUMENT_READ_FAILED; // unresolved: no path to flatten
       else
         result = ReadBytes(file.toString(), bytes, &capacity);
+      if (result == READ_ALLOCATION_REFUSED)
+        return TEXT_DOCUMENT_ALLOCATION;
       if (result == READ_CAPACITY_REFUSED || result == READ_SIZE_OVERFLOW)
         return TEXT_DOCUMENT_TOO_LARGE;
       if (result != READ_OK)
@@ -140,12 +138,12 @@ namespace loka
       std::size_t start = 0, normalized = 0;
       for (std::size_t i = 0;; ++i)
       {
-        if (i < bytes.size() && bytes[i] != '\r' && bytes[i] != '\n')
+        if (i < bytes.size() && bytes.data()[i] != '\r' && bytes.data()[i] != '\n')
           continue;
         if (count == TextEditorProps::kMaxLines)
           return TEXT_DOCUMENT_TOO_LARGE;
         const std::size_t length = i - start;
-        const char *data = length ? reinterpret_cast<const char *>(&bytes[start]) : "";
+        const char *data = length ? reinterpret_cast<const char *>(&bytes.data()[start]) : "";
         const EditorResult valid = text_document_detail::ValidateRow(data, length);
         if (valid != EDITOR_OK)
           return lineResult(valid);
@@ -162,7 +160,7 @@ namespace loka
         ++count;
         if (i == bytes.size())
           break;
-        if (bytes[i] == '\r' && i + 1 < bytes.size() && bytes[i + 1] == '\n')
+        if (bytes.data()[i] == '\r' && i + 1 < bytes.size() && bytes.data()[i + 1] == '\n')
           ++i;
         start = i + 1;
       }

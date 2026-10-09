@@ -6,6 +6,8 @@ void testLokaNewReturnsNullWhenBackendRefusesNthAllocation();
 void testLokaAllocBackendResetRestoresDefault();
 void testLokaAllocAuditBalancedUseCountsToZero();
 void testBlobOwnedWriteLeavesNoLiveGateAllocation();
+void testBlobRefusingStorageAndSeal();
+void testBlobLoaderPublishesOnlySealedSuccess();
 void testBlobEmptyWritePreservesSharedRecord();
 void testLokaAllocCensusAccumulatesSitesAndLabelsOverflow();
 void testImageFromNativeRecordRefusalReleasesNativeOnce();

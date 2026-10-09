@@ -1,4 +1,5 @@
 #include "ToolboxMemorySource.hpp"
+#include "app/FileImageSource.hpp"
 #include "core/SmallObjectPool.hpp"
 #include "support/TestVerify.hpp"
 #include <climits>
@@ -21,10 +22,11 @@ namespace
     unsigned int count, releases, calls;
     unsigned int residue;
     bool refuseChunks, refuseAll;
+    Size ceiling;
 
     FakeMemoryManager()
         : count(0), releases(0), calls(0), residue(6),
-          refuseChunks(false), refuseAll(false)
+          refuseChunks(false), refuseAll(false), ceiling(INT32_MAX)
     {
       LOKA_VERIFY(!active);
       active = this;
@@ -126,7 +128,7 @@ Ptr NewPtr(Size size)
 {
   FakeMemoryManager &memory = *FakeMemoryManager::active;
   ++memory.calls;
-  if (memory.refuseAll || (memory.refuseChunks && size == 2052)) return 0;
+  if (size > memory.ceiling || memory.refuseAll || (memory.refuseChunks && size == 2052)) return 0;
   LOKA_VERIFY(size >= 0 && memory.count < 132);
   FakeMemoryManager::Block &block = memory.blocks[memory.count++];
   block.allocation = std::malloc(static_cast<size_t>(size) + 16);
@@ -154,9 +156,40 @@ void DisposePtr(Ptr storage)
   LOKA_VERIFY(false); // An interior pointer must never reach the Memory Manager.
 }
 
+namespace
+{
+  void *sourceAllocate(std::size_t n, const loka::core::LokaAllocationSite &) { return Source::acquire(n); }
+  void sourceFree(void *p, const loka::core::LokaAllocationSite &) { Source::release(p); }
+  void testBlobReadRefusesAlignmentOverhead()
+  {
+    const char *path = "_blob_plus_four.bin";
+    const std::size_t M = 1024;
+    unsigned char bytes[M];
+    std::memset(bytes, 42, M);
+    FILE *file = std::fopen(path, "wb");
+    LOKA_VERIFY(file && std::fwrite(bytes, 1, M, file) == M);
+    LOKA_VERIFY(std::fclose(file) == 0);
+    FakeMemoryManager memory;
+    memory.ceiling = M;
+    loka::core::LokaAllocSetBackend(&sourceAllocate, &sourceFree);
+    {
+      loka::core::resource::Blob out = loka::core::resource::Blob::Create();
+      LOKA_VERIFY(out.tryAssign(bytes, 1));
+      const loka::core::resource::Blob before = out;
+      const loka::file::File input = loka::file::File::FromPath(path);
+      LOKA_VERIFY(loka::app::ReadFileImageBlob(0, input, out) == loka::platform::file::READ_ALLOCATION_REFUSED);
+      LOKA_VERIFY(out == before && out.size() == 1 && out.data()[0] == 42);
+    }
+    LOKA_VERIFY(memory.count == memory.releases);
+    loka::core::LokaAllocSetBackend(0, 0);
+    LOKA_VERIFY(std::remove(path) == 0);
+  }
+}
+
 int main()
 {
   testPoolPaths();
   testSourceEdges();
+  testBlobReadRefusesAlignmentOverhead();
   std::puts("Classic memory source alignment and recovery pins passed");
 }
