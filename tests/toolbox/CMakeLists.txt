@@ -224,6 +224,8 @@ function(loka_add_color_probe name core_target)
     src/ColorProbeStandaloneMain.cpp
     ${CMAKE_CURRENT_BINARY_DIR}/ColorProbeSize.r
   )
+  set(LOKA_COLOR_PROBE_DEPTH 0 CACHE STRING "Screen depth the color probe switches to first (0 = leave it)")
+  target_compile_definitions(${target} PRIVATE "LOKA_COLOR_PROBE_DEPTH=${LOKA_COLOR_PROBE_DEPTH}")
   set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
   set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
 endfunction()

@@ -5,6 +5,7 @@
 #include <Fonts.h>
 #include <Gestalt.h>
 #include <Menus.h>
+#include <Palettes.h>
 #include <Quickdraw.h>
 #include <TextEdit.h>
 #include <Windows.h>
@@ -125,6 +126,21 @@ namespace
       std::fprintf(log, "depth=1 (no Color QuickDraw)\r");
     if (gestaltError != noErr)
       std::fprintf(log, "ERROR Gestalt=%d\r", gestaltError);
+#if LOKA_COLOR_PROBE_DEPTH > 0
+    // Optional second run: switch the main screen to a color depth first (the
+    // device type bit asks for color rather than gray), so the same drawing
+    // shows how each port renders on a color screen.
+    if (colorQD)
+    {
+      GDHandle device = GetMainDevice();
+      if (HasDepth(device, LOKA_COLOR_PROBE_DEPTH, 1 << gdDevType, 1 << gdDevType))
+        std::fprintf(log, "set_depth=%d err=%d\r", LOKA_COLOR_PROBE_DEPTH,
+                     SetDepth(device, LOKA_COLOR_PROBE_DEPTH, 1 << gdDevType, 1 << gdDevType));
+      else
+        std::fprintf(log, "set_depth=%d unsupported\r", LOKA_COLOR_PROBE_DEPTH);
+      std::fprintf(log, "depth_now=%d\r", (**(**GetMainDevice()).gdPMap).pixelSize);
+    }
+#endif
 
     // A null storage argument lets each constructor allocate its own record type.
     const Rect left = {50, 10, 340, 250};
