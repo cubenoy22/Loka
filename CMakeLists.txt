@@ -316,11 +316,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   )
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
+  # GNU LP64 member ABI: intercept bag entry without adding a production test door.
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    target_compile_definitions(LokaContractTests PRIVATE LOKA_BAG_READ_FAULT_PINS)
+    target_link_options(LokaContractTests PRIVATE
+      -Wl,--wrap=_ZN4loka4core8resource4lrpk6Reader11readBagIntoEmPhm)
+  endif()
   # Characterize the real adapter/seam with deterministic stdio failures.
   # Wrapping is confined to this Linux test executable, never a core library.
   target_compile_definitions(LokaScenarioTests PRIVATE LOKA_FILE_READ_FAULT_PINS)
   target_link_options(LokaScenarioTests PRIVATE
-    -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fread -Wl,--wrap=ferror)
+    -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fread -Wl,--wrap=ferror -Wl,--wrap=fclose)
 
 
   function(loka_add_vehicle_presentation_test target_name source_file example_include_dir test_name)
@@ -430,6 +436,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   # Exercise the Classic source itself against a host Memory Manager substitute.
   add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp)
+  target_link_libraries(LokaToolboxMemorySourceTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxMemorySourceTests)
   target_include_directories(LokaToolboxMemorySourceTests PRIVATE
     tests/support/classic-memory tests apple/toolbox/src common)

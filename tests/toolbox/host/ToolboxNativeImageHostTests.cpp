@@ -2,6 +2,7 @@
 // the path from a picture to an Image returns an invalid Image, releases what
 // the caller handed over exactly once, and leaves no gate allocation live.
 #include "ToolboxNativeImage.hpp"
+#include "support/BlobAllocationProbe.hpp"
 #include "ToolboxPlatformContext.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
@@ -76,7 +77,7 @@ namespace
     bytes[17] = 0x11;
     bytes[18] = 0x01;
     bytes[20] = 0xff;
-    blob.setBytes(bytes);
+    LOKA_VERIFY(blob.tryAssign(bytes.empty() ? 0 : &bytes[0], bytes.size()));
     blob.sealBytes();
     return blob;
   }
@@ -109,11 +110,11 @@ namespace
     ToolboxPlatformContext platform;
     loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
     const loka::core::resource::Blob fixture = pictBlob();
-    blob.mutableBytes().assign(fixture.data(), fixture.data() + fixture.size());
+    LOKA_VERIFY(blob.tryAssign(fixture.data(), fixture.size()));
     LOKA_VERIFY(blob.size() == 21 && !blob.isCompleted());
     loka::core::resource::Image image;
     LOKA_VERIFY(platform.createImageFromBlob(blob, 7, 14, image));
-    blob.mutableBytes()[20] = 0;
+    blob.mutableData()[20] = 0;
     const loka::toolbox::ToolboxNativeImage *native =
         loka::toolbox::TryGetToolboxNativeImage(image);
     const loka::toolbox::ToolboxPictBytesPayload *payload =
@@ -142,34 +143,39 @@ namespace
 
   void testPictBytesRefusalsReleaseEverything()
   {
-    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-    blob.setBytes(std::vector<unsigned char>(16, 0));
-    blob.setMutable(false);
-    blob.setCompleted(true);
+    BlobAllocationProbe allocation;
     const char *const sites[][2] = {
-        {"ToolboxNativeImage", "PictBytes"},
-        {"ToolboxNativeImage", "Image"},
-        {"Image", "Record"},
-        {"Managed", "ControlBlock"},
+        {"Blob", "Record"}, {"Blob", "Bytes"}, {"Managed", "ControlBlock"},
+        {"ToolboxNativeImage", "PictBytes"}, {"ToolboxNativeImage", "Image"}, {"Image", "Record"}
     };
+    const loka::core::resource::Blob fixture = pictBlob();
+    loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+    LOKA_VERIFY(blob.tryAssign(fixture.data(), fixture.size()));
+    const int before = allocation.live;
     for (std::size_t i = 0; i < sizeof(sites) / sizeof(sites[0]); ++i)
     {
-      loka::core::testing::failLokaAllocRaw(sites[i][0], sites[i][1], 1);
+      allocation.refuse(sites[i][0], sites[i][1]);
       {
-        const loka::core::resource::Image image = loka::toolbox::MakeImageFromPictBlob(blob, 0, 16, 4, 3);
+        const loka::core::resource::Image image = loka::toolbox::MakeImageFromPictBlob(blob, 7, 21, 4, 3);
         LOKA_VERIFY(!image.isValid());
       }
-      LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
-      loka::core::testing::allowLokaAllocRaw();
+      LOKA_VERIFY(allocation.live == before && blob.size() == 21 && blob.data()[20] == 0xff);
     }
-    loka::core::testing::failLokaAllocRaw("Image", "Record", 0);
+    allocation.refuse("Managed", "ControlBlock", 1, 1);
     {
-      const loka::core::resource::Image image = loka::toolbox::MakeImageFromPictBlob(blob, 0, 16, 4, 3);
-      LOKA_VERIFY(image.isValid());
+      const loka::core::resource::Image image = loka::toolbox::MakeImageFromPictBlob(blob, 7, 21, 4, 3);
+      LOKA_VERIFY(!image.isValid());
     }
-    LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
-    loka::core::testing::allowLokaAllocRaw();
+    LOKA_VERIFY(allocation.live == before);
+    blob.sealBytes();
+    allocation.refuse("Blob", "Bytes");
+    {
+      const loka::core::resource::Image image = loka::toolbox::MakeImageFromPictBlob(blob, 7, 21, 4, 3);
+      LOKA_VERIFY(image.isValid() && allocation.remaining == 1);
+    }
+    LOKA_VERIFY(allocation.live == before);
   }
+
 } // namespace
 
 int main(int argc, char **argv)

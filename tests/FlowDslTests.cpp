@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "support/OrdinaryFlowPin.hpp"
 #include "FlowDslTests.hpp"
 #include "support/TestVerify.hpp"
@@ -31,6 +32,18 @@
 #include "../example/HelloWorld/src/MainNode.hpp"
 #include "../example/MineSweeper/src/MainNode.hpp"
 #include "../example/SimpleViewer/src/MainNode.hpp"
+
+class SimpleViewerTestAccess
+{
+public:
+  static void verifyAllocationFailure(const simpleviewer::MainNode &node)
+  {
+    LOKA_VERIFY(!node.imageLoad_.flow_.isValid());
+    LOKA_VERIFY(!node.image_.get().isValid());
+    LOKA_VERIFY(node.chooserMessage_.get().equals(loka::core::String::Literal("Not enough contiguous memory to load image.")));
+  }
+};
+
 #include "../example/SimpleViewer/src/SimpleViewerFlowAdapters.hpp"
 #include "core/State.hpp"
 #include "core/util/StateTrackerGuard.hpp"
@@ -6405,6 +6418,7 @@ void testSimpleViewerClosesDialogFromChooserCompletion()
 
 void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
 {
+  BlobAllocationProbe allocation;
   const char *path = "_loka_test_simpleviewer_reopen.bin";
   {
     const unsigned char bytes[] = {0x00, 0x11, 0x02, 0xff};
@@ -6454,11 +6468,11 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
   openDialogEvent.emit();
   dialog = findSimpleViewerOpenFileDialog(scene);
   assert(dialog != 0);
-  platformContext.capacityReleaseWitness_ = &previousBlob;
+  allocation.refuse("Blob", "Bytes");
   deliverSimpleViewerOpenFileDialogResult(
       dialog,
       loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal(path))));
-  assert(platformContext.capacityQueryCalls_ == 2
+  assert(allocation.refusals == 1
          && "capacity refusal must release the current image and retry the Blob staging step once");
   assert(previousBlob.useCount() == 1
          && "the retry must release the previous payload before allocating the replacement");
@@ -6472,6 +6486,7 @@ void testSimpleViewerImageLoadSessionPreservesAndReleasesCurrentImage()
 
 void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
 {
+  BlobAllocationProbe allocation;
   const char *path = "_loka_test_simpleviewer_capacity_refusal.bin";
   {
     const unsigned char bytes[] = {0x00, 0x11, 0x02, 0xff};
@@ -6484,7 +6499,6 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   SimpleViewerRetainingPlatformContext platformContext;
   platformContext.createImageResult_ = true;
   loka::core::Managed<loka::core::resource::BlobRecord> unavailableCapacity;
-  platformContext.capacityReleaseWitness_ = &unavailableCapacity;
   loka::core::EmitterState openDialogEvent;
   simpleviewer::MainProps props;
   props.platformContext(&platformContext)
@@ -6501,9 +6515,24 @@ void testSimpleViewerImageLoadStopsWhenCapacityRemainsUnavailable()
   deliverSimpleViewerOpenFileDialogResult(
       dialog,
       loka::app::FileChooserResult::File(loka::file::File::FromPath(loka::core::String::Literal(path))));
-  assert(platformContext.capacityQueryCalls_ == 1
-         && "an unavailable allocation with no current image must terminate instead of looping the GoTo");
-  assert(platformContext.createImageCalls_ == 0 && "capacity refusal must happen before image decoding");
+  LOKA_VERIFY(platformContext.createImageCalls_ == 1);
+  platformContext.observedBlob_.reset();
+  const int freed = allocation.byteFrees;
+  openDialogEvent.emit();
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  LOKA_VERIFY(dialog != 0);
+  allocation.refuse("Blob", "Bytes", 2);
+  deliverSimpleViewerOpenFileDialogResult(
+      dialog, loka::app::FileChooserResult::File(loka::file::File::FromPath(path)));
+  LOKA_VERIFY(allocation.refusals == 2 && allocation.byteFrees > freed);
+  SimpleViewerTestAccess::verifyAllocationFailure(
+      *static_cast<simpleviewer::MainNode *>(loka::dsl::testing::SceneTestAccess::rootNode(scene)));
+  LOKA_VERIFY(platformContext.createImageCalls_ == 1);
+  // A new chooser proves finalization cleared the previous session's running gate.
+  openDialogEvent.emit();
+  dialog = findSimpleViewerOpenFileDialog(scene);
+  LOKA_VERIFY(dialog != 0);
+  deliverSimpleViewerOpenFileDialogResult(dialog, loka::app::FileChooserResult::Canceled());
 
   loka::dsl::testing::SceneTestAccess::unmount(scene);
   LOKA_VERIFY(std::remove(path) == 0);
@@ -6527,7 +6556,7 @@ void testSimpleViewerBlobAdapterClearsPreviousOutputBeforeFailure()
   loka::dsl::FlowError error;
   LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
   assert(output.isCompleted());
-  assert(!output.isMutable());
+  assert(output.isCompleted());
   assert(output.size() == 4);
   assert(output.size() == 4);
 
@@ -8734,6 +8763,7 @@ namespace
 
 void testSimpleViewerReadFailuresAndFallback()
 {
+  BlobAllocationProbe allocation;
   const char *path = "_loka_read_characterization.bin";
   FILE *file = std::fopen(path, "wb");
   assert(file != 0);
@@ -8749,18 +8779,19 @@ void testSimpleViewerReadFailuresAndFallback()
   simpleviewer::ProjectionToBlobAdapter fallback(&missing);
   LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
   assert(output.size() == 4 && output.data()[3] == 'd' && output.isCompleted());
-  assert(missing.queries_ == 1);
+  assert(missing.queries_ == 0);
 
+  allocation.refuse("Blob", "Bytes");
   SimpleViewerReadContext small(path, 3);
   simpleviewer::ProjectionToBlobAdapter limited(&small);
   LOKA_VERIFY(limited.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
   assert(error.code == 1014 && output.size() == 0);
-  assert(small.queries_ == 1 && "capacity refusal must not retry through stdio");
+  assert(small.queries_ == 0 && "capacity refusal must not retry through stdio");
 
   SimpleViewerReadContext exact(path, 4);
   simpleviewer::ProjectionToBlobAdapter accepted(&exact);
   LOKA_VERIFY(accepted.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-  assert(output.size() == 4 && exact.queries_ == 1);
+  assert(output.size() == 4 && exact.queries_ == 0);
   projection.request.setFilePath(loka::core::String::Literal("_loka_missing_read_file_"));
   projection.fileItem = loka::file::File::FromPath("_loka_missing_read_file_");
   LOKA_VERIFY(fallback.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
@@ -8775,13 +8806,21 @@ namespace
 {
   enum ReadFault { READ_FAULT_NONE, READ_FAULT_SEEK, READ_FAULT_READ,
                    READ_FAULT_CHUNK, READ_FAULT_CHUNK_READ, READ_FAULT_CHUNK_SEEK,
-                   READ_FAULT_END_SEEK, READ_FAULT_SHORT };
+                   READ_FAULT_END_SEEK, READ_FAULT_SHORT, READ_FAULT_OVERFLOW };
   ReadFault readFault = READ_FAULT_NONE;
+  unsigned readCloses = 0;
+  unsigned readCalls = 0;
   struct ReadFaultScope
   {
-    explicit ReadFaultScope(ReadFault fault) { readFault = fault; }
+    explicit ReadFaultScope(ReadFault fault) { readFault = fault; readCalls = 0; }
     ~ReadFaultScope() { readFault = READ_FAULT_NONE; }
   };
+}
+extern "C" int __real_fclose(FILE *);
+extern "C" int __wrap_fclose(FILE *file)
+{
+  ++readCloses;
+  return __real_fclose(file);
 }
 extern "C" int __real_fseek(FILE *, long, int);
 extern "C" long __real_ftell(FILE *);
@@ -8795,11 +8834,12 @@ extern "C" int __wrap_fseek(FILE *file, long offset, int origin)
 }
 extern "C" long __wrap_ftell(FILE *file)
 {
-  if (readFault == READ_FAULT_CHUNK || readFault == READ_FAULT_CHUNK_READ || readFault == READ_FAULT_CHUNK_SEEK) return -1;
+  if (readFault == READ_FAULT_CHUNK || readFault == READ_FAULT_CHUNK_READ || readFault == READ_FAULT_CHUNK_SEEK || readFault == READ_FAULT_OVERFLOW) return -1;
   return __real_ftell(file);
 }
 extern "C" std::size_t __wrap_fread(void *out, std::size_t size, std::size_t count, FILE *file)
 {
+  if (readFault == READ_FAULT_OVERFLOW && ++readCalls == 2) return static_cast<std::size_t>(-1);
   if (readFault == READ_FAULT_READ || readFault == READ_FAULT_CHUNK_READ) return 0;
   if (readFault == READ_FAULT_SHORT) count /= 2;
   return __real_fread(out, size, count, file);
@@ -8813,6 +8853,7 @@ extern "C" int __wrap_ferror(FILE *file)
 
 void testSimpleViewerReadStdioFaults()
 {
+  BlobAllocationProbe allocation;
 #if defined(LOKA_FILE_READ_FAULT_PINS)
   const char *path = "_loka_stdio_faults.bin";
   FILE *file = std::fopen(path, "wb");
@@ -8842,6 +8883,14 @@ void testSimpleViewerReadStdioFaults()
     assert(output.size() == sizeof(data) && output.data()[8192] == 0x5a);
   }
   {
+    ReadFaultScope fault(READ_FAULT_OVERFLOW);
+    loka::core::resource::Blob scratch = loka::core::resource::Blob::Create();
+    const unsigned closes = readCloses;
+    LOKA_VERIFY(loka::platform::file::ReadBytes(loka::core::String::Literal(path), scratch)
+                == loka::platform::file::READ_SIZE_OVERFLOW);
+    LOKA_VERIFY(scratch.size() == 0 && readCloses == closes + 1);
+  }
+  {
     ReadFaultScope fault(READ_FAULT_SHORT);
     LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(output.size() == sizeof(data) / 2 && output.isCompleted());
@@ -8860,10 +8909,43 @@ void testSimpleViewerReadStdioFaults()
     ReadFaultScope fault(READ_FAULT_CHUNK);
     LOKA_VERIFY(adapter.run(projection, output, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
     assert(output.size() == sizeof(data) && output.data()[8192] == 0x5a);
+    allocation.refuse("Blob", "Bytes", 1, 1);
     SimpleViewerReadContext context(path, static_cast<std::size_t>(-1), 1);
     simpleviewer::ProjectionToBlobAdapter limited(&context);
     LOKA_VERIFY(limited.run(projection, output, error) == loka::dsl::FLOW_STEP_FAILED);
-    assert(error.code == 1014 && output.size() == 0 && context.queries_ == 2);
+    assert(error.code == 1014 && output.size() == 0 && allocation.refusals == 1);
+  }
+  {
+    struct Ceiling : loka::platform::file::ReadCapacity
+    {
+      virtual bool allows(std::size_t n) const { return n <= 8447; }
+    } ceiling;
+    ReadFaultScope fault(READ_FAULT_CHUNK);
+    loka::core::resource::Blob scratch = loka::core::resource::Blob::Create();
+    LOKA_VERIFY(loka::platform::file::ReadBytes(loka::core::String::Literal(path), scratch, &ceiling)
+                == loka::platform::file::READ_OK);
+    LOKA_VERIFY(scratch.size() == 8193 && scratch.data()[8192] == 0x5a && !scratch.isCompleted());
+    const unsigned closes = readCloses;
+    allocation.refuse("Blob", "Bytes", 1, 1);
+    LOKA_VERIFY(loka::platform::file::ReadBytes(loka::core::String::Literal(path), scratch, &ceiling)
+                == loka::platform::file::READ_ALLOCATION_REFUSED);
+    LOKA_VERIFY(scratch.size() == 0 && scratch.data() == 0 && readCloses == closes + 1);
+  }
+  {
+    const char *sites[][2] = {{"Blob", "Record"}, {"Managed", "ControlBlock"}, {"Blob", "Bytes"}};
+    output = loka::core::resource::Blob::Create();
+    LOKA_VERIFY(output.tryAssign(data, 3));
+    const loka::core::resource::Blob before = output;
+    const loka::file::File input = loka::file::File::FromPath(path);
+    for (unsigned i = 0; i < 3; ++i)
+    {
+      const unsigned closes = readCloses;
+      allocation.refuse(sites[i][0], sites[i][1]);
+      LOKA_VERIFY(loka::app::ReadFileImageBlob(0, input, output)
+                  == loka::platform::file::READ_ALLOCATION_REFUSED);
+      LOKA_VERIFY(output == before && output.size() == 3 && output.data()[2] == 0x5a);
+      LOKA_VERIFY(readCloses == closes + (i == 2 ? 1 : 0));
+    }
   }
   file = std::fopen(path, "wb");
   assert(file != 0);
@@ -8883,7 +8965,8 @@ void testFileImageSourceRefusesUnresolvedApplicationFile()
   // An application-relative File that no context resolves has no path to
   // flatten: the read must refuse, not assert in File::toString (#1133).
   loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-  blob.setBytes(std::vector<unsigned char>(4, 'k'));
+  LOKA_VERIFY(blob.tryResize(4));
+  std::memset(blob.mutableData(), 'k', 4);
   const loka::core::resource::Blob before = blob;
   const loka::file::File absent = loka::file::File::Application() << loka::file::File("absent.pict");
   LOKA_VERIFY(loka::app::ReadFileImageBlob(0, absent, blob) == loka::platform::file::READ_NO_NATIVE_SPEC);
