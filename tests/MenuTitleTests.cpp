@@ -64,3 +64,31 @@ void testNullMenuTitleFollowsStateAndDisconnects()
   }
   LOKA_VERIFY(!attachment.connected());
 }
+
+void testMenuStructureComparisonSeesItemsOfEveryMenu()
+{
+  MenuBarDefinition before;
+  before << (Menu("File") << MenuItem("Open"))
+         << (Menu("Edit") << MenuItem("Option"));
+  LOKA_VERIFY(before.equalsStructure(before));
+  const MenuCompositionDiff equal = MenuCompositionDiff::DiffProjection(&before, before);
+  LOKA_VERIFY(equal.valid && !equal.fullRebuild && equal.changedCount() == 0);
+  for (unsigned change = 0; change != 3; ++change)
+  {
+    MenuBarDefinition after;
+    MenuDefinition second = Menu("Edit");
+    if (change == 0)
+      second << MenuItem("Option").attr(MenuItemAttr().checked(true));
+    else if (change == 1)
+      second << MenuItem("Option").enabled(false);
+    else
+      second << MenuItem("Renamed");
+    after << (Menu("File") << MenuItem("Open")) << second;
+    LOKA_VERIFY(!before.equalsStructure(after));
+    LOKA_VERIFY(!after.equalsStructure(before));
+    const MenuCompositionDiff diff = MenuCompositionDiff::DiffProjection(&before, after);
+    LOKA_VERIFY(diff.valid && !diff.fullRebuild && diff.changedCount() == 1);
+    LOKA_VERIFY(diff.changedHead()->value == 1);
+    LOKA_VERIFY(diff.changedHead()->nextInComposition == 0);
+  }
+}

@@ -291,7 +291,7 @@ bool MacMenuAttachment::project(const loka::app::MenuBarDefinition *menuBar,
     return true;
   }
   if (this->source_ == source && this->applied_.isSet()
-      && this->applied_->equalsProjection(*menuBar))
+      && this->applied_->equalsStructure(*menuBar))
     return false;
   // As on Toolbox, failed capture clears the cache, not an acknowledged
   // legacy projection. The next offer must rebuild instead of trusting stale truth.
