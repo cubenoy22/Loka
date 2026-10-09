@@ -378,6 +378,28 @@ file(WRITE ${LOKA_MACOS_STANDALONE_FLOW_CATALOG}
 add_custom_target(LokaStandaloneFlowMacOSAll)
 add_custom_target(LokaStandaloneLoopMacOSAll)
 
+# Measurement vehicles compile the same TEST_BUILD core as standalone bundles.
+add_custom_target(LokaRetirementProbeMacOSAll)
+function(loka_add_macos_retirement_probe target driver example_dir)
+  add_executable(${target} EXCLUDE_FROM_ALL MACOSX_BUNDLE
+    ${PROJECT_SOURCE_DIR}/tests/macos/${driver}
+    ${PROJECT_SOURCE_DIR}/tests/macos/RetirementProbeSampler.mm
+    ${PROJECT_SOURCE_DIR}/tests/TestingHooks.cpp
+    ${LOKA_MACOS_CORE_SOURCES} ${COMMON_SOURCES}
+    ${ARGN})
+  loka_configure_scenario_test_bundle(${target} "com.cubenoy22.loka.${target}" "${example_dir}")
+  target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR}/tests/probes)
+  add_dependencies(LokaRetirementProbeMacOSAll ${target})
+endfunction()
+loka_add_macos_retirement_probe(LokaRetirementProbeScrapbookMacOS
+  RetirementProbeScrapbookMain.mm example/ScrapbookUI/src
+  ${PROJECT_SOURCE_DIR}/example/ScrapbookUI/src/ScrapbookPackage.cpp
+  ${LOKA_SCRAPBOOK_SCENARIO_RESOURCE_DIR}/ASSETS.LRP)
+loka_add_macos_retirement_probe(LokaRetirementProbeLazyMacOS
+  RetirementProbeLazyMain.mm tests/probes)
+loka_add_macos_retirement_probe(LokaRetirementProbeDialogMacOS
+  RetirementProbeDialogMain.mm example/SimpleViewer/src)
+
 function(loka_add_macos_standalone_flow_bundle
          key target loop_target config_header config_type bundle_id example_include_dir expected_audit)
   # Finite targets own one complete App lifetime. Loop targets keep that App

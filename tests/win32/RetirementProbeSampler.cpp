@@ -3,12 +3,34 @@
 #include <psapi.h>
 #include <cwchar>
 #include <string>
+#include <cstdio>
+#include <new>
 
 #include "RetirementProbeSampler.hpp"
 #include "core/Operation.hpp"
 #include "platform/Win32String.hpp"
 #include "platform/file/FileIO.hpp"
 #include "testing/app/NativeResourceRetirementTestAccess.hpp"
+
+/** Completed process/ledger observation; no resource ownership. */
+struct RetirementProbeSample
+{
+  unsigned long gdi, user;
+  double privateBytes;
+  std::size_t held, queued, inFlight;
+  bool active;
+};
+
+struct RetirementProbeLog::Impl
+{
+  Impl() : file_(), stream_(0), healthy_(false), phase_(0), samples_(0), base_(), peak_(), final_() {}
+  loka::platform::file::FileHandle file_;
+  std::FILE *stream_;
+  bool healthy_;
+  const char *phase_;
+  unsigned samples_;
+  RetirementProbeSample base_, peak_, final_;
+};
 
 namespace
 {
@@ -50,56 +72,60 @@ bool ResolveRetirementProbeFile(const wchar_t *name,
 }
 
 RetirementProbeLog::RetirementProbeLog(const wchar_t *name)
-    : file_(), stream_(0), healthy_(false), phase_(0), samples_(0), base_(), peak_(), final_()
+    : impl_(new (std::nothrow) Impl)
 {
+  if (!this->impl_) return;
   std::wstring path;
-  if (!ResolveRetirementProbeFile(name, this->file_, path)) return;
-  this->stream_ = loka::platform::file::OpenWriteTruncate(this->file_);
-  this->healthy_ = this->stream_ != 0;
+  if (!ResolveRetirementProbeFile(name, this->impl_->file_, path)) return;
+  this->impl_->stream_ = loka::platform::file::OpenWriteTruncate(this->impl_->file_);
+  this->impl_->healthy_ = this->impl_->stream_ != 0;
 }
 
 void RetirementProbeLog::note(const char *text)
 {
   if (!this->valid()) return;
-  std::fprintf(this->stream_, "%s\n", text);
+  std::fprintf(this->impl_->stream_, "%s\n", text);
   this->flush();
 }
 
 RetirementProbeLog::~RetirementProbeLog()
 {
-  if (this->stream_)
-    std::fclose(this->stream_);
+  if (!this->impl_) return;
+  if (this->impl_->stream_)
+    std::fclose(this->impl_->stream_);
+  delete this->impl_;
 }
 
-bool RetirementProbeLog::valid() const { return this->healthy_; }
+bool RetirementProbeLog::valid() const { return this->impl_ && this->impl_->healthy_; }
 
 void RetirementProbeLog::begin(const char *phase)
 {
-  this->phase_ = phase;
-  this->samples_ = 0;
+  if (!this->impl_) return;
+  this->impl_->phase_ = phase;
+  this->impl_->samples_ = 0;
 }
 
 void RetirementProbeLog::flush()
 {
-  if (!this->stream_ || std::ferror(this->stream_)
-      || !loka::platform::file::FlushWrite(this->stream_, this->file_))
-    this->healthy_ = false;
+  if (!this->impl_->stream_ || std::ferror(this->impl_->stream_)
+      || !loka::platform::file::FlushWrite(this->impl_->stream_, this->impl_->file_))
+    this->impl_->healthy_ = false;
 }
 
 void RetirementProbeLog::error(const char *reason)
 {
-  if (this->stream_)
+  if (this->impl_ && this->impl_->stream_)
   {
-    std::fprintf(this->stream_, "error=%s\n", reason);
+    std::fprintf(this->impl_->stream_, "error=%s\n", reason);
     this->flush();
   }
-  this->healthy_ = false;
+  if (this->impl_) this->impl_->healthy_ = false;
 }
 
 void RetirementProbeLog::sample(const PlatformContext &context, int step, const char *point,
                                 int page, int width, int height)
 {
-  if (!this->valid() || !this->phase_)
+  if (!this->valid() || !this->impl_->phase_)
     return;
   RetirementProbeSample value;
   if (!TakeSample(context, value))
@@ -107,31 +133,31 @@ void RetirementProbeLog::sample(const PlatformContext &context, int step, const 
     this->error("process-memory-query-failed");
     return;
   }
-  if (this->samples_++ == 0)
-    this->base_ = this->peak_ = value;
-  if (value.gdi > this->peak_.gdi) this->peak_.gdi = value.gdi;
-  if (value.privateBytes > this->peak_.privateBytes) this->peak_.privateBytes = value.privateBytes;
-  if (value.queued > this->peak_.queued) this->peak_.queued = value.queued;
-  this->final_ = value;
-  std::fprintf(this->stream_,
+  if (this->impl_->samples_++ == 0)
+    this->impl_->base_ = this->impl_->peak_ = value;
+  if (value.gdi > this->impl_->peak_.gdi) this->impl_->peak_.gdi = value.gdi;
+  if (value.privateBytes > this->impl_->peak_.privateBytes) this->impl_->peak_.privateBytes = value.privateBytes;
+  if (value.queued > this->impl_->peak_.queued) this->impl_->peak_.queued = value.queued;
+  this->impl_->final_ = value;
+  std::fprintf(this->impl_->stream_,
       "phase=%s step=%d point=%s page=%d gdi=%lu user=%lu private=%.0f held=%lu queued=%lu inflight=%lu active=%d",
-      this->phase_, step, point, page, value.gdi, value.user, value.privateBytes,
+      this->impl_->phase_, step, point, page, value.gdi, value.user, value.privateBytes,
       static_cast<unsigned long>(value.held), static_cast<unsigned long>(value.queued),
       static_cast<unsigned long>(value.inFlight), value.active ? 1 : 0);
   if (width > 0 && height > 0)
-    std::fprintf(this->stream_, " img=%dx%d", width, height);
-  std::fprintf(this->stream_, "\n");
+    std::fprintf(this->impl_->stream_, " img=%dx%d", width, height);
+  std::fprintf(this->impl_->stream_, "\n");
   this->flush();
 }
 
 void RetirementProbeLog::summary()
 {
-  if (!this->valid() || !this->samples_)
+  if (!this->valid() || !this->impl_->samples_)
     return;
-  std::fprintf(this->stream_,
+  std::fprintf(this->impl_->stream_,
       "summary phase=%s base_gdi=%lu peak_gdi=%lu final_gdi=%lu base_private=%.0f peak_private=%.0f final_private=%.0f peak_queued=%lu final_queued=%lu\n",
-      this->phase_, this->base_.gdi, this->peak_.gdi, this->final_.gdi,
-      this->base_.privateBytes, this->peak_.privateBytes, this->final_.privateBytes,
-      static_cast<unsigned long>(this->peak_.queued), static_cast<unsigned long>(this->final_.queued));
+      this->impl_->phase_, this->impl_->base_.gdi, this->impl_->peak_.gdi, this->impl_->final_.gdi,
+      this->impl_->base_.privateBytes, this->impl_->peak_.privateBytes, this->impl_->final_.privateBytes,
+      static_cast<unsigned long>(this->impl_->peak_.queued), static_cast<unsigned long>(this->impl_->final_.queued));
   this->flush();
 }
