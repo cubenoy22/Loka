@@ -34,7 +34,8 @@ namespace
     ToolboxScenePlatformController controller;
     TextEditorNode node;
     ToolboxTextEditorContext *context;
-    Fixture(unsigned short count = 3, const std::string &text = "abcd", unsigned short capacity = 256)
+    Fixture(unsigned short count = 3, const std::string &text = "abcd", unsigned short capacity = 256,
+            bool preContextRequest = false)
         : tracker(*HeadlessStateOwner::tracker()->asPushTracker()),
           controller(&window),
           node(TextEditorProps(lines, cursor)),
@@ -49,6 +50,11 @@ namespace
       LOKA_VERIFY(lines.attach(&tracker, capacity) == ATTACH_OK);
       for (unsigned short i = 0; i < count; ++i)
         LOKA_VERIFY(lines.insert(i, String(text)) == EDIT_OK);
+      if (preContextRequest)
+      {
+        StateTrackerGuard guard(&this->tracker);
+        this->request.set(LineCursor(this->lines.at(1).id, 2));
+      }
       LOKA_VERIFY(RegisterToolboxBuiltInSupport(controller));
       LayoutState state;
       state.x = 10;
@@ -63,7 +69,7 @@ namespace
       LOKA_VERIFY(!ToolboxTextEditorAccess::te(*context));
       context->render(&controller);
       // Seed native editing through its input seam; request tests post explicitly.
-      if (count && ToolboxTextEditorAccess::status(*context) == EDITOR_OK)
+      if (!preContextRequest && count && ToolboxTextEditorAccess::status(*context) == EDITOR_OK)
       {
         Point initial = {
             static_cast<short>((**this->te()).viewRect.top),
@@ -419,6 +425,44 @@ namespace
 } // namespace
 int main(int argc, char **argv)
 {
+  if (argc == 2 && (std::strcmp(argv[1], "pre-context-request") == 0
+                    || std::strcmp(argv[1], "pre-context-refused") == 0))
+  {
+    const bool refused = std::strcmp(argv[1], "pre-context-refused") == 0;
+    loka::app::testing::SettleTrace<LineCursor> &trace = loka::app::testing::SettleTrace<LineCursor>::instance();
+    trace.clear();
+    if (refused)
+      toolbox_host::failNew = 1;
+    Fixture f(3, "abcd", 256, true);
+    const Reply<LineCursor> reply = f.request.reply().state()->get();
+    std::printf("pre-context: reply=%d (GRANTED=%d REFUSED=%d), reason=%d (EDITOR_UNAVAILABLE=%d), cursorNone=%d\n",
+                reply.kind(), Reply<LineCursor>::GRANTED, Reply<LineCursor>::REFUSED,
+                reply.kind() == Reply<LineCursor>::REFUSED ? reply.reason() : EDITOR_OK,
+                EDITOR_UNAVAILABLE, f.cursor.state()->get().isNone());
+    std::fflush(stdout);
+    LOKA_VERIFY(f.request.get().isNone());
+    if (refused)
+    {
+      LOKA_VERIFY(!f.te());
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::REFUSED);
+      LOKA_VERIFY(reply.reason() == EDITOR_UNAVAILABLE);
+      LOKA_VERIFY(f.cursor.state()->get().isNone());
+    }
+    else
+    {
+      LOKA_VERIFY(reply.kind() == Reply<LineCursor>::GRANTED);
+      LOKA_VERIFY(f.cursor.state()->get() == LineCursor(f.lines.at(1).id, 2));
+      LOKA_VERIFY(f.te());
+      LOKA_VERIFY((**f.te()).selStart == 7);
+      LOKA_VERIFY(trace.size() == 1);
+      LOKA_VERIFY(trace.at(0).stimulus == SETTLE_ATTACH);
+      LOKA_VERIFY(trace.at(0).count == 1);
+      LOKA_VERIFY(trace.at(0).takes[0].kind() == Reply<LineCursor>::GRANTED);
+      LOKA_VERIFY(trace.at(0).before.isNone());
+      LOKA_VERIFY(trace.at(0).after == LineCursor(f.lines.at(1).id, 2));
+    }
+    return 0;
+  }
   if (argc == 2 && std::strcmp(argv[1], "frame-inset") == 0)
   {
     Fixture f(30);

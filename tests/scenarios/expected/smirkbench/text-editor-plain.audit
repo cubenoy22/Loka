@@ -1,6 +1,6 @@
 loka_scenario_audit version=1 scenario=text-editor-plain
 step id=2 due_tick=2 tick=2 status=succeeded error_kind=0 error_code=0 name=click-line-2
-settle.2.0	stimulus=input takes=0 before=0:0:0 after=1:2:0
+settle.2.0	stimulus=input takes=0 before=1:1:0 after=1:2:0
 step id=3 due_tick=3 tick=3 status=succeeded error_kind=0 error_code=0 name=type-x
 settle.3.0	stimulus=input takes=0 before=1:2:0 after=1:2:1
 step id=4 due_tick=4 tick=4 status=succeeded error_kind=0 error_code=0 name=split-3-to-4
