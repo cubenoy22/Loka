@@ -652,10 +652,10 @@ refused or no clock is active. Its optional callback is not invoked when joined;
 observe the State or use `StandaloneTransactionGuard` for post-commit work.
 
 `StandaloneTransactionGuard` keeps an explicit begin/end bracket for bounded
-commit-before-read preparation: menu composition, Scene installation/rearm, and
-bootstrap. MenuBoundary and SceneManager declare standalone ledgers at
-construction, so earlier handler writes cannot enroll them in the turn clock.
-Their seat writes and ordinary tracker guards keep synchronous transactions.
+commit-before-read preparation: Scene installation/rearm and
+bootstrap. SceneManager declares a standalone ledger at
+construction, so earlier handler writes cannot enroll it in the turn clock.
+Its seat writes and ordinary tracker guards keep synchronous transactions.
 Window retains a joining ledger; bootstrap uses the standalone bracket before
 any turn. Flow's run bracket and its `onSuccess` state assignment join the active
 clock too. Step writes keep source values and direct observers synchronous, but
@@ -1217,6 +1217,17 @@ It should express application intent:
 VStack()
     << Text(title.state())
     << Button("Save").onClick(saveEmitter.state());
+```
+
+`RibbonControl` (from `app/nodes/controls/Ribbon.hpp`) declares a left-to-right
+band of native push buttons. Each `RibbonItem` has a default width of 80;
+`.width(n)` overrides it. Items fire borrowed emitters like menu items.
+
+```cpp
+RibbonControl()
+    << RibbonItem("New").onClick(newEmitter.state())
+    << RibbonItem("Open...").onClick(openEmitter.state())
+    << RibbonItem("Save As...").onClick(saveAsEmitter.state()).width(120);
 ```
 
 Prefer chained DSL composition when it keeps the structure visible. Avoid local

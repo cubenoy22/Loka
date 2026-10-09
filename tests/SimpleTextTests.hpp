@@ -9,6 +9,7 @@ void testSimpleTextReadAndWriteFailuresPreserveDestination();
 void testSimpleTextCommitExhaustionPreservesDestination();
 void testSimpleTextRepeatedOpenAndCaretReplacement();
 void testSimpleTextMenuAndDialogProps();
+void testSimpleTextRibbonFiresTheMenuEmitters();
 void testSimpleTextDetachWithdrawsFlows();
 #endif
 #endif

@@ -4,4 +4,6 @@
 void testMenuTitleDefinitionCopiesAndSelectsState();
 void testNullMenuTitleFollowsStateAndDisconnects();
 
+void testMenuStructureComparisonSeesItemsOfEveryMenu();
+
 #endif

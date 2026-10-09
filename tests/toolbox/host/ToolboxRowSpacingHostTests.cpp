@@ -1,4 +1,5 @@
 #include "ToolboxPlatformLayoutHandlers.hpp"
+#include "app/nodes/controls/Ribbon.hpp"
 #include "context/ToolboxTextContext.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
@@ -28,7 +29,9 @@ namespace
                                  << Button("A").TEST_ID("aligned-a") << Button("B").TEST_ID("aligned-b"))
                              << Text("below").TEST_ID("aligned-below"))
                          << (Column().TEST_ID("plain") << Button("A").TEST_ID("plain-a")
-                                                     << Button("B").TEST_ID("plain-b")));
+                                                     << Button("B").TEST_ID("plain-b"))
+                         << (RibbonControl().testId("ribbon")
+                             << RibbonItem("New") << RibbonItem("Save As...").width(120)));
     }
   };
 
@@ -100,6 +103,7 @@ namespace
 
 void testToolboxRowSpacing(const char *mode)
 {
+  const bool ribbon = std::strcmp(mode, "spacing-ribbon") == 0;
   const bool plain = std::strcmp(mode, "spacing-column") == 0;
   const bool aligned = std::strcmp(mode, "spacing-aligned") == 0;
   ToolboxWindow window;
@@ -116,8 +120,19 @@ void testToolboxRowSpacing(const char *mode)
   state.height = 100;
   state.lineHeight = 16;
   state.spacing = 6;
-  traversal.layoutChild(SpacingLookup(scene, plain ? "plain" : aligned ? "aligned" : "unaligned"), state);
+  traversal.layoutChild(SpacingLookup(scene, ribbon ? "ribbon" : plain ? "plain" : aligned ? "aligned" : "unaligned"), state);
   const Rect a = traversal.painted(0), b = traversal.painted(1);
+  if (ribbon)
+  {
+    std::printf("Ribbon Toolbox widths: %d, %d; gap: %d\n", a.right - a.left, b.right - b.left, b.left - a.right);
+    std::fflush(stdout);
+    LOKA_VERIFY(a.right - a.left == 80);
+    LOKA_VERIFY(b.right - b.left == 120);
+    LOKA_VERIFY(b.left > a.left);
+    LOKA_VERIFY(b.left - a.right == state.spacing);
+    Access::unmount(scene);
+    return;
+  }
   const Rect next = traversal.painted(plain ? 1 : 2);
   const short bottom = plain ? a.bottom : (a.bottom > b.bottom ? a.bottom : b.bottom);
   const short gap = static_cast<short>(next.top - bottom);
