@@ -438,7 +438,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     tests/toolbox/host/ToolboxOutOfMemoryHostTests.cpp
     apple/toolbox/src/ToolboxOutOfMemory.cpp)
   target_include_directories(LokaToolboxOutOfMemoryTests PRIVATE
-    tests/toolbox/host/oom apple/toolbox/src)
+    tests/toolbox/host/oom apple/toolbox/src tests)
   target_compile_options(LokaToolboxOutOfMemoryTests PRIVATE -fno-exceptions -fno-rtti)
   loka_enable_warnings(LokaToolboxOutOfMemoryTests)
   set_target_properties(LokaToolboxOutOfMemoryTests PROPERTIES
