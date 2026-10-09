@@ -10,6 +10,7 @@
 #include "FocusPublisherTests.hpp"
 #include "FocusPostTests.hpp"
 #ifdef __APPLE__
+#include "MacImageBlobTests.hpp"
 #include "MacTextEditorTests.hpp"
 #include "MacInputDoorTests.hpp"
 #include "MacFocusTests.hpp"
@@ -51,6 +52,7 @@
 #include "ApplicationFileTests.hpp"
 #include "FileLocatorTests.hpp"
 #ifdef _WIN32
+#include "Win32ImageBlobTests.hpp"
 #include "Win32FocusTests.hpp"
 #include "Win32MenuAttachmentTests.hpp"
 #include "Win32RailMetricsTests.hpp"

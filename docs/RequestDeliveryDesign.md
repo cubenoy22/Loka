@@ -499,7 +499,9 @@ row. Single-seat behavior and command-free golden records remain unchanged
 ## Where each rail consumes
 
 Null: attach, props sync, input completion. Toolbox: `onPropsApplied`,
-`finishInput`, native creation in `render`, `retryProjection`. Win32:
+`finishInput`, native creation in `render`, `retryProjection`; layout settles
+only when the TextEdit record exists, and before it render's attach settle
+delivers (#1141). Win32:
 `syncFromNode`, outside-input `handleCommand`, the outer `WindowProc` after a
 rejected input is restored, the RETRY timer handler. macOS: ordinary sync
 completion, selection completion, `VIEW_CHANGE` completion, the deferred
@@ -521,3 +523,17 @@ applies and reads back native focus. Missing/inactive targets defer without
 consumption. A native refusal consumes without retry. A field's detach does
 not cancel its ancestor's pending focus request. No slot observer supplies an
 autonomous wake-up, and a post during the take waits for a later completion.
+
+### Toolbox file dialog presentation
+
+`ToolboxApp::present` consumes pending file dialogs in its foreground arm,
+after all window invalidation flushes and before focus reconciliation. The App
+must be running, the window must have a Toolbox controller and no pending close,
+and that controller's borrow phase must be closed. Each window presents at most
+one dialog per present, in FIFO order. A head whose node is no longer attached
+waits for its pending lifecycle apply to unlink it; detach and context destruction
+unlink rows. Background and no-group presents leave rows pending. The pass
+snapshots the windows before delivery can change the group. Taking a row copies
+its latest props and marks it presented before entering native code; no context
+is accessed after the modal. The App reconciles the cursor and delivers through
+the copied result channels. Reattach permits one new presentation.

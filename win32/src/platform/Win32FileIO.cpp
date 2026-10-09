@@ -30,7 +30,7 @@ namespace loka
       }
 
       ReadResult ReadBytes(const FileHandle &file,
-                           std::vector<unsigned char> &out,
+                           loka::core::resource::Blob &out,
                            const ReadCapacity *capacity)
       {
         return ReadBytes(file.displayPath, out, capacity);

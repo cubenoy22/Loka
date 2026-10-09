@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "ToolboxFileHost.hpp"
 #include "ToolboxPlatformContext.hpp"
 #include "ToolboxFileChoice.hpp"
@@ -73,8 +74,7 @@ static File Choose(const FSSpec &spec)
   loka::app::OpenFileDialogNode node(loka::app::OpenFileDialogProps().result(state));
   reply.sfGood = true;
   reply.sfFile = spec;
-  ToolboxOpenFileDialogContext dialog(&node, 0);
-  dialog.presentIfNeeded();
+  DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
   LOKA_VERIFY(storage.get().kind == Result::RESULT_FILE);
   const File chosen = storage.get().item;
   tracker.removeState(&storage);
@@ -85,10 +85,10 @@ static std::string Read(ToolboxPlatformContext &context, const File &file)
   FileHandle handle;
   LOKA_VERIFY(context.openFile(file, handle));
   LOKA_VERIFY(handle.hasSpec);
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_OK);
   LOKA_VERIFY(OpenCount() == 0);
-  return std::string(bytes.begin(), bytes.end());
+  return std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size());
 }
 static void Tuple()
 {
@@ -215,11 +215,12 @@ static void Decoy()
   const File chosen = Choose(Spec(-7, 999, "Photo.PICT")); // No native file installed.
   FileHandle handle;
   LOKA_VERIFY(context.openFile(chosen, handle));
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED);
   loka::core::resource::Blob blob;
   const ReadResult result = loka::app::ReadFileImageBlob(&context, chosen, blob);
-  const std::string actual(blob.bytes().begin(), blob.bytes().end());
+  const std::string actual(blob.size() == 0 ? "" :
+      reinterpret_cast<const char *>(blob.data()), blob.size());
   const FSSpec live = Spec(-7, 999, "Photo.PICT");
   Put(live, "native");
   FailRead(SizeFailure);
@@ -235,7 +236,8 @@ static void Decoy()
   const File refused = chosen << File("child");
   LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, refused, blob) == READ_NO_NATIVE_SPEC);
   LOKA_VERIFY(loka::app::ReadFileImageBlob(&context, File("Photo.PICT"), blob) == READ_OK);
-  LOKA_VERIFY(std::string(blob.bytes().begin(), blob.bytes().end()) == "decoy");
+  LOKA_VERIFY(std::string(blob.size() == 0 ? "" :
+      reinterpret_cast<const char *>(blob.data()), blob.size()) == "decoy");
   // Both failed native entries must stay terminal through the real viewer client.
   const File failures[] = {chosen, malformed, refused};
   for (unsigned i = 0; i < 3; ++i)
@@ -399,7 +401,7 @@ static void Copies()
   LOKA_VERIFY(Read(context, projection.fileItem) == "B");
   loka::core::resource::Blob blob;
   LOKA_VERIFY(simpleviewer::ProjectionToBlobAdapter(&context).run(projection, blob, error) == loka::dsl::FLOW_STEP_SUCCEEDED);
-  LOKA_VERIFY(blob.bytes().size() == 1 && blob.bytes()[0] == 'B');
+  LOKA_VERIFY(blob.size() == 1 && blob.data()[0] == 'B');
   storage.unbind(&CountDelivery, &notifications);
   tracker.removeState(&storage);
 }
@@ -444,39 +446,19 @@ static void Dialog()
   reply.sfFile = Spec(-1, 10, "dialog");
   Put(reply.sfFile, "dialog contents");
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
   }
   LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_FILE);
   LOKA_VERIFY(Read(platform, storage.get().item) == "dialog contents");
   state.set(FileChooserResult());
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
     failLokaAllocRaw("FileLocator", "Payload", 1);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR);
     LOKA_VERIFY(storage.get().item.locator().empty());
     allowLokaAllocRaw();
   }
   tracker.removeState(&storage);
-}
-static loka::app::OpenFileDialogNode *modalNode = 0;
-static ToolboxOpenFileDialogContext *modalContext = 0;
-static unsigned retargetField = 0;
-static void RetargetModal()
-{
-  using namespace loka::app;
-  if (retargetField == 3)
-  {
-    modalContext->onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                                loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    return;
-  }
-  modalNode->props.options_ = FileDialogOptions(
-      retargetField == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
-      String::Literal(retargetField == 1 ? "changed" : "default"),
-      retargetField == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
-  modalContext->onPropsApplied();
 }
 static void SaveDialog()
 {
@@ -495,8 +477,7 @@ static void SaveDialog()
   File first;
   for (unsigned i = 0; i != 2; ++i)
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_FILE);
     if (!i) first = storage.get().item;
     else LOKA_VERIFY(!(first != storage.get().item));
@@ -509,29 +490,26 @@ static void SaveDialog()
   ToolboxPlatformContext platform;
   FileHandle handle;
   LOKA_VERIFY(platform.openFile(first, handle));
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   LOKA_VERIFY(ReadBytes(handle, bytes) == READ_NATIVE_OPEN_FAILED); // No file created.
 
   const unsigned invalidLengths[] = {0, 32, 63};
   for (unsigned i = 0; i != 3; ++i)
   {
     reply.sfFile = Spec(-7, 123, std::string(invalidLengths[i], 'n'));
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR && storage.get().errorCode == paramErr);
   }
   reply.sfGood = false;
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_CANCELED);
   }
   reply.sfGood = true;
   reply.sfFile = Spec(-7, 123, "n");
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
     failLokaAllocRaw("FileLocator", "Payload", 1);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR && storage.get().errorCode == memFullErr);
     allowLokaAllocRaw();
   }
@@ -541,8 +519,7 @@ static void SaveDialog()
   {
     node.props.options_ = FileDialogOptions(FILE_DIALOG_SAVE, names[i]);
     const unsigned before = putCalls;
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     if (i == 1 || i == 2)
     {
       LOKA_VERIFY(putCalls == before);
@@ -560,8 +537,7 @@ static void SaveDialog()
   node.props.options_ = FileDialogOptions(FILE_DIALOG_SAVE, String::Literal("Caf\xc3\xa9"));
   {
     const unsigned before = putCalls;
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(putCalls == before && storage.get().kind == FileChooserResult::RESULT_ERROR);
   }
   toolbox_host::systemScript = smRoman;
@@ -569,68 +545,11 @@ static void SaveDialog()
   reply.sfFile = Spec(-7, 123, std::string(32, 'n'));
   node.props.options_ = FileDialogOptions();
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(getCalls == 1 && storage.get().kind == FileChooserResult::RESULT_FILE);
   }
   storage.unbind(&CountDelivery, &notifications);
   tracker.removeState(&storage);
-}
-static void SaveRetarget()
-{
-  using namespace loka::app;
-  loka::core::EmitterState emitter;
-  unsigned notifications = 0;
-  emitter.bind(&CountDelivery, &notifications, false);
-  for (retargetField = 0; retargetField != 4; ++retargetField)
-  {
-    OpenFileDialogDefinition definition = SaveFileDialog(String::Literal("default")).onResult(&emitter);
-    OpenFileDialogNode node(definition.props);
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    modalNode = &node;
-    modalContext = &dialog;
-    reply.sfGood = true;
-    reply.sfFile = Spec(-1, 10, "chosen");
-    const unsigned before = putCalls + getCalls;
-    const unsigned writes = notifications;
-    duringModal = &RetargetModal;
-    dialog.presentIfNeeded();
-    duringModal = 0;
-    LOKA_VERIFY(notifications == writes && putCalls + getCalls == before + 1);
-    if (retargetField != 3)
-    {
-      dialog.presentIfNeeded();
-      LOKA_VERIFY(putCalls + getCalls == before + 1);
-    }
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                         loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED,
-                         loka::app::scene::NODE_FACT_ATTACHED);
-    LOKA_VERIFY(notifications == writes + 1 && putCalls + getCalls == before + 2);
-  }
-  // A hidden retained dialog has no active operation to abandon. Props applied
-  // between detach and reattach must configure that next presentation.
-  for (unsigned field = 0; field != 3; ++field)
-  {
-    OpenFileDialogDefinition definition = SaveFileDialog(String::Literal("default")).onResult(&emitter);
-    OpenFileDialogNode node(definition.props);
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
-    const unsigned calls = putCalls + getCalls;
-    const unsigned writes = notifications;
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                         loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    node.props.options_ = FileDialogOptions(field == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
-        String::Literal(field == 1 ? "next default" : "default"),
-        field == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
-    dialog.onPropsApplied();
-    LOKA_VERIFY(putCalls + getCalls == calls && notifications == writes);
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED,
-                         loka::app::scene::NODE_FACT_ATTACHED);
-    LOKA_VERIFY(putCalls + getCalls == calls + 1 && notifications == writes + 1);
-    if (field == 1) LOKA_VERIFY(savedDefault == "next default");
-  }
-  emitter.unbind(&CountDelivery, &notifications);
 }
 static void Refused()
 {
@@ -726,6 +645,7 @@ namespace
 // every exit after the open; with no registration the borrow is inert (#1066).
 static void Busy()
 {
+  BlobAllocationProbe allocation;
   const FSSpec spec = Spec(-7, 0x12345678, "Photo.PICT");
   Put(spec, "abc");
   ToolboxPlatformContext context;
@@ -734,16 +654,20 @@ static void Busy()
   FileHandle missing;
   LOKA_VERIFY(context.openFile(Choose(Spec(-7, 999, "Gone.PICT")), missing));
   const FileHandle none;
-  std::vector<unsigned char> bytes;
+  loka::core::resource::Blob bytes = loka::core::resource::Blob::Create();
   CountingBusyOwner owner;
   LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
   LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
   LOKA_VERIFY(owner.entries == 0);
+  allocation.refuse("Blob", "Bytes");
+  LOKA_VERIFY(ReadBytes(live, bytes) == READ_ALLOCATION_REFUSED);
+  LOKA_VERIFY(bytes.size() == 0 && OpenCount() == 0);
+
   {
     const ToolboxBusyOwnerRegistration registration(owner);
     LOKA_VERIFY(RegisteredToolboxBusyOwner() == &owner);
     LOKA_VERIFY(ReadBytes(live, bytes) == READ_OK);
-    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "abc");
+    LOKA_VERIFY(std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size()) == "abc");
     LOKA_VERIFY(owner.entries == 1 && owner.exits == 1 && owner.depth == 0);
     LOKA_VERIFY(ReadBytes(missing, bytes) == READ_NATIVE_OPEN_FAILED);
     LOKA_VERIFY(owner.entries == 2 && owner.exits == 2 && owner.depth == 0);
@@ -754,7 +678,7 @@ static void Busy()
     std::FILE *stream = std::fopen("busy-path.txt", "wb");
     LOKA_VERIFY(stream && std::fwrite("xyz", 1, 3, stream) == 3 && std::fclose(stream) == 0);
     LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_OK);
-    LOKA_VERIFY(std::string(bytes.begin(), bytes.end()) == "xyz");
+    LOKA_VERIFY(std::string(reinterpret_cast<const char *>(bytes.data()), bytes.size()) == "xyz");
     LOKA_VERIFY(owner.entries == 3 && owner.exits == 3 && owner.depth == 0);
     LOKA_VERIFY(std::remove("busy-path.txt") == 0);
     LOKA_VERIFY(ReadBytes(loka::core::String("busy-path.txt"), bytes) == READ_STDIO_OPEN_FAILED);
@@ -762,10 +686,13 @@ static void Busy()
   }
   LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
 }
+#include "ToolboxDialogPresentHostTests.hpp"
+
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
-  if (!std::strcmp(argv[1], "tuple")) Tuple();
+  if (!std::strncmp(argv[1], "present-", 8)) PresentPin(argv[1] + 8);
+  else if (!std::strcmp(argv[1], "tuple")) Tuple();
   else if (!std::strcmp(argv[1], "single")) Single();
   else if (!std::strcmp(argv[1], "application")) Application(false, false);
   else if (!std::strcmp(argv[1], "viewer")) Application(true, false);
@@ -781,7 +708,7 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "copies")) Copies();
   else if (!std::strcmp(argv[1], "dialog")) Dialog();
   else if (!std::strcmp(argv[1], "save")) SaveDialog();
-  else if (!std::strcmp(argv[1], "save-retarget")) SaveRetarget();
+  else if (!std::strcmp(argv[1], "save-retarget")) PresentPin("props");
   else if (!std::strcmp(argv[1], "validity")) Validity();
   else if (!std::strcmp(argv[1], "prepare")) Prepare();
   else if (!std::strcmp(argv[1], "prepare-refuses-write")) PrepareRefusesWrite();

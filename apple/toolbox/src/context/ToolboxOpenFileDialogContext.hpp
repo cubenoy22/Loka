@@ -3,6 +3,7 @@
 
 #include "app/scene/projection/NativeNodeContext.hpp"
 #include "app/OpenFileDialog.hpp"
+#include "ToolboxPendingDialogs.hpp"
 
 namespace loka
 {
@@ -15,38 +16,29 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class CursorOwner;
-
 class ToolboxOpenFileDialogContext : public loka::app::scene::NativeNodeContext
 {
 public:
-  ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner);
-  virtual ~ToolboxOpenFileDialogContext();
+  ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, ToolboxPendingDialogs *pending);
   virtual void onPropsApplied();
-  /** Attach-time read (late-subscriber rule): presentation from the current
+  /** Attach-time read (late-subscriber rule): enrollment from the current
       fact, called by the installing handler right after setContext. */
   void readLifecycleFactOnAttach();
   virtual void onFactChanged(loka::app::scene::NodeLifecycleFact previous,
                              loka::app::scene::NodeLifecycleFact next);
-  void presentIfNeeded();
-
 private:
-  /** Borrowed from the app, which outlives this window context. */
-  CursorOwner *cursorOwner_;
+  friend class ToolboxPendingDialogs;
+  bool take(loka::app::OpenFileDialogProps &out);
+  /** Borrowed from the owning window controller. */
+  ToolboxPendingDialogs *pending_;
+  ToolboxDialogEnrollment enrollment_;
   void captureProps();
   void applyAttachedPresentation();
   void applyDetachedPresentation();
-  struct NativeDialogSession;
-
-  void presentDialog();
-  void setResult(const loka::app::FileChooserResult &result);
-  void disposeDialog();
-  NativeDialogSession *detachDialogIfActive(NativeDialogSession *dialog);
 
   loka::app::OpenFileDialogNode *node_;
   loka::app::OpenFileDialogProps props_;
   loka::app::OpenFileDialogPresentationPhase presentation_;
-  NativeDialogSession *dialog_;
 };
 
 bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry);
