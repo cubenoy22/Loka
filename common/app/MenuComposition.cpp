@@ -1,41 +1,10 @@
 #include "app/MenuComposition.hpp"
 #include "app/Menu.hpp"
-#include "core/util/StateTrackerGuard.hpp"
 
 namespace loka
 {
   namespace app
   {
-    bool
-    MenuCompositionDiff::Diff(const MenuBarDefinition &before, const MenuBarDefinition &after, MenuCompositionDiff &out)
-    {
-      out.clear();
-      out.fullRebuild = false;
-      if (before.menusCount() != after.menusCount())
-      {
-        out.valid = true;
-        out.fullRebuild = true;
-        return true;
-      }
-      loka::dsl::CompositionCursor<MenuDefinition> beforeIt(before.menusHead(), before.menusCount());
-      loka::dsl::CompositionCursor<MenuDefinition> afterIt(after.menusHead(), after.menusCount());
-      size_t index = 0;
-      for (MenuDefinition *beforeMenu = beforeIt.next(), *afterMenu = afterIt.next(); beforeMenu && afterMenu;
-           beforeMenu = beforeIt.next(), afterMenu = afterIt.next(), ++index)
-      {
-        if (!beforeMenu->equalsStructure(*afterMenu))
-        {
-          out.addChanged(index);
-        }
-      }
-      if (out.hasChanged())
-      {
-        out.valid = true;
-        return true;
-      }
-      return false;
-    }
-
     MenuCompositionDiff MenuCompositionDiff::DiffProjection(const MenuBarDefinition *applied,
                                                           const MenuBarDefinition &offered)
     {
@@ -51,7 +20,7 @@ namespace loka
       for (size_t index = 0; before && after;
            before = before->nextInComposition, after = after->nextInComposition, ++index)
       {
-        if (!before->equalsProjection(*after))
+        if (!before->equalsStructure(*after))
           result.addChanged(index);
       }
       result.valid = true;
@@ -67,10 +36,7 @@ namespace loka
     {
       if (bar_)
       {
-        MenuDefinition copy(menu);
-        if (boundaryDepth_ > 0 && !copy.opaqueChildrenSet_)
-          copy.opaqueChildren(true);
-        list_.appendOwned(new MenuDefinition(copy));
+        list_.appendOwned(new MenuDefinition(menu));
       }
     }
 
@@ -83,65 +49,6 @@ namespace loka
       {
         declare(*menu);
       }
-    }
-
-    void MenuComposition::declare(MenuBoundary &boundary)
-    {
-      if (!bar_)
-        return;
-      boundaryDepth_ += 1;
-      size_t countBefore = list_.count();
-      MenuBoundary *prevBoundary = activeBoundary_;
-      activeBoundary_ = &boundary;
-      loka::core::PushStateTracker *tracker = static_cast<loka::core::PushStateTracker *>(boundary.tracker());
-      if (tracker)
-      {
-        if (invalidateFn_)
-        {
-          tracker->setInvalidateCallback(invalidateFn_, invalidateUserData_);
-        }
-      }
-      {
-        loka::core::StandaloneTransactionGuard guard(tracker);
-        boundary.composeMenu(*this);
-      }
-      bool boundaryDirty = false;
-      if (tracker)
-      {
-        boundaryDirty = tracker->peekDirty();
-      }
-      if (boundaryDirty)
-      {
-        dirtyTrackers_.push_back(tracker);
-        size_t countAfter = list_.count();
-        for (size_t i = countBefore; i < countAfter; ++i)
-        {
-          bool exists = false;
-          for (size_t j = 0; j < dirtyIndices_.size(); ++j)
-          {
-            if (dirtyIndices_[j] == i)
-            {
-              exists = true;
-              break;
-            }
-          }
-          if (!exists)
-          {
-            dirtyIndices_.push_back(i);
-          }
-        }
-      }
-      activeBoundary_ = prevBoundary;
-      boundaryDepth_ -= 1;
-    }
-
-    void MenuComposition::acknowledgeDirtyBoundaries()
-    {
-      for (size_t i = 0; i < dirtyTrackers_.size(); ++i)
-      {
-        dirtyTrackers_[i]->consumeDirty();
-      }
-      dirtyTrackers_.clear();
     }
 
     void MenuComposition::finish()
@@ -161,12 +68,6 @@ namespace loka
     MenuComposition &MenuComposition::operator<<(const MenuBarDefinition &bar)
     {
       declare(bar);
-      return *this;
-    }
-
-    MenuComposition &MenuComposition::operator<<(MenuBoundary &boundary)
-    {
-      declare(boundary);
       return *this;
     }
 

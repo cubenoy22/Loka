@@ -505,8 +505,6 @@ namespace loka
       MenuDefinition()
           : title(),
             isAppMenu(false),
-            opaqueChildrenFlag_(false),
-            opaqueChildrenSet_(false),
             items_(),
             nextInComposition(0)
       {
@@ -515,8 +513,6 @@ namespace loka
       explicit MenuDefinition(const char *text)
           : title(loka::core::String::Literal(text)),
             isAppMenu(false),
-            opaqueChildrenFlag_(false),
-            opaqueChildrenSet_(false),
             items_(),
             nextInComposition(0)
       {
@@ -525,8 +521,6 @@ namespace loka
       explicit MenuDefinition(const loka::core::String &text)
           : title(text),
             isAppMenu(false),
-            opaqueChildrenFlag_(false),
-            opaqueChildrenSet_(false),
             items_(),
             nextInComposition(0)
       {
@@ -535,8 +529,6 @@ namespace loka
       MenuDefinition(const MenuDefinition &other)
           : title(other.title),
             isAppMenu(other.isAppMenu),
-            opaqueChildrenFlag_(other.opaqueChildrenFlag_),
-            opaqueChildrenSet_(other.opaqueChildrenSet_),
             items_(),
             nextInComposition(0)
       {
@@ -559,8 +551,6 @@ namespace loka
           return *this;
         title = other.title;
         isAppMenu = other.isAppMenu;
-        opaqueChildrenFlag_ = other.opaqueChildrenFlag_;
-        opaqueChildrenSet_ = other.opaqueChildrenSet_;
         nextInComposition = 0;
         clearItems();
         const MenuItemDefinition *cur = other.items_.head();
@@ -595,13 +585,6 @@ namespace loka
         return *this;
       }
 
-      MenuDefinition &opaqueChildren(bool flag)
-      {
-        opaqueChildrenFlag_ = flag;
-        opaqueChildrenSet_ = true;
-        return *this;
-      }
-
       MenuDefinition &operator<<(const MenuItemDefinition &item)
       {
         items_.appendClone(item);
@@ -613,34 +596,6 @@ namespace loka
         if (isAppMenu != other.isAppMenu)
           return false;
         if (!title.equals(other.title))
-          return false;
-        if (opaqueChildrenFlag_ != other.opaqueChildrenFlag_)
-          return false;
-        if (opaqueChildrenFlag_)
-          return true;
-        if (items_.count() != other.items_.count())
-          return false;
-        const MenuItemDefinition *left = items_.head();
-        const MenuItemDefinition *right = other.items_.head();
-        while (left && right)
-        {
-          if (!left->equalsStructure(*right))
-            return false;
-          left = left->nextInComposition;
-          right = right->nextInComposition;
-        }
-        return true;
-      }
-
-      /** Compare the complete native projection, including opaque menu items.
-          Keep aligned with the adjacent equalsStructure; only item traversal differs. */
-      bool equalsProjection(const MenuDefinition &other) const
-      {
-        if (isAppMenu != other.isAppMenu)
-          return false;
-        if (!title.equals(other.title))
-          return false;
-        if (opaqueChildrenFlag_ != other.opaqueChildrenFlag_)
           return false;
         if (items_.count() != other.items_.count())
           return false;
@@ -676,8 +631,6 @@ namespace loka
 
       loka::core::String title;
       bool isAppMenu;
-      bool opaqueChildrenFlag_;
-      bool opaqueChildrenSet_;
       loka::dsl::CompositionList<MenuItemDefinition> items_;
       MenuDefinition *nextInComposition;
     };
@@ -745,24 +698,6 @@ namespace loka
         return true;
       }
 
-      /** Compare the complete native projection, including opaque menu items.
-          Keep aligned with the adjacent equalsStructure; only item traversal differs. */
-      bool equalsProjection(const MenuBarDefinition &other) const
-      {
-        if (menus_.count() != other.menus_.count())
-          return false;
-        const MenuDefinition *left = menus_.head();
-        const MenuDefinition *right = other.menus_.head();
-        while (left && right)
-        {
-          if (!left->equalsProjection(*right))
-            return false;
-          left = left->nextInComposition;
-          right = right->nextInComposition;
-        }
-        return true;
-      }
-
       MenuBarDefinition &operator<<(const MenuDefinition &menu)
       {
         menus_.appendClone(menu);
@@ -805,7 +740,7 @@ namespace loka
       loka::dsl::CompositionList<MenuDefinition> menus_;
     };
 
-    // MenuComposition, MenuBoundary, MenuCompositionDiff are defined in MenuComposition.hpp.
+    // MenuComposition and MenuCompositionDiff are defined in MenuComposition.hpp.
 
     inline MenuDefinition Menu(const char *title)
     {

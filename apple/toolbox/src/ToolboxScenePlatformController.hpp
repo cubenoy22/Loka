@@ -1,6 +1,7 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #include "ToolboxEditInstalled.hpp"
+#include "ToolboxPendingDialogs.hpp"
 
 #include "app/RectSurface.hpp"
 #include "app/FocusParticipant.hpp"
@@ -45,7 +46,11 @@ namespace loka
 
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
+private:
+  ToolboxPendingDialogs pendingDialogs_;
+
 public:
+  ToolboxPendingDialogs &pendingDialogs() { return this->pendingDialogs_; }
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {
     registration.attach(this->compositionReplay_);

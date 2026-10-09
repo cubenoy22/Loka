@@ -4,6 +4,7 @@
 #include "app/scene/BorrowedKeys.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
+#include "app/nodes/controls/Ribbon.hpp"
 #include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Match.hpp"
@@ -230,8 +231,14 @@ namespace simpletext
                                 .result(this->saveResult_)
                                 .testId("SimpleText.Save"))
           .otherwise(Fragment());
+      // The band and File menu fire the same emitters.
       c.declare(HStack()
-                << (VStack() << Text(this->error_.state()).TEST_ID("SimpleText.Error")
+                << (VStack() << (RibbonControl().TEST_ID("SimpleText.Ribbon")
+                                << RibbonItem("New").onClick(this->props.newEvent())
+                                << RibbonItem("Open...").onClick(this->props.openEvent())
+                                << RibbonItem("Save").onClick(this->props.saveEvent())
+                                << RibbonItem("Save As...").onClick(this->props.saveAsEvent()))
+                             << Text(this->error_.state()).TEST_ID("SimpleText.Error")
                              << TextEditor(this->lines_, this->cursor_) //
                                     .moveCaretTo(this->caret_)
                                     .TEST_ID("SimpleText.Editor"))
