@@ -104,7 +104,7 @@ namespace loka
                 stack, state, traversal, &DispatchTraversalLayoutChild, range, spans);
           }
           return loka::app::layout::computeRowLayoutResultY(
-              stack, state, this->metrics_, traversal, &DispatchTraversalLayoutChild);
+              stack, state, this->metrics_, traversal, traversal, &DispatchTraversalLayoutChild);
         }
 
       private:

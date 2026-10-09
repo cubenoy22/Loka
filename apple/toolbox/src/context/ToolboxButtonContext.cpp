@@ -249,8 +249,7 @@ short ToolboxButtonContext::naturalWidth(const loka::core::String &label) const
 {
   if (!this->controller())
     return 0;
-  return static_cast<short>(this->controller()->measureTextWidth(label)
-                            + 2 * ToolboxLayoutMetrics::kPushButtonTitleInset);
+  return this->controller()->measurePushButtonNaturalWidth(label);
 }
 
 void ToolboxButtonContext::render(loka::app::scene::IPlatformController *controller)

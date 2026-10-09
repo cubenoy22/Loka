@@ -1,3 +1,4 @@
+#include "ToolboxLayoutMetrics.hpp"
 #include "ToolboxPlatformLayoutHandlers.hpp"
 #include "app/nodes/controls/Ribbon.hpp"
 #include "context/ToolboxTextContext.hpp"
@@ -52,6 +53,10 @@ namespace
         : controller_(controller), resultY_(0), paintedCount_(0)
     {
       RegisterToolboxPlatformLayoutHandlers(this->registry_);
+    }
+    virtual bool queryNaturalWidth(Node *child, short &width) const
+    {
+      return this->controller_.queryNaturalWidth(child, width);
     }
     virtual int layoutChild(Node *node, const LayoutState &offer)
     {
@@ -126,7 +131,26 @@ void testToolboxRowSpacing(const char *mode)
   {
     std::printf("Ribbon Toolbox widths: %d, %d; gap: %d\n", a.right - a.left, b.right - b.left, b.left - a.right);
     std::fflush(stdout);
-    LOKA_VERIFY(a.right - a.left == 80);
+    const short natural = controller.measurePushButtonNaturalWidth(loka::core::String::Literal("New"));
+    LOKA_VERIFY(a.right - a.left == natural);
+    // Standalone natural layout uses the same formula as the controller answer.
+    loka::dsl::FlowError error;
+    ButtonNode *button = 0;
+    LOKA_VERIFY(loka::dsl::testing::ResolveSelector(&scene,
+        loka::dsl::testing::WithinAnchor("ribbon").descendant<ButtonNode>(1), button, error)
+        == loka::dsl::FLOW_STEP_SUCCEEDED);
+    short first = 0, second = 0;
+    LOKA_VERIFY(controller.queryNaturalWidth(button, first));
+    LOKA_VERIFY(controller.queryNaturalWidth(button, second));
+    LOKA_VERIFY(first == natural && second == natural);
+    LayoutState standalone = state;
+    standalone.width = 0;
+    LOKA_VERIFY(button->context->layout(&controller, standalone) == natural);
+    // Without a measurement port the answer declines, so the Row keeps a
+    // shared seat instead of an inset-only fixed one.
+    ToolboxScenePlatformController portless(0);
+    short refused = 0;
+    LOKA_VERIFY(!portless.queryNaturalWidth(button, refused));
     LOKA_VERIFY(b.right - b.left == 120);
     LOKA_VERIFY(b.left > a.left);
     LOKA_VERIFY(b.left - a.right == state.spacing);

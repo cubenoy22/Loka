@@ -15,4 +15,9 @@ void testRowOversizedFixedBoxKeepsDeclaredSeatForSibling();
 void testRowZeroWidthRowKeepsFixedSeatLiveAndGapped();
 void testRowWidthHeuristicForwardsOnlySingleFragmentClaims();
 
+void testRowNaturalWidthConsultation();
+void testRowSharedWidthNeverQueriesSource();
+
+void testNullNaturalWidthDeclinesUnrepresentableWidth();
+
 #endif // LOKA_TESTS_ROW_WIDTH_CONSULTATION_TESTS_HPP

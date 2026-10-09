@@ -1220,8 +1220,10 @@ VStack()
 ```
 
 `RibbonControl` (from `app/nodes/controls/Ribbon.hpp`) declares a left-to-right
-band of native push buttons. Each `RibbonItem` has a default width of 80;
-`.width(n)` overrides it. Items fire borrowed emitters like menu items.
+band of native push buttons. Where the platform can measure a label, each
+`RibbonItem` takes the width that label needs; where it cannot, the items
+without a width share the remaining width equally. `.width(n)` gives an item a
+fixed width on every platform. Items fire borrowed emitters like menu items.
 
 ```cpp
 RibbonControl()

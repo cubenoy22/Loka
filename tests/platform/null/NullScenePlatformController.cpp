@@ -5,6 +5,7 @@
 #include "platform/null/context/NullAttributedTextContext.hpp"
 
 #include <cassert>
+#include <climits>
 #include "app/scene/projection/PaintEnumeration.hpp"
 
 #include "app/layout/PlatformBuiltinLayoutHandlers.hpp"
@@ -12,6 +13,7 @@
 #include "app/RectSurface.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/controls/Cell.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/nodes/controls/PopupMenu.hpp"
 #include "app/nodes/nestable/ScrollView.hpp"
 #include "platform/null/context/NullButtonContext.hpp"
@@ -22,6 +24,22 @@
 #include "app/scene/boundary/Boundary.hpp"
 #include "platform/null/context/NullTextContext.hpp"
 
+/** Null push-button metric: eight units per UTF-32 scalar plus sixteen units
+    of total title inset. Constant labels yield the same answer throughout layout. */
+bool NullScenePlatformController::queryNaturalWidth(loka::app::scene::Node *child, short &width) const
+{
+  loka::app::ButtonNode *button = child ? child->asButtonNode() : 0;
+  if (!button)
+    return false;
+  const loka::core::String label = button->props.text_
+      ? button->props.text_->get() : loka::core::String::Literal("Button");
+  const std::size_t units = label.bufferWithEncoding(loka::core::StringEncodingUtf32).length();
+  if (units > static_cast<std::size_t>((SHRT_MAX - 16) / 8))
+    return false;
+  width = static_cast<short>(units * 8 + 16);
+  return width > 0;
+}
+
 class NullScenePlatformController::LayoutTraversal
     : public loka::app::scene::IPlatformLayoutTraversal
 {
@@ -30,6 +48,11 @@ public:
       : controller_(controller),
         resultY_(0)
   {
+  }
+
+  virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const
+  {
+    return this->controller_ && this->controller_->queryNaturalWidth(child, width);
   }
 
   virtual int layoutChild(loka::app::scene::Node *child,

@@ -124,7 +124,8 @@ namespace
     LOKA_VERIFY(surface != 0);
     LOKA_VERIFY(surface->nextInComposition == 0);
 
-    loka::app::layout::RowWidthConsultation widths(row->childrenHead(), row->childrenCount(), 500, 4);
+    loka::app::layout::RowWidthConsultation widths(row->childrenHead(), row->childrenCount(), 500, 4,
+        row->props.rowUndeclaredWidth_, 0); // Heuristic-only probe, without a rail.
     const loka::app::layout::RowChildWidth nav = widths.next(navSeat);
     const loka::app::layout::RowChildWidth content = widths.next(surface);
     LOKA_VERIFY(nav.width() == 200);

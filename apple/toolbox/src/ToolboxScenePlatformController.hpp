@@ -1,5 +1,6 @@
 #ifndef LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
 #define LOKA_TOOLBOX_SCENE_PLATFORM_CONTROLLER_HPP
+#include "app/layout/NaturalWidthSource.hpp"
 #include "ToolboxEditInstalled.hpp"
 #include "ToolboxPendingDialogs.hpp"
 
@@ -44,12 +45,19 @@ namespace loka
   }
 } // namespace loka
 
-class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
+class ToolboxScenePlatformController : public loka::app::scene::IPlatformController,
+    public loka::app::layout::INaturalWidthSource
 {
 private:
   ToolboxPendingDialogs pendingDialogs_;
 
 public:
+  virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const;
+  /** Push-button measurement shared by allocation and standalone layout.
+      The bool form refuses an unmeasurable label; the short form keeps the
+      standalone layout's inset-only width for that case. */
+  bool measurePushButtonNaturalWidth(const loka::core::String &label, short &width) const;
+  short measurePushButtonNaturalWidth(const loka::core::String &label) const;
   ToolboxPendingDialogs &pendingDialogs() { return this->pendingDialogs_; }
   void registerCompositionReplay(ToolboxCompositionReplay::Registration &registration)
   {
