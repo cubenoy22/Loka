@@ -464,9 +464,23 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
     -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxFileChoiceHost.hpp)
   loka_enable_warnings(LokaToolboxFileChoiceTests)
   set_target_properties(LokaToolboxFileChoiceTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
-  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity busy prepare prepare-refuses-write save save-retarget)
+  foreach(_file_case tuple single application viewer smirky refused collision-ab collision-ba decoy canonical validation allocation display copies dialog validity busy prepare prepare-refuses-write save save-retarget present-render present-update present-detach present-destroy present-close present-background present-quit present-fifo present-two-windows present-modal-destroy present-save present-reattach present-props present-lifecycle present-borrow present-controller present-no-group present-retire present-phase present-snapshot present-non-toolbox present-show present-scene-replace present-quit-delivery)
     add_test(NAME testToolboxFileChoice_${_file_case} COMMAND LokaToolboxFileChoiceTests ${_file_case})
   endforeach()
+
+  # The sentinel teardown refusal must remain safe when lifecycle auditing is off.
+  get_target_property(_dialog_sources LokaToolboxFileChoiceTests SOURCES)
+  add_executable(LokaToolboxFileChoiceReleaseTests ${_dialog_sources})
+  target_include_directories(LokaToolboxFileChoiceReleaseTests PRIVATE
+    tests/toolbox/host tests apple/toolbox/src common tools example/SimpleViewer/src)
+  target_compile_definitions(LokaToolboxFileChoiceReleaseTests PRIVATE LOKA_RETRO68=1)
+  target_compile_options(LokaToolboxFileChoiceReleaseTests PRIVATE -fno-exceptions -fno-rtti
+    -ULOKA_LIFECYCLE_AUDIT
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxFileChoiceHost.hpp)
+  loka_enable_warnings(LokaToolboxFileChoiceReleaseTests)
+  set_target_properties(LokaToolboxFileChoiceReleaseTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME testToolboxFileChoice_present-list-destroy
+    COMMAND LokaToolboxFileChoiceReleaseTests present-list-destroy)
 
   add_executable(LokaToolboxBoxLayoutTests
     tests/toolbox/host/ToolboxBoxLayoutHostTests.cpp
