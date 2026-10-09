@@ -1,7 +1,7 @@
 // SIZE partition override for the Retro68/Classic build.
 // Tutorial is a small sample app.
-// Measured need (#1103, MAME maciix, 2026-10-03): 327.9K = peak live heap
-// 306840 B + stack/A5/zone 28912 B, under the workload in
+// Measured need (after #1107, MAME maciix, 2026-10-10): 338.8K = peak live heap
+// 317792 B + stack/A5/zone 29100 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
 // 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
 // Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one

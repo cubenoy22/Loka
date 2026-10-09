@@ -1,7 +1,7 @@
 // SIZE partition override for the Retro68/Classic build.
 // ScrapbookUI keeps one LRPK bag and one decoded PICT view resident.
-// Measured need (#1103, MAME maciix, 2026-10-03): 369.5K = peak live heap
-// 345336 B + stack/A5/zone 32988 B, under the workload in
+// Measured need (after #1107, MAME maciix, 2026-10-10): 376.9K = peak live heap
+// 352784 B + stack/A5/zone 33180 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
 // 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
 // Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
