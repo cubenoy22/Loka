@@ -280,13 +280,13 @@ do not silently accept an excess or introduce an unmeasured cap. The modal trial
 must verify no deletion while the outer Operation remains active, then recovery
 at completion; final-exit recovery covers WM_QUIT's skipped tail.
 
-### macOS measured acceptance (Tahoe rig TODO)
+### macOS measured acceptance
 
 Run `LokaTestsMacOS`, including `testMacNativeRetirement*` and
 `testMacCaptureRefusalReleasesBitmapOnce`, before measurement. Compare the PR 2
 baseline with PR 3 on the same Tahoe rig, inputs and actions; record revisions,
-OS/architecture, toolchain, preset and rig descriptor. No macOS build-verified,
-runtime-verified or measured acceptance claim is made by these TODOs (#1173).
+OS/architecture, toolchain, preset and rig descriptor. Every macOS row below is
+measured; the legacy Save selector is not (see below).
 
 Record decoded image dimensions/bytes, burst length within one outer Operation,
 modal path and dwell, baseline and candidate peak RSS and physical footprint,
@@ -299,12 +299,29 @@ criterion requires an evidence-based acceptance decision before merge.
 
 | Workload | Image sizes / burst / dwell | Baseline vs candidate peak RSS / footprint | Queued tickets at peak / recovery after completion | Refusal / decision |
 |---|---|---|---|---|
-| Scrapbook burst page flips | TODO | TODO | TODO | TODO |
-| SimpleViewer replace | TODO | TODO | TODO | TODO |
-| Multiple replacements inside one outer Operation | TODO | TODO | TODO | TODO |
-| LazyView image generation replacement | TODO | TODO | TODO | TODO |
-| Open panel dwell: deferred and synchronous fallback | TODO | TODO | TODO | TODO |
-| Save panel dwell: deferred and synchronous fallback | TODO | TODO | TODO | TODO |
+| Scrapbook burst page flips | Scrapbook pages 1-4; 40 flips, one per outer Operation | Not resolvable at this image size: the per-flip change was 0 (median) in both revisions, for RSS and footprint alike | Baseline 0. Retirement: 1 queued at the end of every image-replacing turn, 0 at the next turn (30 flips per run, 3 runs) | No refusal. One extra image for less than one turn: accepted |
+| SimpleViewer replace | 1024x768, then 800x600 32bpp. Returned through the existing dialog-result test access, because the out-of-process panel has no selection setter; SimpleViewer's own Flow loads each in a later tick | Both revisions: at the first sample after the replacing turn, footprint 23.3-23.9 MB with the 800x600 image shown; RSS varies by run with the panel services (85-101 MB) | Retirement: 1 held, 0 queued from the first sample after the replacing turn. The in-turn peak is not sampled | No refusal. No retention survives the replacing turn: accepted |
+| Multiple replacements inside one outer Operation | Scrapbook, three clicks in one idle turn, 10 bursts | Not resolvable at this image size (0 median in both) | Baseline 0. Retirement: 3 queued at the end of the turn, 0 at the next turn in 30/30 bursts | No refusal. Exceeds the provisional criterion as on Win32: retention equals the images released within one outer Operation, recovered at its completion; the owner's acceptance of 2026-10-09 covers both rails |
+| LazyView image generation replacement | The Win32 probe's LazyColumn: 9 resident items, each decoding its own 256x256 32bpp image (262,144 pixel bytes); 10 swaps, one per turn | Both revisions: +2.42-2.45 MB footprint and RSS after the edit and a settle inside the turn, old generation still alive; +0.14 to +0.25 MB of heap at the next turn | Retirement: 18 held and 0 queued at `post`, 9 held and 0 queued at the next turn, in 30/30 swaps | No refusal. Peaks equal; the old generation is drained by the same tail: accepted |
+| Open panel dwell: deferred and synchronous fallback | One 1024x768 32bpp image (3,145,728 bytes) released 1 s into a 2 s dwell, cancelled afterwards. Deferred: the normal presenter, `Operation::hasActive()` false in the modal loop. Synchronous: presenter removed through the existing `MacDialogResultTestAccess`, `hasActive()` true | Baseline, both paths: -3.15 MB footprint and RSS at the release | Retirement, deferred: 1 queued at the release, then 0 and -3.15 MB within 1 s, on an eligible tick inside the modal loop. Retirement, synchronous: 1 queued and memory unchanged until dismiss, then 0 and -2.9 to -3.15 MB | No refusal. Disposal waits while the outer Operation is active and runs on eligible ticks when none is: accepted. One extra image for at most the dwell |
+| Save panel dwell: deferred and synchronous fallback | As the Open panel, with the modern Save selector | As the Open panel | As the Open panel, in each of 3 runs | Accepted. The legacy Save selector (`runModalForDirectory:file:`, before 10.6) is not exercised: no supporting rig |
+
+Evidence (2026-10-09): Tahoe, macOS 26.7.1 (25G241) x86_64, Xcode 26.5, Apple
+clang 21.0.0, `macos-standalone-debug` (Debug), console user session.
+Baseline = `bce6582e` (PR 2) with the probe sources and the probe CMake hunk
+applied; candidate = this branch, whose macOS sources equal PR 3's except for
+#1171's common `CommandSet` change, which no probe uses. Three interleaved runs
+per revision; ledger counts were identical across runs. RSS is
+`MACH_TASK_BASIC_INFO.resident_size` and footprint is
+`TASK_VM_INFO.phys_footprint`, recorded separately. Ledger counts are the
+evidence where the memory change is too small to resolve. At the candidate,
+`LokaTestsMacOS` passed in full in the console session, and each
+retirement pin passed alone. Final-exit recovery is pinned by
+`testMacNativeRetirementFinalDrain`, not by these trials. Repeat with
+`cmake --build <build> --target LokaRetirementProbeMacOSAll`, then run each
+`LokaRetirementProbe{Scrapbook,Lazy,Dialog}MacOS.app/Contents/MacOS/...`
+binary from an ssh session of the logged-in console user, with
+`LOKA_RETIREMENT_PROBE_OUTPUT_DIR` set.
 
 For both panel types verify retirement is refused while an outer Operation is
 active and allowed on eligible ticks when none is active. Exercise the legacy
