@@ -20,7 +20,7 @@ public:
   virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
                                    std::size_t offset,
                                    std::size_t length,
-                                   loka::core::resource::Image &out) const;
+                                   loka::core::resource::Image &out);
 
 private:
   loka::core::String applicationDirectory_;

@@ -2016,7 +2016,7 @@ namespace
     virtual bool createImageFromBlob(const loka::core::resource::Blob &,
                                      std::size_t,
                                      std::size_t,
-                                     loka::core::resource::Image &out) const
+                                     loka::core::resource::Image &out)
     {
       ++createImageCalls_;
       if (!createImageResult_)
@@ -2059,7 +2059,7 @@ namespace
     virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
                                      std::size_t,
                                      std::size_t,
-                                     loka::core::resource::Image &out) const
+                                     loka::core::resource::Image &out)
     {
       ++this->createImageCalls_;
       if (!this->createImageResult_)

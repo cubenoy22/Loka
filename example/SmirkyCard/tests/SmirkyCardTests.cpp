@@ -3445,7 +3445,7 @@ namespace
         LOKA_VERIFY(!smirkycard::testing::CardFlowAccess::active());
     }
     virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, std::size_t offset,
-                                    std::size_t length, loka::core::resource::Image &out) const
+                                    std::size_t length, loka::core::resource::Image &out)
     {
       ++decodes;
       LOKA_VERIFY(offset == 0 && length == 3 && blob.size() == 3);
@@ -3466,7 +3466,7 @@ namespace
   public:
     ViewerPlatform() : HandlePlatform(Success) {}
     virtual bool createImageFromBlob(const loka::core::resource::Blob &blob, std::size_t offset,
-                                    std::size_t length, loka::core::resource::Image &out) const
+                                    std::size_t length, loka::core::resource::Image &out)
     {
       ++this->decodes;
       LOKA_VERIFY(offset == 0 && length == 3 && blob.size() == 3);

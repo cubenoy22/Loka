@@ -303,6 +303,9 @@ void App::reclaimWindows()
   }
   this->pendingReclaim_.clear();
   this->flushingWindowWork_ = false;
+  PlatformContext *context = this->config_ ? this->config_->getPlatformContext() : 0;
+  if (context)
+    context->nativeResourceRetirement_.drain();
 }
 
 void App::windowClosed(Window *window)

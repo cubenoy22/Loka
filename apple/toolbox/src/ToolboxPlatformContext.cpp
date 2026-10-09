@@ -78,7 +78,7 @@ bool ToolboxPlatformContext::queryLargestContiguousAllocation(std::size_t &out) 
 bool ToolboxPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                                  std::size_t offset,
                                                  std::size_t length,
-                                                 loka::core::resource::Image &out) const
+                                                 loka::core::resource::Image &out)
 {
   const loka::core::resource::Blob source = blob;
   out = loka::core::resource::Image::Empty();

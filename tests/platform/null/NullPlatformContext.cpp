@@ -70,7 +70,7 @@ bool NullPlatformContext::openFile(const loka::file::File &item,
 bool NullPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                               std::size_t offset,
                                               std::size_t length,
-                                              loka::core::resource::Image &out) const
+                                              loka::core::resource::Image &out)
 {
   // Unchanged in substance: the null platform decodes nothing, so it refuses
   // every request whatever the range. `BlobRangeIsUsable` is therefore pinned
