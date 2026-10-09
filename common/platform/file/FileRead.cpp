@@ -1,4 +1,5 @@
 #include "platform/file/FileIO.hpp"
+#include <cstring>
 
 namespace loka
 {
@@ -6,98 +7,106 @@ namespace loka
   {
     namespace file
     {
-      ReadResult ReadBytesThroughStdio(const loka::core::String &path,
-                                       std::vector<unsigned char> &out,
-                                       const ReadCapacity *capacity)
+      namespace
       {
-        out.clear();
-        FILE *file = loka::platform::file::OpenRead(path);
-        if (!file)
+        /** Owns the stream for the entire synchronous read. */
+        class ReadStream
         {
-          return READ_STDIO_OPEN_FAILED;
-        }
-
-        if (std::fseek(file, 0, SEEK_END) == 0)
-        {
-          long length = std::ftell(file);
-          if (length >= 0)
+        public:
+          explicit ReadStream(FILE *file)
+              : file_(file)
           {
-            if (capacity && !capacity->allows(static_cast<std::size_t>(length)))
+          }
+          ~ReadStream()
+          {
+            if (this->file_)
+              std::fclose(this->file_);
+          }
+          FILE *get() const
+          {
+            return this->file_;
+          }
+
+        private:
+          FILE *file_;
+          ReadStream(const ReadStream &);
+          ReadStream &operator=(const ReadStream &);
+        };
+
+        ReadResult Fill(FILE *file, core::resource::Blob &out, const ReadCapacity *capacity)
+        {
+          if (std::fseek(file, 0, SEEK_END) == 0)
+          {
+            const long length = std::ftell(file);
+            if (length >= 0)
             {
-              std::fclose(file);
-              return READ_CAPACITY_REFUSED;
-            }
-            out.resize(static_cast<std::size_t>(length));
-            if (std::fseek(file, 0, SEEK_SET) != 0)
-            {
-              std::fclose(file);
-              out.clear();
-              return READ_STDIO_SEEK_FAILED;
-            }
-            if (!out.empty())
-            {
-              std::size_t readBytes = std::fread(&out[0], 1, out.size(), file);
-              if (readBytes != out.size())
+              if (capacity && !capacity->allows(static_cast<std::size_t>(length)))
+                return READ_CAPACITY_REFUSED;
+              if (!out.tryResize(static_cast<std::size_t>(length)))
+                return READ_ALLOCATION_REFUSED;
+              if (std::fseek(file, 0, SEEK_SET) != 0)
+                return READ_STDIO_SEEK_FAILED;
+              if (out.size())
               {
+                const std::size_t received = std::fread(out.mutableData(), 1, out.size(), file);
                 if (std::ferror(file))
-                {
-                  std::fclose(file);
-                  out.clear();
                   return READ_STDIO_READ_FAILED;
-                }
-                out.resize(readBytes);
+                out.tryResize(received);
               }
+              return READ_OK;
             }
-            std::fclose(file);
-            return READ_OK;
           }
-        }
-
-        if (std::fseek(file, 0, SEEK_SET) != 0)
-        {
-          std::fclose(file);
-          return READ_STDIO_SEEK_FAILED;
-        }
-        const std::size_t kBufferSize = 4096;
-        unsigned char buffer[kBufferSize];
-        for (;;)
-        {
-          std::size_t readBytes = std::fread(buffer, 1, kBufferSize, file);
-          if (readBytes > 0)
+          if (std::fseek(file, 0, SEEK_SET) != 0)
+            return READ_STDIO_SEEK_FAILED;
+          unsigned char buffer[4096];
+          std::size_t filled = 0;
+          for (;;)
           {
-            std::size_t oldSize = out.size();
-            if (readBytes > static_cast<std::size_t>(-1) - oldSize)
+            const std::size_t received = std::fread(buffer, 1, sizeof(buffer), file);
+            if (received)
             {
-              std::fclose(file);
-              out.clear();
-              return READ_SIZE_OVERFLOW;
+              const std::size_t maximum = static_cast<std::size_t>(-1);
+              if (received > maximum - filled)
+                return READ_SIZE_OVERFLOW;
+              const std::size_t required = filled + received;
+              if (capacity && !capacity->allows(required))
+                return READ_CAPACITY_REFUSED;
+              if (required > out.size())
+              {
+                std::size_t extent = out.size() ? out.size() : sizeof(buffer);
+                while (extent < required)
+                  extent = extent > maximum / 2 ? required : extent * 2;
+                if (!out.tryResize(extent))
+                  return READ_ALLOCATION_REFUSED;
+              }
+              std::memcpy(out.mutableData() + filled, buffer, received);
+              filled = required;
             }
-            if (capacity && !capacity->allows(oldSize + readBytes))
+            if (received < sizeof(buffer))
             {
-              std::fclose(file);
-              out.clear();
-              return READ_CAPACITY_REFUSED;
-            }
-            out.resize(oldSize + readBytes);
-            for (std::size_t i = 0; i < readBytes; ++i)
-            {
-              out[oldSize + i] = buffer[i];
+              if (std::ferror(file))
+                return READ_STDIO_READ_FAILED;
+              break;
             }
           }
-          if (readBytes < kBufferSize)
-          {
-            if (std::ferror(file))
-            {
-              std::fclose(file);
-              out.clear();
-              return READ_STDIO_READ_FAILED;
-            }
-            break;
-          }
+          out.tryResize(filled);
+          return READ_OK;
         }
+      } // namespace
 
-        std::fclose(file);
-        return READ_OK;
+      ReadResult
+      ReadBytesThroughStdio(const core::String &path, core::resource::Blob &out, const ReadCapacity *capacity)
+      {
+        if (!out.isValid() || out.isCompleted())
+          return READ_ALLOCATION_REFUSED;
+        out.tryResize(0);
+        const ReadStream stream(OpenRead(path));
+        if (!stream.get())
+          return READ_STDIO_OPEN_FAILED;
+        const ReadResult result = Fill(stream.get(), out, capacity);
+        if (result != READ_OK)
+          out.tryResize(0);
+        return result;
       }
     } // namespace file
   } // namespace platform

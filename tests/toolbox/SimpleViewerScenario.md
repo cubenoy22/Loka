@@ -32,8 +32,10 @@ The driver resolves `File::Application() << File("Sun.pict")` (or `Bulb.pict`)
 through Process Manager and `FSMakeFSSpec`, captures the FSSpec with
 `ToolboxCaptureChosenFile`, and passes a `FileChooserResult`
 carrying both its native locator and display-only filename, just like the dialog. The production
-chooser adapters, capacity check, data-fork read, decode and image commit run
-unchanged. Capture first waits until the session has released its Flow, then
+chooser adapters, data-fork read, decode and image commit run unchanged. The
+read allocates its buffer through the Blob gate and refuses with
+`READ_ALLOCATION_REFUSED` when the allocation is refused; there is no separate
+capacity check before it (#1123). Capture first waits until the session has released its Flow, then
 checks completed errors before considering the retained image. Success requires
 the production chooser message for the requested filename as well as a valid
 image. With one outstanding request and alternating filenames, the previous
@@ -46,7 +48,9 @@ cell): whether the platform's `queryLargestContiguousAllocation()` answer,
 sampled immediately before submitting the load, covers the picture. That
 answer is the larger of `MaxBlock()` and the room between the application
 zone's top and `GetApplLimit()`; it neither compacts nor purges (a `MaxMem`
-probe was tried and rejected because its purge bombed the viewer). Raw
+probe was tried and rejected because its purge bombed the viewer). The load
+path does not consult this answer (#1123): it is a measurement of the heap at
+submission, not the admission decision, which is the allocation itself. Raw
 `FreeMem()` / probe numbers are not audit fields: they move with the
 application's code size. The error code is matched from the completed
 chooser message using ImageLoadSession's production formatter through a
@@ -120,7 +124,7 @@ Do not run `--update-golden` as part of this handoff.
 It is the per-example startup golden the atomic bundle requires before any
 other SimpleViewer cell can be staged, and it records `heap.probe_covers_image n/a` with `image.load none`.
 
-Raw heap numbers (`FreeMem`, the capacity probe) are not audit fields: they
+Raw heap numbers (`FreeMem`, the contiguous-allocation probe) are not audit fields: they
 move with the scenario application's code size, so an unrelated change would
 break the byte-exact expectation. The audit keeps `heap.probe_covers_image`
 (`yes`/`no`), which is the fact #614 turns on; measured numbers live in the

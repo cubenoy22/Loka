@@ -28,7 +28,7 @@ namespace loka
 
 #if !defined(LOKA_RETRO68)
       ReadResult ReadBytes(const FileHandle &file,
-                           std::vector<unsigned char> &out,
+                           loka::core::resource::Blob &out,
                            const ReadCapacity *capacity)
       {
         return ReadBytes(file.displayPath, out, capacity);

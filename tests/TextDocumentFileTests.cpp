@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "TextDocumentFileTests.hpp"
 #include "support/TestVerify.hpp"
 #include "app/TextDocumentFile.hpp"
@@ -493,6 +494,7 @@ void testTextDocumentWriteFailures()
 
 void testTextDocumentRawAdmission()
 {
+  BlobAllocationProbe allocation;
   struct CapacityContext : NullPlatformContext
   {
     mutable unsigned queries;
@@ -515,7 +517,15 @@ void testTextDocumentRawAdmission()
     raw += "\r\n";
   source.put(raw);
   LOKA_VERIFY(ReadTextDocument(&context, source.file, document.lines) == TEXT_DOCUMENT_OK);
-  LOKA_VERIFY(context.queries > 0);
+  LOKA_VERIFY(context.queries == 0);
+  const Snapshot allocatedBefore(document.lines);
+  const char *sites[][2] = {{"Blob", "Record"}, {"Blob", "Bytes"}};
+  for (unsigned i = 0; i < 2; ++i)
+  {
+    allocation.refuse(sites[i][0], sites[i][1]);
+    LOKA_VERIFY(ReadTextDocument(&context, source.file, document.lines) == TEXT_DOCUMENT_ALLOCATION);
+    allocatedBefore.unchanged(document.lines);
+  }
   context.queries = 0;
   raw += 'a';
   source.put(raw);

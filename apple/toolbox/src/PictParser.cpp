@@ -15,14 +15,14 @@ namespace
   }
 
   static std::size_t FindPictSizeByTerminator(
-      const std::vector<unsigned char> &bytes,
+      const unsigned char *bytes,
       std::size_t offset,
       std::size_t limit)
   {
     // PICT end opcode is 0x00FF on word boundary. The scan stops at the range's
     // end rather than the buffer's, so a picture inside a bag cannot be given
     // an extent that runs into the asset stored after it.
-    if (offset + 12 > limit)
+    if (limit - offset < 12)
     {
       return 0;
     }
@@ -38,7 +38,7 @@ namespace
   }
 
   static bool HasPictVersionOpcode(
-      const std::vector<unsigned char> &bytes,
+      const unsigned char *bytes,
       std::size_t offset,
       std::size_t limit)
   {
@@ -57,13 +57,13 @@ namespace
   }
 
   static bool TryParsePictAt(
-      const std::vector<unsigned char> &bytes,
+      const unsigned char *bytes,
       std::size_t limit,
       std::size_t offset,
       loka::toolbox::pict::PictParseResult &out,
       bool &hasVersionOpcodeOut)
   {
-    if (offset + 10 > limit)
+    if (limit - offset < 10)
     {
       return false;
     }
@@ -132,12 +132,13 @@ namespace loka
       {
       }
 
-      bool ParsePict(const std::vector<unsigned char> &bytes,
+      bool ParsePict(const unsigned char *bytes,
+                     std::size_t extent,
                      std::size_t base,
                      std::size_t limit,
                      PictParseResult &out)
       {
-        if (base > limit || limit > bytes.size())
+        if (!bytes || base > limit || limit > extent)
         {
           return false;
         }
