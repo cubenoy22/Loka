@@ -12,7 +12,7 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 $output = (Resolve-Path -LiteralPath $OutputDirectory).Path
 # Accept the build root or the directory containing the executables. No
 # console input, elevation or desktop creation: caller supplies the session.
-foreach ($probe in @('Scrapbook', 'Dialog')) {
+foreach ($probe in @('Scrapbook', 'Dialog', 'Lazy')) {
     $process = $null
     $log = $null
     $name = "LokaRetirementProbe${probe}Win32.exe"
