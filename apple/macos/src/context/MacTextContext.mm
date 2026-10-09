@@ -87,40 +87,6 @@ namespace
     }
   }
 
-  static void ReleaseCapturedBitmap(void *handle, void *)
-  {
-    NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
-    if (bitmap)
-    {
-      [bitmap release];
-    }
-  }
-
-  static bool CaptureViewBitmap(NSView *view, loka::core::resource::Image &out)
-  {
-    if (!view)
-    {
-      return false;
-    }
-    NSRect bounds = [view bounds];
-    if (bounds.size.width <= 0 || bounds.size.height <= 0)
-    {
-      return false;
-    }
-    NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
-    if (!bitmap)
-    {
-      return false;
-    }
-    [bitmap retain];
-    [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
-    out = loka::core::resource::Image::FromNative(
-        (void *)bitmap, (int)bounds.size.width, (int)bounds.size.height, &ReleaseCapturedBitmap, 0);
-    // FromNative consumes the retained bitmap: on a refused allocation it has
-    // already released it through ReleaseCapturedBitmap (#1064).
-    return out.isValid();
-  }
-
   class MacTextNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacTextNodeHandler,
                                                      loka::app::TextNode,
@@ -312,7 +278,7 @@ void MacTextContext::applyDetachedPresentation()
 
 bool MacTextContext::captureBitmap(loka::core::resource::Image &out) const
 {
-  return CaptureViewBitmap((NSView *)label_, out);
+  return this->controller()->captureViewBitmap(this->label_, out);
 }
 
 void MacTextContext::clearMeasurement()

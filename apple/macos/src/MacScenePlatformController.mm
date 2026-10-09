@@ -1,4 +1,5 @@
 #include "MacScenePlatformController.hpp"
+#include "MacBitmapCapture.hpp"
 #include "MacInputDoor.hpp"
 #include "MacApp.hpp"
 #include "app/layout/CanvasLayout.hpp"
@@ -156,10 +157,12 @@ void *MacScenePlatformController::textFont(const loka::app::TextStyle &style, bo
   return this->textFonts_.find(style, fixedPitch);
 }
 
-MacScenePlatformController::MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics)
+MacScenePlatformController::MacScenePlatformController(void *rootView, const loka::app::RailMetrics &metrics,
+                                                         PlatformContext *platformContext)
     : projection_(rootView, metrics),
       textShaping_(loka::app::WHOLE_LINE),
       textFonts_(this->projection_.railMetrics().fontScale),
+      platformContext_(platformContext),
       rootView_(rootView),
       projectionParentScopes_(rootView),
       rootNode_(0),
@@ -178,6 +181,11 @@ MacScenePlatformController::MacScenePlatformController(void *rootView, const lok
   {
     gControllerByRootView[rootView_] = this;
   }
+}
+
+bool MacScenePlatformController::captureViewBitmap(void *view, loka::core::resource::Image &out) const
+{
+  return loka::macos::CaptureViewBitmap(this->platformContext_, view, out);
 }
 
 MacScenePlatformController::~MacScenePlatformController()

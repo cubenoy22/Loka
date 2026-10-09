@@ -1,3 +1,6 @@
+#ifdef __APPLE__
+#include "MacNativeResourceRetirementTests.hpp"
+#endif
 #include "NativeResourceRetirementTests.hpp"
 #include "RibbonTests.hpp"
 #include "SimpleTextTests.hpp"
