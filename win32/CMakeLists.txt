@@ -449,6 +449,7 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     loka_enable_warnings(${target})
     loka_enable_win32_visual_styles(${target})
     target_include_directories(${target} PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/probes
       ${CMAKE_CURRENT_SOURCE_DIR}/../common
       ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios
       ${CMAKE_CURRENT_SOURCE_DIR}/../${example_dir}
