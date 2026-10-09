@@ -83,6 +83,7 @@ MacButtonContext::MacButtonContext(MacScenePlatformController *controller,
   const loka::macos::MacRect frame =
       this->controller()->projection().projectFrame(loka::core::Frame(x, y, width, height));
   NSButton *button = [[NSButton alloc] initWithFrame:frame.r];
+  // Keep measurement configuration in measurePushButtonNaturalWidth in sync.
   [button setBezelStyle:LOKA_MAC_BUTTON_BEZEL_STYLE];
   [button setButtonType:LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN];
 
