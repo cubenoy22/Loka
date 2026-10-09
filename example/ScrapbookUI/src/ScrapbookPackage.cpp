@@ -213,7 +213,7 @@ namespace scrapbook
     }
     else
     {
-      const char *textBytes = asset.length == 0 ? "" : reinterpret_cast<const char *>(&blob.bytes()[asset.offsetInBag]);
+      const char *textBytes = asset.length == 0 ? "" : reinterpret_cast<const char *>(&blob.data()[asset.offsetInBag]);
       next.text = loka::core::String::Utf8(textBytes, asset.length);
     }
 

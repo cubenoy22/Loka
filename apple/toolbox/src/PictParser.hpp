@@ -2,7 +2,6 @@
 #define LOKA_APPLE_TOOLBOX_PICTPARSER_HPP
 
 #include <cstddef>
-#include <vector>
 
 namespace loka
 {
@@ -22,7 +21,8 @@ namespace loka
       };
 
       /** Selects a versioned raw stream or one after a 512-byte file header. */
-      bool ParsePict(const std::vector<unsigned char> &bytes,
+      bool ParsePict(const unsigned char *bytes,
+                     std::size_t extent,
                      std::size_t base,
                      std::size_t limit,
                      PictParseResult &out);

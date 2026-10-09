@@ -116,12 +116,14 @@ if(NOT LOKA_MAC_OS_10_4)
     ${LOKA_MACOS_TEST_COMMON_SOURCES}
     ${PROJECT_SOURCE_DIR}/tests/MacDisplayAppearanceTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacAppLocationTests.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacImageBlobTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacMenuProjectionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacNodeHandlerEnsureTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacInputDoorTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacTextEditorTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacScrollViewTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacFocusTests.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacPlatformContext.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacApp.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowAdmissionTests.mm
     ${PROJECT_SOURCE_DIR}/tests/MacWindowFrameClampTests.mm

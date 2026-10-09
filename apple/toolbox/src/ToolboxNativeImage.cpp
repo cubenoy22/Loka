@@ -71,7 +71,7 @@ namespace loka
                           int width,
                           int height)
     {
-      if (pictureOffset >= pictureEnd || pictureEnd > blob.bytes().size() || width <= 0 || height <= 0)
+      if (pictureOffset >= pictureEnd || pictureEnd > blob.size() || width <= 0 || height <= 0)
       {
         return loka::core::resource::Image::Empty();
       }
@@ -102,10 +102,10 @@ namespace loka
         // rebasing to zero here is not the cross-boundary double-count the
         // design guards against, because the payload stores blob and offsets
         // as one consistent pair.
-        const std::vector<unsigned char> &source = blob.bytes();
+        const unsigned char *source = blob.data();
         loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
-        snapshot.setBytes(std::vector<unsigned char>(source.begin() + pictureOffset,
-                                                     source.begin() + pictureEnd));
+        snapshot.setBytes(std::vector<unsigned char>(source + pictureOffset,
+                                                     source + pictureEnd));
         snapshot.setCompleted(true);
         payload->blob = snapshot;
         payload->pictureOffset = 0;

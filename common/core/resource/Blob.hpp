@@ -64,9 +64,10 @@ namespace loka
           return handle_;
         }
 
+        /** Stored byte length, including bytes filled before sealBytes(). */
         std::size_t size() const
         {
-          return handle_.isValid() ? handle_->sizeState.get() : 0;
+          return handle_.isValid() ? handle_->data.size() : 0;
         }
 
         bool isLoading() const
@@ -114,13 +115,11 @@ namespace loka
           return handle_.isValid() ? &handle_->progressState : 0;
         }
 
-        const std::vector<unsigned char> &bytes() const
+        /** Borrows stored bytes; null for an invalid or empty Blob.
+            Storage-changing writes or last-owner release end the borrow. */
+        const unsigned char *data() const
         {
-          if (handle_.isValid())
-          {
-            return handle_->data;
-          }
-          return EmptyBytes();
+          return handle_.isValid() && !handle_->data.empty() ? &handle_->data[0] : 0;
         }
 
         std::vector<unsigned char> &mutableBytes()
@@ -224,12 +223,6 @@ namespace loka
           LOKA_AUDIT_RECLASSIFY_ALIVE(empty->completedState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
           LOKA_AUDIT_RECLASSIFY_ALIVE(empty->progressState, BlobSharedEmptyState, LIFECYCLE_AUDIT_PROCESS_GLOBAL);
           return empty;
-        }
-
-        static const std::vector<unsigned char> &EmptyBytes()
-        {
-          static std::vector<unsigned char> emptyVector;
-          return emptyVector;
         }
 
         void ensureHandle()
