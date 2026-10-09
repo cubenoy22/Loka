@@ -99,17 +99,30 @@ namespace
     NSUInteger offset_;
   };
 
+  // The attributes every unstyled editor character carries: the default font
+  // and the system text color. Typing, full replacement and the per-line reset
+  // all start from this one dictionary; a font-only dictionary drops the color
+  // and draws black on the dark appearance's background (#1182).
+  NSDictionary *EditorBaseAttributes(NSFont *font)
+  {
+    NSColor *color = [NSColor textColor];
+    if (!font)
+      return [NSDictionary dictionaryWithObject:color forKey:NSForegroundColorAttributeName];
+    return [NSDictionary dictionaryWithObjectsAndKeys:font, NSFontAttributeName, color, NSForegroundColorAttributeName, nil];
+  }
+
   void InstallEditorFont(NSTextView *view, MacScenePlatformController &controller)
   {
     NSFont *font = (NSFont *)controller.textFont(TextStyle(), true);
     if (!font)
       return;
     [view setFont:font];
+    NSDictionary *attributes = EditorBaseAttributes(font);
     NSTextStorage *storage = [view textStorage];
     [storage beginEditing];
-    [storage addAttribute:NSFontAttributeName value:font range:NSMakeRange(0, [storage length])];
+    [storage addAttributes:attributes range:NSMakeRange(0, [storage length])];
     [storage endEditing];
-    [view setTypingAttributes:[NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName]];
+    [view setTypingAttributes:attributes];
   }
 
   void ReplaceEditorString(NSTextView *view, NSString *text, MacScenePlatformController &controller)
@@ -317,8 +330,7 @@ struct MacTextEditorContext::Projection
         row = new (std::nothrow) Styles(entry.id, entry.value, node.props.highlighter_);
       if (force || changed || !row)
       {
-        NSFont *font = (NSFont *)controller.textFont(TextStyle(), true);
-        NSDictionary *defaults = font ? [NSDictionary dictionaryWithObject:font forKey:NSFontAttributeName] : nil;
+        NSDictionary *defaults = EditorBaseAttributes((NSFont *)controller.textFont(TextStyle(), true));
         [storage setAttributes:defaults range:lines.ranges[i]];
         if (row && row->highlight.value().valid())
         {
