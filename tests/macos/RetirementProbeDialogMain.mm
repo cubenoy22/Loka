@@ -83,13 +83,17 @@ namespace
     }
     virtual void composeNode(NodeComposition &composition)
     {
+      // One root, as the examples declare: with the two Shows declared at the
+      // top level, the dialog node never attached (observed on Tahoe).
+      VStack root = VStack();
       for (int purpose = 0; purpose != 2; ++purpose)
       {
         OpenFileDialogProps props;
         props.options_ = FileDialogOptions(purpose ? FILE_DIALOG_SAVE : FILE_DIALOG_OPEN);
-        composition.declare(Show(*this->shown[purpose].state()).destroyOnDetach()
-            << OpenFileDialog(props).result(this->result));
+        root << (Show(*this->shown[purpose].state()).destroyOnDetach()
+                 << OpenFileDialog(props).result(this->result));
       }
+      composition.declare(root);
     }
     virtual void applyPendingUpdate(const PlatformApplyPlan &plan)
     {
@@ -155,7 +159,7 @@ public:
         DialogProps(), &this->root_, 340, 274, "Panel retirement probe", IdlePolicy::interval(0.05), &OnIdle, this);
     composition << loka::scenario_tests::MakeScenarioWindow<simpleviewer::MainProps, simpleviewer::MainNode>(
         simpleviewer::MainProps().platformContext(this->getPlatformContext()).openDialogEvent(&this->open_),
-        &this->viewer_, 480, 280, "Viewer replacement probe", IdlePolicy::interval(0.05), 0, 0);
+        &this->viewer_, 480, 280, "Viewer replacement probe", IdlePolicy::interval(0.05), &OnIdle, this);
   }
   void timerTick()
   {
@@ -251,7 +255,9 @@ private:
     return MacDialogResultTestAccess::returnFile(*static_cast<MacOpenFileDialogContext *>(dialog->getContext()),
         loka::file::File::FromPath(handle.displayPath));
   }
-  void idle(Window *window)
+  // App dispatches idle to the active window only; both windows carry this
+  // callback, so it runs once per turn whichever window is in front.
+  void idle(Window *)
   {
     if (!this->log_.valid()) { this->app_->quit(); return; }
     switch (this->stage_)
@@ -273,7 +279,7 @@ private:
       [[NSRunLoop mainRunLoop] addTimer:this->timer_ forMode:NSDefaultRunLoopMode];
       this->stage_ = SEEK; this->since_ = [NSDate timeIntervalSinceReferenceDate];
       this->root_->show(this->phase_ % 2 != 0, this->phase_ >= 2);
-      window->flushSceneInvalidation();
+      this->root_->scene()->getWindow()->flushSceneInvalidation();
       return;
     }
     case SEEK: case DWELL: case DROPPED: return;
@@ -281,7 +287,8 @@ private:
     case ABORT_DISMISS:
       if ([NSApp modalWindow]) return;
       this->log_.note(this->stage_ == DISMISS ? "dismiss=cancel:" : "dismiss=abortModal");
-      this->disarm(); this->root_->hide(this->phase_ % 2 != 0); window->flushSceneInvalidation();
+      this->disarm(); this->root_->hide(this->phase_ % 2 != 0);
+      this->root_->scene()->getWindow()->flushSceneInvalidation();
       this->stage_ = SETTLE; this->ticks_ = 0;
       return;
     case SETTLE:
