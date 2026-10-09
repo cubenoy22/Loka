@@ -454,6 +454,14 @@ namespace loka
         }
 
       public:
+        /** True after a mount whose root creation or attach compose was refused for
+            lack of memory: nothing is composed and the window shows no content until
+            an external refresh retries (#132 ruling 3). */
+        bool composeRefusedForMemory() const
+        {
+          return this->mounted_ && !this->composed_ && this->whiteFlagFullRebuildPending_;
+        }
+
         bool mount(IPlatformController *platformController)
         {
           assert(platformController && "Scene::mount requires a platform controller");

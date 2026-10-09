@@ -11,6 +11,7 @@ add_library(LokaAppleToolbox INTERFACE)
 set(LOKA_TOOLBOX_SOURCES
   src/ToolboxBootstrap.cpp
   src/ToolboxOperatorNew.cpp
+  src/ToolboxOutOfMemory.cpp
   src/ToolboxString.cpp
   src/ToolboxApp.cpp
   src/ToolboxMenuAttachment.cpp

@@ -2410,6 +2410,7 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     // Refuse the root allocation before the scene is mounted.
     g_refuseRootCreate = true;
     loka::app::scene::Scene scene((RefusableRootDefinition()));
+    assert(!scene.composeRefusedForMemory());
     scene.mount(&platform);
     loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
 
@@ -2419,6 +2420,7 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     assert(platform.changeCount() == 0);
+    assert(scene.composeRefusedForMemory());
 
     // The failure path did not self-schedule a tick: a driverless flush does
     // nothing and the scene stays uncomposed, waiting for an external drive.
@@ -2426,6 +2428,7 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     LOKA_VERIFY(!scene.flushInvalidation());
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(platform.changeCount() == 0);
+    assert(scene.composeRefusedForMemory());
 
     // Heal the backend and drive ONE externally caused refresh. The armed
     // white flag rides it: root creation retries, the root builds and
@@ -2440,6 +2443,9 @@ void testSceneRootAllocationRefusalArmsWhiteFlagAndHealsOnRefresh()
     assert(loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(!loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     assert(platform.changeCount() > 0);
+    assert(!scene.composeRefusedForMemory());
+    scene.noteComposeAllocationFailure();
+    assert(!scene.composeRefusedForMemory());
     assert(platform.changeAt(platform.changeCount() - 1).fullRebuild);
     // The scene is fully healthy: a further external drive runs a normal
     // update cycle through the now-existing root without re-arming the flag.
@@ -2491,6 +2497,33 @@ void testNestedConditionalSeatInContextlessMaterialization_Probe()
     cleanly. */
 void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
 {
+  // #1107: refuse the initial attach itself, with root creation succeeding.
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    g_refuseRootCreate = false;
+    g_attachRefuseState = true;
+    g_attachStateRefusals = 0;
+    loka::app::scene::Scene scene((AttachRefusalRootDefinition()));
+    assert(!scene.composeRefusedForMemory());
+    loka::core::LokaAllocSetBackend(&attachStateRefusingBackendAlloc, &delegatingBackendFree);
+    scene.mount(&platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    loka::core::LokaAllocSetBackend(0, 0);
+    g_attachRefuseState = false;
+    assert(g_attachStateRefusals > 0);
+    assert(scene.composeRefusedForMemory());
+    assert(platform.changeCount() == 0);
+  }
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene((AttachRefusalRootDefinition()));
+    assert(!scene.composeRefusedForMemory());
+    scene.mount(&platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    assert(loka::dsl::testing::SceneTestAccess::composed(scene));
+    assert(!scene.composeRefusedForMemory());
+  }
+
 #ifdef LOKA_LIFECYCLE_AUDIT
   const int totalLiveBefore = loka::core::LokaAllocAuditTotalLiveCount();
 #endif
@@ -2507,6 +2540,7 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     assert(platform.changeCount() == 0);
+    assert(scene.composeRefusedForMemory());
 
     // Retry: root create() now succeeds, but the attach compose refuses the
     // node-local state allocation. The retry gets past create() yet the compose
@@ -2528,11 +2562,13 @@ void testRootAttachAllocationRefusalKeepsWhiteFlagArmedForRetry()
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(loka::dsl::testing::SceneTestAccess::whiteFlagFullRebuildPending(scene));
     assert(platform.changeCount() == 0);
+    assert(scene.composeRefusedForMemory());
     // No self-scheduled tick: a driverless flush does nothing.
     assert(!scene.hasPendingInvalidation());
     LOKA_VERIFY(!scene.flushInvalidation());
     assert(!loka::dsl::testing::SceneTestAccess::composed(scene));
     assert(platform.changeCount() == 0);
+    assert(scene.composeRefusedForMemory());
 
     // Heal the backend and drive one more external refresh: the retry now gets
     // past the attach without raising the flag, the root composes, the flag is

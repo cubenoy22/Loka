@@ -12,9 +12,8 @@
 // blocks carry a recovery byte, never individual pool slots.
 // All six delete forms funnel through scalar delete and the pool release door.
 // Contract:
-// - Plain new/new[] never return 0: allocation failure aborts via the
-//   repository's fatal-abort convention (std::abort, as in LokaAlloc).
-//   This replaces the previous throw-crash OOM path with a direct abort.
+// - Plain new/new[] never return 0: allocation failure reports through the
+//   process-owned OOM reserve and exits to the Finder.
 // - Nothrow new/new[] return 0 on failure, preserving the allocation
 //   gate's "backend already gave up" contract (#132): the default
 //   LokaAlloc backend and the Window/Scene creation paths probe with
@@ -26,6 +25,7 @@
 #include "core/SmallObjectPool.hpp"
 #include "ToolboxSmallObjectPool.hpp"
 #include "ToolboxMemorySource.hpp"
+#include "ToolboxOutOfMemory.hpp"
 #include <cstdlib>
 #include <new>
 #include <string>
@@ -49,7 +49,7 @@ void *operator new(std::size_t size)
   void *storage = gPool.allocate(size);
   if (!storage)
   {
-    std::abort();
+    loka::toolbox::QuitForOutOfMemory();
   }
   return storage;
 }
@@ -115,12 +115,12 @@ namespace std
 {
   void __throw_bad_alloc()
   {
-    abort();
+    loka::toolbox::QuitForOutOfMemory();
   }
 
   void __throw_bad_array_new_length()
   {
-    abort();
+    loka::toolbox::QuitForOutOfMemory();
   }
 
   void __throw_logic_error(const char *)
