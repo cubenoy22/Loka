@@ -173,6 +173,10 @@ namespace simpletext
       using namespace loka::app;
       using namespace loka::core;
       c.menuBar(MenuBarDefinition()
+                << (AppMenu()
+                    << MenuItem("About").actionType(MENU_ACTION_ABOUT_APP)
+                    << MenuSeparator()
+                    << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP))
                 << (Menu("File")
                     << MenuItem("New").onClick(this->commands_.slot<simpletext::NEW_DOCUMENT>())
                     << MenuItem("Open...").shortcut('o').onClick(this->commands_.slot<simpletext::OPEN_DOCUMENT>())
