@@ -63,13 +63,14 @@ bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &b
                                              std::size_t length,
                                              loka::core::resource::Image &out)
 {
+  const loka::core::resource::Blob source = blob;
   out = loka::core::resource::Image::Empty();
-  if (!blob.isValid())
+  const unsigned char *bytes = source.data();
+  if (!source.isValid())
   {
     return false;
   }
-  const std::vector<unsigned char> &bytes = blob.bytes();
-  if (!loka::core::resource::BlobRangeIsUsable(bytes.size(), offset, length))
+  if (!loka::core::resource::BlobRangeIsUsable(source.size(), offset, length))
   {
     return false;
   }

@@ -106,10 +106,10 @@ namespace scrapbook
     }
 
     Blob blob = Blob::Create();
-    std::vector<unsigned char> &bytes = blob.mutableBytes();
-    bytes.resize(bagSize);
-    unsigned char *destination = bytes.empty() ? 0 : &bytes[0];
-    if (this->reader_.readBagInto(resource.bag, destination, bytes.size()) != Reader::BAG_OK)
+    if (!blob.isValid() || !blob.tryResize(bagSize))
+      return false;
+    unsigned char *destination = blob.mutableData();
+    if (this->reader_.readBagInto(resource.bag, destination, blob.size()) != Reader::BAG_OK)
     {
       return false;
     }
@@ -156,10 +156,10 @@ namespace scrapbook
       }
 
       blob = Blob::Create();
-      std::vector<unsigned char> &bytes = blob.mutableBytes();
-      bytes.resize(bagSize);
-      unsigned char *destination = bytes.empty() ? 0 : &bytes[0];
-      if (this->reader_.readBagInto(bag, destination, bytes.size()) != Reader::BAG_OK)
+      if (!blob.isValid() || !blob.tryResize(bagSize))
+        return false;
+      unsigned char *destination = blob.mutableData();
+      if (this->reader_.readBagInto(bag, destination, blob.size()) != Reader::BAG_OK)
       {
         return false;
       }
@@ -213,7 +213,7 @@ namespace scrapbook
     }
     else
     {
-      const char *textBytes = asset.length == 0 ? "" : reinterpret_cast<const char *>(&blob.bytes()[asset.offsetInBag]);
+      const char *textBytes = asset.length == 0 ? "" : reinterpret_cast<const char *>(&blob.data()[asset.offsetInBag]);
       next.text = loka::core::String::Utf8(textBytes, asset.length);
     }
 
@@ -274,22 +274,22 @@ namespace scrapbook
 
   void ScrapbookPackage::releaseUiBag()
   {
-    this->refusedBadgeImage_ = Image::Empty();
-    this->uiBlob_ = Blob();
     if (this->reader_.isBagOpen(R::UI::RefusedBadge.bag))
     {
       this->reader_.closeBag(R::UI::RefusedBadge.bag);
     }
+    this->refusedBadgeImage_ = Image::Empty();
+    this->uiBlob_ = Blob();
   }
 
   void ScrapbookPackage::close()
   {
     this->releaseUiBag();
-    this->currentBlob_ = Blob();
     if (this->currentBag_ >= 0 && this->reader_.isBagOpen(static_cast<std::size_t>(this->currentBag_)))
     {
       this->reader_.closeBag(static_cast<std::size_t>(this->currentBag_));
     }
+    this->currentBlob_ = Blob();
     this->reader_.close();
     this->currentBag_ = -1;
     this->indexBytes_.clear();

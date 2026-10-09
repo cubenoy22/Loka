@@ -16,6 +16,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
+#include <cstring>
 #include "support/MacRetirementProbe.hpp"
 #include <AppKit/AppKit.h>
 #include <objc/runtime.h>
@@ -111,13 +112,13 @@ namespace
       0,0,0,0,0,0,0,0,0x20,0x40,0x80,0
     };
     Blob blob = Blob::Create();
-    blob.mutableBytes().assign(bytes, bytes + sizeof(bytes));
+    LOKA_VERIFY(blob.tryAssign(bytes, sizeof(bytes)));
     return blob;
   }
 
   bool decode(MacPlatformContext &context, const Blob &blob, Image &image)
   {
-    return context.createImageFromBlob(blob, 0, blob.bytes().size(), image);
+    return context.createImageFromBlob(blob, 0, blob.size(), image);
   }
 
   class CaptureRoot : public loka::app::scene::BoundaryNodeFor<CaptureRoot>
@@ -180,7 +181,8 @@ void testMacNativeRetirementDecodeRefusal()
     Blob invalid;
     LOKA_VERIFY(!decode(fixture.context, invalid, image));
     Blob malformed = Blob::Create();
-    malformed.mutableBytes().assign(8, 0);
+    LOKA_VERIFY(malformed.tryResize(8));
+    std::memset(malformed.mutableData(), 0, 8);
     LOKA_VERIFY(!decode(fixture.context, malformed, image));
     empty(fixture.context);
     const Blob blob = bitmapBlob();

@@ -316,11 +316,17 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   )
   target_compile_definitions(LokaScenarioTests PRIVATE TEST_BUILD)
   target_link_libraries(LokaScenarioTests PRIVATE LokaCommonTesting)
+  # GNU LP64 member ABI: intercept bag entry without adding a production test door.
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    target_compile_definitions(LokaContractTests PRIVATE LOKA_BAG_READ_FAULT_PINS)
+    target_link_options(LokaContractTests PRIVATE
+      -Wl,--wrap=_ZN4loka4core8resource4lrpk6Reader11readBagIntoEmPhm)
+  endif()
   # Characterize the real adapter/seam with deterministic stdio failures.
   # Wrapping is confined to this Linux test executable, never a core library.
   target_compile_definitions(LokaScenarioTests PRIVATE LOKA_FILE_READ_FAULT_PINS)
   target_link_options(LokaScenarioTests PRIVATE
-    -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fread -Wl,--wrap=ferror)
+    -Wl,--wrap=fseek -Wl,--wrap=ftell -Wl,--wrap=fread -Wl,--wrap=ferror -Wl,--wrap=fclose)
 
 
   function(loka_add_vehicle_presentation_test target_name source_file example_include_dir test_name)
@@ -430,6 +436,7 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   # Exercise the Classic source itself against a host Memory Manager substitute.
   add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp)
+  target_link_libraries(LokaToolboxMemorySourceTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxMemorySourceTests)
   target_include_directories(LokaToolboxMemorySourceTests PRIVATE
     tests/support/classic-memory tests apple/toolbox/src common)
@@ -581,8 +588,13 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   add_executable(LokaToolboxNativeImageTests
     tests/toolbox/host/ToolboxNativeImageHostTests.cpp
     tests/TestingHooks.cpp
-    apple/toolbox/src/ToolboxNativeImage.cpp)
-  target_include_directories(LokaToolboxNativeImageTests PRIVATE tests/toolbox/host tests apple/toolbox/src)
+    apple/toolbox/src/ToolboxNativeImage.cpp
+    apple/toolbox/src/PictParser.cpp
+    apple/toolbox/src/ToolboxPlatformContext.cpp
+    apple/toolbox/src/ToolboxBusy.cpp)
+  target_include_directories(LokaToolboxNativeImageTests PRIVATE tests/toolbox/host/image tests/toolbox/host tests apple/toolbox/src)
+  target_compile_options(LokaToolboxNativeImageTests PRIVATE
+    -include ${PROJECT_SOURCE_DIR}/tests/toolbox/host/ToolboxImagePlatformHost.hpp)
   target_link_libraries(LokaToolboxNativeImageTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxNativeImageTests)
   set_target_properties(LokaToolboxNativeImageTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
@@ -591,7 +603,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       testBorrowedPictureKeptOnImageRecordRefusal
       testBorrowedPictureKeptOnControlBlockRefusal
       testBorrowedPictureKeptAfterLastImageCopy
-      testPictBytesRefusalsReleaseEverything)
+      testPictBytesRefusalsReleaseEverything
+      testImageDecodeRetainsOutputOwnedBlob
+      testPictSnapshotKeepsOnlyFilledRange
+      testImageDecodeRejectsEmptyAndOutsideRanges)
     add_test(NAME ${_native_image_case} COMMAND LokaToolboxNativeImageTests ${_native_image_case})
   endforeach()
   add_test(NAME testToolboxAppShutdownReleasesMenuBeforeAttachmentDestruction

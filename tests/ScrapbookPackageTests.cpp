@@ -1,3 +1,4 @@
+#include "support/BlobAllocationProbe.hpp"
 #include "support/FileRefusalPin.hpp"
 #include "ScrapbookPackageTests.hpp"
 
@@ -297,8 +298,24 @@ namespace
   }
 } // namespace
 
+#if defined(LOKA_BAG_READ_FAULT_PINS)
+namespace { unsigned bagReadCalls = 0; }
+// Link-only GNU LP64 member wrapper; this is the ordinary hidden this argument.
+extern "C" loka::core::resource::lrpk::Reader::BagResult
+__real__ZN4loka4core8resource4lrpk6Reader11readBagIntoEmPhm(
+    loka::core::resource::lrpk::Reader *, std::size_t, unsigned char *, std::size_t);
+extern "C" loka::core::resource::lrpk::Reader::BagResult
+__wrap__ZN4loka4core8resource4lrpk6Reader11readBagIntoEmPhm(
+    loka::core::resource::lrpk::Reader *reader, std::size_t bag, unsigned char *data, std::size_t size)
+{
+  ++bagReadCalls;
+  return __real__ZN4loka4core8resource4lrpk6Reader11readBagIntoEmPhm(reader, bag, data, size);
+}
+#endif
+
 void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
 {
+  BlobAllocationProbe allocation;
   // This fake's base predicate must stay exact-Application as File gains phases.
   PackagePathContext refusalContext(loka::core::String::Literal("unused"));
   loka::platform::file::FileHandle refusedOutput;
@@ -325,12 +342,44 @@ void testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages()
   scrapbook::PagePresentation textPage;
   LOKA_VERIFY(package.preparePage(4, textPage));
   assert(!textPage.isImage);
-  assert(textPage.badge.equals(loka::core::String::Literal("TEXT")));
-  assert(textPage.text.equals(loka::core::String::Literal("The Scrapbook keeps each page in its own LRPK bag.\n")));
+  LOKA_VERIFY(textPage.badge.equals(loka::core::String::Literal("TEXT")));
+  LOKA_VERIFY(textPage.text.equals(loka::core::String::Literal("The Scrapbook keeps each page in its own LRPK bag.\n")));
   package.commitPage(textPage);
   assert(package.hasCurrentPage());
-  assert(package.currentPage() == 4);
+  LOKA_VERIFY(package.currentPage() == 4);
+  const char *sites[][2] = {{"Blob", "Record"}, {"Managed", "ControlBlock"}, {"Blob", "Bytes"}};
+  for (unsigned i = 0; i < 3; ++i)
+  {
+#if defined(LOKA_BAG_READ_FAULT_PINS)
+    const unsigned calls = bagReadCalls;
+#endif
+    allocation.refuse(sites[i][0], sites[i][1]);
+    scrapbook::PagePresentation refused;
+    LOKA_VERIFY(!package.preparePage(0, refused));
+#if defined(LOKA_BAG_READ_FAULT_PINS)
+    LOKA_VERIFY(bagReadCalls == calls);
+#endif
+    LOKA_VERIFY(package.currentPage() == 4 && package.hasCurrentPage());
+    scrapbook::PagePresentation retained;
+    LOKA_VERIFY(package.preparePage(4, retained));
+    LOKA_VERIFY(retained.bagBlob == textPage.bagBlob && retained.text.equals(textPage.text));
+  }
   package.close();
+  for (unsigned i = 0; i < 2; ++i)
+  {
+#if defined(LOKA_BAG_READ_FAULT_PINS)
+    const unsigned calls = bagReadCalls;
+#endif
+    allocation.refuse("Blob", i ? "Bytes" : "Record");
+    LOKA_VERIFY(package.open(&context));
+    LOKA_VERIFY(package.isOpen() && !package.refusedBadgeImage().isValid());
+#if defined(LOKA_BAG_READ_FAULT_PINS)
+    LOKA_VERIFY(bagReadCalls == calls);
+#else
+    std::puts("[skip] bag entry counts require GNU LP64 linker wrapping");
+#endif
+    package.close();
+  }
 
   std::printf("testScrapbookPackagesMatchTheirManifestsAndCarryNativeImages passed\n");
 }

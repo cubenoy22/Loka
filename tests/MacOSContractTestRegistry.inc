@@ -80,3 +80,5 @@ LOKA_TEST(testMacNativeRetirementCapture)
 LOKA_TEST(testMacNativeRetirementCaptureRefusal)
 LOKA_TEST(testMacNativeRetirementActiveOperation)
 LOKA_TEST(testMacNativeRetirementFinalDrain)
+
+LOKA_TEST(testMacImageDecodeRetainsOutputOwnedBlob)

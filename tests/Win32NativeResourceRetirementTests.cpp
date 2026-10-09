@@ -15,6 +15,7 @@
 #include "testing/scene/SceneTestFlow.hpp"
 #include "support/LokaAllocFailure.hpp"
 #include "support/TestVerify.hpp"
+#include <cstring>
 
 namespace
 {
@@ -92,13 +93,13 @@ namespace
       0,0,0,0,0,0,0,0,0x20,0x40,0x80,0
     };
     Blob blob = Blob::Create();
-    blob.mutableBytes().assign(bytes, bytes + sizeof(bytes));
+    LOKA_VERIFY(blob.tryAssign(bytes, sizeof(bytes)));
     return blob;
   }
 
   bool decode(Win32PlatformContext &context, const Blob &blob, Image &image)
   {
-    return context.createImageFromBlob(blob, 0, blob.bytes().size(), image);
+    return context.createImageFromBlob(blob, 0, blob.size(), image);
   }
 
   DWORD gdiCount()
@@ -178,9 +179,10 @@ void testWin32NativeRetirementDecodeRefusal()
   const Blob valid = bitmapBlob();
   warmDecode(fixture, valid);
   Blob malformed = Blob::Create();
-  malformed.mutableBytes().assign(16, 0xff);
+  LOKA_VERIFY(malformed.tryResize(16));
+  std::memset(malformed.mutableData(), 0xff, 16);
   Blob zeroDimension = bitmapBlob();
-  zeroDimension.mutableBytes()[18] = 0; // BMP width = zero, rejected by WIC.
+  zeroDimension.mutableData()[18] = 0; // BMP width = zero, rejected by WIC.
   const DWORD baseline = gdiCount();
   Image image;
   LOKA_VERIFY(!decode(fixture.context, Blob(), image));

@@ -64,7 +64,7 @@ namespace loka
                           int width,
                           int height)
     {
-      if (pictureOffset >= pictureEnd || pictureEnd > blob.bytes().size() || width <= 0 || height <= 0)
+      if (pictureOffset >= pictureEnd || pictureEnd > blob.size() || width <= 0 || height <= 0)
       {
         return loka::core::resource::Image::Empty();
       }
@@ -77,10 +77,10 @@ namespace loka
       // Share the source buffer only when the Blob is a stable snapshot
       // (completed and immutable); the streamed bytes must stay consistent
       // with the width/height parsed here. For a mutable or still-loading
-      // Blob, take an owned copy so later setBytes()/mutableBytes() can't
+      // Blob, take an owned copy so later storage writes can't
       // desync the rendered picture from its reported size — matching the
       // snapshot behavior of the macOS/Win32 decoders.
-      if (blob.isCompleted() && !blob.isMutable())
+      if (blob.isCompleted())
       {
         payload->blob = blob;
         payload->pictureOffset = pictureOffset;
@@ -95,11 +95,14 @@ namespace loka
         // rebasing to zero here is not the cross-boundary double-count the
         // design guards against, because the payload stores blob and offsets
         // as one consistent pair.
-        const std::vector<unsigned char> &source = blob.bytes();
+        const unsigned char *source = blob.data();
         loka::core::resource::Blob snapshot = loka::core::resource::Blob::Create();
-        snapshot.setBytes(std::vector<unsigned char>(source.begin() + pictureOffset,
-                                                     source.begin() + pictureEnd));
-        snapshot.setCompleted(true);
+        if (!snapshot.isValid() || !snapshot.tryAssign(source + pictureOffset, pictureEnd - pictureOffset))
+        {
+          loka::core::LokaDelete(payload, PictBytesSite());
+          return loka::core::resource::Image::Empty();
+        }
+        snapshot.sealBytes();
         payload->blob = snapshot;
         payload->pictureOffset = 0;
         payload->pictureEnd = pictureEnd - pictureOffset;
