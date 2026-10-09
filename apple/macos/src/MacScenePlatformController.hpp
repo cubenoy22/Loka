@@ -4,6 +4,7 @@
 #include <vector>
 #include "core/resource/Image.hpp"
 #include "app/layout/TextShaping.hpp"
+#include "app/layout/NaturalWidthSource.hpp"
 #include "platform/MacProjection.hpp"
 #include "app/RectSurface.hpp"
 #include "app/style/StyleVocab.hpp"
@@ -57,9 +58,13 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class MacScenePlatformController : public loka::app::scene::IPlatformController
+class MacScenePlatformController : public loka::app::scene::IPlatformController,
+    public loka::app::layout::INaturalWidthSource
 {
 public:
+  virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const;
+  /** Push-button cell measurement in Row allocation units; zero declines. */
+  short measurePushButtonNaturalWidth(const loka::core::String &label) const;
   /** Retire door for a RectSurface context: takes back that surface's pending
       seat rows so a surface reclaimed during delivery publishes nothing. */
   void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)

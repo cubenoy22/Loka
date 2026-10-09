@@ -5,6 +5,9 @@
 #include "app/layout/CanvasLayout.hpp"
 #include "MacBuiltInSupport.hpp"
 #include "MacObjCCompat.hpp"
+#include "Utf8String.hpp"
+#include "platform/StringUTF8.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/style/Style.hpp"
 #include "app/scene/boundary/Boundary.hpp"
 #include <cassert>
@@ -56,6 +59,11 @@ namespace loka
         {
         }
 
+        virtual bool queryNaturalWidth(Node *child, short &width) const
+        {
+          return this->controller_ && this->controller_->queryNaturalWidth(child, width);
+        }
+
         virtual int layoutChild(Node *child, const LayoutState &state)
         {
           if (!this->controller_)
@@ -89,6 +97,41 @@ namespace loka
   } // namespace app
 } // namespace loka
 
+
+short MacScenePlatformController::measurePushButtonNaturalWidth(const loka::core::String &label) const
+{
+  std::string utf8;
+  if (!loka::platform::CollectUtf8(label, utf8))
+    return 0;
+  NSButtonCell *cell = [[NSButtonCell alloc] initTextCell:loka::macos::CreateNSStringFromUtf8(utf8)];
+  if (!cell)
+    return 0;
+  // Match MacButtonContext's bezel, type and native default cell font.
+  [cell setBezelStyle:LOKA_MAC_BUTTON_BEZEL_STYLE];
+  [cell setButtonType:LOKA_MAC_BUTTON_TYPE_MOMENTARY_PUSH_IN];
+  const CGFloat points = [cell cellSize].width;
+  [cell release];
+  // Bound before the floating-to-integer conversion; NaN also declines.
+  const loka::app::Ratio &scale = this->projection_.railMetrics().spaceScale;
+  if (!(points > 0 && points <= static_cast<double>(SHRT_MAX) * scale.num / scale.den))
+    return 0;
+  return static_cast<short>(this->projection_.measurementToLu(points));
+}
+
+bool MacScenePlatformController::queryNaturalWidth(loka::app::scene::Node *child, short &width) const
+{
+  loka::app::ButtonNode *button = child ? child->asButtonNode() : 0;
+  if (!button)
+    return false;
+  // With no text prop MacButtonContext leaves NSButton's default title alone.
+  const loka::core::String label = button->props.text_
+      ? button->props.text_->get() : loka::core::String::Literal("Button");
+  const short measured = this->measurePushButtonNaturalWidth(label);
+  if (measured <= 0)
+    return false;
+  width = measured;
+  return true;
+}
 
 /** Measured 2026-09-19 (#818): Chicago 12 and the 13 pt system font share
     a 16-unit line height; fontScale follows their nominal sizes. A standard
@@ -743,7 +786,7 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
       const loka::app::layout::RowLayoutMetrics metrics =
           loka::app::layout::FallbackControlMetrics::rowLayout();
       resultY = loka::app::layout::computeRowLayoutResultY(
-          stack, state, metrics, 0, // Natural widths arrive in the next rail PR.
+          stack, state, metrics, this,
           this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);

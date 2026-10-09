@@ -13,4 +13,9 @@ void testMacAttributedTextMeasurementReuse();
 void testMacTextMeasurementRefusalRecovery();
 void testMacTextMeasurementInputPublications();
 
+void testMacButtonNaturalWidthMatchesCell();
+void testMacRibbonNaturalWidthFrames();
+void testMacDirectRowNaturalWidthFrames();
+void testMacOrdinaryRowStillSharesWidth();
+
 #endif // LOKA_TESTS_MAC_NODE_HANDLER_ENSURE_TESTS_HPP
