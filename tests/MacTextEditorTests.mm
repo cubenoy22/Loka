@@ -123,6 +123,13 @@ namespace
     LOKA_VERIFY([actual pointSize] == [expected pointSize]);
   }
 
+  // Unstyled editor text keeps the system text color so it follows the
+  // appearance; a missing attribute draws black (#1182).
+  void verifyTextColor(NSColor *actual)
+  {
+    LOKA_VERIFY(actual != nil && [actual isEqual:[NSColor textColor]]);
+  }
+
   struct NativeHost
   {
     NSAutoreleasePool *pool;
@@ -187,7 +194,7 @@ namespace
       this->scroll = (NSScrollView *)[[[this->host.window contentView] subviews] objectAtIndex:0];
       this->view = (NSTextView *)[this->scroll documentView];
       LOKA_VERIFY(![this->view isRichText]);
-      this->verifyPlainFont();
+      this->verifyPlainAttributes();
       LOKA_VERIFY(this->context->layout(&this->controller, state) == 105);
       LOKA_VERIFY(state.height == 96);
       LOKA_VERIFY(
@@ -199,14 +206,18 @@ namespace
       LifecycleFactTestAccess::MarkSubtreeRetired(&this->node);
       LifecycleFactTestAccess::DeliverFacts(&this->node);
     }
-    void verifyPlainFont()
+    void verifyPlainAttributes()
     {
       NSFont *font = (NSFont *)this->controller.textFont(TextStyle(), true);
       verifyFont([this->view font], font);
       verifyFont([[this->view typingAttributes] objectForKey:NSFontAttributeName], font);
+      verifyTextColor([[this->view typingAttributes] objectForKey:NSForegroundColorAttributeName]);
       NSTextStorage *storage = [this->view textStorage];
       for (NSUInteger i = 0; i < [storage length]; ++i)
+      {
         verifyFont([storage attribute:NSFontAttributeName atIndex:i effectiveRange:0], font);
+        verifyTextColor([storage attribute:NSForegroundColorAttributeName atIndex:i effectiveRange:0]);
+      }
     }
     void notify()
     {
@@ -253,7 +264,7 @@ namespace
       LOKA_VERIFY([[this->view string] isEqualToString:expected]);
       LOKA_VERIFY([[this->view string] length] == bytes.size());
       LOKA_VERIFY([this->view isEditable]);
-      this->verifyPlainFont();
+      this->verifyPlainAttributes();
     }
   };
   struct Snapshot
@@ -1647,11 +1658,13 @@ void testMacTextEditorHighlightAndLifecycle()
   LOKA_VERIFY(highlighter.calls == 4);
   NSFont *styled = [[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0];
   verifyFont(styled, (NSFont *)f.controller.textFont(Bold + Italic + FontSize<18>(), true));
+  verifyTextColor([[f.view textStorage] attribute:NSForegroundColorAttributeName atIndex:0 effectiveRange:0]);
   highlighter.fail = true;
   f.edit(@"abxycd\nabcd\nabcd", 4);
   LOKA_VERIFY(highlighter.calls == 5 && bytes(f.lines.at(0).value) == "abxycd");
   verifyFont([[f.view textStorage] attribute:NSFontAttributeName atIndex:0 effectiveRange:0],
              (NSFont *)f.controller.textFont(TextStyle(), true));
+  verifyTextColor([[f.view textStorage] attribute:NSForegroundColorAttributeName atIndex:0 effectiveRange:0]);
   highlighter.fail = false;
   loka::core::testing::failLokaAllocRaw("AttributedString", "Segments", 1);
   f.edit(@"abxyQcd\nabcd\nabcd", 5);
