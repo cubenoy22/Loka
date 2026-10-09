@@ -13,9 +13,9 @@ namespace loka
       class Win32ScenePlatformTestAccess
       {
       public:
-        static bool captureWindowClientBitmap(HWND hwnd, ::loka::core::resource::Image &out)
+        static bool captureWindowClientBitmap(PlatformContext &context, HWND hwnd, ::loka::core::resource::Image &out)
         {
-          return ::loka::win32::CaptureWindowClientBitmap(hwnd, out);
+          return ::loka::win32::CaptureWindowClientBitmap(&context, hwnd, out);
         }
 
         struct PendingInvalidationSnapshot

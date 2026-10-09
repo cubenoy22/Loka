@@ -1,8 +1,9 @@
 #include "Win32BitmapCapture.hpp"
+#include "app/internal/NativeResourceReservation.hpp"
 
 namespace
 {
-  void ReleaseCapturedBitmap(void *handle, void *)
+  void ReleaseCapturedBitmap(void *handle)
   {
     if (handle)
     {
@@ -16,10 +17,10 @@ namespace loka
 {
   namespace win32
   {
-    bool CaptureWindowClientBitmap(HWND hwnd, loka::core::resource::Image &out)
+    bool CaptureWindowClientBitmap(PlatformContext *context, HWND hwnd, loka::core::resource::Image &out)
     {
       out = loka::core::resource::Image::Empty();
-      if (!hwnd)
+      if (!context || !hwnd)
       {
         return false;
       }
@@ -43,6 +44,10 @@ namespace loka
       {
         return false;
       }
+
+      loka::app::internal::Reservation reservation(*context, &ReleaseCapturedBitmap);
+      if (!reservation.isValid())
+        return false;
 
       HDC windowDC = GetWindowDC(hwnd);
       if (!windowDC)
@@ -85,8 +90,7 @@ namespace loka
         return false;
       }
 
-      out = loka::core::resource::Image::FromNative(bitmap, width, height, &ReleaseCapturedBitmap, 0);
-      return out.isValid();
+      return reservation.publishImage(bitmap, width, height, out);
     }
   } // namespace win32
 } // namespace loka

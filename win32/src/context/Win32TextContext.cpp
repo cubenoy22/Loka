@@ -2,7 +2,6 @@
 #include "Win32AttributedTextTable.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
-#include "../Win32BitmapCapture.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/Text.hpp"
@@ -349,7 +348,7 @@ void Win32TextContext::applyDetachedPresentation()
 
 bool Win32TextContext::captureBitmap(loka::core::resource::Image &out) const
 {
-  return loka::win32::CaptureWindowClientBitmap(this->hwnd_, out);
+  return this->controller()->captureWindowClientBitmap(this->hwnd_, out);
 }
 
 void Win32TextContext::clearMeasurement()

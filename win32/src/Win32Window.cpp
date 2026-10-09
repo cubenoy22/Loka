@@ -681,7 +681,7 @@ bool Win32Window::mountReplacementScene(loka::app::scene::Scene *next)
     return true;
   if (!this->scenePlatformController_)
     this->scenePlatformController_ = new Win32ScenePlatformController(
-        this->hwnd_, WindowProjection(this->hwnd_));
+        this->hwnd_, WindowProjection(this->hwnd_), this->context());
   if (!this->scenePlatformController_)
     return false;
   return next->mount(this->scenePlatformController_);

@@ -1,7 +1,6 @@
 #include "Win32ButtonContext.hpp"
 #include <cassert>
 #include "../Win32ScenePlatformController.hpp"
-#include "../Win32BitmapCapture.hpp"
 #include "app/layout/FallbackControlMetrics.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include "app/nodes/controls/Button.hpp"
@@ -143,7 +142,7 @@ void Win32ButtonContext::applyDetachedPresentation()
 
 bool Win32ButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
-  return loka::win32::CaptureWindowClientBitmap(this->hwnd_, out);
+  return this->controller()->captureWindowClientBitmap(this->hwnd_, out);
 }
 
 short Win32ButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)

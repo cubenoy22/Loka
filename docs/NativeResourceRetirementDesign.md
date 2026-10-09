@@ -6,9 +6,9 @@
 > **Owns:** Shared native-resource obligations, consuming publication, safe
 > completion, and quiescent shutdown. Exact signatures remain in headers.
 >
-> **Delivery:** PR 1 provides common machinery and host pins. PR 2 wires Win32,
-> PR 3 wires macOS, and PR 4 removes the unused Toolbox owned-PICT path. Until
-> their rail PRs land, existing native producers retain their inline releasers.
+> **Delivery:** PR 1 provides common machinery and host pins. PR 2 wires Win32
+> decode and capture. PR 3 wires macOS, and PR 4 removes the unused Toolbox
+> owned-PICT path; those two rails retain their inline releasers until then.
 
 ## Owner and clock
 
@@ -84,7 +84,13 @@ Pre-publication native failure is construction rollback: the producer releases
 its partial native acquisitions inline, and Reservation cancels its ticket.
 Reservation does not own those partial acquisitions. Acquisition ordering is
 reserve, acquire, finish native construction, publish. Win32 decode reserves
-before COM/WIC; capture before GetWindowDC. macOS decode reserves before NSImage
+after blob/range validation and before COM/WIC in `Win32PlatformContext::createImageFromBlob`;
+`CaptureWindowClientBitmap` reserves after geometry validation and before
+GetWindowDC. The Window passes its PlatformContext borrow into
+Win32ScenePlatformController at construction; Button and Text contexts capture
+through that controller. A standalone controller without the borrow refuses
+capture. The borrow is fixed for the controller lifetime; the ancestor context
+must outlive the controller, its node contexts, and all resulting Images. macOS decode reserves before NSImage
 allocation, and capture before bitmapImageRepForCachingDisplayInRect, not just
 before retain. Caller replacement remains temporary-build/commit where required;
 publication is a consuming operation, not a preserve-old replacement policy.
@@ -119,8 +125,8 @@ Operation defers retirement; a deferred presenter outside it may admit eligible
 nested completions. Save-dialog integration (#1131) must observe the same rule.
 
 Disposers are rail static functions only. They must not write State, create an
-Image, reserve a ticket, or destroy the context. A Win32 disposer must not drop
-Loka values; it must not create a new queued cascade after the last pre-sleep
+Image, reserve a ticket, or destroy the context. The Win32 bitmap disposers (`ReleaseWin32Bitmap` and `ReleaseCapturedBitmap`)
+call DeleteObject only and drop no Loka value; it must not create a new queued cascade after the last pre-sleep
 tail. A macOS dealloc cascade may drop an existing Image, queued for the next
 completion. macOS integration supplies an autorelease pool for tick disposal;
 the outer application pool must survive the context final drain.
@@ -163,6 +169,37 @@ plus ordinary Scrapbook navigation and SimpleViewer replacement. Win32 records
 GDI handles. A provisional extra-one-image criterion is workload-specific,
 never a universal bound; excess requires an evidence-based decision before
 rail acceptance. Never drain from Flow to recover memory.
+
+### Win32 measured acceptance (rig TODO)
+
+Run the MSVC `LokaTestsWin32` target, including the registered
+`testWin32NativeRetirement*` pins, before the workload trials. Compare the same
+Win32 rig, configuration, image inputs and scripted actions at the PR 1 baseline
+and the PR 2 candidate. Record both revisions, OS/architecture, build flags and
+rig descriptor. No measured acceptance is claimed until the table is filled.
+
+For each trial sample process GDI objects with
+`GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS)` and private bytes with the
+rig's process memory sampler. Record baseline, peak and post-completion counts
+and bytes, decoded dimensions/bytes per image, burst length (replacements before
+one eligible completion), modal path/dwell, refusal behavior, and recovery.
+Include a sample immediately before completion so brief retention peaks are not
+missed. Compare peak private bytes between baseline and retirement runs; peak
+working set alone is not private-byte evidence. Preserve logs with the candidate.
+
+| Workload to run on Win32 | Images / burst / modal dwell | Baseline and retirement GDI counts / peak private bytes / recovery | Refusal and acceptance decision |
+|---|---|---|---|
+| Scrapbook continuous page navigation | TODO | TODO | TODO |
+| SimpleViewer image replacement | TODO | TODO | TODO |
+| Multiple replacements inside one outer Operation | TODO | TODO | TODO |
+| LazyView generation replacement containing images | TODO | TODO | TODO |
+| Open-file dialog held inside the outer Operation, then dismiss | TODO | TODO | TODO |
+
+The one-extra-decoded-image threshold is provisional for each workload. Record
+excess explicitly and obtain an evidence-based acceptance or admission redesign;
+do not silently accept an excess or introduce an unmeasured cap. The modal trial
+must verify no deletion while the outer Operation remains active, then recovery
+at completion; final-exit recovery covers WM_QUIT's skipped tail.
 
 Reservation and cancellation cost O(1) per attempted acquisition. Publication
 adds the existing Image allocations. Final release transfers O(1), allocation
