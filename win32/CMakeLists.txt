@@ -471,10 +471,12 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
     ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src/ScrapbookPackage.cpp)
   loka_add_win32_retirement_probe(LokaRetirementProbeDialogWin32
     RetirementProbeDialogMain.cpp example/SimpleViewer/src)
+  loka_add_win32_retirement_probe(LokaRetirementProbeLazyWin32
+    RetirementProbeLazyMain.cpp tests/win32)
   add_dependencies(LokaRetirementProbeScrapbookWin32 LokaStandaloneWin32Assets)
   add_custom_target(LokaRetirementProbeWin32All)
   add_dependencies(LokaRetirementProbeWin32All
-    LokaRetirementProbeScrapbookWin32 LokaRetirementProbeDialogWin32)
+    LokaRetirementProbeScrapbookWin32 LokaRetirementProbeDialogWin32 LokaRetirementProbeLazyWin32)
 
   unset(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY)
   unset(LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY)

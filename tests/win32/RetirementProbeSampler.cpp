@@ -31,23 +31,38 @@ namespace
   }
 }
 
-RetirementProbeLog::RetirementProbeLog(const wchar_t *name)
-    : file_(), stream_(0), healthy_(false), phase_(0), samples_(0), base_(), peak_(), final_()
+bool ResolveRetirementProbeFile(const wchar_t *name,
+                                loka::platform::file::FileHandle &file, std::wstring &path)
 {
   wchar_t module[32768];
   const DWORD length = GetModuleFileNameW(0, module, 32768);
   if (!length || length >= 32768)
-    return;
-  std::wstring path(module, length);
+    return false;
+  path.assign(module, length);
   const std::wstring::size_type slash = path.find_last_of(L"\\/");
   if (slash == std::wstring::npos)
-    return;
+    return false;
   path.erase(slash + 1);
   path += name;
-  this->file_.displayPath = loka::core::String(loka::win32::CreateWin32StringFromUtf16(path.c_str(), path.size()));
-  this->file_.kind = loka::file::File::KIND_FILE;
+  file.displayPath = loka::core::String(loka::win32::CreateWin32StringFromUtf16(path.c_str(), path.size()));
+  file.kind = loka::file::File::KIND_FILE;
+  return true;
+}
+
+RetirementProbeLog::RetirementProbeLog(const wchar_t *name)
+    : file_(), stream_(0), healthy_(false), phase_(0), samples_(0), base_(), peak_(), final_()
+{
+  std::wstring path;
+  if (!ResolveRetirementProbeFile(name, this->file_, path)) return;
   this->stream_ = loka::platform::file::OpenWriteTruncate(this->file_);
   this->healthy_ = this->stream_ != 0;
+}
+
+void RetirementProbeLog::note(const char *text)
+{
+  if (!this->valid()) return;
+  std::fprintf(this->stream_, "%s\n", text);
+  this->flush();
 }
 
 RetirementProbeLog::~RetirementProbeLog()

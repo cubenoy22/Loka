@@ -2,8 +2,13 @@
 #define LOKA_TESTS_WIN32_RETIREMENT_PROBE_SAMPLER_HPP
 
 #include <cstdio>
+#include <string>
 #include "app/PlatformContext.hpp"
 #include "platform/file/FileHandle.hpp"
+
+/** Resolves a wide executable-sidecar path; shared by logs and input fixtures. */
+bool ResolveRetirementProbeFile(const wchar_t *name,
+                                loka::platform::file::FileHandle &file, std::wstring &path);
 
 /** Completed process/ledger observation; no resource ownership. */
 struct RetirementProbeSample
@@ -25,6 +30,7 @@ public:
   void sample(const PlatformContext &context, int step, const char *point,
               int page = 0, int width = 0, int height = 0);
   void summary();
+  void note(const char *text);
   void error(const char *reason);
 
 private:
