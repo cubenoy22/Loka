@@ -4,6 +4,7 @@ set(_LOKA_TEST_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NativeResourceRetirementTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RibbonTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/CommandSetTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StackSpansTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RailMetricsTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/StrictNodeRouteTests.cpp
