@@ -520,10 +520,13 @@ a nearly full bar even when there is plenty of headroom. The 2026-10-03 run
 | LazyList | 434K | 416K | 448K |
 | MineSweeper | 440K | 432K | 440K |
 
-Below its need, an example shows a Stop alert and quits (#1107). In a
-narrow band just under the need, a Toolbox call inside the system can run
-out first; the system then ends the application with error 25 instead
-(#1102).
+Below its need, an example usually shows a Stop alert and quits (#1107).
+The alert does not appear in three cases: a partition too small for the
+alert's own 8 KiB reserve quits silently; a refused Keyed declaration can
+leave part of the window missing while the application keeps running
+(#1185); and in a narrow band just under the
+need, a Toolbox call inside the system can run out first, and the system
+ends the application with error 25 (#1102).
 Color depth does not change the application heap: 1-bit and 256 colors
 match byte for byte.
 
