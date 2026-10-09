@@ -8,7 +8,7 @@
 >
 > **Delivery:** PR 1 provides common machinery and host pins. PR 2 wires Win32
 > decode and capture. PR 3 wires macOS decode and capture. PR 4 removes the
-> unused Toolbox owned-PICT path; Toolbox retains its inline releasers until then.
+> unused Toolbox owned-PICT path. Toolbox has no ticketed producer today.
 
 ## Owner and clock
 
@@ -42,6 +42,26 @@ headers do not include it. Rail translation units bind static disposal
 functions. This is type-erased, rail-bound disposal, not compile-time typed
 disposal and not an application callback registry. Inspection belongs solely
 in the existing testing access layer.
+
+## Toolbox: memory-only payloads and borrowed pictures
+
+Owner decision A (2026-10-07), implemented by PR 4, removes the owned-PICT
+path, which had no production caller. Toolbox has no ticketed native-resource
+producer today. PICT_BYTES payloads release inline through the existing Image
+releaser: this returns memory only and preserves Classic's immediate capacity
+recovery before replacement allocation (pinned by the SimpleViewer capacity
+retry in tests/FlowDslTests.cpp).
+
+MakeImageFromPicHandle is borrow-only. The caller keeps the PicHandle alive
+past every Image copy and disposes of it itself. Loka never calls KillPicture
+on wrapper refusal, Image record/control-block refusal, or last-copy release.
+The wrapper's kind determines payload ownership: PICT is borrowed and
+PICT_BYTES owns its memory payload; no separate ownership flag is needed.
+
+A future owning Toolbox producer must reserve through
+loka::app::internal::Reservation before any native acquisition, then publish
+through the common consuming ticket path. It must not restore inline native
+disposal or add a Toolbox-specific queue or drain.
 
 ## Ticket state machine
 
@@ -130,7 +150,7 @@ enqueued nothing new.
 The guarantee is the **next actual eligible outer completion**, not every turn
 or any fixed elapsed-time limit. Existing rail completion reachability is to be
 pinned in the corresponding integration PRs: Win32 idle and non-idle tails,
-macOS timer ticks, Toolbox foreground/background/no-window paths. WM_QUIT can
+macOS timer ticks. Toolbox has no native retirement producer to drain. WM_QUIT can
 bypass a normal tail; context final drain covers shutdown obligations.
 
 Code running a nested modal outside an Operation must not carry a raw native

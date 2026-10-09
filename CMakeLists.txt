@@ -601,10 +601,10 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   loka_enable_warnings(LokaToolboxNativeImageTests)
   set_target_properties(LokaToolboxNativeImageTests PROPERTIES CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
   foreach(_native_image_case
-      testOwnedPictureKilledOnceOnNativeImageRefusal
       testBorrowedPictureKeptOnNativeImageRefusal
-      testOwnedPictureKilledOnceOnImageRecordRefusal
-      testOwnedPictureKilledOnceOnControlBlockRefusal
+      testBorrowedPictureKeptOnImageRecordRefusal
+      testBorrowedPictureKeptOnControlBlockRefusal
+      testBorrowedPictureKeptAfterLastImageCopy
       testPictBytesRefusalsReleaseEverything
       testImageDecodeRetainsOutputOwnedBlob
       testPictSnapshotKeepsOnlyFilledRange
