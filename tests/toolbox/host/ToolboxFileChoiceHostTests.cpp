@@ -73,8 +73,7 @@ static File Choose(const FSSpec &spec)
   loka::app::OpenFileDialogNode node(loka::app::OpenFileDialogProps().result(state));
   reply.sfGood = true;
   reply.sfFile = spec;
-  ToolboxOpenFileDialogContext dialog(&node, 0);
-  dialog.presentIfNeeded();
+  DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
   LOKA_VERIFY(storage.get().kind == Result::RESULT_FILE);
   const File chosen = storage.get().item;
   tracker.removeState(&storage);
@@ -444,39 +443,19 @@ static void Dialog()
   reply.sfFile = Spec(-1, 10, "dialog");
   Put(reply.sfFile, "dialog contents");
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
   }
   LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_FILE);
   LOKA_VERIFY(Read(platform, storage.get().item) == "dialog contents");
   state.set(FileChooserResult());
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
     failLokaAllocRaw("FileLocator", "Payload", 1);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR);
     LOKA_VERIFY(storage.get().item.locator().empty());
     allowLokaAllocRaw();
   }
   tracker.removeState(&storage);
-}
-static loka::app::OpenFileDialogNode *modalNode = 0;
-static ToolboxOpenFileDialogContext *modalContext = 0;
-static unsigned retargetField = 0;
-static void RetargetModal()
-{
-  using namespace loka::app;
-  if (retargetField == 3)
-  {
-    modalContext->onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                                loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    return;
-  }
-  modalNode->props.options_ = FileDialogOptions(
-      retargetField == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
-      String::Literal(retargetField == 1 ? "changed" : "default"),
-      retargetField == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
-  modalContext->onPropsApplied();
 }
 static void SaveDialog()
 {
@@ -495,8 +474,7 @@ static void SaveDialog()
   File first;
   for (unsigned i = 0; i != 2; ++i)
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_FILE);
     if (!i) first = storage.get().item;
     else LOKA_VERIFY(!(first != storage.get().item));
@@ -516,22 +494,19 @@ static void SaveDialog()
   for (unsigned i = 0; i != 3; ++i)
   {
     reply.sfFile = Spec(-7, 123, std::string(invalidLengths[i], 'n'));
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR && storage.get().errorCode == paramErr);
   }
   reply.sfGood = false;
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_CANCELED);
   }
   reply.sfGood = true;
   reply.sfFile = Spec(-7, 123, "n");
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
     failLokaAllocRaw("FileLocator", "Payload", 1);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(storage.get().kind == FileChooserResult::RESULT_ERROR && storage.get().errorCode == memFullErr);
     allowLokaAllocRaw();
   }
@@ -541,8 +516,7 @@ static void SaveDialog()
   {
     node.props.options_ = FileDialogOptions(FILE_DIALOG_SAVE, names[i]);
     const unsigned before = putCalls;
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     if (i == 1 || i == 2)
     {
       LOKA_VERIFY(putCalls == before);
@@ -560,8 +534,7 @@ static void SaveDialog()
   node.props.options_ = FileDialogOptions(FILE_DIALOG_SAVE, String::Literal("Caf\xc3\xa9"));
   {
     const unsigned before = putCalls;
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(putCalls == before && storage.get().kind == FileChooserResult::RESULT_ERROR);
   }
   toolbox_host::systemScript = smRoman;
@@ -569,68 +542,11 @@ static void SaveDialog()
   reply.sfFile = Spec(-7, 123, std::string(32, 'n'));
   node.props.options_ = FileDialogOptions();
   {
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
+    DeliverOpenFileDialogResult(node.props.result_, node.props.onResult_, RunToolboxFileDialog(node.props.options_));
     LOKA_VERIFY(getCalls == 1 && storage.get().kind == FileChooserResult::RESULT_FILE);
   }
   storage.unbind(&CountDelivery, &notifications);
   tracker.removeState(&storage);
-}
-static void SaveRetarget()
-{
-  using namespace loka::app;
-  loka::core::EmitterState emitter;
-  unsigned notifications = 0;
-  emitter.bind(&CountDelivery, &notifications, false);
-  for (retargetField = 0; retargetField != 4; ++retargetField)
-  {
-    OpenFileDialogDefinition definition = SaveFileDialog(String::Literal("default")).onResult(&emitter);
-    OpenFileDialogNode node(definition.props);
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    modalNode = &node;
-    modalContext = &dialog;
-    reply.sfGood = true;
-    reply.sfFile = Spec(-1, 10, "chosen");
-    const unsigned before = putCalls + getCalls;
-    const unsigned writes = notifications;
-    duringModal = &RetargetModal;
-    dialog.presentIfNeeded();
-    duringModal = 0;
-    LOKA_VERIFY(notifications == writes && putCalls + getCalls == before + 1);
-    if (retargetField != 3)
-    {
-      dialog.presentIfNeeded();
-      LOKA_VERIFY(putCalls + getCalls == before + 1);
-    }
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                         loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED,
-                         loka::app::scene::NODE_FACT_ATTACHED);
-    LOKA_VERIFY(notifications == writes + 1 && putCalls + getCalls == before + 2);
-  }
-  // A hidden retained dialog has no active operation to abandon. Props applied
-  // between detach and reattach must configure that next presentation.
-  for (unsigned field = 0; field != 3; ++field)
-  {
-    OpenFileDialogDefinition definition = SaveFileDialog(String::Literal("default")).onResult(&emitter);
-    OpenFileDialogNode node(definition.props);
-    ToolboxOpenFileDialogContext dialog(&node, 0);
-    dialog.presentIfNeeded();
-    const unsigned calls = putCalls + getCalls;
-    const unsigned writes = notifications;
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED,
-                         loka::app::scene::NODE_FACT_DETACHED_RETAINED);
-    node.props.options_ = FileDialogOptions(field == 0 ? FILE_DIALOG_OPEN : FILE_DIALOG_SAVE,
-        String::Literal(field == 1 ? "next default" : "default"),
-        field == 2 ? FILE_DIALOG_FILTER_ALL_FILES_TEXT : FILE_DIALOG_FILTER_DEFAULT);
-    dialog.onPropsApplied();
-    LOKA_VERIFY(putCalls + getCalls == calls && notifications == writes);
-    dialog.onFactChanged(loka::app::scene::NODE_FACT_DETACHED_RETAINED,
-                         loka::app::scene::NODE_FACT_ATTACHED);
-    LOKA_VERIFY(putCalls + getCalls == calls + 1 && notifications == writes + 1);
-    if (field == 1) LOKA_VERIFY(savedDefault == "next default");
-  }
-  emitter.unbind(&CountDelivery, &notifications);
 }
 static void Refused()
 {
@@ -762,10 +678,13 @@ static void Busy()
   }
   LOKA_VERIFY(RegisteredToolboxBusyOwner() == 0);
 }
+#include "ToolboxDialogPresentHostTests.hpp"
+
 int main(int argc, char **argv)
 {
   LOKA_VERIFY(argc == 2);
-  if (!std::strcmp(argv[1], "tuple")) Tuple();
+  if (!std::strncmp(argv[1], "present-", 8)) PresentPin(argv[1] + 8);
+  else if (!std::strcmp(argv[1], "tuple")) Tuple();
   else if (!std::strcmp(argv[1], "single")) Single();
   else if (!std::strcmp(argv[1], "application")) Application(false, false);
   else if (!std::strcmp(argv[1], "viewer")) Application(true, false);
@@ -781,7 +700,7 @@ int main(int argc, char **argv)
   else if (!std::strcmp(argv[1], "copies")) Copies();
   else if (!std::strcmp(argv[1], "dialog")) Dialog();
   else if (!std::strcmp(argv[1], "save")) SaveDialog();
-  else if (!std::strcmp(argv[1], "save-retarget")) SaveRetarget();
+  else if (!std::strcmp(argv[1], "save-retarget")) PresentPin("props");
   else if (!std::strcmp(argv[1], "validity")) Validity();
   else if (!std::strcmp(argv[1], "prepare")) Prepare();
   else if (!std::strcmp(argv[1], "prepare-refuses-write")) PrepareRefusesWrite();

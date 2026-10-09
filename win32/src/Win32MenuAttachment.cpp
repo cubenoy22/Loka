@@ -357,7 +357,7 @@ Win32MenuAttachment::ProjectResult Win32MenuAttachment::project(const loka::app:
   if (!this->window_.hwnd())
     return PROJECT_REFUSED;
   if (bar && this->source_ == source && this->applied_.get() &&
-      this->applied_->equalsProjection(*bar))
+      this->applied_->equalsStructure(*bar))
     return PROJECT_UNCHANGED;
   if (!bar)
   {

@@ -4,39 +4,29 @@
 #include "ToolboxScenePlatformController.hpp"
 #include "app/scene/projection/RetainedNodeHandler.hpp"
 #include <StandardFile.h>
-#include <string>
+#include <cassert>
+
+void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
+                                 loka::core::EmitterState *onResult,
+                                 const loka::app::FileChooserResult &result)
+{
+  void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
+  if (resultState.isValid())
+  {
+    resultState.set(result, true);
+  }
+  if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
+  {
+    onResult->emit();
+  }
+  if (onResultToken)
+  {
+    loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
+  }
+}
 
 namespace
 {
-  struct ToolboxOpenNativeDialogSession
-  {
-    ToolboxOpenNativeDialogSession()
-        : disposed(false)
-    {
-    }
-
-    bool disposed;
-  };
-
-  static void DeliverOpenFileDialogResult(loka::app::scene::NodeState<loka::app::FileChooserResult> resultState,
-                                          loka::core::EmitterState *onResult,
-                                          const loka::app::FileChooserResult &result)
-  {
-    void *onResultToken = onResult ? onResult->retainExternalLifetimeToken() : 0;
-    if (resultState.isValid())
-    {
-      resultState.set(result, true);
-    }
-    if (onResult && loka::core::StateBase::isExternalLifetimeTokenAlive(onResultToken))
-    {
-      onResult->emit();
-    }
-    if (onResultToken)
-    {
-      loka::core::StateBase::releaseExternalLifetimeToken(onResultToken);
-    }
-  }
-
   class ToolboxOpenFileDialogNodeHandler
       : public loka::app::scene::RetainedNodeHandler<ToolboxOpenFileDialogNodeHandler,
                                                      loka::app::OpenFileDialogNode,
@@ -55,29 +45,18 @@ namespace
       ToolboxScenePlatformController *toolbox = static_cast<ToolboxScenePlatformController *>(controller);
       (void)state;
       // Keep the installation ordering at the shared ritual; see RetainedNodeHandler.
-      return new ToolboxOpenFileDialogContext(node, toolbox ? toolbox->cursorOwner() : 0);
+      return new ToolboxOpenFileDialogContext(node, toolbox ? &toolbox->pendingDialogs() : 0);
     }
   };
 
   ToolboxOpenFileDialogNodeHandler gToolboxOpenFileDialogNodeHandler;
 } // namespace
 
-struct ToolboxOpenFileDialogContext::NativeDialogSession : public ToolboxOpenNativeDialogSession
-{
-};
-
-ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node, CursorOwner *cursorOwner)
-    : cursorOwner_(cursorOwner), node_(node),
-      props_(),
-      presentation_(),
-      dialog_(0)
+ToolboxOpenFileDialogContext::ToolboxOpenFileDialogContext(loka::app::OpenFileDialogNode *node,
+                                                           ToolboxPendingDialogs *pending)
+    : pending_(pending), enrollment_(this), node_(node), props_(), presentation_()
 {
   this->captureProps();
-}
-
-ToolboxOpenFileDialogContext::~ToolboxOpenFileDialogContext()
-{
-  this->disposeDialog();
 }
 
 void ToolboxOpenFileDialogContext::readLifecycleFactOnAttach()
@@ -98,48 +77,26 @@ void ToolboxOpenFileDialogContext::onFactChanged(loka::app::scene::NodeLifecycle
   }
   else
   {
-    // DETACHED_RETAINED hides; terminal RETIRED keeps the same policy
-    // (hide before the ritual destroys the native pair).
+    // Both retained detach and terminal retirement cancel pending presentation.
     this->applyDetachedPresentation();
   }
 }
 
 void ToolboxOpenFileDialogContext::applyAttachedPresentation()
 {
-  presentIfNeeded();
+  if (this->pending_
+      && this->presentation_.value == loka::app::OPEN_FILE_DIALOG_PRESENTATION_PENDING_ATTACH)
+    this->pending_->enroll(this->enrollment_);
 }
 
 void ToolboxOpenFileDialogContext::applyDetachedPresentation()
 {
-  presentation_.markDetached();
-  this->disposeDialog();
+  this->enrollment_.unlink();
+  this->presentation_.markDetached();
 }
 
-void ToolboxOpenFileDialogContext::presentIfNeeded()
+loka::app::FileChooserResult RunToolboxFileDialog(const loka::app::FileDialogOptions &options)
 {
-  if (dialog_ || !presentation_.beginPresent())
-  {
-    return;
-  }
-  dialog_ = new NativeDialogSession();
-  presentDialog();
-}
-
-void ToolboxOpenFileDialogContext::presentDialog()
-{
-  if (!presentation_.isPresenting())
-  {
-    return;
-  }
-  NativeDialogSession *dialog = dialog_;
-  if (!dialog || dialog->disposed)
-  {
-    return;
-  }
-  loka::app::scene::NodeState<loka::app::FileChooserResult> resultState = this->props_.result_;
-  loka::core::EmitterState *onResult = this->props_.onResult_;
-
-  const loka::app::FileDialogOptions options = this->props_.options_;
   StandardFileReply reply;
   reply.sfGood = false;
   loka::app::FileChooserResult result = loka::app::FileChooserResult::Canceled();
@@ -168,8 +125,6 @@ void ToolboxOpenFileDialogContext::presentDialog()
     break;
   }
   }
-  if (this->cursorOwner_)
-    this->cursorOwner_->reconcile();
 
   if (reply.sfGood)
   {
@@ -185,42 +140,7 @@ void ToolboxOpenFileDialogContext::presentDialog()
     }
   }
 
-  dialog = this->detachDialogIfActive(dialog);
-  if (!dialog)
-  {
-    return;
-  }
-  presentation_.markPresented();
-  DeliverOpenFileDialogResult(resultState, onResult, result);
-  delete dialog;
-}
-
-void ToolboxOpenFileDialogContext::setResult(const loka::app::FileChooserResult &result)
-{
-  DeliverOpenFileDialogResult(this->props_.result_, this->props_.onResult_, result);
-}
-
-void ToolboxOpenFileDialogContext::disposeDialog()
-{
-  if (!dialog_)
-  {
-    return;
-  }
-  dialog_->disposed = true;
-  delete dialog_;
-  dialog_ = 0;
-}
-
-ToolboxOpenFileDialogContext::NativeDialogSession *
-ToolboxOpenFileDialogContext::detachDialogIfActive(NativeDialogSession *dialog)
-{
-  if (!dialog || dialog_ != dialog || dialog->disposed)
-  {
-    return 0;
-  }
-  dialog_ = 0;
-  dialog->disposed = true;
-  return dialog;
+  return result;
 }
 
 bool RegisterToolboxOpenFileDialogNodeHandler(loka::app::scene::PlatformNodeHandlerRegistry &registry)
@@ -235,11 +155,69 @@ void ToolboxOpenFileDialogContext::captureProps()
 
 void ToolboxOpenFileDialogContext::onPropsApplied()
 {
-  if (this->presentation_.isPresenting() && this->node_
-      && (this->props_ < this->node_->props || this->node_->props < this->props_))
-  {
-    this->disposeDialog();
-    this->presentation_.markPresented(); // Retarget abandons until reattach.
-  }
   this->captureProps();
+}
+
+bool ToolboxOpenFileDialogContext::take(loka::app::OpenFileDialogProps &out)
+{
+  if (!this->node_ || this->node_->lifecycleFact() != loka::app::scene::NODE_FACT_ATTACHED)
+    return false;
+  this->enrollment_.unlink();
+  out = this->props_;
+  this->presentation_.markPresented();
+  return true;
+}
+
+ToolboxDialogEnrollment::ToolboxDialogEnrollment(ToolboxOpenFileDialogContext *owner)
+    : prev_(0), next_(0), owner_(owner)
+{
+}
+
+ToolboxDialogEnrollment::~ToolboxDialogEnrollment()
+{
+  this->unlink();
+}
+
+void ToolboxDialogEnrollment::unlink()
+{
+  if (!this->next_)
+    return;
+  this->prev_->next_ = this->next_;
+  this->next_->prev_ = this->prev_;
+  this->prev_ = this->next_ = 0;
+}
+
+ToolboxPendingDialogs::ToolboxPendingDialogs() : sentinel_(0)
+{
+  this->sentinel_.prev_ = this->sentinel_.next_ = &this->sentinel_;
+}
+
+ToolboxPendingDialogs::~ToolboxPendingDialogs()
+{
+#ifdef LOKA_LIFECYCLE_AUDIT
+  const bool wasEmpty = this->sentinel_.next_ == &this->sentinel_;
+#endif
+  while (this->sentinel_.next_ != &this->sentinel_)
+    this->sentinel_.next_->unlink();
+#ifdef LOKA_LIFECYCLE_AUDIT
+  assert(wasEmpty && "pending dialogs must detach before controller teardown");
+  (void)wasEmpty;
+#endif
+}
+
+void ToolboxPendingDialogs::enroll(ToolboxDialogEnrollment &row)
+{
+  if (row.next_)
+    return;
+  row.prev_ = this->sentinel_.prev_;
+  row.next_ = &this->sentinel_;
+  row.prev_->next_ = &row;
+  this->sentinel_.prev_ = &row;
+}
+
+bool ToolboxPendingDialogs::take(loka::app::OpenFileDialogProps &out)
+{
+  if (this->sentinel_.next_ == &this->sentinel_)
+    return false;
+  return this->sentinel_.next_->owner_->take(out);
 }
