@@ -434,6 +434,20 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
   target_link_libraries(LokaUpstreamGaugePins PRIVATE LokaCommonTesting)
   add_test(NAME LokaUpstreamGaugePins COMMAND LokaUpstreamGaugePins)
 
+  add_executable(LokaToolboxOutOfMemoryTests
+    tests/toolbox/host/ToolboxOutOfMemoryHostTests.cpp
+    apple/toolbox/src/ToolboxOutOfMemory.cpp)
+  target_include_directories(LokaToolboxOutOfMemoryTests PRIVATE
+    tests/toolbox/host/oom apple/toolbox/src tests)
+  target_compile_options(LokaToolboxOutOfMemoryTests PRIVATE -fno-exceptions -fno-rtti)
+  loka_enable_warnings(LokaToolboxOutOfMemoryTests)
+  set_target_properties(LokaToolboxOutOfMemoryTests PROPERTIES
+    CXX_STANDARD 98 CXX_STANDARD_REQUIRED YES)
+  add_test(NAME LokaToolboxOutOfMemoryTests COMMAND LokaToolboxOutOfMemoryTests)
+  add_test(NAME LokaToolboxOutOfMemoryWiring
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/tests/toolbox/host/CheckOutOfMemoryWiring.py
+      ${PROJECT_SOURCE_DIR})
+
   # Exercise the Classic source itself against a host Memory Manager substitute.
   add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp)
   target_link_libraries(LokaToolboxMemorySourceTests PRIVATE LokaCommonTesting)

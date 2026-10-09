@@ -1,5 +1,6 @@
 #include "platform/ToolboxPascalText.hpp"
 #include "ToolboxApp.hpp"
+#include "ToolboxOutOfMemory.hpp"
 #include "ToolboxWindow.hpp"
 #include "ToolboxScenePlatformController.hpp"
 
@@ -177,6 +178,7 @@ void ToolboxApp::run()
   InitMenus();
   TEInit();
   InitDialogs(0);
+  loka::toolbox::ArmOutOfMemoryReserve();
   InitCursor();
   this->cursorOwner_.initialize();
   // Blocking Toolbox work with no path to this app (file reads, image decodes)
@@ -201,6 +203,10 @@ void ToolboxApp::run()
         toolboxWindow->setApp(this);
         toolboxWindow->open();
         toolboxWindow->ensureSceneMounted();
+        if (toolboxWindow->scene() && toolboxWindow->scene()->composeRefusedForMemory())
+        {
+          loka::toolbox::QuitForOutOfMemory();
+        }
       }
     }
     if (!activeWindow() && firstWindow)
