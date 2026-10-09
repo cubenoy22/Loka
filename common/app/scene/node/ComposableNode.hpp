@@ -149,12 +149,15 @@ namespace loka
         {
           return currentContext_;
         }
+        enum CallbackFamily { CALLBACK_ACTION, CALLBACK_STATE_WATCH, CALLBACK_COMMAND };
+
         struct CallbackEntryBase
         {
           virtual ~CallbackEntryBase() {}
+          virtual CallbackFamily family() const = 0;
           virtual void unbind() = 0;
           virtual void invalidate() = 0;
-          virtual bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
+          virtual bool matches(CallbackFamily requestedFamily, const void *source, void *node, const void *methodBytes, size_t methodSize) const = 0;
         };
 
         template <class NodeT> struct CallbackEntry : public CallbackEntryBase
@@ -178,6 +181,8 @@ namespace loka
             (self->node_->*(self->method_))();
           }
 
+          CallbackFamily family() const { return CALLBACK_ACTION; }
+
           void unbind()
           {
             if (emitter_)
@@ -191,9 +196,9 @@ namespace loka
             valid_ = false;
           }
 
-          bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const
+          bool matches(CallbackFamily requestedFamily, const void *source, void *node, const void *methodBytes, size_t methodSize) const
           {
-            if (emitter_ != source || node_ != node || methodSize != sizeof(method_))
+            if (this->family() != requestedFamily || emitter_ != source || node_ != node || methodSize != sizeof(method_))
             {
               return false;
             }
@@ -228,6 +233,8 @@ namespace loka
             (self->node_->*(self->method_))();
           }
 
+          CallbackFamily family() const { return CALLBACK_STATE_WATCH; }
+
           void unbind()
           {
             if (state_)
@@ -241,9 +248,9 @@ namespace loka
             valid_ = false;
           }
 
-          bool matches(const void *source, void *node, const void *methodBytes, size_t methodSize) const
+          bool matches(CallbackFamily requestedFamily, const void *source, void *node, const void *methodBytes, size_t methodSize) const
           {
-            if (state_ != source || node_ != node || methodSize != sizeof(method_))
+            if (this->family() != requestedFamily || state_ != source || node_ != node || methodSize != sizeof(method_))
             {
               return false;
             }
@@ -257,6 +264,60 @@ namespace loka
           bool valid_;
         };
 
+        template <class NodeT, class E> struct CommandCallbackEntry : public CallbackEntryBase
+        {
+          typedef void (NodeT::*Method)(E);
+          CommandCallbackEntry(NodeT *node, loka::core::EmitterState *emitter, Method method, E id)
+              : node_(node),
+                emitter_(emitter),
+                method_(method),
+                valid_(true),
+                id_(id)
+          {
+          }
+
+          static void Invoke(void *userData)
+          {
+            CommandCallbackEntry *self = static_cast<CommandCallbackEntry *>(userData);
+            if (!self || !self->valid_ || !self->node_)
+            {
+              return;
+            }
+            (self->node_->*(self->method_))(self->id_);
+          }
+
+          CallbackFamily family() const { return CALLBACK_COMMAND; }
+
+          void unbind()
+          {
+            if (emitter_)
+            {
+              emitter_->deferUnbind(&Invoke, this);
+            }
+          }
+
+          void invalidate()
+          {
+            valid_ = false;
+          }
+
+          bool matches(CallbackFamily requestedFamily, const void *source, void *node, const void *methodBytes, size_t methodSize) const
+          {
+            if (this->family() != requestedFamily || emitter_ != source || node_ != node || methodSize != sizeof(method_))
+            {
+              return false;
+            }
+            const Method *method = static_cast<const Method *>(methodBytes);
+            return method && method_ == *method;
+          }
+
+          NodeT *node_;
+          loka::core::EmitterState *emitter_;
+          Method method_;
+          bool valid_;
+          const E id_;
+        };
+
       private:
         friend class BindingToken;
 
@@ -265,7 +326,7 @@ namespace loka
         {
           for (size_t i = 0; i < callbacks_.size(); ++i)
           {
-            if (callbacks_[i] && callbacks_[i]->matches(&emitter, node, &method, sizeof(method)))
+            if (callbacks_[i] && callbacks_[i]->matches(CALLBACK_ACTION, &emitter, node, &method, sizeof(method)))
             {
               return;
             }
@@ -273,6 +334,22 @@ namespace loka
           CallbackEntry<NodeT> *entry = new CallbackEntry<NodeT>(node, &emitter, method);
           callbacks_.push_back(entry);
           emitter.deferBind(&CallbackEntry<NodeT>::Invoke, entry);
+        }
+
+        template <class NodeT, class E>
+        void bindCommandForUi(loka::core::EmitterState &emitter, NodeT *node,
+                              void (NodeT::*method)(E), E id)
+        {
+          for (size_t i = 0; i < this->callbacks_.size(); ++i)
+          {
+            if (this->callbacks_[i] && this->callbacks_[i]->matches(CALLBACK_COMMAND, &emitter, node, &method, sizeof(method)))
+            {
+              return;
+            }
+          }
+          CommandCallbackEntry<NodeT, E> *entry = new CommandCallbackEntry<NodeT, E>(node, &emitter, method, id);
+          this->callbacks_.push_back(entry);
+          emitter.deferBind(&CommandCallbackEntry<NodeT, E>::Invoke, entry);
         }
 
         template <class NodeT> void bindActionForUi(loka::core::EmitterState &emitter, void (NodeT::*method)())
@@ -296,7 +373,7 @@ namespace loka
         {
           for (size_t i = 0; i < callbacks_.size(); ++i)
           {
-            if (callbacks_[i] && callbacks_[i]->matches(&state, node, &method, sizeof(method)))
+            if (callbacks_[i] && callbacks_[i]->matches(CALLBACK_STATE_WATCH, &state, node, &method, sizeof(method)))
             {
               return;
             }
@@ -1197,6 +1274,21 @@ namespace loka
           return;
         }
         this->owner_->bindActionForUi(emitter, node, method);
+      }
+
+      template <class E, int N, class NodeT>
+      inline void BindingToken::actions(CommandSet<E, N> &set, NodeT *node,
+                                        void (NodeT::*method)(E))
+      {
+#ifdef LOKA_LIFECYCLE_AUDIT
+        assert(this->owner_ && "bindings are declared only inside declareBindings");
+#endif
+        if (!this->owner_)
+        {
+          return;
+        }
+        for (unsigned i = 0; i < set.count(); ++i)
+          this->owner_->bindCommandForUi(*set.emitter(E(i)), node, method, E(i));
       }
 
       template <class StateT, class NodeT>

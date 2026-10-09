@@ -1,6 +1,8 @@
 #ifndef LOKA_APP_SCENE_NODE_BINDINGTOKEN_HPP
 #define LOKA_APP_SCENE_NODE_BINDINGTOKEN_HPP
 
+#include "app/CommandSet.hpp"
+
 namespace loka
 {
   namespace core { class EmitterState; }
@@ -18,6 +20,8 @@ namespace loka
       public:
         template <class NodeT>
         void action(loka::core::EmitterState &emitter, NodeT *node, void (NodeT::*method)());
+        template <class E, int N, class NodeT>
+        void actions(CommandSet<E, N> &set, NodeT *node, void (NodeT::*method)(E));
         template <class StateT, class NodeT>
         void watch(StateT &state, NodeT *node, void (NodeT::*method)(), bool callImmediately = false);
 
