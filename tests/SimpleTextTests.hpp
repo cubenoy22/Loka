@@ -10,6 +10,6 @@ void testSimpleTextCommitExhaustionPreservesDestination();
 void testSimpleTextRepeatedOpenAndCaretReplacement();
 void testSimpleTextMenuAndDialogProps();
 void testSimpleTextRibbonFiresTheMenuEmitters();
-void testSimpleTextDetachWithdrawsFlows();
+void testSimpleTextMenuDisconnectsOnUnmount();
 #endif
 #endif
