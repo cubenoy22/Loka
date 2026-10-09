@@ -16,6 +16,7 @@
 #include "core/ObservableList.hpp"
 #include "core/util/ScopedPtr.hpp"
 #include "testing/app/NativeResourceRetirementTestAccess.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 
 namespace
@@ -197,8 +198,12 @@ namespace
         this->sample("pre");
         const unsigned decoded = this->decoder_.decoded();
         if (this->model_.moveFirstToEnd() != loka::core::EDIT_OK) { this->fail("edit-refused"); return; }
-        // Like ClickButton in the other workload: apply within this idle's
-        // outer Operation so post sees the generation retirement peak.
+        // The list publication reaches the LazyView when the turn settles, so
+        // run that checkpoint now; then post sees the new generation while the
+        // old one still waits for the tail's reclaim, in both revisions.
+        loka::core::Operation *turn = loka::core::testing::OperationTestAccess::active();
+        if (!turn) { this->fail("no-active-turn"); return; }
+        turn->settle();
         loka::app::scene::Scene *scene = window ? window->scene() : 0;
         loka::app::scene::Scene *out = 0;
         loka::dsl::FlowError error;
