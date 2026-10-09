@@ -233,7 +233,7 @@ Run the MSVC `LokaTestsWin32` target, including the registered
 `testWin32NativeRetirement*` pins, before the workload trials. Compare the same
 Win32 rig, configuration, image inputs and scripted actions at the PR 1 baseline
 and the PR 2 candidate. Record both revisions, OS/architecture, build flags and
-rig descriptor. A row marked TODO claims no measured acceptance (#1173).
+rig descriptor. Every Win32 row below is measured.
 
 For each trial sample process GDI objects with
 `GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS)` and private bytes with the
@@ -247,22 +247,28 @@ working set alone is not private-byte evidence. Preserve logs with the candidate
 | Workload to run on Win32 | Images / burst / modal dwell | Baseline and retirement GDI counts / peak private bytes / recovery | Refusal and acceptance decision |
 |---|---|---|---|
 | Scrapbook continuous page navigation | Scrapbook pages 1-4, 122,880 private bytes per decoded bitmap; 40 flips, one per outer Operation; no modal | Baseline: GDI 45 on image pages (44 on the text page); the replaced bitmap is deleted inside the replacing turn. Retirement: 46 GDI, 1 queued, +122,880 bytes at the end of the replacing turn; 45 and 0 queued at the next turn in 40/40 flips of each run | No refusal. One extra decoded image for less than one turn: accepted |
-| SimpleViewer image replacement | TODO | TODO | TODO |
+| SimpleViewer image replacement | Two chooser picks: a 1024x768 32bpp image (3,145,728 pixel bytes), then an 800x600 one (1,920,000); SimpleViewer applies each posted result in a later turn | Both revisions: at the first sample after the replacing turn, GDI 121-123, the 800x600 image shown, the old bitmap gone (retirement: 1 held, 0 queued), private bytes 16.7-17.6 MB in both. The in-turn peak is not sampled: the posted result is applied during the turn's tail | No refusal. No retention survives the replacing turn: accepted |
 | Multiple replacements inside one outer Operation | The same pages; three clicks in one idle turn, 10 bursts | Baseline: GDI 45, no extra bitmap. Retirement: +3 GDI, 3 queued, +368,640 bytes at the end of the turn; all recovered at the next turn in 10/10 bursts of each run | No refusal. Exceeds the provisional criterion: retention equals the images released within one outer Operation, recovered at its completion. Accepted by the owner on 2026-10-09 with no cap. A user can reach it, because one Win32 turn dispatches every queued message (`Win32App::run`); an app that must bound it defers the next load to a later turn, so only the last request decodes |
-| LazyView generation replacement containing images | TODO | TODO | TODO |
+| LazyView generation replacement containing images | A probe LazyColumn whose 9 resident items each decode their own 256x256 32bpp image (262,144 pixel bytes) into item state; 10 generation swaps (first item moved to the end), one per turn | Both revisions: after the edit and a settle inside the turn, +9 GDI and about +2.67 MB with the old generation still alive (retirement: 18 held, 0 queued); at the next turn 47 GDI and about 5.0 MB private bytes after the first swap's one-time heap growth (retirement: 9 held, 0 queued), in 10/10 swaps of each run | No refusal. Peaks equal: the old generation is released at the tail's reclaim and drained by the same tail: accepted |
 | Open-file dialog held inside the outer Operation, then dismiss | SimpleViewer's chooser; one 1024x768 32bpp image (3,145,728 bytes) released 1 s into a 2 s dwell inside the modal loop, with `Operation::hasActive()` true; dismissed with Cancel | Baseline: GDI -1 and about -3.1 MB private bytes at the release, inside the active Operation. Retirement: 1 queued, GDI and private bytes unchanged for the rest of the dwell; 0 queued after dismiss, 108 GDI in both (the chooser's own residue) | No refusal. No deletion while the outer Operation is active, recovery at the next completion; one extra image for the dwell: accepted. Final-exit recovery is pinned by `testWin32NativeRetirementFinalDrain`, not by this trial |
 
-Evidence for the three measured rows (2026-10-09): rig `loka-win32-rig`
+Evidence (2026-10-09): rig `loka-win32-rig`
 (Hyper-V guest, Windows 11 Pro 10.0.26200, x64), MSVC 19.44.35228,
 `win32-standalone-debug` (Debug). Baseline = `49e2b3c9` (PR 1) with the probe
-commit applied; candidate = `main` with the probe, whose Win32 and common
-sources are identical to `bce6582e` (PR 2). Three interleaved runs each; GDI
-and ledger counts were identical across runs. Private bytes include heap
+sources applied; candidate = `main` with the probes. For the first three rows
+`main`'s Win32 and common sources were identical to `bce6582e` (PR 2); the
+SimpleViewer and LazyView rows were measured on a later `main` whose only
+common change since is #1171 (`CommandSet` and its binding entry), which no
+probe uses; that second run set also reproduced the first three rows' GDI and
+ledger deltas. Three interleaved runs per revision in each set; GDI and ledger
+counts were identical across runs. Private bytes include heap
 growth: the baseline's per-turn deltas were 0 or +/-163,840 bytes, while the
 retirement deltas above repeated in every run. The baseline's in-turn and
 in-modal deletions are the probes' positive control. The `post` samples are
-taken after the click and its scene flush, before the turn's tail; copies the
-tail releases are drained by the same tail's reclaim. The native retirement pins ran on this rig at the PR 2 head and in
+taken after the action and its scene flush (the LazyView probe also settles the
+turn first, because the list publication reaches the view at settle), before
+the turn's tail; copies the tail releases are drained by the same tail's
+reclaim. The native retirement pins ran on this rig at the PR 2 head and in
 hosted CI at the merged heads. Repeat with
 `cmake --build <build> --target LokaRetirementProbeWin32All`, then
 `tests/win32/run-retirement-probe.ps1 -BuildDirectory <build> -OutputDirectory <dir> -Configuration Debug`

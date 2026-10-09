@@ -4,6 +4,10 @@
 #include <cwchar>
 
 #include "RetirementProbeSampler.hpp"
+#include "RetirementProbeBitmap.hpp"
+#include "platform/file/FileIO.hpp"
+#include "platform/StringUTF8.hpp"
+#include "testing/app/NativeResourceRetirementTestAccess.hpp"
 #include "MainNode.hpp"
 #include "ScenarioWindow.hpp"
 #include "app/bootstrap/PlatformBootstrap.hpp"
@@ -14,36 +18,91 @@
 #include "core/resource/Image.hpp"
 #include "core/util/ScopedPtr.hpp"
 
+// The existing TEST_BUILD friend is defined only in this executable.
+namespace simpleviewer { namespace testing {
+  class MainAccess
+  {
+  public:
+    static void dimensions(const MainNode &node, int &width, int &height)
+    {
+      const loka::core::resource::Image &image = node.image_.state()->getRef();
+      width = image.width();
+      height = image.height();
+    }
+    static loka::core::String message(const MainNode &node) { return node.chooserMessage_.get(); }
+  };
+} }
+
 namespace
 {
   using loka::core::resource::Blob;
   using loka::core::resource::Image;
 
-  void Put32(unsigned char *bytes, unsigned long value)
-  {
-    for (int i = 0; i != 4; ++i) bytes[i] = static_cast<unsigned char>(value >> (8 * i));
-  }
+  typedef loka::app::testing::NativeResourceRetirementTestAccess Ledger;
 
-  // Original BMP fixture: the retirement pin's header shape, expanded to a
-  // 1024x768 32bpp uncompressed image (no padding required).
-  Blob BitmapBlob()
+  /** Completed fixture paths only; never retains Blob or Image storage. */
+  class ReplacementFiles
   {
-    const unsigned long pixelBytes = 1024UL * 768UL * 4UL;
-    Blob blob = Blob::Create();
-    if (!blob.tryResize(54 + pixelBytes)) return Blob();
-    unsigned char *bytes = blob.mutableData();
-    std::memset(bytes, 0, 54 + pixelBytes);
-    bytes[0] = 'B'; bytes[1] = 'M';
-    Put32(bytes + 2, 54 + pixelBytes);
-    Put32(bytes + 10, 54);
-    Put32(bytes + 14, 40);
-    Put32(bytes + 18, 1024);
-    Put32(bytes + 22, 768);
-    bytes[26] = 1; bytes[28] = 32;
-    Put32(bytes + 34, pixelBytes);
-    std::memset(bytes + 54, 0x80, pixelBytes);
-    return blob;
-  }
+  public:
+    explicit ReplacementFiles(RetirementProbeLog &log)
+    {
+      if (!write(L"probe-a.bmp", 1024, 768, 0x40, this->a_)
+          || !write(L"probe-b.bmp", 800, 600, 0xc0, this->b_))
+        log.error("fixture-write-failed");
+      else
+      {
+        log.note("fixture=probe-a.bmp img=1024x768 pixel_bytes=3145728 file_bytes=3145782");
+        log.note("fixture=probe-b.bmp img=800x600 pixel_bytes=1920000 file_bytes=1920054");
+      }
+    }
+    const wchar_t *path(bool first) const { return (first ? this->a_ : this->b_).c_str(); }
+  private:
+    static bool write(const wchar_t *name, int width, int height, unsigned char fill, std::wstring &path)
+    {
+      loka::platform::file::FileHandle file;
+      if (!ResolveRetirementProbeFile(name, file, path)) return false;
+      const Blob blob = retirement_probe::Bitmap(width, height, fill);
+      if (!blob.size()) return false;
+      std::FILE *stream = loka::platform::file::OpenWriteTruncate(file);
+      if (!stream) return false;
+      const bool written = std::fwrite(blob.data(), 1, blob.size(), stream) == blob.size();
+      const bool flushed = loka::platform::file::FlushWrite(stream, file);
+      const bool closed = std::fclose(stream) == 0;
+      return written && flushed && closed;
+    }
+    std::wstring a_, b_;
+  };
+
+  /** Stack-only descendant search, preferring the Explorer cmb13 owner. */
+  struct FilenameBox
+  {
+    explicit FilenameBox(HWND root) : dialog(root), edit(0), ownerId(0), match(0) {}
+    static BOOL CALLBACK visit(HWND window, LPARAM data)
+    {
+      FilenameBox &result = *reinterpret_cast<FilenameBox *>(data);
+      wchar_t name[32];
+      if (!GetClassNameW(window, name, 32) || std::wcscmp(name, L"Edit") != 0) return TRUE;
+      for (HWND parent = GetParent(window); parent && parent != result.dialog; parent = GetParent(parent))
+      {
+        if (!GetClassNameW(parent, name, 32)) continue;
+        const bool combo = std::wcscmp(name, L"ComboBox") == 0;
+        const bool extended = std::wcscmp(name, L"ComboBoxEx32") == 0;
+        if (!combo && !extended) continue;
+        const int id = GetDlgCtrlID(parent);
+        if (!result.edit || id == 1148)
+        {
+          result.edit = window;
+          result.ownerId = id;
+          result.match = id == 1148 ? "cmb13" : (extended ? "ComboBoxEx32" : "ComboBox");
+        }
+        if (id == 1148) return FALSE;
+      }
+      return TRUE;
+    }
+    HWND dialog, edit;
+    int ownerId;
+    const char *match;
+  };
 
   /** App-lifetime owner of the timer and sole decoded Image. Timer callbacks
       borrow this owner on the UI thread, including the chooser's modal loop. */
@@ -52,9 +111,10 @@ namespace
   public:
     explicit DialogProbe(PlatformContext *context)
         : AppConfigurable(context), log_(L"retirement-probe-dialog.log"), app_(0), main_(0),
-          open_(), image_(), phase_(WAIT), timer_(0), since_(0), ticks_(0)
+          open_(), image_(), phase_(WAIT), timer_(0), since_(0), ticks_(0),
+          files_(this->log_), replaceBaseHeld_(0)
     {
-      const Blob blob = BitmapBlob();
+      const Blob blob = retirement_probe::Bitmap(1024, 768, 0x80);
       if (!context->createImageFromBlob(blob, 0, blob.size(), this->image_))
         this->log_.error("decode-failed");
       else if (this->image_.width() != 1024 || this->image_.height() != 768)
@@ -73,7 +133,9 @@ namespace
     }
 
   private:
-    enum Phase { WAIT, SEEK, DWELL, DROPPED, DISMISSING, SETTLE, DONE };
+    enum Phase { WAIT, SEEK, DWELL, DROPPED, DISMISSING, SETTLE,
+                 BEGIN_REPLACE, SEEK_A, FILL_A, DISMISS_A, LOAD_A,
+                 SEEK_B, FILL_B, DISMISS_B, REPLACING, REPLACE_SETTLE, DONE };
     static DialogProbe *timerOwner_;
     static void OnIdle(Window *, double, void *data) { static_cast<DialogProbe *>(data)->idle(); }
     static void CALLBACK OnTimer(HWND, UINT, UINT_PTR id, DWORD)
@@ -110,6 +172,7 @@ namespace
     void idle()
     {
       if (!this->log_.valid()) { this->fail("log-failed"); return; }
+      if (this->phase_ >= BEGIN_REPLACE) { this->replacementIdle(); return; }
       if (this->phase_ == WAIT)
       {
         if (!this->main_)
@@ -142,13 +205,13 @@ namespace
         if (++this->ticks_ == 5)
         {
           this->log_.summary();
-          this->phase_ = DONE;
-          this->app_->quit();
+          this->phase_ = BEGIN_REPLACE;
         }
       }
     }
     void timerTick()
     {
+      if (this->phase_ >= BEGIN_REPLACE) { this->replacementTimer(); return; }
       HWND dialog = 0;
       EnumThreadWindows(GetCurrentThreadId(), &FindDialog, reinterpret_cast<LPARAM>(&dialog));
       const DWORD now = GetTickCount();
@@ -185,6 +248,133 @@ namespace
         this->disarm();
       }
     }
+    void replacementSample(const char *point)
+    {
+      int width = 0, height = 0;
+      simpleviewer::testing::MainAccess::dimensions(*this->main_, width, height);
+      this->log_.sample(*this->getPlatformContext(), this->ticks_, point, 0, width, height);
+    }
+    bool loaded(bool first) const
+    {
+      int width = 0, height = 0;
+      simpleviewer::testing::MainAccess::dimensions(*this->main_, width, height);
+      return width == (first ? 1024 : 800) && height == (first ? 768 : 600);
+    }
+    bool loadRefused()
+    {
+      std::string message;
+      if (!loka::platform::CollectUtf8(simpleviewer::testing::MainAccess::message(*this->main_), message))
+      {
+        this->fail("chooser-message-unreadable");
+        return true;
+      }
+      // The prior canceled result can persist until this chooser's result is applied.
+      if (message == "(none)" || message == "Canceled" || message.find("Loka file: ") == 0) return false;
+      // Error vocabulary is owned by ImageLoadSessionFlow.hpp, not a new getter.
+      this->fail((std::string("load-refused message=\"") + message + "\"").c_str());
+      return true;
+    }
+    void openReplacement(bool first)
+    {
+      this->phase_ = first ? SEEK_A : SEEK_B;
+      this->since_ = GetTickCount();
+      timerOwner_ = this;
+      this->timer_ = SetTimer(0, 0, 100, &OnTimer);
+      if (!this->timer_) { this->fail("timer-failed"); return; }
+      this->open_.emit();
+    }
+    void replacementIdle()
+    {
+      if (this->phase_ == BEGIN_REPLACE)
+      {
+        this->ticks_ = 0;
+        this->log_.begin("replace");
+        this->replaceBaseHeld_ = Ledger::held(*this->getPlatformContext());
+        this->replacementSample("pre");
+        this->openReplacement(true);
+        return;
+      }
+      if (this->phase_ == DISMISS_A || this->phase_ == DISMISS_B)
+      {
+        HWND dialog = 0;
+        EnumThreadWindows(GetCurrentThreadId(), &FindDialog, reinterpret_cast<LPARAM>(&dialog));
+        if (dialog) return;
+        this->phase_ = this->phase_ == DISMISS_A ? LOAD_A : REPLACING;
+        this->ticks_ = 0;
+      }
+      if (this->phase_ == LOAD_A)
+      {
+        this->replacementSample("load-a");
+        if (this->loadRefused()) return;
+        const std::size_t held = Ledger::held(*this->getPlatformContext());
+        if (this->loaded(true) && (held > this->replaceBaseHeld_ || this->replaceBaseHeld_ == 0))
+        {
+          // PR 1's inline HBITMAPs never enter the ledger. Dimensions also
+          // positively identify the actual loaded image on that baseline.
+          this->log_.note(held > this->replaceBaseHeld_
+              ? "loaded=a evidence=dimensions-and-ledger" : "loaded=a evidence=dimensions ledger=unchanged");
+          this->openReplacement(false);
+        }
+        else if (++this->ticks_ == 40) this->fail("load-a-timeout");
+      }
+      else if (this->phase_ == REPLACING)
+      {
+        this->replacementSample("replace");
+        if (this->loadRefused()) return;
+        if (++this->ticks_ == 10)
+        {
+          if (!this->loaded(false)) { this->fail("load-b-timeout"); return; }
+          this->phase_ = REPLACE_SETTLE;
+          this->ticks_ = 0;
+        }
+      }
+      else if (this->phase_ == REPLACE_SETTLE)
+      {
+        this->replacementSample("settle");
+        if (++this->ticks_ == 5)
+        {
+          this->log_.summary();
+          this->phase_ = DONE;
+          this->app_->quit();
+        }
+      }
+    }
+    void replacementTimer()
+    {
+      HWND dialog = 0;
+      EnumThreadWindows(GetCurrentThreadId(), &FindDialog, reinterpret_cast<LPARAM>(&dialog));
+      const DWORD now = GetTickCount();
+      const bool first = this->phase_ == SEEK_A || this->phase_ == FILL_A;
+      if (this->phase_ == SEEK_A || this->phase_ == SEEK_B)
+      {
+        if (!dialog)
+        {
+          if (now - this->since_ >= 5000) this->fail("dialog-not-found");
+          return;
+        }
+        this->replacementSample(first ? "open-a" : "open-b");
+        this->phase_ = first ? FILL_A : FILL_B;
+        this->since_ = now;
+      }
+      if (!dialog) { this->fail("dialog-disappeared-early"); return; }
+      FilenameBox box(dialog);
+      EnumChildWindows(dialog, &FilenameBox::visit, reinterpret_cast<LPARAM>(&box));
+      if (!box.edit)
+      {
+        if (now - this->since_ >= 2000) this->fail("filename-box-not-found");
+        return;
+      }
+      char match[128];
+      std::sprintf(match, "chooser=%s filename_box=%s owner_id=%d", first ? "a" : "b", box.match, box.ownerId);
+      this->log_.note(match);
+      if (!SendMessageW(box.edit, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(this->files_.path(first))))
+      { this->fail("filename-set-failed"); return; }
+      HWND ok = GetDlgItem(dialog, IDOK);
+      if (!ok || !PostMessageW(dialog, WM_COMMAND, MAKEWPARAM(IDOK, BN_CLICKED), reinterpret_cast<LPARAM>(ok)))
+      { this->fail("accept-post-failed"); return; }
+      this->phase_ = first ? DISMISS_A : DISMISS_B;
+      this->disarm();
+    }
     RetirementProbeLog log_;
     App *app_;
     simpleviewer::MainNode *main_;
@@ -194,6 +384,8 @@ namespace
     UINT_PTR timer_;
     DWORD since_;
     int ticks_;
+    const ReplacementFiles files_;
+    std::size_t replaceBaseHeld_;
   };
   DialogProbe *DialogProbe::timerOwner_ = 0;
 }
