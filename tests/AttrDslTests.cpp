@@ -1235,7 +1235,9 @@ void testContainerLayoutHelpersAdvanceResultY()
     metrics.imageFallbackHeight = 30;
 
     AttrDslLayoutCallRecorder recorder;
-    const int resultY = loka::app::layout::computeRowLayoutResultY(&row, state, metrics, &recorder, &recordLayoutChild);
+    const int resultY = loka::app::layout::computeRowLayoutResultY(
+        &row, state, metrics, 0, // Synthetic allocation probe has no rail source.
+        &recorder, &recordLayoutChild);
     assert(recorder.count == 3);
     assert(recorder.calls[0].state.width == 32);
     assert(recorder.calls[1].state.width == 32);
@@ -1270,7 +1272,9 @@ void testContainerLayoutHelpersAdvanceResultY()
     unevenState.width = 101;
     AttrDslLayoutCallRecorder recorder;
     const int resultY =
-        loka::app::layout::computeRowLayoutResultY(&row, unevenState, metrics, &recorder, &recordLayoutChild);
+        loka::app::layout::computeRowLayoutResultY(
+            &row, unevenState, metrics, 0, // Synthetic allocation probe has no rail source.
+        &recorder, &recordLayoutChild);
     assert(recorder.count == 3);
     assert(recorder.calls[0].state.width == 33);
     assert(recorder.calls[1].state.width == 32);
@@ -1305,7 +1309,9 @@ void testContainerLayoutHelpersAdvanceResultY()
     metrics.imageFallbackHeight = 30;
 
     AttrDslLayoutCallRecorder recorder;
-    const int resultY = loka::app::layout::computeRowLayoutResultY(&row, state, metrics, &recorder, &recordLayoutChild);
+    const int resultY = loka::app::layout::computeRowLayoutResultY(
+        &row, state, metrics, 0, // Synthetic allocation probe has no rail source.
+        &recorder, &recordLayoutChild);
     assert(recorder.count == 2);
     assert(recorder.calls[0].state.height == 16);
     assert(recorder.calls[0].state.y == 28);

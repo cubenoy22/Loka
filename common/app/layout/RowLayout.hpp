@@ -37,6 +37,7 @@ namespace loka
       int computeRowLayoutResultY(loka::app::StackNode *row,
                                   const LayoutStateT &state,
                                   const RowLayoutMetrics &metrics,
+                                  const INaturalWidthSource *source,
                                   void *context,
                                   int (*layoutChild)(void *, loka::app::scene::Node *, const LayoutStateT &))
       {
@@ -51,7 +52,8 @@ namespace loka
           return state.y;
         }
 
-        RowWidthConsultation widths(row->childrenHead(), childCount, state.width, metrics.gap);
+        RowWidthConsultation widths(row->childrenHead(), childCount, state.width, metrics.gap,
+                                    row->props.rowUndeclaredWidth_, source);
         int rowHeight = state.height > 0 ? state.height : 0;
         if (row->props.hasVerticalAlignment_)
         {

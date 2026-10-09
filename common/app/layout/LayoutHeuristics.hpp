@@ -2,6 +2,8 @@
 #define LOKA_APP_LAYOUT_HEURISTICS_HPP
 
 #include "app/RectSurface.hpp"
+#include "app/layout/NaturalWidthSource.hpp"
+#include "app/nodes/nestable/RowColumn.hpp"
 #include "app/nodes/ImageView.hpp"
 #include "app/nodes/nestable/Box.hpp"
 #include "app/scene/Node.hpp"
@@ -94,16 +96,20 @@ namespace loka
       };
 
       /** Owns one Row pass's flex remainder and live-seat progression.
-          Construction consults every child once; next() then yields the
-          matching seat allocation in composition order. */
+          NATURAL rows query each eligible child at most twice: once while
+          totalling, once in next(). SHARED rows never query the source.
+          Source answers and child claims must stay stable for the whole pass. */
       class RowWidthConsultation
       {
       public:
-        RowWidthConsultation(loka::app::scene::Node *childrenHead, size_t childCount, int availableWidth, int gap);
+        RowWidthConsultation(loka::app::scene::Node *childrenHead, size_t childCount, int availableWidth, int gap,
+                             RowUndeclaredWidth policy, const INaturalWidthSource *source);
 
         RowChildWidth next(loka::app::scene::Node *child);
 
       private:
+        int preferredWidth(loka::app::scene::Node *child) const;
+        const INaturalWidthSource *source_;
         int baseFlexWidth_;
         int flexRemainder_;
         int liveSeatsSeen_;

@@ -2,6 +2,7 @@
 #define LOKA_CORE2_SCENE_PROJECTION_PLATFORM_LAYOUT_HANDLER_HPP
 
 #include "app/scene/Node.hpp"
+#include "app/layout/NaturalWidthSource.hpp"
 #include "app/layout/StackSpans.hpp"
 #include <climits>
 
@@ -11,10 +12,12 @@ namespace loka
   {
     namespace scene
     {
-      class IPlatformLayoutTraversal
+      class IPlatformLayoutTraversal : public loka::app::layout::INaturalWidthSource
       {
       public:
         virtual ~IPlatformLayoutTraversal() {}
+        /** Rails without natural-width support retain shared Row seats. */
+        virtual bool queryNaturalWidth(Node *, short &) const { return false; }
         virtual int layoutChild(Node *child, const LayoutState &state) = 0;
         /** A handler asks before narrowing an int result Y; true means the
             result is refused and must not be committed. */

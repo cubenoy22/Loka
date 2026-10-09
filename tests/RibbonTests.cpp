@@ -69,17 +69,21 @@ void testRibbonFixedSeatsAndClicks()
                     << RibbonItem("Save").onClick(&events[2])
                     << RibbonItem("Save As...").onClick(&events[3]).width(120))
                 << (Row().testId("GapMetric")
-                    << (Box().size(10, 0) << Button("A")) << (Box().size(10, 0) << Button("B"))))
+                    << (Box().size(10, 0) << Button("A")) << (Box().size(10, 0) << Button("B")))
+                << (Row().testId("OrdinaryRow") << Button("A") << Button("B")))
           .clone();
   LOKA_VERIFY(definition != 0);
   Scene scene(definition);
   LOKA_VERIFY(scene.mount(&platform));
   SceneTestAccess::updateAttached(scene, true);
+  short unused = 0;
+  LOKA_VERIFY(!platform.queryNaturalWidth(SceneTestAccess::rootNode(scene), unused));
   // As in the responsive layout fixtures, record the projected Button seats.
-  RibbonGeometryContext *rects[6];
-  for (int i = 0; i < 6; ++i)
+  RibbonGeometryContext *rects[8];
+  for (int i = 0; i < 8; ++i)
   {
-    ButtonNode *node = ribbonButton(scene, i < 4 ? "RibbonUnderTest" : "GapMetric", i < 4 ? i : i - 4);
+    ButtonNode *node = ribbonButton(scene, i < 4 ? "RibbonUnderTest" : i < 6 ? "GapMetric" : "OrdinaryRow",
+                                    i < 4 ? i : i < 6 ? i - 4 : i - 6);
     rects[i] = static_cast<RibbonGeometryContext *>(node->getContext());
     LOKA_VERIFY(rects[i] != 0);
   }
@@ -92,7 +96,10 @@ void testRibbonFixedSeatsAndClicks()
   // seats measures that same metric without duplicating its numeric value.
   const int gap = rects[5]->rect.x - (rects[4]->rect.x + rects[4]->rect.width);
   LOKA_VERIFY(gap > 0);
-  const short widths[] = {80, 80, 80, 120};
+  LOKA_VERIFY(rects[6]->rect.width == (viewport.width - gap) / 2);
+  LOKA_VERIFY(rects[7]->rect.width == rects[6]->rect.width);
+  LOKA_VERIFY(rects[7]->rect.x == rects[6]->rect.x + rects[6]->rect.width + gap);
+  const short widths[] = {40, 72, 48, 120};
   const char *titles[] = {"New", "Open...", "Save", "Save As..."};
   for (int i = 0; i < 4; ++i)
   {
@@ -100,6 +107,14 @@ void testRibbonFixedSeatsAndClicks()
     std::printf("Ribbon item %d: x=%d width=%d expected=%d gap=%d\n", i, rect.x, rect.width, widths[i], gap);
     std::fflush(stdout);
     LOKA_VERIFY(rect.width == widths[i]);
+    if (i < 3)
+    {
+      short first = 0, second = 0;
+      ButtonNode *button = ribbonButton(scene, "RibbonUnderTest", i);
+      LOKA_VERIFY(platform.queryNaturalWidth(button, first));
+      LOKA_VERIFY(platform.queryNaturalWidth(button, second));
+      LOKA_VERIFY(first == widths[i] && second == first);
+    }
     if (i)
     {
       LOKA_VERIFY(rect.x > rects[i - 1]->rect.x);

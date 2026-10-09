@@ -198,6 +198,24 @@ int main(int argc, char **argv)
     scrollRangePin(controller, handler, std::strcmp(mode, "scroll-refusal") == 0);
     return 0;
   }
+  if (std::strcmp(mode, "natural-row") == 0)
+  {
+    StackProps props;
+    props.rowUndeclaredWidth_ = ROW_UNDECLARED_WIDTH_NATURAL;
+    StackNode row(props);
+    Probe *a = new Probe();
+    Probe *b = new Probe();
+    row.addChild(a);
+    row.addChild(b);
+    LOKA_VERIFY((controller.registry.find(&row) != 0) == handler);
+    LayoutState state;
+    state.width = 240;
+    state.spacing = 6;
+    LayoutNode(&row, state, &controller, 0);
+    LOKA_VERIFY(a->offer.width == 37 && b->offer.width == 37);
+    LOKA_VERIFY(b->offer.x == a->offer.x + 37 + 6);
+    return 0;
+  }
   const bool nested = std::strcmp(mode, "nested") == 0;
   const bool fixed = std::strcmp(mode, "fixed") == 0;
   const bool empty = std::strcmp(mode, "empty") == 0;

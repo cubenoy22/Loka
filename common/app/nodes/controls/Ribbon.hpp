@@ -12,18 +12,17 @@ namespace loka
   {
     struct RibbonControlDefinition;
 
-    /** One native push button in a left-to-right RibbonControl, in a fixed-width
-        seat (DEFAULT_WIDTH or width(n)). The emitter is borrowed; null does nothing.
+    /** One native push button in a left-to-right RibbonControl, using its rail's
+        natural width unless width(n) declares a fixed seat. The emitter is borrowed;
+        null does nothing.
         Items form the closed ribbon vocabulary for future native projections;
         enabled, icons and identifier commands are later work. */
     struct RibbonItemDefinition
     {
-      static const short DEFAULT_WIDTH = 80;
-
       explicit RibbonItemDefinition(const char *text)
           : title_(loka::core::String::Literal(text)),
             onClick_(0),
-            width_(DEFAULT_WIDTH)
+            width_()
       {
       }
       RibbonItemDefinition &onClick(loka::core::EmitterState *emitter)
@@ -35,7 +34,7 @@ namespace loka
       RibbonItemDefinition &width(short n)
       {
         assert(n > 0);
-        this->width_ = n;
+        this->width_ = DeclaredWidth(n);
         return *this;
       }
 
@@ -44,12 +43,31 @@ namespace loka
       friend struct RibbonControlDefinition;
       loka::core::String title_;
       loka::core::EmitterState *onClick_;
-      short width_;
+      /** Optional fixed seat; the numeric payload is read only in FIXED mode. */
+      class DeclaredWidth
+      {
+      public:
+        DeclaredWidth() : kind_(NATURAL), value_(0) {}
+        explicit DeclaredWidth(short value) : kind_(FIXED), value_(value) {}
+        bool query(short &value) const
+        {
+          if (this->kind_ == NATURAL)
+            return false;
+          value = this->value_;
+          return true;
+        }
+      private:
+        enum Kind { NATURAL, FIXED };
+        Kind kind_;
+        short value_;
+      };
+      DeclaredWidth width_;
     };
     typedef RibbonItemDefinition RibbonItem;
 
-    /** A left-to-right row of native push buttons, each in a fixed-width seat
-        (RibbonItem::DEFAULT_WIDTH or the item's width(n)). Only RibbonItems may
+    /** A left-to-right row of native push buttons using rail-measured natural
+        widths or the item's explicit width(n). A declining rail shares the remaining
+        width among undeclared seats. Only RibbonItems may
         be appended, preserving a closed declaration for future native projections.
         Enabled, icons and identifier commands are later work. */
     struct RibbonControlDefinition
@@ -60,6 +78,7 @@ namespace loka
       RibbonControlDefinition()
           : BaseType(StackProps(STACK_AXIS_ROW))
       {
+        this->props.rowUndeclaredWidth_ = ROW_UNDECLARED_WIDTH_NATURAL;
       }
       RibbonControlDefinition(const RibbonControlDefinition &other)
           : BaseType(other)
@@ -70,8 +89,12 @@ namespace loka
       // so a RibbonControl accepts RibbonItems only.
       RibbonControlDefinition &operator<<(const RibbonItemDefinition &item)
       {
-        BaseType::operator<<(Box().size(item.width_, 0)
-                             << Button(ButtonProps().text(item.title_).onClick(item.onClick_)));
+        short fixedWidth = 0;
+        if (item.width_.query(fixedWidth))
+          BaseType::operator<<(Box().size(fixedWidth, 0)
+                               << Button(ButtonProps().text(item.title_).onClick(item.onClick_)));
+        else
+          BaseType::operator<<(Button(ButtonProps().text(item.title_).onClick(item.onClick_)));
         return *this;
       }
     };
