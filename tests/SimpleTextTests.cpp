@@ -5,6 +5,7 @@
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(LOKA_RETRO68)
 #include "../example/SimpleText/src/MyAppConfig.hpp"
 #include "app/MenuComposition.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/layout/RowLayout.hpp"
 #include "app/layout/ColumnLayout.hpp"
 #include <sys/stat.h>
@@ -424,6 +425,71 @@ void testSimpleTextMenuAndDialogProps()
   LOKA_VERIFY(find(&h.main(), "SimpleText.Editor") && find(&h.main(), "SimpleText.Error"));
 }
 
+void testSimpleTextRibbonFiresTheMenuEmitters()
+{
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  Harness h;
+  LOKA_VERIFY(find(&h.main(), "SimpleText.Ribbon"));
+  const char *titles[] = {"New", "Open...", "Save", "Save As..."};
+  EmitterState *events[] = {&SimpleTextTestAccess::newEvent(h.config),
+                            &SimpleTextTestAccess::openEvent(h.config),
+                            &SimpleTextTestAccess::saveEvent(h.config),
+                            &SimpleTextTestAccess::saveAsEvent(h.config)};
+  FlowError error;
+  for (int i = 0; i < 4; ++i)
+  {
+    ButtonNode *button = 0;
+    LOKA_VERIFY(ResolveSelector(h.scene, WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(i + 1), button, error)
+                == FLOW_STEP_SUCCEEDED);
+    LOKA_VERIFY(button && button->props.text_->get().equals(String(titles[i])));
+    LOKA_VERIFY(button->props.onClick_ == events[i]);
+  }
+  ButtonNode *extra = 0;
+  LOKA_VERIFY(ResolveSelector(h.scene, WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(5), extra, error)
+              != FLOW_STEP_SUCCEEDED);
+  h.put("first.txt", "kept\nsecond");
+  h.open("first.txt");
+  LOKA_VERIFY(h.lines().update(h.lines().at(0).id, String("unsaved")) == EDIT_OK);
+  scene::Scene *out = 0;
+  LOKA_VERIFY(ClickButton(WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(2)).run(h.scene, out, error)
+              == FLOW_STEP_SUCCEEDED);
+  h.flush();
+  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::OPEN);
+  LOKA_VERIFY(find(&h.main(), "SimpleText.Open"));
+  const ListRevision revision = h.lines().revision().get();
+  const int refused[] = {1, 3, 4};
+  for (int i = 0; i < 3; ++i)
+  {
+    LOKA_VERIFY(
+        ClickButton(WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(refused[i])).run(h.scene, out, error)
+        == FLOW_STEP_SUCCEEDED);
+    h.flush();
+    LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::OPEN);
+    LOKA_VERIFY(!(h.lines().revision().get() != revision));
+    LOKA_VERIFY(h.row(0) == "unsaved" && h.bytes("first.txt") == "kept\nsecond");
+    h.currentIs("first.txt");
+  }
+  h.choose(false, FileChooserResult::Canceled());
+  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::NONE);
+  LOKA_VERIFY(!find(&h.main(), "SimpleText.Open"));
+  LOKA_VERIFY(ClickButton(WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(4)).run(h.scene, out, error)
+              == FLOW_STEP_SUCCEEDED);
+  h.flush();
+  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::SAVE);
+  LOKA_VERIFY(find(&h.main(), "SimpleText.Save"));
+  h.choose(true, FileChooserResult::Canceled());
+  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::NONE);
+  LOKA_VERIFY(!find(&h.main(), "SimpleText.Save"));
+  const ItemId old = h.lines().at(0).id;
+  LOKA_VERIFY(ClickButton(WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(1)).run(h.scene, out, error)
+              == FLOW_STEP_SUCCEEDED);
+  h.flush();
+  LOKA_VERIFY(h.lines().size() == 1 && h.row(0).empty() && h.lines().at(0).id != old);
+  LOKA_VERIFY(SimpleTextTestAccess::current(h.main()).kind == FileChooserResult::RESULT_NONE);
+  LOKA_VERIFY(!h.hasError());
+}
+
 void testSimpleTextDetachWithdrawsFlows()
 {
   Harness h;
@@ -443,11 +509,13 @@ namespace
     explicit LayoutProbe(Harness &h)
         : harness(h),
           editor(),
+          band(),
           calls(0)
     {
     }
     Harness &harness;
     scene::LayoutState editor;
+    scene::LayoutState band;
     unsigned calls;
     static int columnChild(void *context, scene::Node *node, const scene::LayoutState &state)
     {
@@ -458,7 +526,13 @@ namespace
         ++probe.calls;
         return state.y + state.height;
       }
-      return probe.harness.platform.projectLayoutForTesting(node, state);
+      const int bottom = probe.harness.platform.projectLayoutForTesting(node, state);
+      if (node->testId() == "SimpleText.Ribbon")
+      {
+        probe.band = state;
+        probe.band.height = static_cast<short>(bottom - state.y);
+      }
+      return bottom;
     }
     static int rowChild(void *context, scene::Node *node, const scene::LayoutState &state)
     {
@@ -495,6 +569,8 @@ void testSimpleTextEditorReceivesRemainingWindow()
     metrics.gap = viewport.spacing;
     layout::computeRowLayoutResultY(root, viewport, metrics, &probe, &LayoutProbe::rowChild);
     LOKA_VERIFY(probe.calls == 1);
+    LOKA_VERIFY(probe.band.height > 0);
+    LOKA_VERIFY(probe.band.y + probe.band.height <= probe.editor.y);
     LOKA_VERIFY(probe.editor.x == viewport.x && probe.editor.width == viewport.width);
     LOKA_VERIFY(probe.editor.y > viewport.y);
     LOKA_VERIFY(probe.editor.height > 80);
