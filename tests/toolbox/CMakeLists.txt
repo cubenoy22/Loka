@@ -210,6 +210,25 @@ function(loka_add_te_style_probe name core_target)
 endfunction()
 loka_add_te_style_probe(LokaTEStyleProbe LokaAppleToolboxCore)
 
+# Color rally probe; opt-in and deliberately independent of the scene layer.
+configure_file(
+  ${CMAKE_SOURCE_DIR}/example/HelloWorld/Size.r
+  ${CMAKE_CURRENT_BINARY_DIR}/ColorProbeSize.r
+  COPYONLY
+)
+function(loka_add_color_probe name core_target)
+  set(target "${name}${LOKA_CLASSIC_TARGET_SUFFIX}")
+  loka_add_toolbox_test_application(
+    ${target}
+    ${core_target}
+    src/ColorProbeStandaloneMain.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/ColorProbeSize.r
+  )
+  set_property(TARGET ${target} PROPERTY EXCLUDE_FROM_ALL TRUE)
+  set_property(TARGET ${target}_APPL PROPERTY EXCLUDE_FROM_ALL TRUE)
+endfunction()
+loka_add_color_probe(LokaColorProbe LokaAppleToolboxCore)
+
 # Interactive editor; production core, no scenario driver or idle callback.
 # LokaTextEditor68K_APPL.bin is 26 characters (HFS limit: 31).
 set(LOKA_TEXT_EDITOR_TARGET "LokaTextEditor${LOKA_CLASSIC_TARGET_SUFFIX}")
