@@ -177,6 +177,52 @@ namespace
     int failingIndex_;
   };
 
+  template <int FailingIndex>
+  class ForRefusalBoundary
+      : public loka::app::scene::BoundaryNodeFor<ForRefusalBoundary<FailingIndex> >
+  {
+  public:
+    typedef loka::app::scene::BoundaryPropsFor<ForRefusalBoundary<FailingIndex> > Props;
+
+    explicit ForRefusalBoundary(const Props &props)
+        : loka::app::scene::BoundaryNodeFor<ForRefusalBoundary<FailingIndex> >(props)
+    {
+    }
+
+    virtual void composeNode(loka::app::scene::NodeComposition &composition)
+    {
+      const ForItem items[] = {
+          ForItem(1, "one"), ForItem(2, "two"), ForItem(3, "three")};
+      loka::app::Fragment parent;
+      LOKA_VERIFY(loka::app::scene::NodeComposition::current() == &composition);
+      parent << loka::app::For(810, items, FailingCloneFactory(FailingIndex));
+      // Check atomicity before the reporting assertion, including on the red base.
+      LOKA_VERIFY(parent.childrenCount() == (FailingIndex < 0 ? 3u : 0u));
+      composition.declare(parent);
+    }
+  };
+
+  template <int FailingIndex>
+  void verifyForDeclarationResult()
+  {
+    SceneTestSupport::RecordingPlatformController platform;
+    loka::app::scene::Scene scene(
+        (loka::app::scene::Boundary<ForRefusalBoundary<FailingIndex> >()));
+    scene.mount(&platform);
+    loka::dsl::testing::SceneTestAccess::updateAttached(scene, true);
+    loka::app::scene::BoundaryNode *owner =
+        loka::dsl::testing::SceneTestAccess::rootBoundary(scene);
+    LOKA_VERIFY(owner);
+    if (FailingIndex < 0)
+    {
+      LOKA_VERIFY(!owner->composeResult().allocationFailed);
+    }
+    else
+    {
+      LOKA_VERIFY(owner->composeResult().allocationFailed);
+    }
+  }
+
   struct CountingTextFactory
   {
     explicit CountingTextFactory(int *calls = 0)
@@ -400,8 +446,20 @@ void testForRejectsInvalidTagsBeforeInsertion()
   LOKA_VERIFY(factoryCalls == 0);
 }
 
+void testForFactoryCloneRefusalReportsToDeclarationWindow()
+{
+  // One successful clone precedes the refusal; the partial batch must be discarded.
+  verifyForDeclarationResult<1>();
+}
+
+void testForSuccessfulDeclarationDoesNotReportRefusal()
+{
+  verifyForDeclarationResult<-1>();
+}
+
 void testForFactoryCloneFailureLeavesParentUnchanged()
 {
+  LOKA_VERIFY(!loka::app::scene::NodeComposition::current());
   loka::Vector<ForItem> items;
   items.push_back(ForItem(1, "one"));
   items.push_back(ForItem(2, "two"));
@@ -413,6 +471,7 @@ void testForFactoryCloneFailureLeavesParentUnchanged()
   loka::app::scene::NodeDefinitionBase *stableClone = parent.childrenHead();
   parent << loka::app::For(800, items, FailingCloneFactory(1));
 
+  LOKA_VERIFY(!loka::app::scene::NodeComposition::current());
   LOKA_VERIFY(parent.childrenCount() == 1);
   LOKA_VERIFY(parent.childrenHead() == stableClone);
   LOKA_VERIFY(stableClone && !stableClone->nextInComposition);

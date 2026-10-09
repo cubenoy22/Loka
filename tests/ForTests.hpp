@@ -5,6 +5,8 @@ void testForIndexBuildsHandWrittenSectionTree();
 void testForRejectsDuplicateKeysWithinBatch();
 void testForRejectsInvalidTagsBeforeInsertion();
 void testForFactoryCloneFailureLeavesParentUnchanged();
+void testForFactoryCloneRefusalReportsToDeclarationWindow();
+void testForSuccessfulDeclarationDoesNotReportRefusal();
 void testUniqueTaggedSiblingListRejectsAnonymousSibling();
 void testForDerivedKeysRetainItemSeatAcrossRemoval();
 void testForVectorBuilderReadsCurrentContentsAtAppend();
