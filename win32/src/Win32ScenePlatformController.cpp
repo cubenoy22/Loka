@@ -2,6 +2,7 @@
 #include "Win32InputDoor.hpp"
 #include "Win32ScenePlatformController.hpp"
 #include "Win32BitmapCapture.hpp"
+#include "platform/Win32String.hpp"
 #include "context/Win32FocusParticipant.hpp"
 #include "context/Win32EditTextBridge.hpp"
 #include "app/layout/CanvasLayout.hpp"
@@ -50,6 +51,9 @@
 
 namespace
 {
+  // Deliberate Toolbox twin: eight logical display units per title side.
+  const int kPushButtonTitleInsetDips = 8;
+
   /** One installation contract for registration protection and paint lookup.
       Unknown handler contexts are never cast by the paint walk. */
   struct PaintContextKind
@@ -214,6 +218,11 @@ namespace loka
         {
         }
 
+        virtual bool queryNaturalWidth(Node *child, short &width) const
+        {
+          return this->controller_ && this->controller_->queryNaturalWidth(child, width);
+        }
+
         virtual int layoutChild(Node *child, const LayoutState &state)
         {
           if (!this->controller_)
@@ -246,6 +255,49 @@ namespace loka
     } // namespace scene
   } // namespace app
 } // namespace loka
+
+bool Win32ScenePlatformController::measurePushButtonNaturalWidth(
+    const loka::core::String &label, short &width) const
+{
+  const HFONT font = this->displayFont_.get();
+  if (!font)
+    return false;
+  std::wstring wide;
+  if (!loka::win32::MaterializeWideString(label, wide)
+      || wide.size() > static_cast<std::size_t>(INT_MAX))
+    return false;
+  HDC dc = GetDC(this->rootHwnd_);
+  if (!dc)
+    return false;
+  HGDIOBJ previousFont = SelectObject(dc, font);
+  SIZE extent = {0, 0};
+  const bool selected = previousFont && previousFont != HGDI_ERROR;
+  const BOOL measured = selected
+      ? GetTextExtentPoint32W(dc, wide.c_str(), static_cast<int>(wide.size()), &extent) : FALSE;
+  if (selected)
+    SelectObject(dc, previousFont);
+  ReleaseDC(this->rootHwnd_, dc);
+  if (!measured || extent.cx < 0)
+    return false;
+  const int inset = this->displayScale_.nativeLength(0, kPushButtonTitleInsetDips).px;
+  if (inset < 0 || inset > (INT_MAX - extent.cx) / 2)
+    return false;
+  // GDI reports pixels; Row seats are logical, and HWND relayout projects edges.
+  const int logicalWidth = this->displayScale_.measurementToLu(static_cast<int>(extent.cx) + 2 * inset);
+  if (logicalWidth <= 0 || logicalWidth > SHRT_MAX)
+    return false;
+  width = static_cast<short>(logicalWidth);
+  return true;
+}
+
+bool Win32ScenePlatformController::queryNaturalWidth(loka::app::scene::Node *child, short &width) const
+{
+  loka::app::ButtonNode *button = child ? child->asButtonNode() : 0;
+  // Win32ButtonContext leaves its initial empty title alone without a text State.
+  if (!button || !button->props.text_)
+    return false;
+  return this->measurePushButtonNaturalWidth(button->props.text_->get(), width);
+}
 
 /** Measured 2026-09-19 (#818): the 9 pt message font is 12 px at 96 dpi,
     approximately 12 lu. The 75x23 px standard button and native margins
@@ -1337,7 +1389,7 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
       const loka::app::layout::RowLayoutMetrics metrics =
           loka::app::layout::FallbackControlMetrics::rowLayout();
       resultY = loka::app::layout::computeRowLayoutResultY(
-          stack, state, metrics, 0, // Natural widths arrive in the next rail PR.
+          stack, state, metrics, this,
           this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);

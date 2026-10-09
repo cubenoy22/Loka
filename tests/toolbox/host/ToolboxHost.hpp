@@ -207,7 +207,10 @@ class ToolboxScenePlatformController : public loka::app::scene::IPlatformControl
 public:
   ToolboxPendingDialogs pendingDialogs_;
   virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const;
-  /** Push-button measurement shared by allocation and standalone layout. */
+  /** Push-button measurement shared by allocation and standalone layout.
+      The bool form refuses an unmeasurable label; the short form keeps the
+      standalone layout's inset-only width for that case. */
+  bool measurePushButtonNaturalWidth(const loka::core::String &label, short &width) const;
   short measurePushButtonNaturalWidth(const loka::core::String &label) const;
   ToolboxPendingDialogs &pendingDialogs() { return this->pendingDialogs_; }
   MeasurementRetryQueue relayoutRetries;

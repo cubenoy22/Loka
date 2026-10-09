@@ -13,4 +13,8 @@ void testWin32AttributedTextLiveDpiChange();
 
 void testWin32AttributedTextPaintRouting();
 
+void testWin32ButtonNaturalWidthAnswer();
+void testWin32RibbonNaturalWidthTraversal();
+void testWin32NaturalWidthDirectRow();
+
 #endif // LOKA_TESTS_WIN32_NODE_HANDLER_ENSURE_TESTS_HPP

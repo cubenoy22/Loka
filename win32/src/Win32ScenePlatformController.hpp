@@ -4,6 +4,7 @@
 #include <windows.h>
 #include "Win32TextEnvironment.hpp"
 #include "app/layout/TextShaping.hpp"
+#include "app/layout/NaturalWidthSource.hpp"
 #include <vector>
 #include "app/RectSurface.hpp"
 #include "app/scene/projection/ProjectionParentScope.hpp"
@@ -64,9 +65,11 @@ namespace loka
   } // namespace app
 } // namespace loka
 
-class Win32ScenePlatformController : public loka::app::scene::IPlatformController
+class Win32ScenePlatformController : public loka::app::scene::IPlatformController,
+    public loka::app::layout::INaturalWidthSource
 {
 public:
+  virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const;
   /** Retire door for a RectSurface context: takes back that surface's pending
       seat rows so a surface reclaimed during delivery publishes nothing. */
   void cancelRectSurfaceExtent(loka::app::RectSurfaceNode *surface)
@@ -177,6 +180,9 @@ public:
   void queueNativeRetirement(HWND hwnd);
 
 private:
+  /** Display-font text extent plus title insets, returned in logical layout units. */
+  bool measurePushButtonNaturalWidth(const loka::core::String &label, short &width) const;
+
   friend class ::loka::dsl::testing::Win32ScenePlatformTestAccess;
   friend class ::loka::app::scene::Win32PlatformLayoutTraversal;
   friend class ::Win32NativeLayoutPass;
