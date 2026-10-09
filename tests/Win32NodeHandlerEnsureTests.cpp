@@ -1,6 +1,11 @@
 #include "support/TextEditorStateOwner.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "Win32NodeHandlerEnsureTests.hpp"
+#include "app/nodes/controls/Ribbon.hpp"
+#include "testing/scene/SceneTestFlow.hpp"
+#include "platform/Win32String.hpp"
+#include <cwchar>
+
 #include "support/TestVerify.hpp"
 #include "support/RailTextLayoutFixture.hpp"
 #include <cassert>
@@ -1202,4 +1207,180 @@ void testWin32AttributedTextPaintRouting()
   LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
   loka::core::testing::allowLokaAllocRaw();
   LOKA_VERIFY(DestroyWindow(rootWindow));
+}
+
+namespace
+{
+  int expectedPushButtonWidth(Win32ScenePlatformController &controller, const wchar_t *label)
+  {
+    HDC dc = GetDC(controller.rootHwnd());
+    LOKA_VERIFY(dc != NULL);
+    HGDIOBJ previous = SelectObject(dc, controller.displayFont());
+    LOKA_VERIFY(previous && previous != HGDI_ERROR);
+    SIZE extent = {0, 0};
+    const BOOL measured = GetTextExtentPoint32W(dc, label, static_cast<int>(std::wcslen(label)), &extent);
+    LOKA_VERIFY(SelectObject(dc, previous) != NULL);
+    LOKA_VERIFY(ReleaseDC(controller.rootHwnd(), dc));
+    LOKA_VERIFY(measured);
+    // Independent contract oracle: eight DIPs per side, including rail space scale.
+    const int inset = controller.displayScale().nativeLength(0, 8).px;
+    return controller.displayScale().measurementToLu(static_cast<int>(extent.cx) + 2 * inset);
+  }
+
+  void verifyButtonSeat(loka::app::ButtonNode *button, HWND root,
+                        const loka::win32::Win32DisplayScale &scale, int x, int width)
+  {
+    Win32ButtonContext *context = static_cast<Win32ButtonContext *>(button->getContext());
+    LOKA_VERIFY(context && context->hwnd());
+    wchar_t className[32];
+    LOKA_VERIFY(GetClassNameW(context->hwnd(), className, 32));
+    LOKA_VERIFY(std::wcscmp(className, L"Button") == 0 || std::wcscmp(className, L"BUTTON") == 0);
+    const RECT frame = childRectInParent(context->hwnd(), root);
+    LOKA_VERIFY(frame.left == scale.projectEdge(x));
+    LOKA_VERIFY(frame.right == scale.projectEdge(x + width));
+    LOKA_VERIFY(frame.right - frame.left == scale.nativeLength(x, x + width).px);
+  }
+
+  // An unregistered Stack type takes the controller's existing direct Row path.
+  class DirectNaturalWidthRow : public loka::app::StackNode
+  {
+  public:
+    explicit DirectNaturalWidthRow(const loka::app::StackProps &props) : StackNode(props) {}
+    virtual const void *nodeTypeKey() const
+    {
+      return loka::app::scene::NodeTypeToken<DirectNaturalWidthRow>();
+    }
+  };
+}
+
+void testWin32ButtonNaturalWidthAnswer()
+{
+  using namespace loka::app;
+  const loka::win32::Win32DisplayScale scales[] = {
+      loka::win32::Win32DisplayScale(96),
+      loka::win32::Win32DisplayScale(144, loka::win32::DefaultRailMetrics())};
+  for (int i = 0; i < 2; ++i)
+  {
+    Win32ScenePlatformController controller(NULL, scales[i]);
+    ButtonNode newButton(ButtonProps().text("New"));
+    ButtonNode saveButton(ButtonProps().text("Save As..."));
+    short newWidth = 0, saveWidth = 0, repeatedWidth = 0;
+    LOKA_VERIFY(controller.queryNaturalWidth(&newButton, newWidth));
+    LOKA_VERIFY(controller.queryNaturalWidth(&saveButton, saveWidth));
+    LOKA_VERIFY(controller.queryNaturalWidth(&newButton, repeatedWidth));
+    LOKA_VERIFY(newWidth == repeatedWidth);
+    LOKA_VERIFY(newWidth == expectedPushButtonWidth(controller, L"New"));
+    LOKA_VERIFY(saveWidth == expectedPushButtonWidth(controller, L"Save As..."));
+    LOKA_VERIFY(newWidth < saveWidth);
+    const wchar_t wideLabel[] = {0x65e5, 0x672c, 0x8a9e, 0};
+    ButtonNode wideButton(ButtonProps().text(loka::core::String(
+        loka::win32::CreateWin32StringFromUtf16(wideLabel, 3))));
+    short wideWidth = 0;
+    LOKA_VERIFY(controller.queryNaturalWidth(&wideButton, wideWidth));
+    LOKA_VERIFY(wideWidth == expectedPushButtonWidth(controller, wideLabel));
+    ButtonNode missing((ButtonProps()));
+    StackNode other((StackProps()));
+    short refused = 13;
+    LOKA_VERIFY(!controller.queryNaturalWidth(&missing, refused));
+    LOKA_VERIFY(!controller.queryNaturalWidth(&other, refused));
+    LOKA_VERIFY(!controller.queryNaturalWidth(0, refused));
+    LOKA_VERIFY(refused == 13);
+    ButtonNode huge(ButtonProps().text(loka::core::String(std::string(32768, 'W'))));
+    LOKA_VERIFY(!controller.queryNaturalWidth(&huge, refused));
+    LOKA_VERIFY(refused == 13);
+  }
+}
+
+void testWin32RibbonNaturalWidthTraversal()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  using namespace loka::dsl;
+  using namespace loka::dsl::testing;
+  const loka::win32::Win32DisplayScale scales[] = {
+      loka::win32::Win32DisplayScale(96),
+      loka::win32::Win32DisplayScale(144, loka::win32::DefaultRailMetrics())};
+  for (int scaleIndex = 0; scaleIndex < 2; ++scaleIndex)
+  {
+    const loka::win32::Win32DisplayScale &scale = scales[scaleIndex];
+    HWND root = CreateWindowExW(0, L"STATIC", L"natural-ribbon", WS_POPUP, 0, 0,
+                                scale.clientLengthToNative(640).px, scale.clientLengthToNative(160).px,
+                                NULL, NULL, GetModuleHandleW(NULL), NULL);
+    LOKA_VERIFY(root != NULL);
+    {
+      Win32ScenePlatformController controller(root, scale);
+      NodeDefinitionBase *definition =
+          (Column() << (RibbonControl().testId("naturalRibbon")
+                        << RibbonItem("New") << RibbonItem("Save As...") << RibbonItem("Fixed").width(120))
+                    << (Row().testId("sharedRow") << Button("New") << Button("Save As..."))).clone();
+      LOKA_VERIFY(definition != 0);
+      Scene scene(definition);
+      LOKA_VERIFY(scene.mount(&controller));
+      SceneTestAccess::updateAttached(scene, true);
+      controller.relayout(640, 160);
+      LOKA_VERIFY(countChildWindows(root) == 5);
+      const int widths[] = {expectedPushButtonWidth(controller, L"New"),
+                            expectedPushButtonWidth(controller, L"Save As..."), 120};
+      const int gap = layout::FallbackControlMetrics::rowLayout().gap;
+      int x = 20;
+      for (int i = 0; i < 3; ++i)
+      {
+        ButtonNode *button = 0;
+        FlowError error;
+        LOKA_VERIFY(ResolveSelector(&scene, WithinAnchor("naturalRibbon").descendant<ButtonNode>(i + 1),
+                                    button, error) == FLOW_STEP_SUCCEEDED);
+        LOKA_VERIFY(button != 0);
+        Win32ButtonContext *context = static_cast<Win32ButtonContext *>(button->getContext());
+        LOKA_VERIFY(context != 0);
+        LOKA_VERIFY(reinterpret_cast<HFONT>(SendMessageW(context->hwnd(), WM_GETFONT, 0, 0))
+                    == controller.displayFont());
+        verifyButtonSeat(button, root, scale, x, widths[i]);
+        x += widths[i] + gap;
+      }
+      // Different titles remain equal seats in an ordinary Row.
+      const int sharedWidth = (640 - 40 - gap) / 2;
+      LOKA_VERIFY(2 * sharedWidth + gap == 600);
+      for (int i = 0; i < 2; ++i)
+      {
+        ButtonNode *button = 0;
+        FlowError error;
+        LOKA_VERIFY(ResolveSelector(&scene, WithinAnchor("sharedRow").descendant<ButtonNode>(i + 1),
+                                    button, error) == FLOW_STEP_SUCCEEDED);
+        LOKA_VERIFY(button != 0);
+        verifyButtonSeat(button, root, scale, 20 + i * (sharedWidth + gap), sharedWidth);
+      }
+      SceneTestAccess::unmount(scene);
+      controller.drainNativeRetirements();
+    }
+    LOKA_VERIFY(DestroyWindow(root));
+  }
+}
+
+void testWin32NaturalWidthDirectRow()
+{
+  using namespace loka::app;
+  const loka::win32::Win32DisplayScale scale(144, loka::win32::DefaultRailMetrics());
+  HWND root = CreateWindowExW(0, L"STATIC", L"natural-direct", WS_POPUP, 0, 0,
+                              scale.clientLengthToNative(640).px, scale.clientLengthToNative(160).px,
+                              NULL, NULL, GetModuleHandleW(NULL), NULL);
+  LOKA_VERIFY(root != NULL);
+  {
+    Win32ScenePlatformController controller(root, scale);
+    StackProps props;
+    props.rowUndeclaredWidth_ = ROW_UNDECLARED_WIDTH_NATURAL;
+    DirectNaturalWidthRow row(props);
+    ButtonNode *first = new ButtonNode(ButtonProps().text("New"));
+    ButtonNode *second = new ButtonNode(ButtonProps().text("Save As..."));
+    row.addChild(first);
+    row.addChild(second);
+    controller.onChange(&row, scene::NODE_DIRTY_NONE, false);
+    controller.relayout(640, 160);
+    const int firstWidth = expectedPushButtonWidth(controller, L"New");
+    const int secondWidth = expectedPushButtonWidth(controller, L"Save As...");
+    verifyButtonSeat(first, root, scale, 20, firstWidth);
+    verifyButtonSeat(second, root, scale, 20 + firstWidth + layout::FallbackControlMetrics::rowLayout().gap,
+                     secondWidth);
+    controller.onChange(0, scene::NODE_DIRTY_NONE, false);
+  }
+  LOKA_VERIFY(DestroyWindow(root));
 }
