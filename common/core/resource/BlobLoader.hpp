@@ -183,8 +183,13 @@ namespace loka
           }
 
           Blob blob = Blob::Create();
+          if (!blob.isValid())
+          {
+            outputState_->set(Blob::Empty());
+            return;
+          }
           blob.setLoading(true);
-          blob.setCompleted(false);
+
           if (request.incremental)
             blob.setProgress(Blob::UnknownProgress());
           else
@@ -194,17 +199,15 @@ namespace loka
           switch (request.source)
           {
           case BLOB_SOURCE_BYTES:
-            blob.setBytes(request.inlineBytes);
-            blob.setMutable(request.isMutable);
+            ok = blob.tryAssign(request.inlineBytes.empty() ? 0 : &request.inlineBytes[0], request.inlineBytes.size());
             blob.setProgress(1.0f);
-            ok = true;
             break;
           case BLOB_SOURCE_FILE:
-            ok = loadFile(request.filePath, &blob, request.isMutable);
+            ok = loka::platform::file::ReadBytes(request.filePath, blob) == loka::platform::file::READ_OK;
             if (ok && !request.incremental)
               blob.setProgress(1.0f);
             break;
-          default:
+          case BLOB_SOURCE_NONE:
             break;
           }
 
@@ -220,104 +223,12 @@ namespace loka
 
           if (!ok)
           {
-            blob.setCompleted(false);
             outputState_->set(Blob::Empty());
             return;
           }
 
-          blob.setCompleted(true);
+          blob.sealBytes();
           outputState_->set(blob);
-        }
-
-        bool loadFile(const String &path, Blob *blob, bool writable)
-        {
-          if (!blob)
-            return false;
-          FILE *file = loka::platform::file::OpenRead(path);
-          if (!file)
-            return false;
-
-          std::vector<unsigned char> bytes;
-          if (std::fseek(file, 0, SEEK_END) == 0)
-          {
-            long lengthPos = std::ftell(file);
-            if (lengthPos >= 0)
-            {
-              std::size_t length = static_cast<std::size_t>(lengthPos);
-              bytes.resize(length);
-              if (std::fseek(file, 0, SEEK_SET) != 0)
-              {
-                std::fclose(file);
-                return false;
-              }
-              if (!bytes.empty())
-              {
-                const std::size_t readBytes = std::fread(&bytes[0], 1, length, file);
-                if (readBytes < length)
-                {
-                  if (std::ferror(file))
-                  {
-                    std::fclose(file);
-                    return false;
-                  }
-                  bytes.resize(readBytes);
-                }
-              }
-            }
-            else
-            {
-              if (std::fseek(file, 0, SEEK_SET) != 0)
-              {
-                std::fclose(file);
-                return false;
-              }
-              if (!copyStream(file, &bytes))
-              {
-                std::fclose(file);
-                return false;
-              }
-            }
-          }
-          else
-          {
-            if (std::fseek(file, 0, SEEK_SET) != 0)
-            {
-              std::fclose(file);
-              return false;
-            }
-            if (!copyStream(file, &bytes))
-            {
-              std::fclose(file);
-              return false;
-            }
-          }
-
-          std::fclose(file);
-
-          blob->setBytes(bytes);
-          blob->setMutable(writable);
-          return true;
-        }
-
-        bool copyStream(FILE *file, std::vector<unsigned char> *out)
-        {
-          const std::size_t kBuffer = 4096;
-          unsigned char buffer[kBuffer];
-          for (;;)
-          {
-            const std::size_t readBytes = std::fread(buffer, 1, kBuffer, file);
-            if (readBytes == 0)
-            {
-              if (std::ferror(file))
-                return false;
-              break;
-            }
-            const std::size_t oldSize = out->size();
-            out->resize(oldSize + readBytes);
-            for (std::size_t i = 0; i < readBytes; ++i)
-              (*out)[oldSize + i] = buffer[i];
-          }
-          return true;
         }
 
         State<BlobLoaderRequest> *requestState_;

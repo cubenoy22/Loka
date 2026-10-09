@@ -70,7 +70,7 @@ namespace loka
       } // namespace
 
       ReadResult ReadBytes(const loka::core::String &path,
-                           std::vector<unsigned char> &out,
+                           loka::core::resource::Blob &out,
                            const ReadCapacity *capacity)
       {
         // The stdio read (logical paths, System 6 application items) blocks
@@ -80,10 +80,12 @@ namespace loka
       }
 
       ReadResult ReadBytes(const FileHandle &handle,
-                           std::vector<unsigned char> &out,
+                           loka::core::resource::Blob &out,
                            const ReadCapacity *capacity)
       {
-        out.clear();
+        if (!out.isValid() || out.isCompleted())
+          return READ_ALLOCATION_REFUSED;
+        out.tryResize(0);
         if (!handle.hasSpec)
         {
           return READ_NO_NATIVE_SPEC;
@@ -108,20 +110,24 @@ namespace loka
           FSClose(refNum);
           return READ_CAPACITY_REFUSED;
         }
-        out.resize(static_cast<std::size_t>(fileSize));
+        if (!out.tryResize(static_cast<std::size_t>(fileSize)))
+        {
+          FSClose(refNum);
+          return READ_ALLOCATION_REFUSED;
+        }
         if (fileSize > 0)
         {
           long count = fileSize;
-          err = FSRead(refNum, &count, &out[0]);
+          err = FSRead(refNum, &count, out.mutableData());
           if (err != noErr && err != eofErr)
           {
             FSClose(refNum);
-            out.clear();
+            out.tryResize(0);
             return READ_NATIVE_READ_FAILED;
           }
           if (count < fileSize)
           {
-            out.resize(static_cast<std::size_t>(count < 0 ? 0 : count));
+            out.tryResize(static_cast<std::size_t>(count < 0 ? 0 : count));
           }
         }
         FSClose(refNum);

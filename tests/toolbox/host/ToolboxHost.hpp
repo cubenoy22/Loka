@@ -96,6 +96,15 @@ public:
 };
 namespace toolbox_host { extern GrafPtr frontWindow; extern int textHits; }
 inline GrafPtr FrontWindow() { return toolbox_host::frontWindow; }
+#define LOKA_TOOLBOX_PENDING_DIALOGS_HPP
+#include "app/OpenFileDialog.hpp"
+class ToolboxPendingDialogs
+{
+public:
+  bool take(loka::app::OpenFileDialogProps &) { return false; }
+  bool empty() const { return true; }
+};
+class ToolboxScenePlatformController;
 class ToolboxWindow
 {
   loka::core::PushStateTracker tracker_;
@@ -116,6 +125,7 @@ public:
   }
   void requestInvalidate() { ++toolbox_host::invalidations; }
   void requestInvalidateWithReason(const char *) { ++toolbox_host::invalidations; }
+  ToolboxScenePlatformController *scenePlatformController() { return 0; }
   void flushInvalidate() { if (this->onFlush) this->onFlush(this->flushData); }
   loka::core::StateTracker *getTracker() { return &this->tracker_; }
   void requestInvalidateRect(const Rect &) { ++toolbox_host::invalidations; }
@@ -193,6 +203,8 @@ public:
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  ToolboxPendingDialogs pendingDialogs_;
+  ToolboxPendingDialogs &pendingDialogs() { return this->pendingDialogs_; }
   MeasurementRetryQueue relayoutRetries;
   virtual void requestRelayout();
   void requestSceneRelayout(loka::app::scene::Node *) { this->relayoutRetries.request(); }

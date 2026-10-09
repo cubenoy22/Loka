@@ -1,6 +1,7 @@
 #include "ScenarioDriverSupport.hpp"
 
 #include <cstdio>
+#include <cstdlib>
 
 #include "ToolboxWindow.hpp"
 #include "app/core/Window.hpp"
@@ -181,3 +182,21 @@ namespace loka
     }
   } // namespace toolbox_tests
 } // namespace loka
+
+#if defined(LOKA_RETRO68)
+/** A failed assert on Classic ends in abort() -> ExitToShell() with no bomb and
+    no dialog, which reads as "returned to the Finder" (#1093). Scenario vehicles
+    leave the failing expression beside the audit so run-scenario.sh can print
+    it. Plain stdio keeps this off every Loka path that could assert again. */
+extern "C" void __assert_func(const char *file, int line, const char *func, const char *expr)
+{
+  std::FILE *out = std::fopen("LokaTestsToolbox.assert", "w");
+  if (out)
+  {
+    std::fprintf(out, "loka_assert file=%s line=%d func=%s expr=%s\n",
+                 file ? file : "?", line, func ? func : "?", expr ? expr : "?");
+    std::fclose(out);
+  }
+  std::abort();
+}
+#endif

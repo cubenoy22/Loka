@@ -34,17 +34,7 @@ namespace loka
   } // namespace app
 } // namespace loka
 #include "ToolboxActivationPhase.hpp"
-/** Host App neighbor; the completion body below is the production method. */
-class ToolboxApp : public WindowAdmissionTestApp
-{
-public:
-  explicit ToolboxApp(Window &window)
-      : WindowAdmissionTestApp(window)
-  {
-  }
-  void present(ActivationPhase phase, loka::core::Operation &turn);
-};
-#include "ToolboxPresent.cpp"
+#include "ToolboxPresentHost.hpp"
 namespace
 {
   class Root : public BoundaryNodeFor<Root>

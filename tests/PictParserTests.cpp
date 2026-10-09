@@ -63,7 +63,15 @@ void testPictParserKeepsRawRangeAtItsBase()
 
   loka::toolbox::pict::PictParseResult result;
   LOKA_VERIFY(loka::toolbox::pict::ParsePict(
-      bytes, rangeBase, bytes.size(), result));
+      &bytes[0], bytes.size(), rangeBase, bytes.size(), result));
+  // Extent is independent of the requested absolute range, even when the
+  // backing fixture happens to contain bytes beyond that extent.
+  LOKA_VERIFY(!loka::toolbox::pict::ParsePict(
+      &bytes[0], bytes.size() - 1, rangeBase, bytes.size(), result));
+  LOKA_VERIFY(!loka::toolbox::pict::ParsePict(0, 0, 0, 0, result));
+  LOKA_VERIFY(!loka::toolbox::pict::ParsePict(0, bytes.size(), 0, bytes.size(), result));
+  LOKA_VERIFY(!loka::toolbox::pict::ParsePict(
+      &bytes[0], bytes.size(), bytes.size(), rangeBase, result));
   assert(result.pictureOffset == rangeBase);
   assert(result.pictureSize == 14);
   assert(result.width == 20);
@@ -79,7 +87,7 @@ void testPictParserAcceptsOrdinaryHeaderedFile()
 
   loka::toolbox::pict::PictParseResult result;
   LOKA_VERIFY(loka::toolbox::pict::ParsePict(
-      bytes, 0, bytes.size(), result));
+      &bytes[0], bytes.size(), 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
   assert(result.pictureSize == 16);
 
@@ -96,14 +104,14 @@ void testPictParserCorroboratesDeceptiveHeaderBeforeChoosingOffset()
 
   loka::toolbox::pict::PictParseResult result;
   LOKA_VERIFY(loka::toolbox::pict::ParsePict(
-      bytes, 0, bytes.size(), result));
+      &bytes[0], bytes.size(), 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
 
   // If the application header also happens to carry a version opcode, the
   // headered-file candidate wins the corroborated tie.
   PutVersion2Pict(bytes, 0);
   LOKA_VERIFY(loka::toolbox::pict::ParsePict(
-      bytes, 0, bytes.size(), result));
+      &bytes[0], bytes.size(), 0, bytes.size(), result));
   assert(result.pictureOffset == 512);
 
   // Corroboration works in both directions: a versioned raw stream beats an
@@ -111,14 +119,14 @@ void testPictParserCorroboratesDeceptiveHeaderBeforeChoosingOffset()
   PutVersion1Pict(bytes, 0);
   PutPlausibleHeader(bytes, 512, 16);
   LOKA_VERIFY(loka::toolbox::pict::ParsePict(
-      bytes, 0, bytes.size(), result));
+      &bytes[0], bytes.size(), 0, bytes.size(), result));
   assert(result.pictureOffset == 0);
 
   // Plausible frame bytes alone are never sufficient corroboration.
   std::vector<unsigned char> unversioned(16, 0);
   PutPlausibleHeader(unversioned, 0, 16);
   LOKA_VERIFY(!loka::toolbox::pict::ParsePict(
-      unversioned, 0, unversioned.size(), result));
+      &unversioned[0], unversioned.size(), 0, unversioned.size(), result));
 
   std::printf(
       "testPictParserCorroboratesDeceptiveHeaderBeforeChoosingOffset passed\n");
