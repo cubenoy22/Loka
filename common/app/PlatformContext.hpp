@@ -2,6 +2,7 @@
 #define LOKA_PLATFORMCONTEXT_HPP
 
 #include <cstddef>
+#include "app/NativeResourceRetirement.hpp"
 
 #if defined(_WIN32) || defined(WIN32)
 #if !defined(UNICODE) || !defined(_UNICODE)
@@ -56,6 +57,7 @@ namespace loka
 class PlatformContext
 {
 public:
+  PlatformContext() {}
   virtual ~PlatformContext() {}
 
   // Creates the platform-specific App instance.
@@ -84,7 +86,14 @@ public:
   virtual bool createImageFromBlob(const loka::core::resource::Blob &blob,
                                    std::size_t offset,
                                    std::size_t length,
-                                   loka::core::resource::Image &out) const = 0;
+                                   loka::core::resource::Image &out) = 0;
+private:
+  friend class App;
+  friend class loka::app::internal::Reservation;
+  friend class loka::app::testing::NativeResourceRetirementTestAccess;
+  loka::app::NativeResourceRetirement nativeResourceRetirement_;
+  PlatformContext(const PlatformContext &);
+  PlatformContext &operator=(const PlatformContext &);
 };
 
 #endif // LOKA_PLATFORMCONTEXT_HPP

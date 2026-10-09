@@ -1,4 +1,5 @@
 #include "Win32PlatformContext.hpp"
+#include "app/internal/NativeResourceReservation.hpp"
 
 #include <windows.h>
 #include "core/resource/BlobRange.hpp"
@@ -50,7 +51,7 @@ bool Win32PlatformContext::openFile(const loka::file::File &item, loka::platform
 
 namespace
 {
-  void ReleaseWin32Bitmap(void *handle, void *)
+  void ReleaseWin32Bitmap(void *handle)
   {
     if (handle)
     {
@@ -62,7 +63,7 @@ namespace
 bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                                std::size_t offset,
                                                std::size_t length,
-                                               loka::core::resource::Image &out) const
+                                               loka::core::resource::Image &out)
 {
   const loka::core::resource::Blob source = blob;
   out = loka::core::resource::Image::Empty();
@@ -82,6 +83,10 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
   {
     return false;
   }
+
+  loka::app::internal::Reservation reservation(*this, &ReleaseWin32Bitmap);
+  if (!reservation.isValid())
+    return false;
 
   HRESULT initResult = CoInitializeEx(0, COINIT_APARTMENTTHREADED);
   const bool shouldUninit = SUCCEEDED(initResult);
@@ -204,8 +209,7 @@ bool Win32PlatformContext::createImageFromBlob(const loka::core::resource::Blob 
     hr = converter->CopyPixels(0, stride, total, reinterpret_cast<BYTE *>(bits));
     if (SUCCEEDED(hr))
     {
-      out = loka::core::resource::Image::FromNative(
-          hbmp, static_cast<int>(width), static_cast<int>(height), &ReleaseWin32Bitmap, 0);
+      reservation.publishImage(hbmp, static_cast<int>(width), static_cast<int>(height), out);
     }
     else
     {

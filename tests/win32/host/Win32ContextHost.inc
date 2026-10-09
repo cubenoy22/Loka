@@ -313,10 +313,6 @@ namespace loka
 {
   namespace win32
   {
-    bool CaptureWindowClientBitmap(HWND, loka::core::resource::Image &)
-    {
-      return false;
-    }
     bool MaterializeWideString(const loka::core::String &value, std::wstring &out)
     {
       if (win32_host::failConversion)

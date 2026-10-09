@@ -1,3 +1,7 @@
+#ifdef __APPLE__
+#include "MacNativeResourceRetirementTests.hpp"
+#endif
+#include "NativeResourceRetirementTests.hpp"
 #include "RibbonTests.hpp"
 #include "CommandSetTests.hpp"
 #include "SimpleTextTests.hpp"
@@ -54,6 +58,7 @@
 #ifdef _WIN32
 #include "Win32ImageBlobTests.hpp"
 #include "Win32FocusTests.hpp"
+#include "Win32NativeResourceRetirementTests.hpp"
 #include "Win32MenuAttachmentTests.hpp"
 #include "Win32RailMetricsTests.hpp"
 #include "Win32PropsReconciliationTests.hpp"

@@ -10,6 +10,7 @@
 #include "platform/Win32DisplayScale.hpp"
 #include "platform/Win32DisplayFont.hpp"
 #include "Win32TextEnvironment.hpp"
+#include "core/resource/Image.hpp"
 class Win32ScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
@@ -78,6 +79,11 @@ public:
   HWND createNativeChildWindow(
       DWORD, LPCWSTR, LPCWSTR, DWORD, const loka::win32::NativeRect &, HWND, HMENU, HINSTANCE, void *);
   void queueNativeRetirement(HWND);
+  bool captureWindowClientBitmap(HWND, loka::core::resource::Image &out) const
+  {
+    out = loka::core::resource::Image();
+    return false;
+  }
   Win32TextEnvironment textEnvironment_;
   HWND rootHwnd_;
   loka::app::RailMetrics railMetrics_;

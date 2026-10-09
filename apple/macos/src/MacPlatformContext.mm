@@ -1,4 +1,5 @@
 #include "MacPlatformContext.hpp"
+#include "app/internal/NativeResourceReservation.hpp"
 
 #include "core/resource/BlobRange.hpp"
 #include "MacApp.hpp"
@@ -48,7 +49,7 @@ bool MacPlatformContext::openFile(const loka::file::File &item, loka::platform::
 
 namespace
 {
-  void ReleaseNSImage(void *handle, void *)
+  void ReleaseNSImage(void *handle)
   {
     if (handle)
     {
@@ -60,7 +61,7 @@ namespace
 bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &blob,
                                              std::size_t offset,
                                              std::size_t length,
-                                             loka::core::resource::Image &out) const
+                                             loka::core::resource::Image &out)
 {
   const loka::core::resource::Blob source = blob;
   out = loka::core::resource::Image::Empty();
@@ -74,6 +75,10 @@ bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &b
     return false;
   }
 
+  loka::app::internal::Reservation reservation(*this, &ReleaseNSImage);
+  if (!reservation.isValid())
+    return false;
+
   NSData *data = [NSData dataWithBytes:&bytes[offset] length:length];
   if (!data)
   {
@@ -85,7 +90,6 @@ bool MacPlatformContext::createImageFromBlob(const loka::core::resource::Blob &b
     return false;
   }
   NSSize size = [image size];
-  out = loka::core::resource::Image::FromNative(
-      image, static_cast<int>(size.width), static_cast<int>(size.height), &ReleaseNSImage, 0);
-  return out.isValid();
+  return reservation.publishImage(
+      image, static_cast<int>(size.width), static_cast<int>(size.height), out);
 }

@@ -228,8 +228,9 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
       // ground; the exact path must repaint A without requiring that replay.
       LOKA_VERIFY(Access::redrawStats(controller).rectSurfacePaintCount >= (refused || !clearSurface ? 2 : 1));
     }
+    NullPlatformContext captureOwner;
     loka::core::resource::Image capture;
-    LOKA_VERIFY(Access::captureWindowClientBitmap(rootHwnd, capture));
+    LOKA_VERIFY(Access::captureWindowClientBitmap(captureOwner, rootHwnd, capture));
     HDC pixels = CreateCompatibleDC(NULL);
     LOKA_VERIFY(pixels != NULL);
     HGDIOBJ previous = SelectObject(pixels, static_cast<HBITMAP>(capture.nativeHandle()));
@@ -576,8 +577,9 @@ void testWin32ZStackTextShowsSiblingBeneath()
         pumpMessages();
         UpdateWindow(root);
       }
+      NullPlatformContext captureOwner;
       loka::core::resource::Image capture;
-      LOKA_VERIFY(Access::captureWindowClientBitmap(root, capture));
+      LOKA_VERIFY(Access::captureWindowClientBitmap(captureOwner, root, capture));
       HDC pixels = CreateCompatibleDC(NULL);
       LOKA_VERIFY(pixels != NULL);
       HGDIOBJ previous = SelectObject(pixels, static_cast<HBITMAP>(capture.nativeHandle()));

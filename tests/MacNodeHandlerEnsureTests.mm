@@ -1,6 +1,11 @@
 #include "MacObjCCompat.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "MacNodeHandlerEnsureTests.hpp"
+#include "MacPlatformContext.hpp"
+#include "MacApp.hpp"
+#include "app/core/AppConfigurable.hpp"
+#include "testing/app/NativeResourceRetirementTestAccess.hpp"
+#include "support/MacRetirementProbe.hpp"
 #include "support/TestVerify.hpp"
 #include "support/RailTextLayoutFixture.hpp"
 #include <cmath>
@@ -1002,7 +1007,15 @@ void testMacCaptureRefusalReleasesBitmapOnce()
   NSView *root = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 320, 240)];
   LOKA_VERIFY(root != nil);
   {
-    MacScenePlatformController controller((void *)root, loka::app::RailMetrics());
+    MacPlatformContext owner;
+    struct CaptureConfig : AppConfigurable
+    {
+      explicit CaptureConfig(PlatformContext &context) : AppConfigurable(&context) {}
+      virtual void compose(AppComposition &) {}
+    } config(owner);
+    MacApp app(&config);
+    typedef loka::app::testing::NativeResourceRetirementTestAccess Access;
+    MacScenePlatformController controller((void *)root, loka::app::RailMetrics(), &owner);
     loka::app::ButtonProps buttonProps;
     loka::app::ButtonNode button(buttonProps);
     loka::app::TextProps textProps;
@@ -1021,24 +1034,42 @@ void testMacCaptureRefusalReleasesBitmapOnce()
       LOKA_VERIFY(contexts[i]);
       const loka::app::scene::ICapturableBitmap *capturable = contexts[i]->asCapturableBitmap();
       LOKA_VERIFY(capturable);
+      // Mutations: either control keeps inline release; consuming publication
+      // double-releases on Record/ControlBlock refusal; inner pool consumes the
+      // ticket's retain. The outer pool remains alive throughout retirement.
+      const char *owners[] = {"Image", "Managed"};
+      const char *types[] = {"Record", "ControlBlock"};
+      for (int failure = 0; failure != 2; ++failure)
       {
-        // A refused Image record: FromNative consumes the retained bitmap, so
-        // the capture must not release it again; an over-release surfaces when
-        // this pool drains (#1064).
+        int released = 0;
         NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
-        loka::core::testing::failLokaAllocRaw("Image", "Record", 1);
+        loka::core::testing::failLokaAllocRaw(owners[failure], types[failure], 1);
         loka::core::resource::Image image;
         LOKA_VERIFY(!capturable->captureBitmap(image));
         LOKA_VERIFY(!image.isValid());
-        loka::core::testing::allowLokaAllocRaw();
+        LOKA_VERIFY(Access::held(owner) == 0 && Access::queued(owner) == 1);
+        observeMacNativeDeallocation(Access::queuedHandle(owner), released);
         [inner drain];
+        LOKA_VERIFY(released == 0);
+        app.flushInvalidationsTick();
+        LOKA_VERIFY(released == 1);
+        LOKA_VERIFY(Access::queued(owner) == 0 && Access::inFlight(owner) == 0);
+        app.flushInvalidationsTick();
+        LOKA_VERIFY(released == 1);
+        LOKA_VERIFY(loka::core::testing::lokaAllocRawLive() == 0);
+        loka::core::testing::allowLokaAllocRaw();
       }
       {
+        int released = 0;
         NSAutoreleasePool *inner = [[NSAutoreleasePool alloc] init];
         loka::core::resource::Image image;
         LOKA_VERIFY(capturable->captureBitmap(image));
-        LOKA_VERIFY(image.isValid());
+        observeMacNativeDeallocation(image.nativeHandle(), released);
         [inner drain];
+        image = loka::core::resource::Image();
+        LOKA_VERIFY(released == 0 && Access::queued(owner) == 1);
+        app.flushInvalidationsTick();
+        LOKA_VERIFY(released == 1);
       }
     }
   }

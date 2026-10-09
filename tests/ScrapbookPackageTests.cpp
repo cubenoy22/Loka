@@ -75,7 +75,7 @@ namespace
     virtual bool createImageFromBlob(const loka::core::resource::Blob &,
                                      std::size_t,
                                      std::size_t,
-                                     loka::core::resource::Image &out) const
+                                     loka::core::resource::Image &out)
     {
       // The package treats its UI image as optional, and the text-page pin
       // needs no fake decoder. Native PNG decoding stays a platform test.

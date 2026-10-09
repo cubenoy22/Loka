@@ -1,6 +1,7 @@
 #include "Win32Window.hpp"
 #include "Win32InputDoor.hpp"
 #include "Win32ScenePlatformController.hpp"
+#include "Win32BitmapCapture.hpp"
 #include "context/Win32FocusParticipant.hpp"
 #include "context/Win32EditTextBridge.hpp"
 #include "app/layout/CanvasLayout.hpp"
@@ -257,8 +258,10 @@ loka::app::RailMetrics loka::win32::DefaultRailMetrics()
 
 Win32ScenePlatformController::Win32ScenePlatformController(
     HWND rootHwnd,
-    const loka::win32::Win32DisplayScale &displayScale)
-    : rootHwnd_(rootHwnd),
+    const loka::win32::Win32DisplayScale &displayScale,
+    PlatformContext *platformContext)
+    : platformContext_(platformContext),
+      rootHwnd_(rootHwnd),
       activeNativeLayoutPass_(0),
       rectSurfaceExtentLedger_(),
       projectionParentScopes_(rootHwnd),
@@ -276,6 +279,11 @@ Win32ScenePlatformController::Win32ScenePlatformController(
   {
     gControllersByRootHwnd[rootHwnd_] = this;
   }
+}
+
+bool Win32ScenePlatformController::captureWindowClientBitmap(HWND hwnd, loka::core::resource::Image &out) const
+{
+  return loka::win32::CaptureWindowClientBitmap(this->platformContext_, hwnd, out);
 }
 
 Win32ScenePlatformController::~Win32ScenePlatformController()

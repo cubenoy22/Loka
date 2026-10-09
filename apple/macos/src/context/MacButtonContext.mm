@@ -15,40 +15,6 @@
 
 namespace
 {
-  static void ReleaseCapturedButtonBitmap(void *handle, void *)
-  {
-    NSBitmapImageRep *bitmap = (NSBitmapImageRep *)handle;
-    if (bitmap)
-    {
-      [bitmap release];
-    }
-  }
-
-  static bool CaptureButtonBitmap(NSView *view, loka::core::resource::Image &out)
-  {
-    if (!view)
-    {
-      return false;
-    }
-    NSRect bounds = [view bounds];
-    if (bounds.size.width <= 0 || bounds.size.height <= 0)
-    {
-      return false;
-    }
-    NSBitmapImageRep *bitmap = [view bitmapImageRepForCachingDisplayInRect:bounds];
-    if (!bitmap)
-    {
-      return false;
-    }
-    [bitmap retain];
-    [view cacheDisplayInRect:bounds toBitmapImageRep:bitmap];
-    out = loka::core::resource::Image::FromNative(
-        (void *)bitmap, (int)bounds.size.width, (int)bounds.size.height, &ReleaseCapturedButtonBitmap, 0);
-    // FromNative consumes the retained bitmap: on a refused allocation it has
-    // already released it through ReleaseCapturedButtonBitmap (#1064).
-    return out.isValid();
-  }
-
   class MacButtonNodeHandler
       : public loka::app::scene::RetainedNodeHandler<MacButtonNodeHandler,
                                                      loka::app::ButtonNode,
@@ -197,7 +163,7 @@ void MacButtonContext::applyDetachedPresentation()
 
 bool MacButtonContext::captureBitmap(loka::core::resource::Image &out) const
 {
-  return CaptureButtonBitmap((NSView *)button_, out);
+  return this->controller()->captureViewBitmap(this->button_, out);
 }
 
 short MacButtonContext::layout(loka::app::scene::IPlatformController *, loka::app::scene::LayoutState &state)
