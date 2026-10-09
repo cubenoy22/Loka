@@ -435,6 +435,47 @@ if(LOKA_WIN32_TOP_LEVEL_SOURCE_NORMALIZED STREQUAL
   add_dependencies(LokaScrapbookStandaloneFlowWin32 LokaStandaloneWin32Assets)
   add_dependencies(LokaScrapbookStandaloneLoopWin32 LokaStandaloneWin32Assets)
 
+  # Measurement-only vehicles: keep TEST_BUILD layouts uniform, as above.
+  # Share Scrapbook's asset directory and the existing sidecar copy target.
+  function(loka_add_win32_retirement_probe target main example_dir)
+    add_executable(${target} WIN32 EXCLUDE_FROM_ALL
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/${main}
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/win32/RetirementProbeSampler.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/TestingHooks.cpp
+      ${SOURCES}
+      ${COMMON_SOURCES}
+      ${ARGN}
+    )
+    loka_enable_warnings(${target})
+    loka_enable_win32_visual_styles(${target})
+    target_include_directories(${target} PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/../common
+      ${CMAKE_CURRENT_SOURCE_DIR}/../tests/scenarios
+      ${CMAKE_CURRENT_SOURCE_DIR}/../${example_dir}
+      ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
+    target_compile_definitions(${target} PRIVATE TEST_BUILD)
+    target_link_libraries(${target} PRIVATE LokaWin32WideApiContract windowscodecs ole32 psapi)
+    set_target_properties(${target} PROPERTIES
+      CXX_STANDARD 98
+      CXX_STANDARD_REQUIRED YES
+      RUNTIME_OUTPUT_DIRECTORY "${LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY}/scrapbook"
+    )
+    if(MSVC)
+      target_compile_options(${target} PRIVATE /utf-8)
+    endif()
+  endfunction()
+
+  loka_add_win32_retirement_probe(LokaRetirementProbeScrapbookWin32
+    RetirementProbeScrapbookMain.cpp example/ScrapbookUI/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/../example/ScrapbookUI/src/ScrapbookPackage.cpp)
+  loka_add_win32_retirement_probe(LokaRetirementProbeDialogWin32
+    RetirementProbeDialogMain.cpp example/SimpleViewer/src)
+  add_dependencies(LokaRetirementProbeScrapbookWin32 LokaStandaloneWin32Assets)
+  add_custom_target(LokaRetirementProbeWin32All)
+  add_dependencies(LokaRetirementProbeWin32All
+    LokaRetirementProbeScrapbookWin32 LokaRetirementProbeDialogWin32)
+
   unset(LOKA_STANDALONE_FLOW_OUTPUT_DIRECTORY)
   unset(LOKA_STANDALONE_LOOP_OUTPUT_DIRECTORY)
   unset(LOKA_STANDALONE_FLOW_ASSET_OUTPUT_DIRECTORY)

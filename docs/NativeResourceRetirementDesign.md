@@ -227,13 +227,13 @@ GDI handles. A provisional extra-one-image criterion is workload-specific,
 never a universal bound; excess requires an evidence-based decision before
 rail acceptance. Never drain from Flow to recover memory.
 
-### Win32 measured acceptance (rig TODO)
+### Win32 measured acceptance
 
 Run the MSVC `LokaTestsWin32` target, including the registered
 `testWin32NativeRetirement*` pins, before the workload trials. Compare the same
 Win32 rig, configuration, image inputs and scripted actions at the PR 1 baseline
 and the PR 2 candidate. Record both revisions, OS/architecture, build flags and
-rig descriptor. No measured acceptance is claimed until the table is filled.
+rig descriptor. A row marked TODO claims no measured acceptance (#1173).
 
 For each trial sample process GDI objects with
 `GetGuiResources(GetCurrentProcess(), GR_GDIOBJECTS)` and private bytes with the
@@ -246,11 +246,27 @@ working set alone is not private-byte evidence. Preserve logs with the candidate
 
 | Workload to run on Win32 | Images / burst / modal dwell | Baseline and retirement GDI counts / peak private bytes / recovery | Refusal and acceptance decision |
 |---|---|---|---|
-| Scrapbook continuous page navigation | TODO | TODO | TODO |
+| Scrapbook continuous page navigation | Scrapbook pages 1-4, 122,880 private bytes per decoded bitmap; 40 flips, one per outer Operation; no modal | Baseline: GDI 45 on image pages (44 on the text page); the replaced bitmap is deleted inside the replacing turn. Retirement: 46 GDI, 1 queued, +122,880 bytes at the end of the replacing turn; 45 and 0 queued at the next turn in 40/40 flips of each run | No refusal. One extra decoded image for less than one turn: accepted |
 | SimpleViewer image replacement | TODO | TODO | TODO |
-| Multiple replacements inside one outer Operation | TODO | TODO | TODO |
+| Multiple replacements inside one outer Operation | The same pages; three clicks in one idle turn, 10 bursts | Baseline: GDI 45, no extra bitmap. Retirement: +3 GDI, 3 queued, +368,640 bytes at the end of the turn; all recovered at the next turn in 10/10 bursts of each run | No refusal. Exceeds the provisional criterion: retention equals the images released within one outer Operation, recovered at its completion. Accepted by the owner on 2026-10-09 with no cap. A user can reach it, because one Win32 turn dispatches every queued message (`Win32App::run`); an app that must bound it defers the next load to a later turn, so only the last request decodes |
 | LazyView generation replacement containing images | TODO | TODO | TODO |
-| Open-file dialog held inside the outer Operation, then dismiss | TODO | TODO | TODO |
+| Open-file dialog held inside the outer Operation, then dismiss | SimpleViewer's chooser; one 1024x768 32bpp image (3,145,728 bytes) released 1 s into a 2 s dwell inside the modal loop, with `Operation::hasActive()` true; dismissed with Cancel | Baseline: GDI -1 and about -3.1 MB private bytes at the release, inside the active Operation. Retirement: 1 queued, GDI and private bytes unchanged for the rest of the dwell; 0 queued after dismiss, 108 GDI in both (the chooser's own residue) | No refusal. No deletion while the outer Operation is active, recovery at the next completion; one extra image for the dwell: accepted. Final-exit recovery is pinned by `testWin32NativeRetirementFinalDrain`, not by this trial |
+
+Evidence for the three measured rows (2026-10-09): rig `loka-win32-rig`
+(Hyper-V guest, Windows 11 Pro 10.0.26200, x64), MSVC 19.44.35228,
+`win32-standalone-debug` (Debug). Baseline = `49e2b3c9` (PR 1) with the probe
+commit applied; candidate = `main` with the probe, whose Win32 and common
+sources are identical to `bce6582e` (PR 2). Three interleaved runs each; GDI
+and ledger counts were identical across runs. Private bytes include heap
+growth: the baseline's per-turn deltas were 0 or +/-163,840 bytes, while the
+retirement deltas above repeated in every run. The baseline's in-turn and
+in-modal deletions are the probes' positive control. The `post` samples are
+taken after the click and its scene flush, before the turn's tail; copies the
+tail releases are drained by the same tail's reclaim. The native retirement pins ran on this rig at the PR 2 head and in
+hosted CI at the merged heads. Repeat with
+`cmake --build <build> --target LokaRetirementProbeWin32All`, then
+`tests/win32/run-retirement-probe.ps1 -BuildDirectory <build> -OutputDirectory <dir> -Configuration Debug`
+from a scheduled task in the guest's interactive session.
 
 The one-extra-decoded-image threshold is provisional for each workload. Record
 excess explicitly and obtain an evidence-based acceptance or admission redesign;
@@ -264,7 +280,7 @@ Run `LokaTestsMacOS`, including `testMacNativeRetirement*` and
 `testMacCaptureRefusalReleasesBitmapOnce`, before measurement. Compare the PR 2
 baseline with PR 3 on the same Tahoe rig, inputs and actions; record revisions,
 OS/architecture, toolchain, preset and rig descriptor. No macOS build-verified,
-runtime-verified or measured acceptance claim is made by these TODOs.
+runtime-verified or measured acceptance claim is made by these TODOs (#1173).
 
 Record decoded image dimensions/bytes, burst length within one outer Operation,
 modal path and dwell, baseline and candidate peak RSS and physical footprint,

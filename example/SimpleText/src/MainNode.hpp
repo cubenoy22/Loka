@@ -11,6 +11,7 @@
 #include "app/nodes/nestable/PolicyScope.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/Menu.hpp"
+#include "app/CommandSet.hpp"
 #include "app/OpenFileDialog.hpp"
 #include "app/TextDocumentFile.hpp"
 #include "app/scene/state/FlowSlot.hpp"
@@ -21,6 +22,15 @@ class SimpleTextTestAccess;
 
 namespace simpletext
 {
+  enum FileCommand
+  {
+    NEW_DOCUMENT,
+    OPEN_DOCUMENT,
+    SAVE_DOCUMENT,
+    SAVE_AS_DOCUMENT,
+    FILE_COMMAND_COUNT
+  };
+
   enum Operation
   {
     NONE,
@@ -45,42 +55,6 @@ namespace simpletext
     {
       return static_cast<PlatformContext *>(const_cast<void *>(this->keys_.get(PLATFORM)));
     }
-    MainProps &newEvent(loka::core::EmitterState *value)
-    {
-      this->keys_.set(NEW_EVENT, value);
-      return *this;
-    }
-    MainProps &openEvent(loka::core::EmitterState *value)
-    {
-      this->keys_.set(OPEN_EVENT, value);
-      return *this;
-    }
-    MainProps &saveEvent(loka::core::EmitterState *value)
-    {
-      this->keys_.set(SAVE_EVENT, value);
-      return *this;
-    }
-    MainProps &saveAsEvent(loka::core::EmitterState *value)
-    {
-      this->keys_.set(SAVE_AS_EVENT, value);
-      return *this;
-    }
-    loka::core::EmitterState *newEvent() const
-    {
-      return this->event(NEW_EVENT);
-    }
-    loka::core::EmitterState *openEvent() const
-    {
-      return this->event(OPEN_EVENT);
-    }
-    loka::core::EmitterState *saveEvent() const
-    {
-      return this->event(SAVE_EVENT);
-    }
-    loka::core::EmitterState *saveAsEvent() const
-    {
-      return this->event(SAVE_AS_EVENT);
-    }
     void assertInitialized() const
     {
       assert(this->keys_.complete());
@@ -94,16 +68,8 @@ namespace simpletext
     enum Key
     {
       PLATFORM,
-      NEW_EVENT,
-      OPEN_EVENT,
-      SAVE_EVENT,
-      SAVE_AS_EVENT,
       KEY_COUNT
     };
-    loka::core::EmitterState *event(Key key) const
-    {
-      return static_cast<loka::core::EmitterState *>(const_cast<void *>(this->keys_.get(key)));
-    }
     loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
   };
 
@@ -199,10 +165,7 @@ namespace simpletext
     virtual void declareBindings(loka::app::scene::BindingToken &t)
     {
       this->props.assertInitialized();
-      t.action(*this->props.newEvent(), this, &MainNode::newDocument);
-      t.action(*this->props.openEvent(), this, &MainNode::openDocument);
-      t.action(*this->props.saveEvent(), this, &MainNode::saveDocument);
-      t.action(*this->props.saveAsEvent(), this, &MainNode::saveAsDocument);
+      t.actions(this->commands_, this, &MainNode::onCommand);
     }
 
     virtual void composeNode(loka::app::scene::NodeComposition &c)
@@ -211,10 +174,10 @@ namespace simpletext
       using namespace loka::core;
       c.menuBar(MenuBarDefinition()
                 << (Menu("File")
-                    << MenuItem("New").onClick(this->props.newEvent())
-                    << MenuItem("Open...").shortcut('o').onClick(this->props.openEvent())
-                    << MenuItem("Save").shortcut('s').onClick(this->props.saveEvent())
-                    << MenuItem("Save As...").onClick(this->props.saveAsEvent())
+                    << MenuItem("New").onClick(this->commands_.slot<simpletext::NEW_DOCUMENT>())
+                    << MenuItem("Open...").shortcut('o').onClick(this->commands_.slot<simpletext::OPEN_DOCUMENT>())
+                    << MenuItem("Save").shortcut('s').onClick(this->commands_.slot<simpletext::SAVE_DOCUMENT>())
+                    << MenuItem("Save As...").onClick(this->commands_.slot<simpletext::SAVE_AS_DOCUMENT>())
                     << MenuSeparator()
                     << MenuItem("Quit").actionType(MENU_ACTION_QUIT_APP)));
       // One seat on the operation: at most one dialog exists, and none while idle.
@@ -232,23 +195,45 @@ namespace simpletext
                                 .testId("SimpleText.Save"))
           .otherwise(Fragment());
       // The band and File menu fire the same emitters.
-      c.declare(HStack()
-                << (VStack() << (RibbonControl().TEST_ID("SimpleText.Ribbon")
-                                << RibbonItem("New").onClick(this->props.newEvent())
-                                << RibbonItem("Open...").onClick(this->props.openEvent())
-                                << RibbonItem("Save").onClick(this->props.saveEvent())
-                                << RibbonItem("Save As...").onClick(this->props.saveAsEvent()))
-                             << Text(this->error_.state()).TEST_ID("SimpleText.Error")
-                             << TextEditor(this->lines_, this->cursor_) //
-                                    .moveCaretTo(this->caret_)
-                                    .TEST_ID("SimpleText.Editor"))
-                << dialog);
+      c.declare(
+          HStack()
+          << (VStack() << (RibbonControl().TEST_ID("SimpleText.Ribbon")
+                           << RibbonItem("New").onClick(this->commands_.slot<simpletext::NEW_DOCUMENT>())
+                           << RibbonItem("Open...").onClick(this->commands_.slot<simpletext::OPEN_DOCUMENT>())
+                           << RibbonItem("Save").onClick(this->commands_.slot<simpletext::SAVE_DOCUMENT>())
+                           << RibbonItem("Save As...").onClick(this->commands_.slot<simpletext::SAVE_AS_DOCUMENT>()))
+                       << Text(this->error_.state()).TEST_ID("SimpleText.Error")
+                       << TextEditor(this->lines_, this->cursor_) //
+                              .moveCaretTo(this->caret_)
+                              .TEST_ID("SimpleText.Editor"))
+          << dialog);
     }
 
   private:
 #ifdef TEST_BUILD
     friend class ::SimpleTextTestAccess;
 #endif
+    void onCommand(FileCommand command)
+    {
+      switch (command)
+      {
+      case simpletext::NEW_DOCUMENT:
+        this->newDocument();
+        break;
+      case simpletext::OPEN_DOCUMENT:
+        this->openDocument();
+        break;
+      case simpletext::SAVE_DOCUMENT:
+        this->saveDocument();
+        break;
+      case simpletext::SAVE_AS_DOCUMENT:
+        this->saveAsDocument();
+        break;
+      case FILE_COMMAND_COUNT:
+        break;
+      }
+    }
+
     void newDocument()
     {
       if (this->operation_.get() == NONE)
@@ -359,6 +344,7 @@ namespace simpletext
         this->caret_.set(LineCursor(this->lines_.at(0).id, 0));
     }
 
+    loka::app::CommandSet<FileCommand, FILE_COMMAND_COUNT> commands_;
     loka::core::ObservableList<loka::core::String> lines_;
     loka::app::scene::Reported<loka::app::LineCursor> cursor_;
     loka::app::scene::Request<loka::app::LineCursor> caret_;

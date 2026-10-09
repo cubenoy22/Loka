@@ -56,12 +56,7 @@ class SimpleTextTestAccess
 public:
   static simpletext::MainProps props(SimpleTextAppConfig &config)
   {
-    return simpletext::MainProps()
-        .platformContext(config.getPlatformContext())
-        .newEvent(&config.newEvent_)
-        .openEvent(&config.openEvent_)
-        .saveEvent(&config.saveEvent_)
-        .saveAsEvent(&config.saveAsEvent_);
+    return simpletext::MainProps().platformContext(config.getPlatformContext());
   }
 
   static void
