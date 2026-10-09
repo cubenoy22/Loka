@@ -146,6 +146,11 @@ void testToolboxRowSpacing(const char *mode)
     LayoutState standalone = state;
     standalone.width = 0;
     LOKA_VERIFY(button->context->layout(&controller, standalone) == natural);
+    // Without a measurement port the answer declines, so the Row keeps a
+    // shared seat instead of an inset-only fixed one.
+    ToolboxScenePlatformController portless(0);
+    short refused = 0;
+    LOKA_VERIFY(!portless.queryNaturalWidth(button, refused));
     LOKA_VERIFY(b.right - b.left == 120);
     LOKA_VERIFY(b.left > a.left);
     LOKA_VERIFY(b.left - a.right == state.spacing);
