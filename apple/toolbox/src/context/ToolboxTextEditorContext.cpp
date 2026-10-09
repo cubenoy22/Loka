@@ -718,7 +718,11 @@ short ToolboxTextEditorContext::layout(scene::IPlatformController *, scene::Layo
   Rect rect;
   SetRect(&rect, state.x, state.y, state.x + state.width, state.y + (state.height > 0 ? state.height : 80));
   this->updateRect(rect);
-  this->onPropsApplied();
+  // Without a TextEdit record, render's attach settle later in this pass
+  // delivers the request (or refuses it when creation fails); settling here
+  // would refuse a request render can still apply (#1141).
+  if (this->te_)
+    this->onPropsApplied();
   state.y = rect.bottom + state.spacing;
   return state.width;
 }
