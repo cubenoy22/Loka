@@ -65,6 +65,10 @@ jobs:
               cmake --preset retro68-68k-release -G "Unix Makefiles" \
                 -DLOKA_TOOLBOX_MULTIVERSAL_INTERFACES=ON
               cmake --build --preset retro68-68k-release
+              # The PaintDamage standalone is outside ALL and runs only on the
+              # MAME rig; build it here so a source change that breaks it fails
+              # in CI instead of on the next rig run (#1126).
+              cmake --build --preset retro68-68k-release --target LokaPaintDamage68K_APPL
 
               # Keep the optional example outside the shipping size inventory.
               # Check only the real consumer here; Linux CI owns host fixtures.

@@ -38,6 +38,7 @@
 #include "core/resource/Blob.hpp"
 #include "core/resource/Image.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
+#include "testing/core/StateTrackerTestAccess.hpp"
 
 namespace loka
 {
@@ -57,6 +58,15 @@ namespace
 {
   using namespace loka::app;
   using namespace loka::app::scene;
+
+  /** A StateTrackerGuard write inside the idle turn commits at the turn's
+      settle (#1080). An arm that reads the result in the same turn settles
+      first, as the turn's tail would. */
+  void SettleTurn()
+  {
+    if (loka::core::Operation *turn = loka::core::testing::OperationTestAccess::active())
+      turn->settle();
+  }
 
   template <bool HasViewport> class PaintDamageNode;
 
@@ -730,15 +740,15 @@ namespace
       if (Kind == CELL_VIEWPORT)
         composition.declare(Row() << (Box().size(180, 62)
                             << (ScrollView().TEST_ID("Drawer.Viewport")
-                                << (Column() << (Box().size(100, 24) << Cell("One"))
-                                    << (Box().size(100, 24) << Cell("Two"))
-                                    << (Box().size(100, 24) << Cell("Three"))))) << Text("Rail"));
+                                << (Column() << (Box().size(100, 24) << loka::app::Cell("One"))
+                                    << (Box().size(100, 24) << loka::app::Cell("Two"))
+                                    << (Box().size(100, 24) << loka::app::Cell("Three"))))) << Text("Rail"));
       else if (Kind == POPUP_VIEWPORT)
         composition.declare(Box().size(96, 62)
                             << (ScrollView().TEST_ID("Drawer.Viewport") << PopupMenu()));
       else
         composition.declare(Row() << Box().size(42, 24)
-                            << (Box().size(8, 24) << Cell("WWWWWWW")));
+                            << (Box().size(8, 24) << loka::app::Cell("WWWWWWW")));
     }
   };
 
@@ -1261,6 +1271,7 @@ namespace
         const bool oldPixelBlack = GetPixel(self->marker_.h, self->marker_.v) != 0;
         self->initial_ = controller->debugStatsForTesting();
         node->advance();
+        SettleTurn();
         // Freeze the real exact request before invalidating presentation
         // history through the retained-props lifecycle door. The pending
         // window delivery must reconstruct all ground with region clipping on.
@@ -1278,8 +1289,9 @@ namespace
         const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
         const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
         const int dirty = stats.windowFlushDirtyCount - self->initial_.windowFlushDirtyCount;
-        std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d\r",
-                     erased ? 1 : 0, whole, dirty);
+        std::fprintf(self->log_, "unknown_history_old_pixel_erased=%d whole_window=%d dirty_flushes=%d source=%s\r",
+                     erased ? 1 : 0, whole, dirty,
+                     whole > 0 && stats.windowFullRequestSource ? stats.windowFullRequestSource : "none");
         SetPort(previousPort);
         self->recordArm("unknown-history", erased && whole == 0 && dirty > 0, COMPOSITED_WRITE);
         return;
@@ -1922,9 +1934,14 @@ namespace
         const PaintAnswer answer = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
         self->marker_.h = static_cast<short>(answer.damage.x + 8);
         self->marker_.v = static_cast<short>(answer.damage.y + 8);
-        const bool setup = answer.kind == PAINT_ANSWER_EXACT && rect.right - rect.left == 128
-                           && GetPixel(rect.left, rect.top + 7) != 0
-                           && GetPixel(self->marker_.h, self->marker_.v) != 0;
+        const bool exact = answer.kind == PAINT_ANSWER_EXACT;
+        const bool frameInk = GetPixel(rect.left, rect.top + 7) != 0;
+        const bool markerInk = GetPixel(self->marker_.h, self->marker_.v) != 0;
+        std::fprintf(self->log_, "popup_setup exact=%d width=%d frame_ink=%d marker_ink=%d\r",
+                     exact ? 1 : 0, rect.right - rect.left, frameInk ? 1 : 0, markerInk ? 1 : 0);
+        // Since #1015 the popup takes the width its Column offers: the 180-wide
+        // Box less the ScrollView's 16-pixel bar.
+        const bool setup = exact && rect.right - rect.left == 164 && frameInk && markerInk;
         self->popupFaceRows_.capture(rect);
         SetPort(previousPort);
         self->recordArm("popup-exact-setup", setup, POPUP_SIBLING_CHECK);
@@ -1981,8 +1998,10 @@ namespace
           ToolboxPaintClip clip(partial);
           context->repaint();
         }
-        self->recordArm("popup-partial-history-refuses",
-                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        // #1027: a partial repaint of an unchanged value keeps the paint
+        // history, so the next query answers exact instead of refusing.
+        self->recordArm("popup-partial-unchanged-keeps-history",
+                        context->queryPaintDamage(settled).kind == PAINT_ANSWER_EXACT, COMPLETE);
         context->repaint();
         self->recordArm("popup-full-history-restored",
                         context->queryPaintDamage(settled).kind == PAINT_ANSWER_EXACT, COMPLETE);
@@ -1992,6 +2011,7 @@ namespace
         context->repaint();
         // Show retains this branch: the borrows stay valid across its kernel detach.
         self->popupExact_->hidePopup();
+        SettleTurn();
         window->flushSceneInvalidation();
         self->recordArm("popup-detached-refuses",
                         popup->lifecycleFact() == NODE_FACT_DETACHED_RETAINED
@@ -2137,16 +2157,18 @@ namespace
                           && offscreenAnswer(window, ids[i], foreign).kind == PAINT_ANSWER_REFUSED, OFFSCREEN_WRITE);
         }
         self->offscreen_->writeButton(true);
+        // #1015: the Column offers its width, so a wider title keeps the
+        // Button's rectangle and nothing in the Column refuses. The column-local
+        // refusal itself is pinned on the host (PaintContractTests,
+        // ToolboxPaintFoldHostTests).
         const PaintAnswer wider = offscreenAnswer(window, "Offscreen.Button", query);
-        self->recordArm("offscreen-button-width-refuses", wider.kind == PAINT_ANSWER_REFUSED
-                        && wider.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, OFFSCREEN_WRITE);
+        self->recordArm("offscreen-button-width-exact", wider.kind == PAINT_ANSWER_EXACT, OFFSCREEN_WRITE);
         {
           PaintAnswerBuffer<> answers;
           ProbeSource source;
-          const PaintApplyVerdict refused = CollectPaintAnswers(*self->offscreen_, query, answers, source);
-          self->recordArm("column-local-refusal", refused.refusedCount() == 1
-                          && refused.refusalReason() == PAINT_REFUSED_PLACEMENT_UNSETTLED
-                          && source.refusingKind == NODE_KIND_BUTTON, OFFSCREEN_WRITE);
+          const PaintApplyVerdict verdict = CollectPaintAnswers(*self->offscreen_, query, answers, source);
+          self->recordArm("column-container-button-no-refusal", verdict.refusedCount() == 0
+                          && source.refusingKind == NODE_KIND_UNKNOWN, OFFSCREEN_WRITE);
         }
         self->offscreen_->writeButton(false);
         {
@@ -2238,6 +2260,7 @@ namespace
         }
         // Default Show parks all four drawers; borrows last only through this apply.
         self->offscreen_->hideDrawers();
+        SettleTurn();
         window->flushSceneInvalidation();
         for (int i = 0; i < 4; ++i)
         {
@@ -2276,6 +2299,10 @@ namespace
           TextFont(savedFont == 1 ? 0 : 1);
         const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
         LayoutState next = state;
+        // An unchanged layout reuses its measurement (a84cf328); dirty props
+        // make the repeat and the other-family layout measure again.
+        if (i > 0)
+          next.inputs = NODE_DIRTY_PROPS;
         largeContext.layout(&controller, next);
         const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
         this->recordArm(names[i], after.cursorOuterEntries == before.cursorOuterEntries + 1
@@ -2348,16 +2375,20 @@ namespace
       }
       {
         loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-        LOKA_VERIFY(blob.tryResize(64));
-  std::memset(blob.mutableData(), 0, 64);
-        blob.sealBytes();
-        const ToolboxPlatformContext platform;
+        // A refused allocation fails the arm instead of asserting in a Release run.
+        const bool sized = blob.tryResize(64);
+        if (sized)
+        {
+          std::memset(blob.mutableData(), 0, 64);
+          blob.sealBytes();
+        }
+        ToolboxPlatformContext platform;
         loka::core::resource::Image image;
         const ToolboxSceneDebugStats before = controller.debugStatsForTesting();
-        const bool decoded = platform.createImageFromBlob(blob, 0, blob.size(), image);
+        const bool decoded = sized && platform.createImageFromBlob(blob, 0, blob.size(), image);
         const ToolboxSceneDebugStats after = controller.debugStatsForTesting();
         // Not a picture: the decode refuses after its parse, still under one borrow.
-        this->recordArm("busy-image-decode", !decoded && !image.isValid()
+        this->recordArm("busy-image-decode", sized && !decoded && !image.isValid()
                         && after.cursorOuterEntries == before.cursorOuterEntries + 1
                         && after.cursorOuterExits == before.cursorOuterExits + 1
                         && after.cursorDepth == 0, next);
@@ -2726,7 +2757,19 @@ namespace
       {
         const PaintAnswer face = context->queryPaintDamage(query);
         const PaintAnswer sprite = static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query);
+        // Since #1015 the Button takes its Column's width and centres the title,
+        // so the 64-pixel title sample sits at the native control's centre.
         SetRect(&self->editGeometry_.view, face.damage.x, face.damage.y, face.damage.x + 64, face.damage.y + 14);
+        if (ControlHandle control = reinterpret_cast<ControlHandle>(
+                reinterpret_cast<WindowPeek>(native->window())->controlList))
+        {
+          const Rect bounds = (**control).contrlRect;
+          const short width = static_cast<short>(bounds.right - bounds.left);
+          const short left = static_cast<short>(bounds.left + (width > 64 ? (width - 64) / 2 : 0));
+          SetRect(&self->editGeometry_.view, left, bounds.top, left + 64, bounds.top + 14);
+        }
+        std::fprintf(self->log_, "button-title-sample=(%d,%d,%d,%d)\r", self->editGeometry_.view.left,
+                     self->editGeometry_.view.top, self->editGeometry_.view.right, self->editGeometry_.view.bottom);
         self->marker_.h = static_cast<short>(sprite.damage.x + 8);
         self->marker_.v = static_cast<short>(sprite.damage.y + 8);
         self->buttonTitlePixels_.capture(self->editGeometry_.view);
@@ -2777,8 +2820,9 @@ namespace
           ToolboxPaintClip clip(partial);
           controller->drawControlsInRect(partial);
         }
-        self->recordArm("button-partial-history-refuses",
-                        context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
+        // #1027: the same rule for the Button's partial native redraw.
+        self->recordArm("button-partial-unchanged-keeps-history",
+                        context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT, COMPLETE);
         controller->drawControlsInRect(native->window()->portRect);
         self->recordArm("button-full-history-restored",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_EXACT, COMPLETE);
@@ -2787,9 +2831,9 @@ namespace
         const PaintAnswer widerTitle = context->queryPaintDamage(query);
         std::fprintf(self->log_, "button-label-wider answer=%d reason=%d\r",
                      static_cast<int>(widerTitle.kind), static_cast<int>(widerTitle.reason));
-        self->recordArm("button-label-wider-refuses",
-                        widerTitle.kind == PAINT_ANSWER_REFUSED
-                        && widerTitle.reason == PAINT_REFUSED_PLACEMENT_UNSETTLED, COMPLETE);
+        // #1015: a container-sized Button keeps its rectangle when the title
+        // widens and answers exact; only a text-sized one refuses (host pins).
+        self->recordArm("button-label-wider-exact", widerTitle.kind == PAINT_ANSWER_EXACT, COMPLETE);
         controller->destroyButtonControl(911, NATIVE_HINT_DEFAULT);
         self->recordArm("button-native-retired-refuses",
                         context->queryPaintDamage(query).kind == PAINT_ANSWER_REFUSED, COMPLETE);
