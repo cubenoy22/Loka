@@ -14,6 +14,8 @@
 class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
 {
 public:
+  // Deterministic answer exercises the production traversal on both dispatch paths.
+  bool queryNaturalWidth(loka::app::scene::Node *, short &width) const { width = 37; return true; }
   loka::app::scene::PlatformLayoutHandlerRegistry registry;
   loka::app::scene::PlatformLayoutHandlerRegistry *layoutHandlerRegistry() { return &this->registry; }
   loka::app::scene::ProjectionParentScopeStack projectionParentScopes_;

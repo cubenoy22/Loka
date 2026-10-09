@@ -743,7 +743,8 @@ MacScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, co
       const loka::app::layout::RowLayoutMetrics metrics =
           loka::app::layout::FallbackControlMetrics::rowLayout();
       resultY = loka::app::layout::computeRowLayoutResultY(
-          stack, state, metrics, this, &MacScenePlatformController::layoutContainerChild);
+          stack, state, metrics, 0, // Natural widths arrive in the next rail PR.
+          this, &MacScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);
   }

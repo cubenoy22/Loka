@@ -329,7 +329,8 @@ namespace
     loka::app::layout::RowLayoutMetrics metrics;
     metrics.gap = kRowGap;
     loka::app::layout::computeRowLayoutResultY(
-        rootRow, state, metrics, &record, &recordRowSeat);
+        rootRow, state, metrics, 0, // Synthetic allocation probe has no rail source.
+        &record, &recordRowSeat);
   }
 
   struct SimpleViewerHarness

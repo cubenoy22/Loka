@@ -64,18 +64,29 @@ namespace loka
       RowWidthConsultation::RowWidthConsultation(loka::app::scene::Node *childrenHead,
                                                  size_t childCount,
                                                  int availableWidth,
-                                                 int gap)
-          : baseFlexWidth_(0),
+                                                 int gap,
+                                                 RowUndeclaredWidth policy,
+                                                 const INaturalWidthSource *source)
+          : source_(0),
+            baseFlexWidth_(0),
             flexRemainder_(0),
             liveSeatsSeen_(0)
       {
+        switch (policy)
+        {
+        case ROW_UNDECLARED_WIDTH_SHARED:
+          break;
+        case ROW_UNDECLARED_WIDTH_NATURAL:
+          this->source_ = source;
+          break;
+        }
         int fixedWidthTotal = 0;
         int liveSeats = 0;
         int flexSeats = 0;
         loka::dsl::CompositionCursor<loka::app::scene::Node> consult(childrenHead, childCount);
         for (loka::app::scene::Node *child = consult.next(); child; child = consult.next())
         {
-          const int preferredWidth = preferredChildWidthForRow(child);
+          const int preferredWidth = this->preferredWidth(child);
           if (preferredWidth == 0)
           {
             continue;
@@ -103,9 +114,19 @@ namespace loka
         }
       }
 
+      int RowWidthConsultation::preferredWidth(loka::app::scene::Node *child) const
+      {
+        const int declaredWidth = preferredChildWidthForRow(child);
+        short naturalWidth = 0;
+        if (declaredWidth < 0 && this->source_
+            && this->source_->queryNaturalWidth(child, naturalWidth) && naturalWidth > 0)
+          return naturalWidth;
+        return declaredWidth;
+      }
+
       RowChildWidth RowWidthConsultation::next(loka::app::scene::Node *child)
       {
-        const int preferredWidth = preferredChildWidthForRow(child);
+        const int preferredWidth = this->preferredWidth(child);
         if (preferredWidth == 0)
         {
           return RowChildWidth(0, false, false);

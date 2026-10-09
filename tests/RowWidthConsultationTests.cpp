@@ -1,6 +1,7 @@
 #include "RowWidthConsultationTests.hpp"
 
 #include "app/OpenFileDialog.hpp"
+#include "app/nodes/controls/Button.hpp"
 #include "app/RectSurface.hpp"
 #include "app/layout/LayoutHeuristics.hpp"
 #include "app/nodes/ImageView.hpp"
@@ -385,4 +386,95 @@ void testRowWidthHeuristicForwardsOnlySingleFragmentClaims()
 
   single.addChild(new loka::app::TextNode(loka::app::TextProps("text")));
   LOKA_VERIFY(loka::app::layout::preferredChildWidthForRow(&single) < 0);
+}
+
+namespace
+{
+  class NaturalWidthProbe : public loka::app::layout::INaturalWidthSource
+  {
+  public:
+    explicit NaturalWidthProbe(loka::app::scene::Node *answered)
+        : answered_(answered), calls_(0) {}
+    virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const
+    {
+      ++this->calls_;
+      if (child != this->answered_)
+        return false;
+      width = 37;
+      return true;
+    }
+    loka::app::scene::Node *answered_;
+    mutable int calls_;
+  };
+}
+
+void testRowNaturalWidthConsultation()
+{
+  using namespace loka::app;
+  using namespace loka::app::layout;
+  StackNode row((StackProps()));
+  TextNode *answered = new TextNode(TextProps("answered"));
+  TextNode *declined = new TextNode(TextProps("declined"));
+  BoxProps fixedProps;
+  fixedProps.setSize(120, 0);
+  BoxNode *fixed = new BoxNode(fixedProps);
+  row.addChild(answered);
+  row.addChild(declined);
+  row.addChild(fixed);
+  NaturalWidthProbe source(answered);
+  RowWidthConsultation widths(row.childrenHead(), row.childrenCount(), 300, 4,
+                             ROW_UNDECLARED_WIDTH_NATURAL, &source);
+  LOKA_VERIFY(source.calls_ == 2);
+  const RowChildWidth a = widths.next(answered);
+  const RowChildWidth b = widths.next(declined);
+  const RowChildWidth c = widths.next(fixed);
+  LOKA_VERIFY(a.width() == 37 && a.isLiveSeat() && !a.hasGapBefore());
+  LOKA_VERIFY(b.width() == 135 && b.hasGapBefore());
+  LOKA_VERIFY(c.width() == 120 && c.hasGapBefore());
+  LOKA_VERIFY(source.calls_ == 4);
+  RowWidthConsultation narrow(row.childrenHead(), row.childrenCount(), 10, 4,
+                             ROW_UNDECLARED_WIDTH_NATURAL, &source);
+  LOKA_VERIFY(narrow.next(answered).width() == 37);
+  LOKA_VERIFY(narrow.next(declined).width() == 0);
+  LOKA_VERIFY(narrow.next(fixed).width() == 120);
+
+}
+
+void testRowSharedWidthNeverQueriesSource()
+{
+  using namespace loka::app;
+  using namespace loka::app::layout;
+  StackNode row((StackProps()));
+  TextNode *a = new TextNode(TextProps("A"));
+  TextNode *b = new TextNode(TextProps("B"));
+  row.addChild(a);
+  row.addChild(b);
+  NaturalWidthProbe source(a);
+  RowWidthConsultation shared(row.childrenHead(), row.childrenCount(), 300, 4,
+                             ROW_UNDECLARED_WIDTH_SHARED, &source);
+  LOKA_VERIFY(source.calls_ == 0);
+  LOKA_VERIFY(shared.next(a).width() == 148);
+  LOKA_VERIFY(shared.next(b).width() == 148);
+  LOKA_VERIFY(source.calls_ == 0);
+  RowWidthConsultation absent(row.childrenHead(), row.childrenCount(), 300, 4,
+                             ROW_UNDECLARED_WIDTH_NATURAL, 0); // Null-source fallback under test.
+  LOKA_VERIFY(absent.next(a).width() == 148);
+  LOKA_VERIFY(absent.next(b).width() == 148);
+  StackProps defaults;
+  StackProps natural;
+  natural.rowUndeclaredWidth_ = ROW_UNDECLARED_WIDTH_NATURAL;
+  LOKA_VERIFY(defaults.rowUndeclaredWidth_ == ROW_UNDECLARED_WIDTH_SHARED);
+  LOKA_VERIFY(defaults < natural);
+  LOKA_VERIFY(!(natural < defaults));
+}
+
+void testNullNaturalWidthDeclinesUnrepresentableWidth()
+{
+  NullScenePlatformController platform;
+  loka::app::ButtonNode button(loka::app::ButtonProps().text(loka::core::String(std::string(8192, 'A'))));
+  short width = 13;
+  LOKA_VERIFY(!platform.queryNaturalWidth(&button, width));
+  LOKA_VERIFY(width == 13);
+  LOKA_VERIFY(!platform.queryNaturalWidth(&button, width));
+  LOKA_VERIFY(width == 13);
 }

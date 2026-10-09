@@ -365,7 +365,8 @@ int ComputeToolboxRowLayout(loka::app::StackNode *row,
   const short editTextHeight = static_cast<short>(controlAscent + ToolboxLayoutMetrics::kEditTextDescent);
   short rowHeight = lineHeight;
   const size_t childCount = row->childrenCount();
-  loka::app::layout::RowWidthConsultation widths(row->childrenHead(), childCount, state.width, state.spacing);
+  loka::app::layout::RowWidthConsultation widths(row->childrenHead(), childCount, state.width, state.spacing,
+      row->props.rowUndeclaredWidth_, traversal);
   if (row->props.hasVerticalAlignment_)
   {
     rowHeight = 0;

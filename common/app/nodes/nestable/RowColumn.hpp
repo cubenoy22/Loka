@@ -28,6 +28,13 @@ namespace loka
       STACK_AXIS_COLUMN
     };
 
+    /** How a Row seats children that declare no width. Columns ignore this policy. */
+    enum RowUndeclaredWidth
+    {
+      ROW_UNDECLARED_WIDTH_SHARED = 0,
+      ROW_UNDECLARED_WIDTH_NATURAL
+    };
+
     struct StackTypeTag
     {
     };
@@ -39,6 +46,7 @@ namespace loka
       typedef StackTypeTag TypeTag;
       typedef StackNode NodeType;
       StackAxis axis_;
+      RowUndeclaredWidth rowUndeclaredWidth_;
       /** Borrowed live axis; null selects the constant value. */
       loka::core::State<StackAxis> *axisState_;
       bool hasVerticalAlignment_;
@@ -47,6 +55,7 @@ namespace loka
       HorizontalAlignment horizontalAlignment_;
       StackProps()
           : axis_(STACK_AXIS_ROW),
+            rowUndeclaredWidth_(ROW_UNDECLARED_WIDTH_SHARED),
             axisState_(0),
             hasVerticalAlignment_(false),
             verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
@@ -56,6 +65,7 @@ namespace loka
       }
       explicit StackProps(StackAxis axis)
           : axis_(axis),
+            rowUndeclaredWidth_(ROW_UNDECLARED_WIDTH_SHARED),
             axisState_(0),
             hasVerticalAlignment_(false),
             verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
@@ -65,6 +75,7 @@ namespace loka
       }
       explicit StackProps(loka::core::State<StackAxis> *axisState)
           : axis_(STACK_AXIS_ROW),
+            rowUndeclaredWidth_(ROW_UNDECLARED_WIDTH_SHARED),
             axisState_(axisState),
             hasVerticalAlignment_(false),
             verticalAlignment_(VERTICAL_ALIGNMENT_TOP),
@@ -98,6 +109,8 @@ namespace loka
           return this->axisState_ < other.axisState_;
         if (this->axis_ != other.axis_)
           return this->axis_ < other.axis_;
+        if (this->rowUndeclaredWidth_ != other.rowUndeclaredWidth_)
+          return this->rowUndeclaredWidth_ < other.rowUndeclaredWidth_;
         if (this->hasVerticalAlignment_ != other.hasVerticalAlignment_)
           return this->hasVerticalAlignment_ < other.hasVerticalAlignment_;
         if (this->verticalAlignment_ != other.verticalAlignment_)

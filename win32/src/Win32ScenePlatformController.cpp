@@ -1337,7 +1337,8 @@ Win32ScenePlatformController::computeLayoutResult(loka::app::scene::Node *node, 
       const loka::app::layout::RowLayoutMetrics metrics =
           loka::app::layout::FallbackControlMetrics::rowLayout();
       resultY = loka::app::layout::computeRowLayoutResultY(
-          stack, state, metrics, this, &Win32ScenePlatformController::layoutContainerChild);
+          stack, state, metrics, 0, // Natural widths arrive in the next rail PR.
+          this, &Win32ScenePlatformController::layoutContainerChild);
     }
     return LayoutNodeResult(state.width, resultY);
   }

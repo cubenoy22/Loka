@@ -1,5 +1,6 @@
 #ifndef LOKA_TEST_TOOLBOX_HOST_HPP
 #define LOKA_TEST_TOOLBOX_HOST_HPP
+#include "app/layout/NaturalWidthSource.hpp"
 #include "ToolboxEditInstalled.hpp"
 // Replace OS/controller neighbors; compile the actual context, table, measure
 // scope, lifecycle base and built-in registration source without alteration.
@@ -200,10 +201,17 @@ public:
 #else
 #include "context/ToolboxPopupMenuContext.hpp"
 #endif
-class ToolboxScenePlatformController : public loka::app::scene::IPlatformController
+class ToolboxScenePlatformController : public loka::app::scene::IPlatformController,
+    public loka::app::layout::INaturalWidthSource
 {
 public:
   ToolboxPendingDialogs pendingDialogs_;
+  virtual bool queryNaturalWidth(loka::app::scene::Node *child, short &width) const;
+  /** Push-button measurement shared by allocation and standalone layout.
+      The bool form refuses an unmeasurable label; the short form keeps the
+      standalone layout's inset-only width for that case. */
+  bool measurePushButtonNaturalWidth(const loka::core::String &label, short &width) const;
+  short measurePushButtonNaturalWidth(const loka::core::String &label) const;
   ToolboxPendingDialogs &pendingDialogs() { return this->pendingDialogs_; }
   MeasurementRetryQueue relayoutRetries;
   virtual void requestRelayout();
@@ -331,8 +339,8 @@ public:
   void syncEditTextFromState(EditTextControlBinding &);
   void refreshContextProps(loka::app::scene::Node *, short = 0) {}
   short measureTextWidth(const loka::core::String &, const ToolboxTextFontDescriptor &) const;
-#if defined(LOKA_HOST_CELL_PAINT) || defined(LOKA_HOST_CONTROL_WIDTH)
   short measureTextWidth(const loka::core::String &) const;
+#if defined(LOKA_HOST_CELL_PAINT) || defined(LOKA_HOST_CONTROL_WIDTH)
   void recordCellHit(const Rect &, loka::core::EmitterState *, loka::app::scene::BoundaryNode *,
                      ToolboxCellContext *, loka::core::State<loka::core::String> *) {}
 #endif

@@ -451,9 +451,7 @@ namespace
 #include "ToolboxRender.cpp"
 void ToolboxScenePlatformController::renderDirty(const Rect &) { this->render(); }
 
-#if defined(LOKA_HOST_CELL_PAINT) || defined(LOKA_HOST_CONTROL_WIDTH)
 short ToolboxScenePlatformController::measureTextWidth(const loka::core::String &value) const
 {
   return this->measureTextWidth(value, ToolboxTextFontDescriptor());
 }
-#endif
