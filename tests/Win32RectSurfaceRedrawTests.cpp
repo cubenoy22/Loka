@@ -232,7 +232,16 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool removeSprites = false,
       UpdateWindow(rootHwnd);
       // The refused path must replay both surfaces after the root fills its
       // ground; the exact path must repaint A without requiring that replay.
-      LOKA_VERIFY(Access::redrawStats(controller).rectSurfacePaintCount >= (refused ? 2 : 1));
+      // An expose before the apply already painted A's ground and certified
+      // the new model; the apply cycle restarts the counters
+      // (beginApplyCycle), and its empty EXACT answer asks for no repaint.
+      const int surfacePaints = Access::redrawStats(controller).rectSurfacePaintCount;
+      if (refused)
+        LOKA_VERIFY(surfacePaints >= 2);
+      else if (paintBeforeApply)
+        LOKA_VERIFY(surfacePaints == 0);
+      else
+        LOKA_VERIFY(surfacePaints >= 1);
     }
     NullPlatformContext captureOwner;
     loka::core::resource::Image capture;
