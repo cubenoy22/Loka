@@ -37,6 +37,18 @@ namespace
            std::fabs([a alphaComponent] - [b alphaComponent]) <= tolerance;
   }
 
+  /** Source-over of a possibly translucent color on an opaque ground. */
+  NSColor *over(NSColor *top, NSColor *ground)
+  {
+    NSColor *t = srgb(top);
+    NSColor *g = srgb(ground);
+    const CGFloat a = [t alphaComponent];
+    return [NSColor colorWithSRGBRed:a * [t redComponent] + (1.0 - a) * [g redComponent]
+                               green:a * [t greenComponent] + (1.0 - a) * [g greenComponent]
+                                blue:a * [t blueComponent] + (1.0 - a) * [g blueComponent]
+                               alpha:a + (1.0 - a) * [g alphaComponent]];
+  }
+
   typedef void (*AppearanceCheck)(bool dark);
 
   void inAppearances(AppearanceCheck check, bool legacyDrawing = false)
@@ -175,7 +187,11 @@ namespace
       loka::app::RectSurfaceNode node(loka::app::RectSurfaceProps().model(&state));
       NSBitmapImageRep *bitmap = render(project(controller, parent, node));
       LOKA_VERIFY(sameColor([bitmap colorAtX:4 y:4], [NSColor textBackgroundColor]));
-      LOKA_VERIFY(sameColor([bitmap colorAtX:30 y:30], loka::macos::MacTextRoleColor()));
+      // Sprites compose over the document ground: the surface stays opaque
+      // even though the text role (labelColor) carries alpha.
+      LOKA_VERIFY(sameColor([bitmap colorAtX:30 y:30],
+                            over(loka::macos::MacTextRoleColor(), [NSColor textBackgroundColor])));
+      LOKA_VERIFY([[bitmap colorAtX:30 y:30] alphaComponent] == 1.0);
       controller.onChange(0, loka::app::scene::NODE_DIRTY_NONE, false);
     }
     [parent release];
