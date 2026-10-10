@@ -1,7 +1,7 @@
 // SIZE partition override for the Retro68/Classic build.
 // LazyList reserves visibility seats for the configured card capacity.
-// Measured need (#1103, MAME maciix, 2026-10-03): 434.2K = peak live heap
-// 405412 B + stack/A5/zone 39212 B, under the workload in
+// Measured need (after #1107, MAME maciix, 2026-10-10): 442.6K = peak live heap
+// 413780 B + stack/A5/zone 39440 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
 // 68K: minimum = need x 1.1 rounded up to 32K, preferred = need x 1.5 rounded up to 64K.
 // Rez resource ordering: Retro68APPL.r's SIZE (-1) is Rezzed first; this one
@@ -42,7 +42,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024
 #elif LOKA_CLASSIC_68K
 	704 * 1024,	/* preferred */
-	480 * 1024	/* minimum */
+	512 * 1024	/* minimum */
 #else
 	/* PPC partitions are unmeasured: keep the values they had before the
 	   68K measurement (#1103). */
