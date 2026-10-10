@@ -69,8 +69,13 @@ ENV_FILE="$PROJECT_DIR/.env-mame"
 [ "$CPU" != ppc ] || ENV_FILE="$PROJECT_DIR/.env-mame-pmac6100"
 ENV_FILE="${MAME_ENV_FILE:-$ENV_FILE}"
 [ -f "$ENV_FILE" ] && loka_import_environment_file "$ENV_FILE"
+# The PPC probe is calibrated to pmac6100 with its Mac OS 8.1 image (low-memory
+# signature, Finder icon positions), so it takes that machine only; 68K keeps
+# accepting any 68K machine, as before --cpu existed.
 case "$CPU:${MAME_MACHINE:-maciix}" in
-  ppc:maciix|68k:pmac6100) fail "--cpu $CPU conflicts with MAME_MACHINE=${MAME_MACHINE:-maciix} (68k uses maciix; ppc uses pmac6100)" ;;
+  ppc:pmac6100) ;;
+  ppc:*) fail "--cpu ppc is calibrated to pmac6100; MAME_MACHINE=${MAME_MACHINE:-maciix}" ;;
+  68k:pmac*) fail "--cpu 68k cannot run on the PPC machine MAME_MACHINE=$MAME_MACHINE" ;;
 esac
 if [ "$CPU" = ppc ]; then
   export LOKA_LAUNCH_WAIT="${LOKA_LAUNCH_WAIT-150}"
