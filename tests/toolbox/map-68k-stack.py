@@ -112,7 +112,8 @@ def classify_return(code, offset):
             return 'call'
     if offset >= 4:
         word = struct.unpack_from('>H', code, offset - 4)[0]
-        if 0x4EA8 <= word <= 0x4EAF or word in (0x4EB8, 0x6100):
+        # jsr d16(An), d8(An,Xn), abs.w, d16(PC), d8(PC,Xn) (brief extensions); bsr.w.
+        if 0x4EA8 <= word <= 0x4EB8 or word in (0x4EBA, 0x4EBB, 0x6100):
             return 'call'
     if offset >= 6:
         word = struct.unpack_from('>H', code, offset - 6)[0]
@@ -128,7 +129,10 @@ class CallClassifierTests(unittest.TestCase):
             'jsr (An)': [f'{word:04x}' for word in range(0x4E90, 0x4E98)],
             'jsr abs.l': ['4eb9 12345678'],
             'jsr d16(An)': [f'{word:04x} 1234' for word in range(0x4EA8, 0x4EB0)],
+            'jsr d8(An,Xn)': [f'{word:04x} 1234' for word in range(0x4EB0, 0x4EB8)],
             'jsr abs.w': ['4eb8 1234'],
+            'jsr d16(PC)': ['4eba 1234'],
+            'jsr d8(PC,Xn)': ['4ebb 1234'],
             'bsr.w': ['6100 1234'],
             'bsr.s': [f'61{byte:02x}' for byte in range(1, 0xFF)],
             'bsr.l': ['61ff 12345678'],
@@ -144,7 +148,7 @@ class CallClassifierTests(unittest.TestCase):
 
     def test_non_calls_and_bounds(self):
         for encoding in ('', '4e', '4e71', '4e75', '4e98', '4ea7 1234',
-                         '4eb0 1234', '6002', '6100', '61ff', '61ff 1234',
+                         '4ebc 1234', '6002', '6100', '61ff', '61ff 1234',
                          '4eb8', '4eb9 1234'):
             with self.subTest(encoding=encoding):
                 code = bytes.fromhex(encoding)
