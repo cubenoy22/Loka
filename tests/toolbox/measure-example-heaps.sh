@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Partition sizing rail for the Classic examples (#1103).
 #
-#   tests/toolbox/measure-example-heaps.sh [example ...]
+#   tests/toolbox/measure-example-heaps.sh [--bin PATH] [--partition K] [--catch-syserror] [example ...]
 #
 # For each example, boot MAME, launch the production 68K build, play a fixed
 # workload, and report the partition it needs:
@@ -28,6 +28,32 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 ALL_EXAMPLES=(tutorial floppybird smirkbench scrapbook helloworld lazylist minesweeper simpleviewer simpletext)
 fail() { echo "measure-example-heaps: $*" >&2; exit 1; }
+
+BIN_OVERRIDE="" PARTITION="" CATCH_SYSERROR=0
+examples=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --bin|--partition)
+      [ "$#" -ge 2 ] && [ -n "$2" ] || fail "$1 requires a value"
+      if [ "$1" = --bin ]; then BIN_OVERRIDE="$2"; else PARTITION="$2"; fi
+      shift 2 ;;
+    --catch-syserror) CATCH_SYSERROR=1; shift ;;
+    --*) fail "unknown option '$1'" ;;
+    *) examples+=("$1"); shift ;;
+  esac
+done
+if [ -n "$BIN_OVERRIDE$PARTITION" ]; then
+  [ "${#examples[@]}" -eq 1 ] || fail '--bin/--partition require exactly one example'
+fi
+if [ -n "$PARTITION" ]; then
+  [[ "$PARTITION" =~ ^[1-9][0-9]{0,6}$ ]] && [ "$PARTITION" -le 2097151 ] \
+    || fail '--partition must be 1..2097151 KiB'
+fi
+if [ -n "$BIN_OVERRIDE" ]; then
+  [ -f "$BIN_OVERRIDE" ] || fail "missing $BIN_OVERRIDE"
+  BIN_OVERRIDE="$(cd "$(dirname "$BIN_OVERRIDE")" && pwd)/$(basename "$BIN_OVERRIDE")"
+fi
+[ "${#examples[@]}" -gt 0 ] || examples=("${ALL_EXAMPLES[@]}")
 
 . "$PROJECT_DIR/scripts/retro68-env.sh"
 loka_load_retro68_environment "$PROJECT_DIR"
@@ -99,16 +125,34 @@ measure() {
     *) fail "unknown example '$example' (known: ${ALL_EXAMPLES[*]})" ;;
   esac
   sizer="$PROJECT_DIR/example/$dir/Size.r"
-  local bin="$RELEASE/$dir/$app.bin"
+  local bin="${BIN_OVERRIDE:-$RELEASE/$dir/$app.bin}"
   [ -f "$bin" ] || fail "missing $bin; build retro68-68k-release first"
   # The 68K preferred size is the first value in the LOKA_CLASSIC_68K branch.
   local preferred_k
-  preferred_k="$(awk '/^#elif LOKA_CLASSIC_68K/{block=1; next} block && /^#/{exit} block && /\* *1024/{gsub(/[^0-9*]/,""); split($0,p,"*"); print p[1]; exit}' "$sizer")"
-  [[ "$preferred_k" =~ ^[0-9]+$ ]] || fail "could not read the preferred size from $sizer"
+  if [ -n "$PARTITION" ]; then
+    preferred_k="$PARTITION"
+  elif [ -n "$BIN_OVERRIDE" ]; then
+    preferred_k="$(python3 "$SCRIPT_DIR/patch-macbinary-size.py" --preferred-k "$bin")"
+  else
+    preferred_k="$(awk '/^#elif LOKA_CLASSIC_68K/{block=1; next} block && /^#/{exit} block && /\* *1024/{gsub(/[^0-9*]/,""); split($0,p,"*"); print p[1]; exit}' "$sizer")"
+    [[ "$preferred_k" =~ ^[0-9]+$ ]] || fail "could not read the preferred size from $sizer"
+  fi
 
   local work="$PROJECT_DIR/build/mame-measure/$example"
-  rm -rf "$work"
+  if [ -n "$BIN_OVERRIDE$PARTITION" ] || [ "$CATCH_SYSERROR" -eq 1 ]; then
+    local label="$example"
+    [ -z "$BIN_OVERRIDE" ] || label+="-$(basename "$bin" | tr -c '[:alnum:]._-' '_')"
+    [ -z "$PARTITION" ] || label+="-${PARTITION}K"
+    mkdir -p "$PROJECT_DIR/build/mame-measure"
+    work="$(mktemp -d "$PROJECT_DIR/build/mame-measure/${label}.XXXXXX")"
+  else
+    rm -rf "$work"
+  fi
   mkdir -p "$work"/{home,cfg,nvram,snapshot,diff,hfs-ctl,hfs-home}
+  if [ -n "$PARTITION" ]; then
+    python3 "$SCRIPT_DIR/patch-macbinary-size.py" "$bin" "$work/$app.bin" "$PARTITION"
+    bin="$work/$app.bin"
+  fi
   if [ "$example" = simpleviewer ]; then
     local hmount hcopy humount
     hmount="$(retro68_tool hmount)"; hcopy="$(retro68_tool hcopy)"; humount="$(retro68_tool humount)"
@@ -156,11 +200,48 @@ measure() {
     -video none -sound none -nothrottle -natural -skip_gameinfo
     -autoboot_delay 1 -autoboot_script "$(winpath "$work/mame-measure-heap.lua")"
   )
-  [ -n "${MAME_ROMPATH:-}" ] && args+=(-rompath "$MAME_ROMPATH")
-  LOKA_SNAP_LOG="$(winpath "$work/measure.log")" LOKA_TAB_COUNT="$tabs" LOKA_STEPS="$steps" \
-    WSLENV="${WSLENV:+$WSLENV:}LOKA_SNAP_LOG:LOKA_TAB_COUNT:LOKA_STEPS" \
-    timeout 1200 "$MAME_EXECUTABLE" "${args[@]}" >"$work/mame.out" 2>&1 </dev/null \
-    || fail "$example: MAME exited with status $?; see $work/mame.out"
+  local rompath="${MAME_ROMPATH:-}"
+  if [ "$CATCH_SYSERROR" -eq 1 ] && [ -n "$rompath" ]; then
+    # MAME separates search paths with semicolons. Keep caller-relative ROM
+    # entries meaningful after the debugger switches to its capture directory.
+    local remaining="$rompath" path separator=""
+    rompath=""
+    while :; do
+      path="${remaining%%;*}"
+      case "$path" in
+        /*|[A-Za-z]:*|\\*) ;; # Already absolute for the host/MAME.
+        *) path="$(winpath "$PWD/$path")" ;;
+      esac
+      rompath+="$separator$path"
+      [[ "$remaining" == *';'* ]] || break
+      remaining="${remaining#*;}"
+      separator=';'
+    done
+  fi
+  [ -n "$rompath" ] && args+=(-rompath "$rompath")
+  local status=0 executable="$MAME_EXECUTABLE"
+  if [ "$CATCH_SYSERROR" -eq 1 ]; then
+    printf 'go\n' >"$work/debug.cmd"
+    args+=(-debug -debugger none -log -debuglog -debugscript "$(winpath "$work/debug.cmd")")
+    # Resolve a relative executable before switching cwd for debugger saves.
+    if [[ "$executable" == */* ]] && [[ "$executable" != /* ]]; then
+      executable="$(cd "$(dirname "$executable")" && pwd)/$(basename "$executable")"
+    fi
+  fi
+  (
+    if [ "$CATCH_SYSERROR" -eq 1 ]; then cd "$work" || exit 1; fi
+    LOKA_CATCH_SYSERROR="$CATCH_SYSERROR" LOKA_SNAP_LOG="$(winpath "$work/measure.log")" LOKA_TAB_COUNT="$tabs" LOKA_STEPS="$steps" \
+      WSLENV="${WSLENV:+$WSLENV:}LOKA_CATCH_SYSERROR:LOKA_SNAP_LOG:LOKA_TAB_COUNT:LOKA_STEPS" \
+      timeout 1200 "$executable" "${args[@]}" >"$work/mame.out" 2>&1 </dev/null
+  ) || status=$?
+  if [ "$CATCH_SYSERROR" -eq 1 ]; then
+    grep 'SYSERR ' "$work/error.log" 2>/dev/null || echo 'no SysError'
+    local saved
+    for saved in error.log stack.bin heap.bin lowmem.bin; do
+      [ ! -f "$work/$saved" ] || printf '%s\n' "$work/$saved"
+    done
+  fi
+  [ "$status" -eq 0 ] || fail "$example: MAME exited with status $status; see $work/mame.out"
   local log
   log="$(tr -d '\r' < "$work/measure.log")"
   grep -qx 'LOKA-MEASURE: complete' <<<"$log" || fail "$example: probe did not complete; see $work/measure.log"
@@ -180,7 +261,6 @@ measure() {
   }'
 }
 
-[ "$#" -gt 0 ] || set -- "${ALL_EXAMPLES[@]}"
-for example in "$@"; do
+for example in "${examples[@]}"; do
   measure "$example"
 done

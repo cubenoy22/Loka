@@ -530,6 +530,50 @@ still quits silently.
 Color depth does not change the application heap: 1-bit and 256 colors
 match byte for byte.
 
+### Catch a system error
+
+Use `--catch-syserror` when a workload reaches a System Error before the
+measurement can finish. For example, to try MineSweeper in a 443 KiB partition:
+
+```sh
+tests/toolbox/measure-example-heaps.sh --partition 443 --catch-syserror minesweeper
+```
+
+`--partition K` patches a copy of the MacBinary's `SIZE` (-1) resource, setting
+both preferred and minimum to K KiB without rebuilding. `--bin PATH` selects
+another build of the named example; either option requires exactly one example.
+Optioned runs use unique directories under `build/mame-measure/`.
+
+After boot, the Lua reads the SysError trap entry from the trap table and arms
+one breakpoint. The first hit logs `SYSERR` registers to `error.log`, saves
+`stack.bin` (A7 through CurStackBase), `heap.bin` (ApplZone through its bkLim),
+and `lowmem.bin` (the first 8 KiB), then clears breakpoints and continues.
+The runner prints the SYSERR line, or `no SysError`, and existing capture paths
+even if the workload fails. Check `measure.log` for breakpoint arming; absence
+of a hit alone does not prove the application survived. Failed measurements
+still exit non-zero.
+
+Use the release ELF **from the captured build** and the hexadecimal `applzone`,
+`a7`, and optionally `a6` values from the SYSERR line:
+
+```sh
+python3 tests/toolbox/map-68k-stack.py path/to/LokaMine68K.code.bin.gdb \
+  path/to/heap.bin APPLZONE path/to/stack.bin A7 A6
+```
+
+The tool needs `readelf` and `c++filt` on PATH. It locates CODE sections using
+unique relocation-free byte windows, prints the A6 chain, then scans stack
+words for possible return addresses and demangles symbols. Raw hits are
+candidates; a missing CODE match exits non-zero.
+The raw scan skips odd addresses and shows only `call` candidates preceded by
+a recognized call encoding in the ELF; `--all` also shows even in-section
+`non-call` candidates.
+
+Two traps from #1102: System 7 patches `SetGrowZone` and keeps a wrapper in
+`Zone::gzProc`, so that field need not equal the application's callback.
+The ROM Memory Manager uses A6 as a zone pointer; the frame chain stops there.
+Use the raw scan to inspect the remaining stack.
+
 ### Record the verification claim
 
 Runtime evidence should name the machine, the input sequence, and the observed
