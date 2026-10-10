@@ -1731,9 +1731,9 @@ namespace
       const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
       bool ink = false;
       // After the sprite moves away, only the replayed label can supply ink.
-      for (short y = self->marker_.v; y < self->marker_.v + 12; ++y)
-        for (short x = self->marker_.h; x < self->marker_.h + 94; ++x)
-          ink = GetPixel(x, y) != 0 || ink;
+      for (int y = self->marker_.v; y < self->marker_.v + 12; ++y)
+        for (int x = self->marker_.h; x < self->marker_.h + 94; ++x)
+          ink = GetPixel(static_cast<short>(x), static_cast<short>(y)) != 0 || ink;
       // The ZStack makes this exact update a composition-order replay, whose
       // clipped render() is not a whole-window repaint; whole == 0 pins that.
       const bool replayed = stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
