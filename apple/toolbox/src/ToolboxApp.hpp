@@ -80,6 +80,10 @@ public:
       redraw is deferred until resume. */
   void requestMenuBarDraw();
 
+protected:
+  virtual bool windowAdopted(Window *window);
+  virtual void bootstrapWindowRefused(Window *window);
+
 private:
   friend class CursorOwner;
   void sampleHover(bool force);

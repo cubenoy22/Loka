@@ -170,6 +170,27 @@ ToolboxApp::ToolboxApp(AppConfigurable *config)
 {
 }
 
+bool ToolboxApp::windowAdopted(Window *window)
+{
+  ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+  if (!toolboxWindow)
+    return true;
+  toolboxWindow->setApp(this);
+  toolboxWindow->open();
+  toolboxWindow->ensureSceneMounted();
+  if (toolboxWindow->scene() && toolboxWindow->scene()->composeRefusedForMemory())
+    return false;
+  // Startup has no turn boundary yet: report a reserve lent during this
+  // window's open and mount before the next window adds more work.
+  loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+  return true;
+}
+
+void ToolboxApp::bootstrapWindowRefused(Window *)
+{
+  loka::toolbox::QuitForOutOfMemory();
+}
+
 void ToolboxApp::run()
 {
   InitGraf(&qd.thePort);
@@ -196,20 +217,8 @@ void ToolboxApp::run()
       ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
       if (toolboxWindow)
       {
-        if (!firstWindow)
-        {
-          firstWindow = toolboxWindow;
-        }
-        toolboxWindow->setApp(this);
-        toolboxWindow->open();
-        toolboxWindow->ensureSceneMounted();
-        if (toolboxWindow->scene() && toolboxWindow->scene()->composeRefusedForMemory())
-        {
-          loka::toolbox::QuitForOutOfMemory();
-        }
-        // Startup has no turn boundary yet: report a reserve lent during this
-        // window's open and mount before the next window adds more work.
-        loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+        firstWindow = toolboxWindow;
+        break;
       }
     }
     if (!activeWindow() && firstWindow)

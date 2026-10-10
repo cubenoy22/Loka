@@ -61,9 +61,25 @@ void App::run()
     menuComposition.finish();
     this->setDefaultMenuBar(bar.empty() ? 0 : &bar);
     group_ = new AppComponentGroup(composition.build());
+    const std::vector<AppComponent *> &components = this->group_->getComponents();
+    for (size_t i = 0; i < components.size(); ++i)
+    {
+      Window *window = components[i] ? components[i]->asWindow() : 0;
+      if (window && !this->windowAdopted(window))
+        this->bootstrapWindowRefused(window);
+    }
   }
   projectInitialVisibilityChunks();
   this->projectMenuSources();
+}
+
+bool App::windowAdopted(Window *)
+{
+  return true;
+}
+
+void App::bootstrapWindowRefused(Window *)
+{
 }
 
 loka::app::IdlePolicy App::idlePolicy() const
