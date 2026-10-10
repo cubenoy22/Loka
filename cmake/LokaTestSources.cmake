@@ -152,10 +152,4 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxScrollViewContractTests.cpp
 )
 
-# Only this shared table pin needs Win32 constants on non-Windows hosts.
-# Keep the shim out of the include paths of all other shared translation units.
-if(NOT WIN32)
-  set_source_files_properties(${_LOKA_TEST_SOURCE_ROOT}/tests/Win32GroundTests.cpp
-    PROPERTIES INCLUDE_DIRECTORIES "${_LOKA_TEST_SOURCE_ROOT}/tests/win32/host")
-endif()
 unset(_LOKA_TEST_SOURCE_ROOT)

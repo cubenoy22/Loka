@@ -22,10 +22,10 @@ namespace
     unsigned long rgb = 0;
     switch (index)
     {
-    case COLOR_BTNFACE: rgb = theme.buttonFace; break;
-    case COLOR_BTNTEXT: rgb = theme.buttonText; break;
-    case COLOR_WINDOW: rgb = theme.window; break;
-    case COLOR_WINDOWTEXT: rgb = theme.windowText; break;
+    case WIN32_SYSTEM_COLOR_BTNFACE: rgb = theme.buttonFace; break;
+    case WIN32_SYSTEM_COLOR_BTNTEXT: rgb = theme.buttonText; break;
+    case WIN32_SYSTEM_COLOR_WINDOW: rgb = theme.window; break;
+    case WIN32_SYSTEM_COLOR_WINDOWTEXT: rgb = theme.windowText; break;
     default: LOKA_VERIFY(false && "unexpected system color index");
     }
     return loka_test::RelativeLuminance(
@@ -41,14 +41,14 @@ void testWin32GroundRoles()
   LOKA_VERIFY(!QueryWin32GroundColor(SURFACE_GROUND_NATIVE, index));
   LOKA_VERIFY(index == -123);
   LOKA_VERIFY(QueryWin32GroundColor(SURFACE_GROUND_WINDOW, index));
-  LOKA_VERIFY(index == COLOR_BTNFACE);
+  LOKA_VERIFY(index == WIN32_SYSTEM_COLOR_BTNFACE);
   LOKA_VERIFY(QueryWin32GroundColor(SURFACE_GROUND_DOCUMENT, index));
-  LOKA_VERIFY(index == COLOR_WINDOW);
+  LOKA_VERIFY(index == WIN32_SYSTEM_COLOR_WINDOW);
   LOKA_VERIFY(QueryWin32GroundColor(SURFACE_GROUND_CONTROL, index));
-  LOKA_VERIFY(index == COLOR_BTNFACE);
-  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_WINDOW) == COLOR_BTNTEXT);
-  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_CONTROL) == COLOR_BTNTEXT);
-  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_DOCUMENT) == COLOR_WINDOWTEXT);
+  LOKA_VERIFY(index == WIN32_SYSTEM_COLOR_BTNFACE);
+  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_WINDOW) == WIN32_SYSTEM_COLOR_BTNTEXT);
+  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_CONTROL) == WIN32_SYSTEM_COLOR_BTNTEXT);
+  LOKA_VERIFY(Win32TextRoleColor(SURFACE_GROUND_DOCUMENT) == WIN32_SYSTEM_COLOR_WINDOWTEXT);
 }
 
 void testWin32GroundLegibility()

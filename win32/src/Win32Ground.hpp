@@ -2,13 +2,22 @@
 #define LOKA_WIN32_GROUND_HPP
 
 #include "app/style/SurfaceGround.hpp"
-#include <windows.h>
 #include <cassert>
 
 namespace loka
 {
   namespace win32
   {
+    /** Subset of GetSysColor indices used by the standard palette.
+        Win32PaintGround.hpp pins these values to <windows.h>. */
+    enum Win32SystemColor
+    {
+      WIN32_SYSTEM_COLOR_WINDOW = 5,
+      WIN32_SYSTEM_COLOR_WINDOWTEXT = 8,
+      WIN32_SYSTEM_COLOR_BTNFACE = 15,
+      WIN32_SYSTEM_COLOR_BTNTEXT = 18
+    };
+
     // Deliberate platform-seam twins of ToolboxGround and MacGround.
     /** Answers system color indices so resolution remains live. Transparent and
         native grounds decline without changing out. */
@@ -20,13 +29,13 @@ namespace loka
       case app::SURFACE_GROUND_NATIVE:
         return false;
       case app::SURFACE_GROUND_WINDOW:
-        out = COLOR_BTNFACE;
+        out = WIN32_SYSTEM_COLOR_BTNFACE;
         return true;
       case app::SURFACE_GROUND_DOCUMENT:
-        out = COLOR_WINDOW;
+        out = WIN32_SYSTEM_COLOR_WINDOW;
         return true;
       case app::SURFACE_GROUND_CONTROL:
-        out = COLOR_BTNFACE;
+        out = WIN32_SYSTEM_COLOR_BTNFACE;
         return true;
       }
       return false;
@@ -41,9 +50,9 @@ namespace loka
       {
       case app::SURFACE_GROUND_WINDOW:
       case app::SURFACE_GROUND_CONTROL:
-        return COLOR_BTNTEXT;
+        return WIN32_SYSTEM_COLOR_BTNTEXT;
       case app::SURFACE_GROUND_DOCUMENT:
-        return COLOR_WINDOWTEXT;
+        return WIN32_SYSTEM_COLOR_WINDOWTEXT;
       case app::SURFACE_GROUND_TRANSPARENT:
       case app::SURFACE_GROUND_NATIVE:
         break;

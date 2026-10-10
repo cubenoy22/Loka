@@ -2,11 +2,17 @@
 #define LOKA_WIN32_PAINT_GROUND_HPP
 
 #include "Win32Ground.hpp"
+#include <windows.h>
 
 namespace loka
 {
   namespace win32
   {
+    typedef char SystemColorWindowMustMatchWindows[(static_cast<int>(WIN32_SYSTEM_COLOR_WINDOW) == COLOR_WINDOW) ? 1 : -1];
+    typedef char SystemColorWindowTextMustMatchWindows[(static_cast<int>(WIN32_SYSTEM_COLOR_WINDOWTEXT) == COLOR_WINDOWTEXT) ? 1 : -1];
+    typedef char SystemColorButtonFaceMustMatchWindows[(static_cast<int>(WIN32_SYSTEM_COLOR_BTNFACE) == COLOR_BTNFACE) ? 1 : -1];
+    typedef char SystemColorButtonTextMustMatchWindows[(static_cast<int>(WIN32_SYSTEM_COLOR_BTNTEXT) == COLOR_BTNTEXT) ? 1 : -1];
+
     // Deliberate platform-seam twin of ToolboxPaintGround/MacPaintGround.
     /** Paints with a system-owned brush (never deleted). Declining roles assert
         in debug and paint nothing in release. Returns paint success so a
