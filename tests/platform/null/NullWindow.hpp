@@ -2,6 +2,7 @@
 #define LOKA_TESTS_PLATFORM_NULL_WINDOW_HPP
 
 #include "app/core/Window.hpp"
+#include "app/core/App.hpp"
 #include "app/core/DialogResultTransport.hpp"
 #include "app/scene/Scene.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
@@ -15,6 +16,7 @@ public:
              const WindowProps &props,
              NullScenePlatformController *borrowedController = 0)
       : Window(context, props),
+        app_(0),
         controller_(borrowedController),
         ownsController_(borrowedController == 0),
         mountedScene_(false)
@@ -25,6 +27,15 @@ public:
     }
     this->dialogResults().open(*this);
     this->mountScene();
+  }
+
+  void setApp(App *app) { this->app_ = app; }
+  App *app() const { return this->app_; }
+  /** Deliberate Win32/Null counterpart: WM_DESTROY requests close via the App back-pointer. */
+  void simulateNativeClose()
+  {
+    if (this->app_)
+      this->app_->requestWindowClose(this);
   }
 
   virtual ~NullWindow()
@@ -155,6 +166,7 @@ private:
       this->destroyScenePlatform();
   }
 
+  App *app_;
   NullScenePlatformController *controller_;
   bool ownsController_;
   bool mountedScene_;

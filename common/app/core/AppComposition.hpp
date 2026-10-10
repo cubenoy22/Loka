@@ -5,6 +5,7 @@
 #include <cassert>
 #include "app/core/AppComponent.hpp"
 #include "app/core/WindowDefinition.hpp"
+#include "app/core/WindowSeat.hpp"
 #include "dsl/composition/CompositionList.hpp"
 
 class AppComposition
@@ -19,6 +20,10 @@ public:
   AppComposition &operator<<(const WindowDefinitionBase &def);
   AppComposition &operator<<(const WindowDefinitionBase *def);
 
+  AppComposition &operator<<(const loka::app::DocumentWindowSeatDefinitionBase &def);
+  /** Transfers the declared seat to App; null means absent or allocation refused. */
+  loka::app::WindowSeat *takeWindowSeat();
+
   std::vector<AppComponent *> build();
 
   PlatformContext *context() const
@@ -32,6 +37,9 @@ private:
   std::vector<AppComponent *> components_;
   loka::dsl::CompositionList<WindowDefinitionBase> windowList_;
   PlatformContext *context_;
+  loka::app::WindowSeat *windowSeat_;
+  AppComposition(const AppComposition &);
+  AppComposition &operator=(const AppComposition &);
 };
 
 typedef AppComposition AppBuilder;

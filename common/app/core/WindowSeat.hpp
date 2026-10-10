@@ -1,0 +1,103 @@
+#ifndef LOKA_APP_WINDOW_SEAT_HPP
+#define LOKA_APP_WINDOW_SEAT_HPP
+
+#include "app/core/DocumentRoster.hpp"
+#include "app/core/WindowDefinition.hpp"
+#include "app/scene/KeySnapshot.hpp"
+
+namespace loka
+{
+  namespace app
+  {
+    /** App-owned keyed consumer. The config owns the borrowed roster and
+        outlives the App. Only App admission advances the committed snapshot. */
+    class WindowSeat
+    {
+    public:
+      explicit WindowSeat(DocumentRosterBase &roster)
+          : key_(&roster.revision(), loka::core::ListRevision()), roster_(roster) {}
+      virtual ~WindowSeat() {}
+      const scene::KeySnapshot<loka::core::ListRevision> &key() const { return this->key_; }
+      DocumentRosterBase &roster() const { return this->roster_; }
+      virtual Window *createWindow(loka::core::ItemId id, PlatformContext *context) const = 0;
+      virtual unsigned short snapshotDesired() = 0;
+      virtual loka::core::ItemId desiredAt(unsigned short index) const = 0;
+
+    private:
+      friend class ::App;
+      scene::KeySnapshot<loka::core::ListRevision> key_;
+      DocumentRosterBase &roster_;
+      WindowSeat(const WindowSeat &);
+      WindowSeat &operator=(const WindowSeat &);
+    };
+
+    /** Typed factory and one walk's identity copy. The callback target (the
+        config) outlives the App, as in RunApp; userData is a borrowed target,
+        never an owner. No retry, decrease, or refusal ledger is kept here. */
+    template <class T, unsigned short N> class DocumentWindowSeat : public WindowSeat
+    {
+    public:
+      typedef WindowProps (*Factory)(const T &, void *);
+      DocumentWindowSeat(DocumentRoster<T, N> &roster, Factory factory, void *userData)
+          : WindowSeat(roster), factory_(factory), userData_(userData)
+      {
+        assert(factory);
+      }
+      virtual Window *createWindow(loka::core::ItemId id, PlatformContext *context) const
+      {
+        const T *entry = static_cast<DocumentRoster<T, N> &>(this->roster()).find(id);
+        return entry ? WindowDef(this->factory_(*entry, this->userData_)).create(context) : 0;
+      }
+      virtual unsigned short snapshotDesired()
+      {
+        const unsigned short count = this->roster().count();
+        for (unsigned short i = 0; i < count; ++i)
+          this->desired_[i] = this->roster().idAt(i);
+        return count;
+      }
+      virtual loka::core::ItemId desiredAt(unsigned short index) const { return this->desired_[index]; }
+
+    private:
+      Factory const factory_;
+      void *const userData_;
+      loka::core::ItemId desired_[N];
+    };
+
+    /** A composition declaration creates one independently owned runtime seat. */
+    class DocumentWindowSeatDefinitionBase
+    {
+    public:
+      virtual ~DocumentWindowSeatDefinitionBase() {}
+      virtual WindowSeat *createSeat() const = 0;
+    };
+
+    /** Copyable declaration; the roster and callback target are config-owned
+        and must outlive the App. Creating the seat copies the factory values. */
+    template <class T, unsigned short N>
+    class DocumentWindowSeatDefinition : public DocumentWindowSeatDefinitionBase
+    {
+    public:
+      typedef typename DocumentWindowSeat<T, N>::Factory Factory;
+      DocumentWindowSeatDefinition(DocumentRoster<T, N> &roster, Factory factory, void *userData)
+          : roster_(roster), factory_(factory), userData_(userData) {}
+      virtual WindowSeat *createSeat() const
+      {
+        return new (std::nothrow) DocumentWindowSeat<T, N>(this->roster_, this->factory_, this->userData_);
+      }
+
+    private:
+      DocumentRoster<T, N> &roster_;
+      Factory const factory_;
+      void *const userData_;
+    };
+
+    template <class T, unsigned short N>
+    DocumentWindowSeatDefinition<T, N> DocumentWindows(
+        DocumentRoster<T, N> &roster, WindowProps (*factory)(const T &, void *), void *userData)
+    {
+      return DocumentWindowSeatDefinition<T, N>(roster, factory, userData);
+    }
+  } // namespace app
+} // namespace loka
+
+#endif

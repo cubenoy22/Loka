@@ -1,3 +1,4 @@
+#include "ToolboxPaintGround.hpp"
 #include "platform/ToolboxPascalText.hpp"
 #include "ToolboxInputDoor.hpp"
 #include "ToolboxWindow.hpp"
@@ -188,6 +189,13 @@ void ToolboxWindow::open()
   {
     return;
   }
+  GrafPtr previousPort;
+  GetPort(&previousPort);
+  SetPort(this->window_);
+  // Every plain EraseRect in this port (window draw, dirty replay, the
+  // controller's text fast path, TextContext) restores the window ground.
+  loka::toolbox::ToolboxApplyWindowGround();
+  SetPort(previousPort);
   this->chrome_ = ToolboxWindowChrome(this->window_);
   FrameChangedThunk(this);
   TitleChangedThunk(this);

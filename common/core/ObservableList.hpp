@@ -60,6 +60,10 @@ namespace loka
             count(n)
       {
       }
+      bool operator==(const ListChange &other) const
+      {
+        return !(*this != other);
+      }
       bool operator!=(const ListChange &other) const
       {
         return this->kind != other.kind || this->first != other.first || this->count != other.count;
@@ -76,6 +80,10 @@ namespace loka
             content(0),
             change()
       {
+      }
+      bool operator==(const ListRevision &other) const
+      {
+        return !(*this != other);
       }
       bool operator!=(const ListRevision &other) const
       {

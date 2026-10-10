@@ -324,7 +324,7 @@ void ToolboxImageViewContext::updateRect(short x, short y, short width, short he
 
 void ToolboxImageViewContext::draw()
 {
-  EraseRect(&rect_);
+  // The caller restores the pixels beneath this transparent kind.
   FrameRect(&rect_);
 
   if (!node_ || !node_->props.image_)

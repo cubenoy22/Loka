@@ -23,7 +23,8 @@ checks = [
 # Refusal must reach the fatal rail policy inline before initial projection.
 core = (root / "common/app/core/App.cpp").read_text()
 checks.append(re.search(r"if \(window && !this->windowAdopted\(window\)\)\s*"
-                        r"this->bootstrapWindowRefused\(window\);\s*\}\s*\}\s*"
+                        r"this->bootstrapWindowRefused\(window\);\s*\}\s*"
+                        r"this->admitDocumentWindows\(ADOPT_AT_LAUNCH\);\s*\}\s*"
                         r"projectInitialVisibilityChunks\(\);\s*this->projectMenuSources\(\);", core))
 # Match the complete loop by braces, then require the check at its tail.
 loop_start = app.index("while (running_)")

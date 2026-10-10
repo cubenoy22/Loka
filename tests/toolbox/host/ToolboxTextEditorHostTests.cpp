@@ -1,3 +1,4 @@
+#include "ToolboxGround.hpp"
 #include "ToolboxInputDoor.hpp"
 #include "testing/core/StateTrackerTestAccess.hpp"
 #include "support/LifecycleFactTestAccess.hpp"
@@ -1504,9 +1505,18 @@ int main(int argc, char **argv)
     pin("non-ASCII refusal and CR/LF paste normalization");
   }
   {
+    toolbox_host::backgroundColors.clear();
     toolbox_host::failNew = 1;
     Fixture f;
     LOKA_VERIFY(!f.te() && ToolboxTextEditorAccess::status(*f.context) == EDITOR_UNAVAILABLE);
+    // Native creation refusal paints the document ground, then restores the
+    // window background. Recording calls discriminates even an all-white table.
+    loka::toolbox::ToolboxPlanarColor documentGround, windowGround;
+    LOKA_VERIFY(loka::toolbox::QueryToolboxGroundColor(SURFACE_GROUND_DOCUMENT, documentGround));
+    LOKA_VERIFY(loka::toolbox::QueryToolboxGroundColor(SURFACE_GROUND_WINDOW, windowGround));
+    LOKA_VERIFY(toolbox_host::backgroundColors.size() == 2);
+    LOKA_VERIFY(toolbox_host::backgroundColors[0] == static_cast<long>(documentGround));
+    LOKA_VERIFY(toolbox_host::backgroundColors[1] == static_cast<long>(windowGround));
     LOKA_VERIFY(f.context->key('x') == EDITOR_UNAVAILABLE);
     f.context->render(&f.controller);
     LOKA_VERIFY(f.te() && f.context->key('x') == EDITOR_OK);

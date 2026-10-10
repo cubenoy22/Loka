@@ -32,10 +32,14 @@ void testAppComponentGroupValueRows()
   LOKA_VERIFY(components.size() == 4);
   LOKA_VERIFY(components[2] == &keyed && components[3] == &unkeyed);
   LOKA_VERIFY(group.keyOf(&keyed) == id);
+  LOKA_VERIFY(group.find(id) == &keyed);
+  LOKA_VERIFY(!group.find(loka::core::ItemId::none()));
+  LOKA_VERIFY(!group.find(loka::core::ItemId(7, 24)));
   LOKA_VERIFY(group.keyOf(&unkeyed).isNone());
 
   LOKA_VERIFY(group.remove(&keyed));
   LOKA_VERIFY(group.keyOf(&keyed).isNone());
+  LOKA_VERIFY(!group.find(id));
   LOKA_VERIFY(components.size() == 3);
   LOKA_VERIFY(components[0] == &first && components[1] == &second && components[2] == &unkeyed);
   LOKA_VERIFY(!group.remove(&foreign));
