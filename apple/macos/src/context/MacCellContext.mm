@@ -1,4 +1,5 @@
 #include "MacCellContext.hpp"
+#include "../MacGround.hpp"
 #include "../MacInputDoor.hpp"
 #include <cassert>
 #include "../MacScenePlatformController.hpp"
@@ -15,19 +16,9 @@ class MacCellContext;
 
 namespace
 {
-  NSColor *MacCellFillColor()
-  {
-    return [NSColor colorWithCalibratedWhite:0.92 alpha:1.0];
-  }
-
   NSColor *MacCellBorderColor()
   {
     return [NSColor colorWithCalibratedWhite:0.45 alpha:1.0];
-  }
-
-  NSColor *MacCellTextColor()
-  {
-    return [NSColor blackColor];
   }
 
   class MacCellNodeHandler
@@ -106,8 +97,8 @@ namespace
 - (void)drawRect:(NSRect)dirtyRect
 {
   [super drawRect:dirtyRect];
-  [MacCellFillColor() setFill];
-  NSRectFill(self.bounds);
+  loka::macos::MacPaintGround(
+      loka::app::GroundForKind(loka::app::scene::NODE_KIND_CELL), self.bounds);
   [MacCellBorderColor() setStroke];
   NSFrameRect(self.bounds);
 
@@ -115,7 +106,7 @@ namespace
   {
     NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:[NSFont systemFontOfSize:12.0],
                                                                      NSFontAttributeName,
-                                                                     MacCellTextColor(),
+                                                                     loka::macos::MacTextRoleColor(),
                                                                      NSForegroundColorAttributeName,
                                                                      nil];
     NSSize textSize = [[self text] sizeWithAttributes:attrs];
