@@ -1,7 +1,7 @@
 // SIZE partition override for the Retro68/Classic build.
 // SimpleViewer decodes whole PICTs into the heap, so its need grows with the picture.
-// Measured need (#1123 PR B, MAME maciix, 2026-10-08): 521.4K = peak live heap
-// 496112 B + stack/A5/zone 37772 B, under the workload in
+// Measured need (after #1107, MAME maciix, 2026-10-10): 537.1K = peak live heap
+// 511916 B + stack/A5/zone 38072 B, under the workload in
 // tests/toolbox/measure-example-heaps.sh (rerun it after a size-relevant change).
 // 68K: minimum = need x 1.1 rounded up to 32K. Preferred stays 1024K instead of
 // need x 1.5 (832K): the 13.8 KB picture above is small, and larger ones
@@ -46,7 +46,7 @@ resource 'SIZE' (-1) {
 	1024 * 1024
 #elif LOKA_CLASSIC_68K
 	1024 * 1024,	/* preferred */
-	576 * 1024	/* minimum */
+	608 * 1024	/* minimum */
 #else
 	/* PPC partitions are unmeasured: keep the values they had before the
 	   68K measurement (#1103). */
