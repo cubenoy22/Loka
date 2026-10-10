@@ -212,6 +212,14 @@ invoke the factory. A following admission can therefore build without another
 State event. A failed candidate keeps demand pending while its occupied slots
 return. Parked arms remain occupied residents until actually retired.
 
+A declaration refused for memory after the mount (a Keyed or LazyScope
+re-declaration, or a For batch inside one) leaves its seat vacant and retries
+at the next admission once memory returns; no rail reports it. Only a mount
+refused for memory is reported (the Toolbox Stop alert, #1186). Ruling of
+2026-10-10, Window rally page 1 topic 2: a per-seat "refused and still vacant"
+fact is deferred until an application needs to show it. The retry cadence is
+tracked in #1194.
+
 Costs remain explicit: notification marks one request; admission scans its bank's
 class free lists up to the requested counts; allocation searches that bank's
 layout classes. The traversal reads storage provenance in O(1) and walks the
