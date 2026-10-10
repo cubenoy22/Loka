@@ -21,10 +21,15 @@ Every PR must include:
 
 ## Testing Requirements
 
+Every change follows the
+[verification policy](AGENTS.md#verification-policy-for-bug-fixes-and-refactoring)
+in `AGENTS.md` and records its evidence in the PR. That section is the one
+statement of what the tests must show; no workflow measures or gates a coverage
+percentage.
+
 For logic-heavy changes:
 
 - Add or update unit tests.
-- Maintain at least 90% coverage for the affected logic.
 
 For UI changes:
 
@@ -43,8 +48,9 @@ Warnings stay target-local so platform SDK and future third-party targets do
 not inherit Loka's policy. Repository configure presets additionally enable
 `LOKA_WARNINGS_AS_ERRORS`, producing `-Werror` or `/WX`; an ad hoc CMake
 configuration defaults to warning-only unless that option is enabled. The
-presets are the required entry points for the checks tracked by #172, so those
-checks inherit the same warning floor and cannot pass with new warnings.
+presets are the entry points of the required status checks (the default
+branch's `Main Protection` ruleset), so those checks inherit the same warning
+floor and cannot pass with new warnings.
 
 One narrow waiver remains for GCC 11 and newer:
 `-Wmismatched-new-delete` is disabled on Loka targets because

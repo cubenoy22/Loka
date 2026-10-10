@@ -52,7 +52,8 @@ jobs:
       - run: cmake --build --preset win32-tests
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       # Hosted CI does not cover the local rig's ARM64 build or ACP=932
-      # full-width-path behavior; those remain manually verified per #172.
+      # full-width-path behavior; those stay manual, recorded as rig evidence
+      # in the PR body.
       - run: ctest --preset win32-tests --output-on-failure
         if: ${{ github.event_name != 'pull_request' || steps.changes.outputs.run == 'true' }}
       - run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/scripts/Win32PngCompareTest.ps1
