@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cstring>
+#include <Appearance.h>
 #include <Dialogs.h>
 #include <Events.h>
 #include <Fonts.h>
@@ -106,6 +107,92 @@ namespace
     RGBBackColor(&white);
   }
 
+  // Appearance 1.0 (Mac OS 8.0/8.1, the last 68k systems) has no getter for a
+  // theme color: GetThemeBrushAsColor / GetThemeTextColor arrived in 1.1 and
+  // are PPC-only. The 1.0 setters apply the theme to the current port, so the
+  // probe applies each one to its own color port and reads the port back.
+  void LogThemeColors(std::FILE *log, WindowPtr window, short depth)
+  {
+    GrafPtr saved;
+    GetPort(&saved);
+    SetPort(window);
+    RGBColor foreground;
+    RGBColor background;
+    GetForeColor(&foreground);
+    GetBackColor(&background);
+    const struct BrushSample
+    {
+      ThemeBrush brush;
+      const char *name;
+    } brushes[] = {
+      {kThemeBrushDialogBackgroundActive, "kThemeBrushDialogBackgroundActive"},
+      {kThemeBrushDocumentWindowBackground, "kThemeBrushDocumentWindowBackground"},
+      {kThemeBrushModelessDialogBackgroundActive, "kThemeBrushModelessDialogBackgroundActive"},
+      {kThemeBrushUtilityWindowBackgroundActive, "kThemeBrushUtilityWindowBackgroundActive"},
+      {kThemeBrushListViewBackground, "kThemeBrushListViewBackground"}
+    };
+    for (std::size_t i = 0; i < sizeof(brushes) / sizeof(brushes[0]); ++i)
+    {
+      RGBBackColor(&background);
+      const OSStatus error = SetThemeBackground(brushes[i].brush, depth, true);
+      RGBColor rgb;
+      GetBackColor(&rgb);
+      std::fprintf(log, "brush %s set_err=%ld port_back=%04X,%04X,%04X\r", brushes[i].name,
+                   static_cast<long>(error), static_cast<unsigned int>(rgb.red),
+                   static_cast<unsigned int>(rgb.green), static_cast<unsigned int>(rgb.blue));
+    }
+    const struct TextSample
+    {
+      ThemeTextColor color;
+      const char *name;
+    } texts[] = {
+      {kThemeTextColorDialogActive, "kThemeTextColorDialogActive"},
+      {kThemeTextColorDialogInactive, "kThemeTextColorDialogInactive"},
+      {kThemeTextColorWindowHeaderActive, "kThemeTextColorWindowHeaderActive"},
+      {kThemeTextColorPushButtonActive, "kThemeTextColorPushButtonActive"},
+      {kThemeTextColorListView, "kThemeTextColorListView"},
+      {kThemeTextColorDocumentWindowTitleActive, "kThemeTextColorDocumentWindowTitleActive"}
+    };
+    for (std::size_t i = 0; i < sizeof(texts) / sizeof(texts[0]); ++i)
+    {
+      RGBForeColor(&foreground);
+      const OSStatus error = SetThemeTextColor(texts[i].color, depth, true);
+      RGBColor rgb;
+      GetForeColor(&rgb);
+      std::fprintf(log, "text %s set_err=%ld port_fore=%04X,%04X,%04X\r", texts[i].name,
+                   static_cast<long>(error), static_cast<unsigned int>(rgb.red),
+                   static_cast<unsigned int>(rgb.green), static_cast<unsigned int>(rgb.blue));
+    }
+    RGBForeColor(&foreground);
+    RGBBackColor(&background);
+    SetPort(saved);
+  }
+
+  void DrawThemeWindow(WindowPtr window, bool colorQD, bool appearance)
+  {
+    // Update events must obey both trap-availability guards too.
+    if (!colorQD || !appearance || !window)
+      return;
+    SetPort(window);
+    RGBColor foreground;
+    RGBColor background;
+    GetForeColor(&foreground);
+    GetBackColor(&background);
+    const short depth = (**(**GetMainDevice()).gdPMap).pixelSize;
+    SetThemeWindowBackground(window, kThemeBrushDialogBackgroundActive, true);
+    EraseRect(&window->portRect);
+    TextFont(3);
+    TextSize(9);
+    TextFace(normal);
+    TextMode(srcOr);
+    SetThemeTextColor(kThemeTextColorDialogActive, depth, true);
+    Label(10, 25, "kThemeTextColorDialogActive");
+    SetThemeTextColor(kThemeTextColorListView, depth, true);
+    Label(10, 50, "kThemeTextColorListView");
+    RGBForeColor(&foreground);
+    RGBBackColor(&background);
+  }
+
   int RunProbe()
   {
     loka::platform::file::FileHandle file;
@@ -126,6 +213,19 @@ namespace
       std::fprintf(log, "depth=1 (no Color QuickDraw)\r");
     if (gestaltError != noErr)
       std::fprintf(log, "ERROR Gestalt=%d\r", gestaltError);
+    long appearanceAttr = 0;
+    const OSErr appearanceError = Gestalt(gestaltAppearanceAttr, &appearanceAttr);
+    const bool appearance = appearanceError == noErr &&
+                            (appearanceAttr & (1L << gestaltAppearanceExists)) != 0;
+    std::fprintf(log, "appearance=%s\r", appearance ? "yes" : "no");
+    if (appearance)
+    {
+      long appearanceVersion = 0;
+      if (Gestalt(gestaltAppearanceVersion, &appearanceVersion) == noErr)
+        std::fprintf(log, "appearance_version=0x%04lX\r", appearanceVersion);
+      else
+        std::fprintf(log, "appearance_version=absent\r");
+    }
 #if LOKA_COLOR_PROBE_DEPTH > 0
     // Optional second run: switch the main screen to a color depth first (the
     // device type bit asks for color rather than gray), so the same drawing
@@ -142,11 +242,18 @@ namespace
     }
 #endif
 
+    if (appearance)
+    {
+      std::fprintf(log, "RegisterAppearanceClient err=%ld\r",
+                   static_cast<long>(RegisterAppearanceClient()));
+    }
+
     // A null storage argument lets each constructor allocate its own record type.
     const Rect left = {50, 10, 340, 250};
     WindowPtr bwWindow = NewWindow(0, &left, "\pB&W port", true, documentProc,
                                    reinterpret_cast<WindowPtr>(-1L), false, 0);
     WindowPtr colorWindow = 0;
+    WindowPtr themeWindow = 0;
     int result = gestaltError == noErr ? 0 : 1;
     if (bwWindow)
     {
@@ -176,6 +283,26 @@ namespace
     }
     else
       std::fprintf(log, "color_window=skipped\r");
+    if (appearance && colorQD)
+    {
+      // Leave room for the title bar below the existing ports, within 640x480.
+      const Rect bottom = {365, 10, 465, 500};
+      themeWindow = NewCWindow(0, &bottom, "\pTheme port", true, documentProc,
+                               reinterpret_cast<WindowPtr>(-1L), false, 0);
+      if (themeWindow)
+      {
+        LogThemeColors(log, themeWindow, (**(**GetMainDevice()).gdPMap).pixelSize);
+        DrawThemeWindow(themeWindow, colorQD, appearance);
+        std::fprintf(log, "theme_window=drawn\r");
+      }
+      else
+      {
+        std::fprintf(log, "ERROR NewCWindow Theme port failed\r");
+        result = 1;
+      }
+    }
+    else
+      std::fprintf(log, "theme_window=skipped\r");
     std::fprintf(log, "done\r");
     if (std::ferror(log))
       result = 1;
@@ -184,7 +311,7 @@ namespace
     if (std::fclose(log) != 0)
       result = 1;
 
-    bool quit = !bwWindow && !colorWindow;
+    bool quit = !bwWindow && !colorWindow && !themeWindow;
     while (!quit)
     {
       SystemTask();
@@ -199,12 +326,15 @@ namespace
           DrawBWWindow(window);
         else if (window == colorWindow)
           DrawColorWindow(window, colorQD);
+        else if (window == themeWindow)
+          DrawThemeWindow(window, colorQD, appearance);
         EndUpdate(window);
       }
       else if (event.what == mouseDown)
       {
         WindowPtr window = 0;
-        if (FindWindow(event.where, &window) == inContent && (window == bwWindow || window == colorWindow))
+        if (FindWindow(event.where, &window) == inContent &&
+            (window == bwWindow || window == colorWindow || window == themeWindow))
           quit = true;
       }
       else if (event.what == keyDown && (event.modifiers & cmdKey))
@@ -213,6 +343,8 @@ namespace
         quit = key == 'q' || key == 'Q';
       }
     }
+    if (themeWindow)
+      DisposeWindow(themeWindow);
     if (colorWindow)
       DisposeWindow(colorWindow);
     if (bwWindow)
