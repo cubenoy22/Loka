@@ -1,0 +1,474 @@
+#include "DocumentWindowSetTests.hpp"
+#include "app/core/AppComposition.hpp"
+#include "app/core/WindowSeat.hpp"
+#include "app/nodes/boundary/StdComposition.hpp"
+#include "app/nodes/nestable/Fragment.hpp"
+#include "app/nodes/nestable/Show.hpp"
+#include "platform/null/NullApp.hpp"
+#include "platform/null/NullPlatformContext.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
+#include "support/TestVerify.hpp"
+
+namespace
+{
+  using namespace loka::core;
+  using namespace loka::app;
+  using namespace loka::app::scene;
+
+  struct Document
+  {
+    int value;
+    explicit Document(int v = 0) : value(v) {}
+  };
+  class DocumentRoot;
+  struct RootFacts
+  {
+    int compositions, detaches;
+    bool detachedInsideTurn;
+    DocumentRoster<Document, 4> *roster;
+    DocumentRoot *root;
+    bool opened;
+    ItemId openedId;
+    int openerCompositions;
+    RootFacts()
+        : compositions(0), detaches(0), detachedInsideTurn(false),
+          roster(0), root(0), opened(false), openerCompositions(0) {}
+  };
+  struct DocumentProps : NodePropsBase<DocumentProps>
+  {
+    typedef DocumentRoot NodeType;
+    struct TypeTag {};
+    RootFacts *facts;
+    explicit DocumentProps(RootFacts &f) : facts(&f) {}
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+        return this->propsTypeId() < rhs.propsTypeId();
+      return std::less<RootFacts *>()(this->facts, static_cast<const DocumentProps &>(rhs).facts);
+    }
+  };
+  class OpenDocumentRoot;
+  struct OpenDocumentProps : NodePropsBase<OpenDocumentProps>
+  {
+    typedef OpenDocumentRoot NodeType;
+    struct TypeTag {};
+    RootFacts *facts;
+    explicit OpenDocumentProps(RootFacts &f) : facts(&f) {}
+    bool operator<(const PropsBase &rhs) const
+    {
+      if (rhs.propsTypeId() != this->propsTypeId())
+        return this->propsTypeId() < rhs.propsTypeId();
+      return std::less<RootFacts *>()(this->facts, static_cast<const OpenDocumentProps &>(rhs).facts);
+    }
+  };
+  /** Mounted by a state-driven Show during Scene run; boundaries compose once. */
+  class OpenDocumentRoot : public StdCompositionBoundaryNodeBase<OpenDocumentProps>
+  {
+  public:
+    explicit OpenDocumentRoot(const OpenDocumentProps &props)
+        : StdCompositionBoundaryNodeBase<OpenDocumentProps>(props) {}
+    virtual void composeNode(NodeComposition &)
+    {
+      RootFacts &facts = *this->props.facts;
+      ++facts.openerCompositions;
+      if (!facts.opened)
+      {
+        facts.opened = true;
+        facts.openedId = facts.roster->open(Document(1));
+        LOKA_VERIFY(!facts.openedId.isNone());
+      }
+    }
+  };
+  class DocumentRoot : public StdCompositionBoundaryNodeBase<DocumentProps>
+  {
+  public:
+    explicit DocumentRoot(const DocumentProps &props) : StdCompositionBoundaryNodeBase<DocumentProps>(props)
+    {
+      this->props.facts->root = this;
+      if (this->props.facts->roster)
+        this->state(this->showOpener_, false);
+    }
+    void openDuringSceneRun() { this->showOpener_.set(true); }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      ++this->props.facts->compositions;
+      if (this->props.facts->roster)
+        composition.declare(Show(*this->showOpener_.state())
+            << BoundaryDefinition<OpenDocumentProps, OpenDocumentRoot>(OpenDocumentProps(*this->props.facts)));
+    }
+    virtual void detachNode(NodeComposition &)
+    {
+      ++this->props.facts->detaches;
+      this->props.facts->detachedInsideTurn = Operation::hasActive();
+    }
+  private:
+    NodeState<bool> showOpener_;
+  };
+  class TrackedWindow : public NullWindow
+  {
+  public:
+    TrackedWindow(PlatformContext *context, const WindowProps &props, bool &destroyed)
+        : NullWindow(context, props), destroyed_(destroyed) {}
+    virtual ~TrackedWindow() { this->destroyed_ = true; }
+  private:
+    bool &destroyed_;
+  };
+  class TrackingContext : public NullPlatformContext
+  {
+  public:
+    int creates;
+    bool destroyed[16];
+    TrackingContext() : creates(0)
+    {
+      for (int i = 0; i < 16; ++i)
+        this->destroyed[i] = false;
+    }
+    virtual Window *createWindow(const WindowProps &props)
+    {
+      LOKA_VERIFY(this->creates < 16);
+      return new TrackedWindow(this, props, this->destroyed[this->creates++]);
+    }
+  };
+  /** First clone builds WindowDef's props; its next clone refuses inside create. */
+  class RefusingRoot : public FragmentDefinition
+  {
+  public:
+    explicit RefusingRoot(int depth = 0) : depth_(depth) {}
+    virtual NodeDefinitionBase *clone() const
+    {
+      return this->depth_ ? 0 : new RefusingRoot(1);
+    }
+  private:
+    int depth_;
+  };
+  class Config : public AppConfigurable
+  {
+  public:
+    DocumentRoster<Document, 4> roster;
+    RootFacts roots[4];
+    int factories;
+    int refuseValue;
+    bool reenter;
+    bool staticFirst;
+    ItemId initial;
+    ItemId reentrant;
+    explicit Config(PlatformContext &context, bool bootstrap = false)
+        : AppConfigurable(&context), factories(0), refuseValue(-1), reenter(false), staticFirst(bootstrap)
+    {
+      if (bootstrap)
+        this->initial = this->roster.open(Document(0));
+    }
+    virtual void compose(AppComposition &c)
+    {
+      if (this->staticFirst)
+        c << WindowDef(WindowProps());
+      c << DocumentWindows(this->roster, &Config::documentWindow, this);
+    }
+    static WindowProps documentWindow(const Document &entry, void *data)
+    {
+      Config &config = *static_cast<Config *>(data);
+      ++config.factories;
+      const int value = entry.value;
+      if (config.reenter)
+      {
+        config.reenter = false;
+        config.reentrant = config.roster.open(Document(2));
+        LOKA_VERIFY(!config.reentrant.isNone());
+      }
+      WindowProps props;
+      if (value == config.refuseValue)
+        props.rootDefinition = new RefusingRoot();
+      else
+        props.scene(new Scene(BoundaryDefinition<DocumentProps, DocumentRoot>(DocumentProps(config.roots[value]))));
+      return props;
+    }
+  };
+  class TestApp : public NullApp
+  {
+  public:
+    explicit TestApp(Config &config) : NullApp(&config) {}
+    using App::admitAndApplyWindows;
+    using App::reclaimWindows;
+    using App::hasPendingWindowAdmission;
+    AppComponentGroup &group() { return *this->group_; }
+    NullWindow *window(ItemId id) { return static_cast<NullWindow *>(this->group_->find(id)); }
+    void tail() { RunWindowAdmissionOperation(*this); }
+  };
+  class RefusingNullApp : public TestApp
+  {
+  public:
+    Window *refused;
+    int refuseAt;
+    explicit RefusingNullApp(Config &config) : TestApp(config), refused(0), refuseAt(2) {}
+  protected:
+    virtual bool windowAdopted(Window *window)
+    {
+      const bool accepted = NullApp::windowAdopted(window);
+      if (static_cast<int>(this->adoptedWindows().size()) != this->refuseAt)
+        return accepted;
+      this->refused = window;
+      return false;
+    }
+  };
+}
+
+// Pin 1 mutation: skip the runtime walk.
+void testDocumentWindowOpenAddsKeyedRow()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  const ItemId id = config.roster.open(Document(0));
+  LOKA_VERIFY(!id.isNone());
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == 1);
+  LOKA_VERIFY(app.group().keyOf(app.window(id)) == id);
+  LOKA_VERIFY(app.adoptedWindows().size() == 1 && app.adoptedWindows()[0] == app.window(id));
+  LOKA_VERIFY(config.factories == 1);
+}
+
+// Pin 2 mutation: drop find(id)'s skip.
+void testDocumentWindowExistingRootDoesNotRecompose()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  const ItemId first = config.roster.open(Document(0));
+  app.tail();
+  Window *original = app.window(first);
+  const int compositions = config.roots[0].compositions;
+  LOKA_VERIFY(compositions == 1);
+  LOKA_VERIFY(!config.roster.open(Document(1)).isNone());
+  app.tail();
+  LOKA_VERIFY(config.factories == 2);
+  LOKA_VERIFY(app.window(first) == original);
+  LOKA_VERIFY(config.roots[0].compositions == compositions);
+}
+
+// Pin 3 mutation: omit windowGone on create refusal (retains the document).
+void testDocumentWindowCreateRefusalDropsDocument()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  config.refuseValue = 0;
+  const ItemId id = config.roster.open(Document(0));
+  app.tail();
+  LOKA_VERIFY(config.roster.count() == 0 && !config.roster.find(id));
+  LOKA_VERIFY(app.group().getComponents().size() == 0 && context.creates == 0);
+  LOKA_VERIFY(!app.quitRequested() && !app.hasPendingWindowAdmission());
+  LOKA_VERIFY(config.factories == 1);
+  app.tail();
+  LOKA_VERIFY(config.factories == 1);
+}
+
+// Pin 4 mutation: ignore adoption refusal. Close batching is deliberately unchanged.
+void testDocumentWindowAdoptionRefusalDetachesThenReclaimsNextTail()
+{
+  TrackingContext context;
+  Config config(context);
+  RefusingNullApp app(config);
+  app.run();
+  const ItemId first = config.roster.open(Document(0));
+  app.tail();
+  const ItemId refused = config.roster.open(Document(1));
+  app.tail();
+  LOKA_VERIFY(app.refused && !app.window(refused));
+  LOKA_VERIFY(app.group().getComponents().size() == 1 && app.window(first));
+  LOKA_VERIFY(config.roster.count() == 1 && config.roster.find(first) && !config.roster.find(refused));
+  LOKA_VERIFY(config.roots[1].detaches == 1 && config.roots[1].detachedInsideTurn);
+  LOKA_VERIFY(!context.destroyed[1] && !app.quitRequested());
+  LOKA_VERIFY(app.hasPendingWindowAdmission());
+  app.tail();
+  LOKA_VERIFY(context.destroyed[1] && !context.destroyed[0]);
+  LOKA_VERIFY(config.roots[1].detaches == 1 && !app.hasPendingWindowAdmission());
+}
+
+// Pin 5 / structural mutation (a): omit the roster call from requestWindowClose.
+void testDocumentWindowNativeCloseDoesNotResurrect()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  const ItemId first = config.roster.open(Document(0));
+  const ItemId second = config.roster.open(Document(1));
+  app.tail();
+  app.window(first)->simulateNativeClose();
+  LOKA_VERIFY(!app.window(first) && !config.roster.find(first));
+  const ItemId third = config.roster.open(Document(2));
+  app.tail();
+  LOKA_VERIFY(config.factories == 3 && app.group().getComponents().size() == 2);
+  LOKA_VERIFY(app.window(second) && app.window(third) && !app.window(first));
+}
+
+// Pin 6 mutation: skip snapshot assignment on content-only changes; this is a
+// zero-creates characterization, without a production compare-count probe.
+void testDocumentWindowContentUpdateCreatesNothing()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  const ItemId id = config.roster.open(Document(0));
+  app.tail();
+  Window *window = app.window(id);
+  LOKA_VERIFY(config.roster.update(id, Document(1)) == EDIT_OK);
+  LOKA_VERIFY(config.roster.find(id)->value == 1);
+  app.tail();
+  app.tail();
+  LOKA_VERIFY(config.factories == 1 && context.creates == 1);
+  LOKA_VERIFY(app.window(id) == window && !context.destroyed[0]);
+}
+
+// Pin 7 mutation: skip the seat's windowAdopted call (silent Null back-pointer).
+void testDocumentWindowHookInstallsNativeCloseBackPointer()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  const ItemId id = config.roster.open(Document(0));
+  app.tail();
+  NullWindow *window = app.window(id);
+  LOKA_VERIFY(window && window->app() == &app);
+  window->simulateNativeClose();
+  LOKA_VERIFY(app.group().getComponents().size() == 0);
+  app.tail();
+}
+
+// Pin 8 mutation: skip the launch walk.
+void testDocumentWindowBootstrapStaticBeforeKeyed()
+{
+  TrackingContext context;
+  Config config(context, true);
+  TestApp app(config);
+  app.run();
+  const AppComponentGroup::Components rows = app.group().getComponents();
+  LOKA_VERIFY(rows.size() == 2 && app.adoptedWindows().size() == 2);
+  LOKA_VERIFY(app.group().keyOf(rows[0]).isNone());
+  LOKA_VERIFY(app.group().keyOf(rows[1]) == config.initial);
+  LOKA_VERIFY(rows[0] == app.adoptedWindows()[0] && rows[1] == app.adoptedWindows()[1]);
+}
+
+// Pin 9 states a limit, so has no required mutation: after the last admission,
+// an open alone is not pending admission work and waits for the next event.
+void testDocumentWindowOpenAfterLastAdmissionWaitsForNextEvent()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  ItemId id;
+  {
+    Operation turn;
+    turn.settle();
+    app.admitAndApplyWindows();
+    app.reconcileFocus();
+    app.admitAndApplyWindows();
+    turn.close();
+    id = config.roster.open(Document(0));
+    app.reclaimWindows();
+  }
+  LOKA_VERIFY(!app.hasPendingWindowAdmission() && config.factories == 0);
+  app.tail();
+  LOKA_VERIFY(config.factories == 1 && app.window(id));
+}
+
+// Pin 10 mutation: enumerate live desired keys/count rather than the copied set.
+void testDocumentWindowReentrantOpenUsesNextWalk()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  ItemId first, second;
+  {
+    Operation turn;
+    turn.settle();
+    app.admitAndApplyWindows();
+    // Seed in the tail's second admission, so the next walk is the next tail.
+    first = config.roster.open(Document(0));
+    second = config.roster.open(Document(1));
+    config.reenter = true;
+    app.reconcileFocus();
+    app.admitAndApplyWindows();
+    turn.close();
+    app.reclaimWindows();
+  }
+  LOKA_VERIFY(config.roster.count() == 3 && config.factories == 2);
+  LOKA_VERIFY(app.window(first) && app.window(second) && !app.window(config.reentrant));
+  app.tail();
+  LOKA_VERIFY(config.factories == 3 && app.window(config.reentrant));
+  app.tail();
+  LOKA_VERIFY(config.factories == 3);
+}
+
+// Pin 11 mutation: route launch refusal through requestWindowClose.
+void testDocumentWindowLaunchRefusalUsesBootstrapDoor()
+{
+  TrackingContext context;
+  Config config(context);
+  const ItemId id = config.roster.open(Document(0));
+  RefusingNullApp app(config);
+  app.refuseAt = 1;
+  app.run();
+  LOKA_VERIFY(app.refused && app.bootstrapRefusedWindows().size() == 1);
+  LOKA_VERIFY(app.bootstrapRefusedWindows()[0] == app.refused);
+  LOKA_VERIFY(app.window(id) == app.refused && config.roster.count() == 1);
+  LOKA_VERIFY(!context.destroyed[0] && !app.quitRequested());
+}
+
+// Pin 12: bounded admission; a second declaration asserts (release: first wins).
+void testDocumentWindowRosterCapacity()
+{
+  TrackingContext context;
+  Config config(context);
+  TestApp app(config);
+  app.run();
+  for (int i = 0; i < 4; ++i)
+    LOKA_VERIFY(!config.roster.open(Document(i)).isNone());
+  app.tail();
+  LOKA_VERIFY(config.factories == 4 && app.group().getComponents().size() == 4);
+  LOKA_VERIFY(config.roster.open(Document(0)).isNone());
+  app.tail();
+  LOKA_VERIFY(config.factories == 4 && app.group().getComponents().size() == 4);
+}
+
+// Pin 13 / structural mutation (b): move the document walk before Scene run.
+// Like PreparedReveal in SceneOwnershipTests, a state-driven Show mounts a
+// boundary during admission. The existing parent boundary never recomposes.
+void testDocumentWindowOpenDuringSceneRunIsAdmittedInTheSameAdmission()
+{
+  TrackingContext context;
+  Config config(context);
+  config.roots[0].roster = &config.roster;
+  TestApp app(config);
+  app.run();
+  const ItemId first = config.roster.open(Document(0));
+  app.tail();
+  RootFacts &facts = config.roots[0];
+  LOKA_VERIFY(facts.root && facts.compositions == 1 && facts.openerCompositions == 0);
+  const int factories = config.factories;
+  {
+    Operation turn;
+    facts.root->openDuringSceneRun();
+    turn.settle();
+    LOKA_VERIFY(app.window(first)->hasPendingSceneInvalidation());
+    LOKA_VERIFY(!facts.opened && config.factories == factories);
+    app.admitAndApplyWindows();
+    LOKA_VERIFY(facts.opened && facts.openerCompositions == 1);
+    LOKA_VERIFY(app.window(facts.openedId) && app.group().getComponents().size() == 2);
+    LOKA_VERIFY(config.factories == factories + 1);
+    app.reconcileFocus();
+    app.admitAndApplyWindows();
+    turn.close();
+    app.reclaimWindows();
+  }
+  LOKA_VERIFY(app.window(first) && app.window(facts.openedId));
+  LOKA_VERIFY(config.factories == factories + 1 && facts.compositions == 1);
+  LOKA_VERIFY(facts.openerCompositions == 1);
+}

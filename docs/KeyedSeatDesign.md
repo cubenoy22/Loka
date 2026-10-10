@@ -5,7 +5,7 @@
 > **Does not own:** API signatures, allocation implementation, or scheduler policy
 > **Code truth:** `common/app/nodes/nestable/Keyed.hpp`,
 > `common/app/scene/boundary/detail/BranchSeatDeclaration.hpp`,
-> `common/app/scene/detail/KeySnapshot.hpp`,
+> `common/app/scene/KeySnapshot.hpp`,
 > `KeyedGenerationDeclaration` in `common/app/scene/boundary/GenerationRoot.hpp`,
 > `BoundaryNode::replaceSeatBranch`
 > **Verification:** Keyed contract pins in `tests/NodeMatchTests.cpp` and the
@@ -22,7 +22,7 @@ request resamples the current key when it can build again.
 Every keyed consumer follows the same rule: a committed result owns its key
 snapshot (`KeySnapshot`). A consumer needs a new declaration if and only if
 there is no committed result or its snapshot no longer matches the live key.
-The driver (Boundary for seats, App admission for a future Window set) owns the
+The driver (Boundary for seats, App admission for a document window set) owns the
 candidate until it is complete. A failed candidate never touches the committed
 result.
 
@@ -71,6 +71,25 @@ finishes the existing observation pass. A removed declaration's source loses
 its observation; a source still used by another node or seat remains registered.
 Failed candidates never publish observations. No additional flags, counters,
 or per-source reference counts describe the pass.
+
+## Document-driven window set
+
+The App's window seat is a keyed consumer under the same snapshot rule above;
+its driver is App admission. A config-owned `DocumentRoster<T, N>` owns the list
+and its tracker. The seat only adds windows and always advances its snapshot to
+the revision read at the start of the walk. It copies desired identities first,
+so documents opened during a factory or mount wait for a following admission.
+An open after the last admission of a tail is not pending window admission work
+and waits for the next event.
+
+A document whose window cannot be created or adopted at runtime is dropped from
+the roster, never retried; the application observes removal as a list fact
+(A′, ruling of 2026-10-10, Window rally page 2). At launch a refused adoption
+takes the bootstrap door (#1186). A native close of a keyed window removes its
+document. Runtime refusal uses the existing close batching: group removal and
+scene detach occur in the refusal tail, while the Window is reclaimed at the
+next tail. Removing a document from the application to close its window is
+page 3 and has no door yet.
 
 ## Review risk profile
 
@@ -217,8 +236,9 @@ inside one) leaves its seat vacant, because `RETIRE_BEFORE_BUILD` has already
 retired the outgoing generation, and retries at the next admission once memory
 returns. A LazyScope refusal keeps its installed generation linked
 (`PRESERVE_INSTALLED`, see "LazyView reserved generations") and settles until
-the key changes. No rail reports either case; only a mount refused for memory
-is reported (the Toolbox Stop alert, #1186). Ruling of 2026-10-10, Window
+the key changes. No rail reports either case; only a launch mount refused for memory
+is reported (the Toolbox Stop alert, #1186); a runtime document whose window
+is refused is dropped from its roster, see [Document-driven window set](#document-driven-window-set). Ruling of 2026-10-10, Window
 rally page 1 topic 2: a per-seat "refused and still vacant" fact is deferred
 until an application needs to show it. The Keyed retry cadence is tracked in
 #1194.

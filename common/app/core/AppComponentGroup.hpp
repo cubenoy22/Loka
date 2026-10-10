@@ -83,6 +83,17 @@ public:
     return loka::core::ItemId();
   }
 
+  /** Returns the keyed component, or null for none/absent; walks this group's rows. */
+  AppComponent *find(loka::core::ItemId key) const
+  {
+    if (key.isNone())
+      return 0;
+    for (std::size_t i = 0; i < this->rows_.size(); ++i)
+      if (this->rows_[i].key == key)
+        return this->rows_[i].component;
+    return 0;
+  }
+
   /** Reserves additional rows without changing membership. Like std::vector,
       allocation failure is not recoverable here with exceptions disabled;
       Classic's global new reports out-of-memory and exits to the Finder. */
