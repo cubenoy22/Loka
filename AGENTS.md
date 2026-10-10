@@ -217,4 +217,4 @@ Diagnostics are not matched because compiler wording differs; keep twins aligned
 by hand (a typo confined to the refusing TU is not detected). `LOKA_COMPILE_PINS`
 registers the refusal tests (ON in the `testing` and `testing-asan` presets);
 the CTest build probes share one `RESOURCE_LOCK`. Building the accepting twins
-on the macOS/Win32 toolchains is not wired as of 2026-09-13 (tracked with #172).
+on the macOS/Win32 toolchains is not wired; #172 closed on 2026-10-11 without it.

@@ -6,7 +6,7 @@ description: Build and verify Loka on a local Win32 machine from WSL — vcvarsa
 # Win32 real-machine build & verify (WSL → MSVC)
 
 Hosted CI covers x64 Debug only; the native architecture and full-width-path
-behavior are verified on a real machine here (#172).
+behavior are verified on a real machine here.
 
 Never hardcode the Visual Studio path or the target architecture. Both differ
 per rig, the install path does not follow the product year (VS 2026 lives under
