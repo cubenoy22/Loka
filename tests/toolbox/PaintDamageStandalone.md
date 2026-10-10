@@ -3,8 +3,8 @@
 Status: the pre-B2 baseline is runtime-verified at 135 PASS / 0 FAIL on the `toolbox-maciix` rig (MAME maciix, 8 MB,
 the rig descriptor's boot template), with a byte-identical `LOG.TXT` across
 runs and across the Universal Interfaces and Multiversal builds (#1126).
-B2 (#1199) adds three expected PASS lines (138 total); the updated log is
-an acceptance expectation pending the delegator's MAME run, not new runtime evidence.
+B2 (#1199) adds three arms: 138 PASS / 0 FAIL on the same rig, with a
+byte-identical `LOG.TXT` from the Universal Interfaces and Multiversal builds.
 Owns: Toolbox native paint-damage pins that need real QuickDraw and the
 Control Manager: exact versus whole-window delivery, presentation history,
 control and popup geometry, and busy-cursor borrows.
