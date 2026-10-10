@@ -56,7 +56,7 @@ class SimpleTextTestAccess
 public:
   static simpletext::MainProps props(SimpleTextAppConfig &config)
   {
-    return simpletext::MainProps().platformContext(config.getPlatformContext());
+    return simpletext::MainProps().platformContext(config.getPlatformContext()).documents(&config.documents());
   }
 
   static void

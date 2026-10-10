@@ -3,7 +3,7 @@
 
 #include "app/core/AppComposition.hpp"
 #include "app/core/AppConfigurable.hpp"
-#include "app/core/WindowDefinition.hpp"
+#include "app/core/WindowSeat.hpp"
 #include "MainNode.hpp"
 
 class SimpleTextAppConfig : public AppConfigurable
@@ -12,19 +12,31 @@ public:
   explicit SimpleTextAppConfig(PlatformContext *context)
       : AppConfigurable(context)
   {
+    this->documents_.open(simpletext::Document());
+  }
+  loka::app::DocumentRoster<simpletext::Document, simpletext::kMaxDocuments> &documents()
+  {
+    return this->documents_;
   }
   virtual void compose(AppComposition &c)
   {
+    c << loka::app::DocumentWindows(this->documents_, &SimpleTextAppConfig::documentWindow, this);
+  }
+
+private:
+  loka::app::DocumentRoster<simpletext::Document, simpletext::kMaxDocuments> documents_;
+
+  static WindowProps documentWindow(const simpletext::Document &, void *userData)
+  {
     using namespace simpletext;
-    c << WindowDef( //
-        WindowProps()
-            .frame(16, 16, 480, 320)
-            .title("LokaSimpleText")
-            .visible(true)
-            .scene(loka::app::scene::Boundary<MainNode>( //
-                MainProps().platformContext(this->getPlatformContext()) //
-                )) //
-    );
+    SimpleTextAppConfig *config = static_cast<SimpleTextAppConfig *>(userData);
+    // All windows share this frame; cascading belongs to later title/frame work.
+    return WindowProps()
+        .frame(16, 16, 480, 320)
+        .title("LokaSimpleText")
+        .visible(true)
+        .scene(loka::app::scene::Boundary<MainNode>( //
+            MainProps().platformContext(config->getPlatformContext()).documents(&config->documents_)));
   }
 };
 #endif

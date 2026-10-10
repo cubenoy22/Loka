@@ -10,6 +10,8 @@
 #include "app/layout/ColumnLayout.hpp"
 #include <sys/stat.h>
 #include "platform/null/NullPlatformContext.hpp"
+#include "platform/null/NullApp.hpp"
+#include "support/WindowAdmissionTestApp.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include "testing/scene/SceneTestFlow.hpp"
 #include "support/TestVerify.hpp"
@@ -113,7 +115,7 @@ namespace
       this->directory = created;
       this->context.setApplicationDirectory(String(this->directory));
       simpletext::MainProps props;
-      props.platformContext(&this->context);
+      props.platformContext(&this->context).documents(&this->config.documents());
       this->scene = new scene::Scene(scene::Boundary<simpletext::MainNode>(props).clone());
       this->scene->mount(&this->platform);
       loka::dsl::testing::SceneTestAccess::updateAttached(*this->scene, true);
@@ -190,7 +192,147 @@ namespace
       LOKA_VERIFY(!(current.item != this->file(name)));
     }
   };
-} // namespace
+
+  class SimpleTextApp : public NullApp
+  {
+  public:
+    explicit SimpleTextApp(SimpleTextAppConfig &config)
+        : NullApp(&config)
+    {
+    }
+    using App::admitAndApplyWindows;
+    using App::reclaimWindows;
+    AppComponentGroup &group()
+    {
+      return *this->group_;
+    }
+    void tail()
+    {
+      RunWindowAdmissionOperation(*this);
+    }
+    NullWindow &window(unsigned index)
+    {
+      return *static_cast<NullWindow *>(this->adoptedWindows().at(index));
+    }
+    simpletext::MainNode &main(unsigned index)
+    {
+      return *static_cast<simpletext::MainNode *>(
+          loka::dsl::testing::SceneTestAccess::rootNode(*this->window(index).scene()));
+    }
+  };
+
+  /** Test-only instrumentation delegates every composition to the real Main. */
+  class CountedMain : public simpletext::MainNode
+  {
+  public:
+    explicit CountedMain(const simpletext::MainProps &props)
+        : simpletext::MainNode(props),
+          compositions_(0)
+    {
+    }
+    virtual void composeNode(scene::NodeComposition &c)
+    {
+      ++this->compositions_;
+      simpletext::MainNode::composeNode(c);
+    }
+    unsigned compositions() const
+    {
+      return this->compositions_;
+    }
+
+  private:
+    unsigned compositions_;
+  };
+  class CountingContext : public NullPlatformContext
+  {
+  public:
+    virtual Window *createWindow(const WindowProps &props)
+    {
+      // Preserve the production factory's Props; only instrument its root type.
+      const scene::NodeDefinitionBase *definition = props.peekInitialScene()->getRootDefinition();
+      const simpletext::MainProps &mainProps = *static_cast<const simpletext::MainProps *>(definition->propsBase());
+      WindowProps counted(props);
+      counted.scene(new scene::Scene(scene::Boundary<CountedMain>(mainProps).clone()));
+      return NullPlatformContext::createWindow(counted);
+    }
+  };
+}
+
+void testSimpleTextNewOpensASecondWindow()
+{
+  CountingContext context;
+  SimpleTextAppConfig config(&context);
+  SimpleTextApp app(config);
+  app.run();
+  LOKA_VERIFY(app.group().getComponents().size() == 1 && config.documents().count() == 1);
+  simpletext::MainNode &first = app.main(0);
+  ObservableList<String> &lines = SimpleTextTestAccess::lines(first);
+  LOKA_VERIFY(lines.size() == 1 && lines.at(0).value.empty());
+  LOKA_VERIFY(static_cast<CountedMain &>(first).compositions() == 1);
+  LOKA_VERIFY(lines.update(lines.at(0).id, String("unsaved first document")) == EDIT_OK);
+  const ListRevision revision = lines.revision().get();
+  SimpleTextTestAccess::commands(first).slot<simpletext::NEW_DOCUMENT>()->emit();
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == 2 && config.documents().count() == 2);
+  LOKA_VERIFY(&app.main(0) == &first);
+  LOKA_VERIFY(!(lines.revision().get() != revision));
+  LOKA_VERIFY(lines.at(0).value.equals(String("unsaved first document")));
+  LOKA_VERIFY(static_cast<CountedMain &>(first).compositions() == 1);
+  ObservableList<String> &second = SimpleTextTestAccess::lines(app.main(1));
+  LOKA_VERIFY(second.size() == 1 && second.at(0).value.empty());
+  LOKA_VERIFY(static_cast<CountedMain &>(app.main(1)).compositions() == 1);
+}
+
+void testSimpleTextNewAtCapacitySetsTheError()
+{
+  NullPlatformContext context;
+  SimpleTextAppConfig config(&context);
+  SimpleTextApp app(config);
+  app.run();
+  while (config.documents().count() < simpletext::kMaxDocuments)
+    LOKA_VERIFY(!config.documents().open(simpletext::Document()).isNone());
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == simpletext::kMaxDocuments);
+  SimpleTextTestAccess::commands(app.main(0)).slot<simpletext::NEW_DOCUMENT>()->emit();
+  app.tail();
+  LOKA_VERIFY(utf8(SimpleTextTestAccess::error(app.main(0))) == "Cannot open another document window.");
+  LOKA_VERIFY(app.group().getComponents().size() == simpletext::kMaxDocuments);
+  LOKA_VERIFY(config.documents().count() == simpletext::kMaxDocuments);
+}
+
+void testSimpleTextClosingAWindowDropsItsDocument()
+{
+  NullPlatformContext context;
+  SimpleTextAppConfig config(&context);
+  SimpleTextApp app(config);
+  app.run();
+  const ItemId first = config.documents().idAt(0);
+  SimpleTextTestAccess::commands(app.main(0)).slot<simpletext::NEW_DOCUMENT>()->emit();
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == 2 && config.documents().count() == 2);
+  app.window(0).simulateNativeClose();
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == 1 && config.documents().count() == 1);
+  LOKA_VERIFY(!config.documents().find(first) && !app.quitRequested());
+  app.window(1).simulateNativeClose();
+  app.tail();
+  LOKA_VERIFY(app.group().getComponents().size() == 0 && config.documents().count() == 0);
+  LOKA_VERIFY(app.quitRequested());
+}
+
+void testSimpleTextLaunchWindowTakesTheSeat()
+{
+  NullPlatformContext context;
+  SimpleTextAppConfig config(&context);
+  SimpleTextApp app(config);
+  app.run();
+  LOKA_VERIFY(app.group().getComponents().size() == 1 && config.documents().count() == 1);
+  LOKA_VERIFY(app.adoptedWindows().size() == 1);
+  const ItemId key = app.group().keyOf(&app.window(0));
+  LOKA_VERIFY(!key.isNone() && key == config.documents().idAt(0));
+  ObservableList<String> &lines = SimpleTextTestAccess::lines(app.main(0));
+  LOKA_VERIFY(lines.size() == 1 && lines.at(0).value.empty());
+}
 
 void testSimpleTextOpenSaveAndSaveAs()
 {
@@ -232,12 +374,13 @@ void testSimpleTextNewAndSaveWithoutDestination()
     LOKA_VERIFY(h.lines().insert(row, String("old")) == EDIT_OK);
   const ItemId old = h.lines().at(0).id;
   SimpleTextTestAccess::commands(h.main()).slot<simpletext::NEW_DOCUMENT>()->emit();
-  LOKA_VERIFY(h.lines().size() == 1 && h.row(0).empty() && h.lines().at(0).id != old);
-  LOKA_VERIFY(SimpleTextTestAccess::current(h.main()).kind == FileChooserResult::RESULT_NONE);
-  LOKA_VERIFY(!h.hasError());
+  LOKA_VERIFY(h.lines().size() == TextEditorProps::kMaxLines && h.row(0) == "old" && h.lines().at(0).id == old);
+  h.currentIs("first.txt");
+  LOKA_VERIFY(h.hasError());
+  LOKA_VERIFY(h.config.documents().count() == 2);
   SimpleTextTestAccess::commands(h.main()).slot<simpletext::SAVE_DOCUMENT>()->emit();
-  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::SAVE);
-  LOKA_VERIFY(h.bytes("first.txt").empty());
+  LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::NONE);
+  LOKA_VERIFY(h.bytes("first.txt").substr(0, 3) == "old");
 }
 
 void testSimpleTextPendingCommandsAndTerminalResults()
@@ -253,11 +396,13 @@ void testSimpleTextPendingCommandsAndTerminalResults()
         ->emit();
     h.flush();
     const ListRevision revision = h.lines().revision().get();
+    const unsigned short documents = h.config.documents().count();
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::NEW_DOCUMENT>()->emit();
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::OPEN_DOCUMENT>()->emit();
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::SAVE_DOCUMENT>()->emit();
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::SAVE_AS_DOCUMENT>()->emit();
     LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == (saving ? simpletext::SAVE : simpletext::OPEN));
+    LOKA_VERIFY(h.config.documents().count() == documents);
     LOKA_VERIFY(!(h.lines().revision().get() != revision));
     LOKA_VERIFY(h.row(0) == "unsaved" && h.bytes("first.txt") == "kept");
     h.currentIs("first.txt");
@@ -339,6 +484,8 @@ void testSimpleTextCommitExhaustionPreservesDestination()
   h.currentIs("first.txt");
   SimpleTextTestAccess::commands(h.main()).slot<simpletext::NEW_DOCUMENT>()->emit();
   LOKA_VERIFY(h.hasError() && h.lines().at(0).id == id);
+  LOKA_VERIFY(h.row(0) == "kept" && !(h.lines().revision().get() != revision));
+  LOKA_VERIFY(h.config.documents().count() == 2);
   h.currentIs("first.txt");
   SimpleTextTestAccess::commands(h.main()).slot<simpletext::SAVE_DOCUMENT>()->emit();
   LOKA_VERIFY(h.bytes("first.txt") == "kept" && h.bytes("second.txt") == "replacement");
@@ -369,7 +516,8 @@ void testSimpleTextRepeatedOpenAndCaretReplacement()
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::SAVE_DOCUMENT>()->emit();
     LOKA_VERIFY(SimpleTextTestAccess::caret(h.main()) == LineCursor(h.lines().at(1).id, 2));
     SimpleTextTestAccess::commands(h.main()).slot<simpletext::NEW_DOCUMENT>()->emit();
-    LOKA_VERIFY(SimpleTextTestAccess::caret(h.main()) == LineCursor(h.lines().at(0).id, 0));
+    LOKA_VERIFY(SimpleTextTestAccess::caret(h.main()) == LineCursor(h.lines().at(1).id, 2));
+    LOKA_VERIFY(h.config.documents().count() == 2);
   }
 }
 
@@ -433,8 +581,9 @@ void testSimpleTextMenuAndDialogProps()
   LOKA_VERIFY(SimpleTextTestAccess::operation(h.main()) == simpletext::NONE);
   LOKA_VERIFY(h.bytes("first.txt") == "saved through menu");
   attachment.dispatch(kAppMenuItems + 1);
-  LOKA_VERIFY(h.lines().size() == 1 && h.row(0).empty());
-  LOKA_VERIFY(SimpleTextTestAccess::current(h.main()).kind == FileChooserResult::RESULT_NONE);
+  LOKA_VERIFY(h.lines().size() == 1 && h.row(0) == "saved through menu");
+  h.currentIs("first.txt");
+  LOKA_VERIFY(h.config.documents().count() == 2);
 }
 
 void testSimpleTextRibbonFiresTheMenuEmitters()
@@ -497,8 +646,9 @@ void testSimpleTextRibbonFiresTheMenuEmitters()
   LOKA_VERIFY(ClickButton(WithinAnchor("SimpleText.Ribbon").descendant<ButtonNode>(1)).run(h.scene, out, error)
               == FLOW_STEP_SUCCEEDED);
   h.flush();
-  LOKA_VERIFY(h.lines().size() == 1 && h.row(0).empty() && h.lines().at(0).id != old);
-  LOKA_VERIFY(SimpleTextTestAccess::current(h.main()).kind == FileChooserResult::RESULT_NONE);
+  LOKA_VERIFY(h.lines().size() == 2 && h.row(0) == "unsaved" && h.lines().at(0).id == old);
+  h.currentIs("first.txt");
+  LOKA_VERIFY(h.config.documents().count() == 2);
   LOKA_VERIFY(!h.hasError());
 }
 
