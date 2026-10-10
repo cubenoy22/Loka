@@ -21,16 +21,15 @@ Every PR must include:
 
 ## Testing Requirements
 
+Every change follows the
+[verification policy](AGENTS.md#verification-policy-for-bug-fixes-and-refactoring)
+in `AGENTS.md` and records its evidence in the PR. That section is the one
+statement of what the tests must show; no workflow measures or gates a coverage
+percentage.
+
 For logic-heavy changes:
 
 - Add or update unit tests.
-- Show that the tests discriminate the change, as the
-  [verification policy](AGENTS.md#verification-policy-for-bug-fixes-and-refactoring)
-  requires: a bug fix's new test fails before the fix and passes after it; a
-  refactor is pinned by characterization tests with identical results before
-  and after; each behavior-carrying hunk of a wiring change fails at least one
-  test when reverted alone. Record that evidence in the PR. No workflow
-  measures or gates a coverage percentage.
 
 For UI changes:
 
