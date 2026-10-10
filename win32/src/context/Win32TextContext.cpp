@@ -484,20 +484,10 @@ bool Win32TextContext::writeText(const std::wstring &wide)
   // WM_SETTEXT, so the write is verified by reading the text back: a refused
   // write leaves the previous text, which differs by content.
   const bool applied = SetWindowTextW(this->hwnd_, wide.c_str()) != FALSE && NativeTextIs(this->hwnd_, wide);
-  HWND parent = GetParent(hwnd_);
-  if (parent)
+  if (Win32ScenePlatformController::requestTransparentChildRepaint(this->hwnd_) && applied)
   {
-    RECT rc;
-    if (GetWindowRect(hwnd_, &rc))
-    {
-      MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rc), 2);
-      Win32ScenePlatformController::requestDirtySubtree(parent, &rc, FALSE);
-      if (applied)
-      {
-        const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
-        this->textDelivery_ = unchanged ? PaintAnswer::exact(empty) : PaintAnswer::nativeScheduled();
-      }
-    }
+    const PaintDamage empty = {paintScope(), 0, 0, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+    this->textDelivery_ = unchanged ? PaintAnswer::exact(empty) : PaintAnswer::nativeScheduled();
   }
   if (!didInitialApply_)
   {

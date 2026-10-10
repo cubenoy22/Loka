@@ -258,7 +258,9 @@ void testWin32ScrollViewParentsAndClipsProjectedChildren()
     assert(GetParent(viewport) == root);
     const LONG_PTR viewportStyle = GetWindowLongPtr(viewport, GWL_STYLE);
     assert((viewportStyle & WS_VSCROLL) != 0);
-    assert((viewportStyle & WS_CLIPCHILDREN) != 0);
+    // #1199: transparent children need the parent's ground beneath them;
+    // child parentage, checked below, provides structural clipping (#544).
+    LOKA_VERIFY((viewportStyle & WS_CLIPCHILDREN) == 0);
     const LONG_PTR viewportExStyle = GetWindowLongPtr(viewport, GWL_EXSTYLE);
     assert((viewportExStyle & WS_EX_CONTROLPARENT) != 0 &&
            "IsDialogMessage only recurses into control parents; Tab must not skip the viewport's children");

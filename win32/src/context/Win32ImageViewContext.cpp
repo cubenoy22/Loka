@@ -7,7 +7,6 @@
 namespace
 {
   const wchar_t kImageViewClassName[] = L"LOKA_IMAGE_VIEW";
-  const COLORREF kImageViewFillColor = RGB(240, 240, 240);
 
   class Win32ImageViewNodeHandler
       : public loka::app::scene::RetainedNodeHandler<Win32ImageViewNodeHandler,
@@ -232,7 +231,8 @@ Win32ImageViewContext::~Win32ImageViewContext()
   assert(!hwnd_ && "terminal fact delivery must queue the HWND before context reclaim");
 }
 
-/** The image observer has requested this HWND, erase=true, children=false.
+/** The image observer requests the parent rectangle and its children, without erase.
+    Like Text, ground is restored before this transparent foreground is drawn.
     deferBind runs in State notification before the tracker invalidates the Boundary. */
 loka::app::scene::PaintAnswer Win32ImageViewContext::queryPaintDamage(const loka::app::scene::PaintQuery &query) const
 {
@@ -311,7 +311,7 @@ void Win32ImageViewContext::relayout(int x, int y, int width, int height)
   }
   this->positionNativeWindow(this->hwnd_,
                              this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)));
-  Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+  Win32ScenePlatformController::requestTransparentChildRepaint(this->hwnd_);
 }
 
 void Win32ImageViewContext::EnsureClassRegistered()
@@ -336,12 +336,12 @@ void Win32ImageViewContext::EnsureClassRegistered()
 LRESULT CALLBACK Win32ImageViewContext::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
   Win32ImageViewContext *self =
-      static_cast<Win32ImageViewContext *>(reinterpret_cast<void *>(GetWindowLongPtr(hwnd, GWLP_USERDATA)));
+      static_cast<Win32ImageViewContext *>(reinterpret_cast<void *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA)));
   if (msg == WM_NCCREATE)
   {
     CREATESTRUCTW *cs = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32ImageViewContext *>(cs->lpCreateParams);
-    SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+    SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
   }
   switch (msg)
   {
@@ -400,16 +400,13 @@ void Win32ImageViewContext::applyImage()
   image_ = imageState_->get();
   if (hwnd_)
   {
-    Win32ScenePlatformController::requestDirtyRect(hwnd_, NULL, TRUE);
+    Win32ScenePlatformController::requestTransparentChildRepaint(this->hwnd_);
   }
 }
 
 void Win32ImageViewContext::drawImage(HDC hdc, const RECT &rect)
 {
-  HBRUSH fill = CreateSolidBrush(kImageViewFillColor);
-  FillRect(hdc, &rect, fill);
-  DeleteObject(fill);
-
+  // The parent repaint supplies transparent letterbox and placeholder pixels.
   if (!image_.isValid())
   {
     return;

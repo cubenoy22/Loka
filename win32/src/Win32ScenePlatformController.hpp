@@ -121,6 +121,13 @@ public:
 
   static void requestDirtyRect(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void requestDirtySubtree(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
+  /** The repaint path of a transparent child (#1199): its parent repaints the
+      child's rectangle, ground and overlapping siblings included, before the
+      child draws its foreground. Answers false when the child has no parent
+      or no rectangle, and requests nothing then. */
+  static bool requestTransparentChildRepaint(HWND child);
+  /** Shared root/viewport ground for WM_PAINT, including paint-only damage. */
+  static void paintWindowGround(HDC dc, const RECT &rect);
   static void redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground);
   static void noteNativePaint(HWND targetHwnd, NativePaintKind kind, bool eraseBackground);
 
