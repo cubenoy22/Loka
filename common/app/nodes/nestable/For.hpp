@@ -153,7 +153,9 @@ namespace loka
       }
 
       /** Builds the complete owned Section batch, then adopts it into parent.
-          A refusal before commit leaves parent unchanged. */
+          A refusal before commit leaves parent unchanged. An allocation refusal
+          is reported to the open declaration window (NoteDefinitionCaptureRefusal);
+          outside a window it is silent. */
       void appendTo(scene::INestableDefinition &parent) const
       {
         const std::size_t itemCount =
@@ -191,6 +193,7 @@ namespace loka
               this->factory_(items[absoluteIndex], absoluteIndex).clone();
           if (!ownedChild)
           {
+            scene::NoteDefinitionCaptureRefusal();
             return;
           }
           factoryChildren.append(ownedChild);
@@ -210,6 +213,7 @@ namespace loka
               new (std::nothrow) BoundarySectionDefinition(tag);
           if (!section)
           {
+            scene::NoteDefinitionCaptureRefusal();
             return;
           }
           scene::NodeDefinitionBase *ownedChild = factoryChildren.takeHead();
