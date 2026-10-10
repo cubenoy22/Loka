@@ -18,11 +18,6 @@
 
 namespace
 {
-  NSColor *MacImageViewFillColor()
-  {
-    return [NSColor colorWithCalibratedWhite:0.94 alpha:1.0];
-  }
-
   int ResolveImageLayoutWidth(const loka::app::ImageViewNode *node, int fallbackWidth,
                               const loka::macos::MacProjection &projection)
   {
@@ -184,8 +179,6 @@ namespace
 - (void)drawRect:(NSRect)dirtyRect
 {
   (void)dirtyRect;
-  [MacImageViewFillColor() setFill];
-  NSRectFill([self bounds]);
   if (image_)
   {
     NSRect bounds = [self bounds];

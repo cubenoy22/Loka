@@ -1,6 +1,7 @@
 #include "AppComponentGroupTests.hpp"
 #ifdef __APPLE__
 #include "MacNativeResourceRetirementTests.hpp"
+#include "MacGroundTests.hpp"
 #endif
 #include "NativeResourceRetirementTests.hpp"
 #include "RibbonTests.hpp"

@@ -1,23 +1,11 @@
 #include "MacRectSurfaceContext.hpp"
+#include "../MacGround.hpp"
 #include "../MacScenePlatformController.hpp"
 #include <cassert>
 #include "../MacObjCCompat.hpp"
 #include "../platform/MacNativeGeometry.hpp"
 #include "app/RectSurface.hpp"
 #include <AppKit/AppKit.h>
-
-namespace
-{
-  NSColor *MacRectSurfaceClearColor()
-  {
-    return [NSColor whiteColor];
-  }
-
-  NSColor *MacRectSurfaceContentColor()
-  {
-    return [NSColor blackColor];
-  }
-} // namespace
 
 @interface LokaRectSurfaceView : NSView
 {
@@ -198,14 +186,14 @@ void MacRectSurfaceContext::applyModel()
 void MacRectSurfaceContext::draw(void *viewBounds)
 {
   NSRect bounds = *(NSRect *)viewBounds;
-  [MacRectSurfaceClearColor() setFill];
-  NSRectFill(bounds);
+  loka::macos::MacPaintGround(
+      loka::app::GroundForKind(loka::app::scene::NODE_KIND_RECT_SURFACE), bounds);
   if (!node_ || !node_->props.model_)
   {
     return;
   }
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
-  [MacRectSurfaceContentColor() setFill];
+  [loka::macos::MacTextRoleColor() setFill];
   for (short i = 0; i < model.rectCount; ++i)
   {
     NSRectFill(this->controller()->projection().projectDeviceOnly(
