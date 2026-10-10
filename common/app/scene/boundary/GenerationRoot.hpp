@@ -6,7 +6,7 @@
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
-#include "app/scene/detail/KeySnapshot.hpp"
+#include "app/scene/KeySnapshot.hpp"
 
 namespace loka
 {
@@ -185,7 +185,7 @@ namespace loka
         virtual bool matchesCurrentKey() const { return this->key_.matches(); }
 
       private:
-        detail::KeySnapshot<K> key_;
+        KeySnapshot<K> key_;
       };
     } // namespace scene
   } // namespace app

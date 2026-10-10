@@ -1,3 +1,4 @@
+#include "DocumentWindowSetTests.hpp"
 #include "AppComponentGroupTests.hpp"
 #ifdef __APPLE__
 #include "MacNativeResourceRetirementTests.hpp"

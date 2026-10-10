@@ -16,6 +16,7 @@ namespace loka
 {
   namespace app
   {
+    class WindowSeat;
     namespace scene { class Scene; }
     namespace testing
     {
@@ -117,6 +118,10 @@ protected:
   void flushPendingWindowClosures();
 
 private:
+  enum AdoptionPhase { ADOPT_AT_LAUNCH, ADOPT_RUNNING };
+  void admitDocumentWindows(AdoptionPhase phase);
+  loka::app::WindowSeat *windowSeat_;
+
   /** Borrowed rows remain owned by the App group or close queue. */
   struct AdmittedWindow
   {

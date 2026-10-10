@@ -1,0 +1,19 @@
+#ifndef LOKA_DOCUMENT_WINDOW_SET_TESTS_HPP
+#define LOKA_DOCUMENT_WINDOW_SET_TESTS_HPP
+
+void testDocumentWindowOpenAddsKeyedRow();
+void testDocumentWindowExistingRootDoesNotRecompose();
+void testDocumentWindowCreateRefusalDropsDocument();
+void testDocumentWindowAdoptionRefusalDetachesThenReclaimsNextTail();
+void testDocumentWindowNativeCloseDoesNotResurrect();
+void testDocumentWindowContentUpdateCreatesNothing();
+void testDocumentWindowHookInstallsNativeCloseBackPointer();
+void testDocumentWindowBootstrapStaticBeforeKeyed();
+void testDocumentWindowOpenAfterLastAdmissionWaitsForNextEvent();
+void testDocumentWindowReentrantOpenUsesNextWalk();
+void testDocumentWindowLaunchRefusalUsesBootstrapDoor();
+void testDocumentWindowRosterCapacity();
+
+void testDocumentWindowOpenDuringSceneRunIsAdmittedInTheSameAdmission();
+
+#endif

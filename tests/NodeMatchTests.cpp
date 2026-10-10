@@ -1,3 +1,5 @@
+#include "app/scene/KeySnapshot.hpp"
+#include "core/ObservableList.hpp"
 #include "NodeMatchTests.hpp"
 #include "platform/null/NullScenePlatformController.hpp"
 #include <cstdio>
@@ -1398,4 +1400,17 @@ void testKeyedObservedUsesWithdrawWithPendingCommit()
   scene.flushInvalidation();
   LOKA_VERIFY(r.declarations == 2 && r.destroyed == 1);
   LOKA_VERIFY(ObservedUseTestSupport::activeUses(r.owner) == originalUses);
+}
+
+void testKeySnapshotSeededListRevisionAdvancesByAssignment()
+{
+  loka::core::PushStateTracker tracker;
+  loka::core::ObservableList<int> list;
+  LOKA_VERIFY(list.attach(&tracker, 4) == loka::core::ATTACH_OK);
+  loka::app::scene::KeySnapshot<loka::core::ListRevision> key(&list.revision(), loka::core::ListRevision());
+  LOKA_VERIFY(key.matches());
+  LOKA_VERIFY(list.insert(0, 7) == loka::core::EDIT_OK);
+  LOKA_VERIFY(!key.matches());
+  key = loka::app::scene::KeySnapshot<loka::core::ListRevision>(&list.revision());
+  LOKA_VERIFY(key.matches());
 }

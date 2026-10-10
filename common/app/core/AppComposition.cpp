@@ -3,7 +3,8 @@
 AppComposition::AppComposition(PlatformContext *context)
     : components_(),
       windowList_(),
-      context_(context)
+      context_(context),
+      windowSeat_(0)
 {
   assert(context_ && "AppComposition: PlatformContext* must not be null");
 }
@@ -11,6 +12,7 @@ AppComposition::AppComposition(PlatformContext *context)
 AppComposition::~AppComposition()
 {
   windowList_.clear();
+  delete this->windowSeat_;
 }
 
 AppComposition &AppComposition::declare(const WindowDefinitionBase &def)
@@ -36,6 +38,21 @@ AppComposition &AppComposition::operator<<(const WindowDefinitionBase &def)
 AppComposition &AppComposition::operator<<(const WindowDefinitionBase *def)
 {
   return declare(def);
+}
+
+AppComposition &AppComposition::operator<<(const loka::app::DocumentWindowSeatDefinitionBase &def)
+{
+  assert(!this->windowSeat_ && "one document window seat per composition");
+  if (!this->windowSeat_)
+    this->windowSeat_ = def.createSeat();
+  return *this;
+}
+
+loka::app::WindowSeat *AppComposition::takeWindowSeat()
+{
+  loka::app::WindowSeat *seat = this->windowSeat_;
+  this->windowSeat_ = 0;
+  return seat;
 }
 
 std::vector<AppComponent *> AppComposition::build()
