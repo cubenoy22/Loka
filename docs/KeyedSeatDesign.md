@@ -5,6 +5,8 @@
 > **Does not own:** API signatures, allocation implementation, or scheduler policy
 > **Code truth:** `common/app/nodes/nestable/Keyed.hpp`,
 > `common/app/scene/boundary/detail/BranchSeatDeclaration.hpp`,
+> `common/app/scene/detail/KeySnapshot.hpp`,
+> `KeyedGenerationDeclaration` in `common/app/scene/boundary/GenerationRoot.hpp`,
 > `BoundaryNode::replaceSeatBranch`
 > **Verification:** Keyed contract pins in `tests/NodeMatchTests.cpp` and the
 > MineSweeper scenario and ownership pins
@@ -16,6 +18,13 @@ facts separately until materialization succeeds. A replacement retires its old
 occupant first and waits for its node slots to return. The vacant interval is
 observable; a refused candidate never restores the old incarnation. The surviving
 request resamples the current key when it can build again.
+
+Every keyed consumer follows the same rule: a committed result owns its key
+snapshot (`KeySnapshot`). A consumer needs a new declaration if and only if
+there is no committed result or its snapshot no longer matches the live key.
+The driver (Boundary for seats, App admission for a future Window set) owns the
+candidate until it is complete. A failed candidate never touches the committed
+result.
 
 The seat window uses a separate NodeComposition and a runtime generation state
 owner. States created inside a Keyed/LazyScope runtime generation use the tagged
