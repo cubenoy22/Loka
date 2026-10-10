@@ -22,22 +22,35 @@ namespace
   {
     return static_cast<double>(finish - start) / static_cast<double>(frequency);
   }
+
+  // Runs on a thread of its own. After the window tests, the runner thread's
+  // first wait can end on a queue wake that delivers no message; that input
+  // comes from the thread's window history, not from the pacer (#1158).
+  DWORD WINAPI MeasureCounterDeadline(LPVOID elapsedSeconds)
+  {
+    LARGE_INTEGER frequency;
+    LARGE_INTEGER start;
+    LOKA_VERIFY(QueryPerformanceFrequency(&frequency));
+    LOKA_VERIFY(QueryPerformanceCounter(&start));
+
+    loka::platform::Win32IdlePacer pacer;
+    pacer.wait(loka::app::IdlePolicy::interval(0.02), false, start.QuadPart, frequency.QuadPart);
+
+    LARGE_INTEGER finish;
+    LOKA_VERIFY(QueryPerformanceCounter(&finish));
+    *static_cast<double *>(elapsedSeconds) = SecondsBetween(start.QuadPart, finish.QuadPart, frequency.QuadPart);
+    return 0;
+  }
 } // namespace
 
 void testWin32IdlePacerHonorsCounterDeadline()
 {
-  DrainCurrentThreadMessages();
-  LARGE_INTEGER frequency;
-  LARGE_INTEGER start;
-  LOKA_VERIFY(QueryPerformanceFrequency(&frequency));
-  LOKA_VERIFY(QueryPerformanceCounter(&start));
-
-  loka::platform::Win32IdlePacer pacer;
-  pacer.wait(loka::app::IdlePolicy::interval(0.02), false, start.QuadPart, frequency.QuadPart);
-
-  LARGE_INTEGER finish;
-  LOKA_VERIFY(QueryPerformanceCounter(&finish));
-  const double elapsed = SecondsBetween(start.QuadPart, finish.QuadPart, frequency.QuadPart);
+  // A measurement that never ran leaves 0.0, which the lower bound refuses.
+  double elapsed = 0.0;
+  HANDLE thread = CreateThread(NULL, 0, MeasureCounterDeadline, &elapsed, 0, NULL);
+  LOKA_VERIFY(thread != NULL);
+  LOKA_VERIFY(WaitForSingleObject(thread, INFINITE) == WAIT_OBJECT_0);
+  LOKA_VERIFY(CloseHandle(thread));
   LOKA_VERIFY(elapsed >= 0.005);
   LOKA_VERIFY(elapsed < 1.0);
   std::printf("testWin32IdlePacerHonorsCounterDeadline passed (%.3f ms)\n", elapsed * 1000.0);

@@ -883,9 +883,13 @@ void ToolboxScenePlatformController::renderDirty(const Rect &rect)
     render();
     return;
   }
-  // The context's attach/retire membership supplies this fact without a
-  // projection-tree discovery pass on each dirty delivery.
-  const bool compositionReplay = this->compositionReplay_.required();
+  // Text-like contexts supply this fact through their attach/retire
+  // membership. A transparent ImageView (#1199) also replays after surfaces
+  // regardless of composition order, so a ZStack window holding one replays
+  // in composition order too; that part walks the projection tree once per
+  // dirty delivery, like the ZStack check below.
+  const bool compositionReplay = this->compositionReplay_.required()
+      || (HasImageViewNode(rootNode_) && ToolboxTreeHasKind(rootNode_, loka::app::scene::NODE_KIND_ZSTACK));
   if (!compositionReplay && hitLedger_.textHits_.empty() && hitLedger_.popupHits_.empty() && hitLedger_.cellHits_.empty()
       && buttonControls_.empty() && scrollBarLedger_.scrollBarControls_.empty() && editControls_.empty())
   {

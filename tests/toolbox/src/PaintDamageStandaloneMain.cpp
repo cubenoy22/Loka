@@ -1731,15 +1731,21 @@ namespace
       const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
       bool ink = false;
       // After the sprite moves away, only the replayed label can supply ink.
-      for (short y = self->marker_.v; y < self->marker_.v + 12; ++y)
-        for (short x = self->marker_.h; x < self->marker_.h + 94; ++x)
-          ink = GetPixel(x, y) != 0 || ink;
-      const bool replayed = stats.totalRenderCalls == self->initial_.totalRenderCalls
-                            && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+      for (int y = self->marker_.v; y < self->marker_.v + 12; ++y)
+        for (int x = self->marker_.h; x < self->marker_.h + 94; ++x)
+          ink = GetPixel(static_cast<short>(x), static_cast<short>(y)) != 0 || ink;
+      // The ZStack makes this exact update a composition-order replay, whose
+      // clipped render() is not a whole-window repaint; whole == 0 pins that.
+      const bool replayed = stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
                             && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount;
+      // Surface-local (140, 20): the moved sprite (x >= 128) under the
+      // transparent placeholder, right of its label and inside its frame.
+      const bool spriteThrough = GetPixel(static_cast<short>(self->marker_.h - 6 + 140),
+                                          static_cast<short>(self->marker_.v - 2 + 20)) != 0;
       SetPort(previousPort);
       std::fprintf(self->log_, "image_whole_window=%d rect_requests=%d placeholder_ink=%d dirty_replayed=%d\r",
                    whole, rects, ink ? 1 : 0, replayed ? 1 : 0);
+      self->recordArm("image-overlap-shows-surface", spriteThrough, IMAGE_CHECK);
       self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, IMAGE_VACATED_SHOW);
     }
     static void OnImageVacatedIdle(Window *window, PaintDamageConfig *self)
