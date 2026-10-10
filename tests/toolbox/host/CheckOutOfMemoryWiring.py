@@ -11,11 +11,20 @@ root = Path(sys.argv[1])
 app = (root / "apple/toolbox/src/ToolboxApp.cpp").read_text()
 checks = [
     re.search(r"InitDialogs\(0\);\s*loka::toolbox::ArmOutOfMemoryReserve\(\);", app),
-    re.search(r"toolboxWindow->ensureSceneMounted\(\);\s*"
+    re.search(r"bool ToolboxApp::windowAdopted\(Window \*window\)\s*\{[\s\S]*?"
+              r"toolboxWindow->setApp\(this\);\s*toolboxWindow->open\(\);\s*"
+              r"toolboxWindow->ensureSceneMounted\(\);\s*"
               r"if \(toolboxWindow->scene\(\) && toolboxWindow->scene\(\)->composeRefusedForMemory\(\)\)\s*"
-              r"\{\s*loka::toolbox::QuitForOutOfMemory\(\);\s*\}\s*"
-              r"(?://[^\n]*\n\s*)*loka::toolbox::QuitIfOutOfMemoryReserveSpent\(\);", app),
+              r"return false;\s*(?://[^\n]*\n\s*)*"
+              r"loka::toolbox::QuitIfOutOfMemoryReserveSpent\(\);\s*return true;\s*\}", app),
+    re.search(r"void ToolboxApp::bootstrapWindowRefused\(Window \*\)\s*"
+              r"\{\s*loka::toolbox::QuitForOutOfMemory\(\);\s*\}", app),
 ]
+# Refusal must reach the fatal rail policy inline before initial projection.
+core = (root / "common/app/core/App.cpp").read_text()
+checks.append(re.search(r"if \(window && !this->windowAdopted\(window\)\)\s*"
+                        r"this->bootstrapWindowRefused\(window\);\s*\}\s*\}\s*"
+                        r"projectInitialVisibilityChunks\(\);\s*this->projectMenuSources\(\);", core))
 # Match the complete loop by braces, then require the check at its tail.
 loop_start = app.index("while (running_)")
 body_start = app.index("{", loop_start)

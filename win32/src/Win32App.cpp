@@ -36,24 +36,17 @@ void Win32App::TranslateOrDispatch(MSG &msg)
   DispatchMessageW(&msg);
 }
 
+bool Win32App::windowAdopted(Window *window)
+{
+  Win32Window *win32Window = window ? window->asWin32Window() : 0;
+  if (win32Window)
+    win32Window->setApp(this);
+  return true;
+}
+
 void Win32App::run()
 {
   App::run();
-
-  // Give each Win32 window a back-reference for native callbacks.
-  if (group_)
-  {
-    const std::vector<AppComponent *> &comps = group_->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
-    {
-      Window *w = (*it)->asWindow();
-      Win32Window *win32Win = w ? w->asWin32Window() : 0;
-      if (win32Win)
-      {
-        win32Win->setApp(this);
-      }
-    }
-  }
 
   LARGE_INTEGER frequency;
   LARGE_INTEGER lastTick;

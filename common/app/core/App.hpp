@@ -87,6 +87,15 @@ protected:
   virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
                            const loka::app::scene::Scene *source);
 
+  /** Rail setup for a Window just placed in the App's group. Bootstrap and
+      runtime adoption (from w1) call this inline, one window at a time.
+      Returns false when the window cannot be used (currently Toolbox scene
+      composition refused for memory). The default accepts without work. */
+  virtual bool windowAdopted(Window *window);
+  /** Bootstrap-only consequence of refused adoption. The default does nothing;
+      Toolbox reports out of memory and quits without returning. */
+  virtual void bootstrapWindowRefused(Window *window);
+
   void projectInitialVisibilityChunks();
   /** Admits seats before Scene runs. The first admission of a tail captures
       collect-time closes; closes requested during apply, delivery or focus wait
