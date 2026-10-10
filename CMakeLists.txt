@@ -436,7 +436,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
 
   add_executable(LokaToolboxOutOfMemoryTests
     tests/toolbox/host/ToolboxOutOfMemoryHostTests.cpp
-    apple/toolbox/src/ToolboxOutOfMemory.cpp)
+    apple/toolbox/src/ToolboxOutOfMemory.cpp
+    apple/toolbox/src/ToolboxReserveGrowZone.cpp)
   target_include_directories(LokaToolboxOutOfMemoryTests PRIVATE
     tests/toolbox/host/oom apple/toolbox/src tests)
   target_compile_options(LokaToolboxOutOfMemoryTests PRIVATE -fno-exceptions -fno-rtti)
@@ -449,7 +450,8 @@ if(NOT WIN32 AND NOT APPLE AND NOT LOKA_CLASSIC_MAC)
       ${PROJECT_SOURCE_DIR})
 
   # Exercise the Classic source itself against a host Memory Manager substitute.
-  add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp)
+  add_executable(LokaToolboxMemorySourceTests tests/ToolboxMemorySourceTests.cpp
+    apple/toolbox/src/ToolboxReserveGrowZone.cpp)
   target_link_libraries(LokaToolboxMemorySourceTests PRIVATE LokaCommonTesting)
   loka_enable_warnings(LokaToolboxMemorySourceTests)
   target_include_directories(LokaToolboxMemorySourceTests PRIVATE

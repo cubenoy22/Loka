@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_MEMORY_SOURCE_HPP
 #define LOKA_TOOLBOX_MEMORY_SOURCE_HPP
 
-#include "ToolboxOutOfMemory.hpp"
+#include "ToolboxReserveGrowZone.hpp"
 #include <cstddef>
 #include <limits>
 #include <stdint.h>

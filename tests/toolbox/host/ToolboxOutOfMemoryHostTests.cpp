@@ -1,18 +1,22 @@
 #include "ToolboxOutOfMemory.hpp"
+#include "ToolboxReserveGrowZone.hpp"
 #include <Dialogs.h>
 #include "support/TestVerify.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <string>
 static std::string events;
-static Zone zone = {0};
+static long processManagerWrapper(Size) { return 0; }
+static Zone zone = {processManagerWrapper};
+static GrowZoneUPP applicationProcedure;
 static int installs, uppCreations;
 static bool refuseReserve, refuseItems, reenterReporting;
 Zone *GetZone() { return &zone; }
 void SetGrowZone(GrowZoneUPP procedure)
 {
-  LOKA_VERIFY(events == "A" && procedure);
-  zone.gzProc = procedure;
+  LOKA_VERIFY(events == "A");
+  applicationProcedure = procedure;
+  LOKA_VERIFY(zone.gzProc != procedure);
   ++installs;
 }
 GrowZoneUPP NewGrowZoneUPP(GrowZoneUPP procedure)
@@ -106,17 +110,23 @@ int main()
   LOKA_VERIFY(events == "Q"); events.clear();
   refuseReserve = true;
   loka::toolbox::ArmOutOfMemoryReserve();
-  LOKA_VERIFY(events == "A" && installs == 0 && uppCreations == 0 && !zone.gzProc);
+  LOKA_VERIFY(events == "A" && installs == 0 && uppCreations == 0 && !applicationProcedure);
   loka::toolbox::QuitIfOutOfMemoryReserveSpent();
   LOKA_VERIFY(events == "A");
   loka::toolbox::QuitForOutOfMemory();
   LOKA_VERIFY(events == "AQ");
   events.clear(); refuseReserve = false;
   loka::toolbox::ArmOutOfMemoryReserve();
-  LOKA_VERIFY(installs == 1 && uppCreations == 1 && zone.gzProc);
+  LOKA_VERIFY(installs == 1 && uppCreations == 1 && applicationProcedure);
+  const GrowZoneUPP installed = applicationProcedure;
+  {
+    loka::toolbox::RefusingAllocationScope refusing;
+    LOKA_VERIFY(applicationProcedure == 0);
+  }
+  LOKA_VERIFY(applicationProcedure == installed && installs == 3);
   loka::toolbox::QuitIfOutOfMemoryReserveSpent();
   LOKA_VERIFY(events == "A");
-  LOKA_VERIFY(zone.gzProc(8193) == 0 && events == "A");
+  LOKA_VERIFY(applicationProcedure(8193) == 0 && events == "A");
   loka::toolbox::QuitForOutOfMemory();
   LOKA_VERIFY(events == "ARDBMMXQ");
   LOKA_VERIFY(outlines == 3);
@@ -139,11 +149,12 @@ int main()
   {
     events.clear(); modalCalls = 0;
     const int previousInstalls = installs;
+    const int previousCreations = uppCreations;
     loka::toolbox::ArmOutOfMemoryReserve();
-    LOKA_VERIFY(installs == previousInstalls + 1 && uppCreations == 1);
-    LOKA_VERIFY(zone.gzProc(mode == 0 ? 10 : 8192) == 8192);
+    LOKA_VERIFY(installs == previousInstalls + 1 && uppCreations == previousCreations + 1);
+    LOKA_VERIFY(applicationProcedure(mode == 0 ? 10 : 8192) == 8192);
     LOKA_VERIFY(events == "AR");
-    LOKA_VERIFY(zone.gzProc(10) == 0 && events == "AR");
+    LOKA_VERIFY(applicationProcedure(10) == 0 && events == "AR");
     if (mode == 0) loka::toolbox::QuitIfOutOfMemoryReserveSpent();
     else loka::toolbox::QuitForOutOfMemory();
     LOKA_VERIFY(events == "ARDBMMXQ");

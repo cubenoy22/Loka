@@ -1,4 +1,5 @@
 #include "ToolboxOutOfMemory.hpp"
+#include "ToolboxReserveGrowZone.hpp"
 #include <Dialogs.h>
 #include <Events.h>
 #include <LowMem.h>
@@ -190,8 +191,7 @@ void ArmOutOfMemoryReserve()
   gOutOfMemoryReserve.arm();
   if (gOutOfMemoryReserve.held())
   {
-    static GrowZoneUPP procedure = NewGrowZoneUPP(ReleaseReserveForSystem);
-    SetGrowZone(procedure);
+    InstallReserveGrowZone(NewGrowZoneUPP(ReleaseReserveForSystem));
   }
 }
 

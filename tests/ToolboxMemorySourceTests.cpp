@@ -6,9 +6,11 @@
 #include <cstring>
 
 static long growZone(Size) { return 0; }
-static Zone zone = {growZone};
+static long processManagerWrapper(Size) { return 0; }
+static Zone zone = {processManagerWrapper};
+static GrowZoneUPP applicationProcedure;
 Zone *GetZone() { return &zone; }
-void SetGrowZone(GrowZoneUPP procedure) { zone.gzProc = procedure; }
+void SetGrowZone(GrowZoneUPP procedure) { applicationProcedure = procedure; }
 
 namespace
 {
@@ -131,7 +133,7 @@ namespace
 
 Ptr NewPtr(Size size)
 {
-  LOKA_VERIFY(zone.gzProc == 0);
+  LOKA_VERIFY(applicationProcedure == 0);
   FakeMemoryManager &memory = *FakeMemoryManager::active;
   ++memory.calls;
   if (size > memory.ceiling || memory.refuseAll || (memory.refuseChunks && size == 2052)) return 0;
@@ -194,18 +196,15 @@ namespace
 
 int main()
 {
-  {
-    loka::toolbox::RefusingAllocationScope outer;
-    LOKA_VERIFY(zone.gzProc == 0);
-    { loka::toolbox::RefusingAllocationScope inner; }
-    LOKA_VERIFY(zone.gzProc == 0);
-  }
-  LOKA_VERIFY(zone.gzProc == growZone);
-  testPoolPaths();
-  LOKA_VERIFY(zone.gzProc == growZone);
   testSourceEdges();
-  LOKA_VERIFY(zone.gzProc == growZone);
+  LOKA_VERIFY(applicationProcedure == 0);
+  loka::toolbox::InstallReserveGrowZone(growZone);
+  LOKA_VERIFY(applicationProcedure == growZone && zone.gzProc != growZone);
+  testPoolPaths();
+  LOKA_VERIFY(applicationProcedure == growZone);
+  testSourceEdges();
+  LOKA_VERIFY(applicationProcedure == growZone);
   testBlobReadRefusesAlignmentOverhead();
-  LOKA_VERIFY(zone.gzProc == growZone);
+  LOKA_VERIFY(applicationProcedure == growZone);
   std::puts("Classic memory source alignment and recovery pins passed");
 }

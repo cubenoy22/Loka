@@ -30,6 +30,8 @@ checks.append(loop.count("QuitIfOutOfMemoryReserveSpent();") == 1)
 source = (root / "apple/toolbox/src/ToolboxMemorySource.hpp").read_text()
 checks.append(re.search(r"RefusingAllocationScope \w+;\s*return NewPtr\(size\);", source))
 checks.append(re.search(r"RefusingAllocationScope \w+;\s*Ptr original = NewPtr\(", source))
+oom = (root / "apple/toolbox/src/ToolboxOutOfMemory.cpp").read_text()
+checks.append(re.search(r"InstallReserveGrowZone\(NewGrowZoneUPP\(ReleaseReserveForSystem\)\);", oom))
 operators = (root / "apple/toolbox/src/ToolboxOperatorNew.cpp").read_text()
 for signature in [r"void \*operator new\(std::size_t size\)",
                   r"void __throw_bad_alloc\(\)",
