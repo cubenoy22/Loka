@@ -61,19 +61,12 @@ regression pin, not a guarantee that nodes overlaying RectSurface compose
 portably. The original replay arm now searches the label area after the sprite
 moves away; searching it before the move would select exposed sprite ink.
 
-`image-vacated-setup` paints an original, embedded PICT v1 black rectangle in a
-separate window without a ZStack. The fixture removes the ImageView's source
-prop directly and explicitly requests its dirty rectangle, isolating the
-existing dirty replay path from State's broad invalidation. No production
-state or repaint API is added. The three new phases also shift the six later
+`image-vacated-setup` shows an ImageView alone in its own window (no ZStack,
+no other drawers), so its dirty repaint takes the controller's image path. The
+arm paints black inside the ImageView, where its next draw puts nothing, as a
+stand-in for what a larger earlier image left behind, and requests the
+ImageView's rectangle. `image-vacated-restores-window` requires that the
+sample at image-local (30, 40) is white again, with dirty flush/replay
+counters advancing and no full repaint. Removing the image path's erase leaves
+the sample black. The three new phases also shift the six later
 `column_phase` audit values from 58–63 to 61–66.
-`image-vacated-restores-window` requires that
-the sample at image-local (30, 40) becomes white, with dirty flush/replay
-counters advancing and no full repaint. Removing the helper's erase is
-expected to leave this sample black. Both pixel claims require MAME to confirm;
-compilation alone does not establish red or green.
-
-The PICT byte array is padded to 64 bytes because the streaming drawer seeds
-its Picture header plus eight longs before streaming; its EndPic opcode ends
-the drawing before the padding. The fixture owns its image through Boundary
-state and the image retains the sealed Blob through the existing producer.

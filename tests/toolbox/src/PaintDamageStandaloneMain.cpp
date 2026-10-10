@@ -6,7 +6,6 @@
 #include "ObservedMainDefinition.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
-#include "ToolboxNativeImage.hpp"
 #include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxApp.hpp"
 #include "ToolboxLayoutMetrics.hpp"
@@ -293,36 +292,18 @@ namespace
 
   class ImageVacatedNode;
   typedef BoundaryPropsFor<ImageVacatedNode> ImageVacatedProps;
-  /** Owns an original PICT v1 fixture: a solid black 40 by 40 rectangle. */
+  /** An ImageView alone in its window, so its dirty repaint takes the
+      controller's image path (no ZStack, no other drawers). */
   class ImageVacatedNode : public StdCompositionBoundaryNodeBase<ImageVacatedProps>
   {
   public:
     typedef ImageVacatedProps::TypeTag TypeTag;
     explicit ImageVacatedNode(const ImageVacatedProps &props)
-        : StdCompositionBoundaryNodeBase<ImageVacatedProps>(props)
-    {
-      const unsigned char pict[64] = {
-        0, 64, 0, 0, 0, 0, 0, 40, 0, 40,
-        0x11, 1, 0x31, 0, 0, 0, 0, 0, 40, 0, 40, 0xff
-      };
-      loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
-      const bool sized = blob.tryResize(sizeof(pict));
-      if (sized)
-      {
-        std::memcpy(blob.mutableData(), pict, sizeof(pict));
-        blob.sealBytes();
-      }
-      this->state(this->image_, sized
-          ? loka::toolbox::MakeImageFromPictBlob(blob, 0, sizeof(pict), 40, 40)
-          : loka::core::resource::Image::Empty());
-    }
+        : StdCompositionBoundaryNodeBase<ImageVacatedProps>(props) {}
     virtual void composeNode(NodeComposition &composition)
     {
-      composition.declare(ImageView().image(this->image_.state()).size(150, 70)
-                          .TEST_ID("ImageVacated.Image"));
+      composition.declare(ImageView().size(150, 70).TEST_ID("ImageVacated.Image"));
     }
-  private:
-    NodeState<loka::core::resource::Image> image_;
   };
 
   class EditDamageNode;
@@ -1791,12 +1772,20 @@ namespace
       GetPort(&previousPort);
       SetPort(native->window());
       const Rect rect = context->rect();
-      // Interior of the stretched black PICT, below the empty label and away
-      // from its frame; after source removal these pixels belong to the window.
-      const bool black = GetPixel(rect.left + 30, rect.top + 40) != 0;
-      SetPort(previousPort);
+      // Image-local (30, 40): inside the frame and below the placeholder
+      // label (baseline +14), so after a repaint it belongs to the ground.
+      const short sampleH = static_cast<short>(rect.left + 30);
+      const short sampleV = static_cast<short>(rect.top + 40);
       if (self->phase_ == IMAGE_VACATED_WRITE)
       {
+        // Stand-in for what a larger, earlier image left behind: ink inside
+        // the ImageView that its next draw does not cover.
+        Rect stale;
+        SetRect(&stale, static_cast<short>(rect.left + 20), static_cast<short>(rect.top + 30),
+                static_cast<short>(rect.left + 60), static_cast<short>(rect.top + 60));
+        PaintRect(&stale);
+        const bool black = GetPixel(sampleH, sampleV) != 0;
+        SetPort(previousPort);
         self->recordArm("image-vacated-setup", black, IMAGE_VACATED_CHECK);
         if (!black)
         {
@@ -1804,12 +1793,13 @@ namespace
           return;
         }
         self->initial_ = controller->debugStatsForTesting();
-        // Fixture-only props change and explicit dirty delivery isolate the
-        // existing non-ZStack image replay from State's broad invalidation.
-        image->props.image_ = 0;
+        // An explicit dirty rect isolates the controller's image path from a
+        // broad repaint.
         native->requestInvalidateRect(rect);
         return;
       }
+      const bool black = GetPixel(sampleH, sampleV) != 0;
+      SetPort(previousPort);
       const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
       const bool dirtyOnly = stats.totalRenderCalls == self->initial_.totalRenderCalls
           && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
