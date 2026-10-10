@@ -2,7 +2,6 @@
 #include "app/core/AppComposition.hpp"
 #include "app/core/WindowSeat.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
-#include "app/nodes/nestable/Fragment.hpp"
 #include "app/nodes/nestable/Show.hpp"
 #include "platform/null/NullApp.hpp"
 #include "platform/null/NullPlatformContext.hpp"
@@ -118,28 +117,27 @@ namespace
   public:
     int creates;
     bool destroyed[16];
-    TrackingContext() : creates(0)
+    /** One refusal of the rail's own createWindow (the third 0 path of
+        WindowDefinition::create). A clone-count fixture would depend on how
+        many times WindowProps is copied on the way from the factory to
+        create, which copy elision decides per compiler (MSVC Debug copies
+        once more than GCC), so the refusal is armed on the context instead. */
+    bool refuseNextCreate;
+    TrackingContext() : creates(0), refuseNextCreate(false)
     {
       for (int i = 0; i < 16; ++i)
         this->destroyed[i] = false;
     }
     virtual Window *createWindow(const WindowProps &props)
     {
+      if (this->refuseNextCreate)
+      {
+        this->refuseNextCreate = false;
+        return 0;
+      }
       LOKA_VERIFY(this->creates < 16);
       return new TrackedWindow(this, props, this->destroyed[this->creates++]);
     }
-  };
-  /** First clone builds WindowDef's props; its next clone refuses inside create. */
-  class RefusingRoot : public FragmentDefinition
-  {
-  public:
-    explicit RefusingRoot(int depth = 0) : depth_(depth) {}
-    virtual NodeDefinitionBase *clone() const
-    {
-      return this->depth_ ? 0 : new RefusingRoot(1);
-    }
-  private:
-    int depth_;
   };
   class Config : public AppConfigurable
   {
@@ -176,10 +174,9 @@ namespace
         LOKA_VERIFY(!config.reentrant.isNone());
       }
       WindowProps props;
+      props.scene(new Scene(BoundaryDefinition<DocumentProps, DocumentRoot>(DocumentProps(config.roots[value]))));
       if (value == config.refuseValue)
-        props.rootDefinition = new RefusingRoot();
-      else
-        props.scene(new Scene(BoundaryDefinition<DocumentProps, DocumentRoot>(DocumentProps(config.roots[value]))));
+        static_cast<TrackingContext *>(config.getPlatformContext())->refuseNextCreate = true;
       return props;
     }
   };
@@ -248,6 +245,8 @@ void testDocumentWindowExistingRootDoesNotRecompose()
 }
 
 // Pin 3 mutation: omit windowGone on create refusal (retains the document).
+// The refusal is the rail's createWindow returning 0; the scene the props
+// carried is released with the props.
 void testDocumentWindowCreateRefusalDropsDocument()
 {
   TrackingContext context;
