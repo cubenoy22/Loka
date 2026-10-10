@@ -1,6 +1,7 @@
 #include "AppComponentGroupTests.hpp"
 #ifdef __APPLE__
 #include "MacNativeResourceRetirementTests.hpp"
+#include "MacGroundTests.hpp"
 #endif
 #include "NativeResourceRetirementTests.hpp"
 #include "RibbonTests.hpp"
@@ -126,6 +127,7 @@
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxRectSurfaceRepaintPlanTests.hpp"
+#include "ToolboxGroundTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
 #include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"

@@ -50,6 +50,7 @@ set(LOKA_MACOS_CORE_SOURCES
   src/MacApp.mm
   src/MacMenuAttachment.mm
   src/MacBuiltInSupport.mm
+  src/MacGround.mm
   src/MacDisplayAppearance.mm
   src/MacBitmapCapture.mm
   src/MacPlatformContext.mm
@@ -134,6 +135,8 @@ if(NOT LOKA_MAC_OS_10_4)
     ${PROJECT_SOURCE_DIR}/tests/MacOpenFileDialogTests.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacWindow.mm
     ${PROJECT_SOURCE_DIR}/apple/common/cocoa/src/AppleString.mm
+    ${PROJECT_SOURCE_DIR}/tests/MacGroundTests.mm
+    ${CMAKE_CURRENT_LIST_DIR}/src/MacGround.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/MacDisplayAppearance.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacAppLocation.mm
     ${CMAKE_CURRENT_LIST_DIR}/src/platform/MacProjection.mm

@@ -1,8 +1,10 @@
 # PaintDamage standalone
 
-Status: 135 PASS / 0 FAIL on the `toolbox-maciix` rig (MAME maciix, 8 MB,
+Status: the pre-B2 baseline is runtime-verified at 135 PASS / 0 FAIL on the `toolbox-maciix` rig (MAME maciix, 8 MB,
 the rig descriptor's boot template), with a byte-identical `LOG.TXT` across
 runs and across the Universal Interfaces and Multiversal builds (#1126).
+B2 (#1199) adds four arms: 139 PASS / 0 FAIL on the same rig, with a
+byte-identical `LOG.TXT` from the Universal Interfaces and Multiversal builds.
 Owns: Toolbox native paint-damage pins that need real QuickDraw and the
 Control Manager: exact versus whole-window delivery, presentation history,
 control and popup geometry, and busy-cursor borrows.
@@ -48,3 +50,30 @@ contract of the change that moved it:
 | #1027 (an unchanged partial repaint keeps its history) | `popup-partial-unchanged-keeps-history`, `button-partial-unchanged-keeps-history` | exact instead of refused |
 | #1080 (StateTrackerGuard joins the turn's clock) | `unknown-history`, `popup-detached-refuses`, `offscreen-detached-refuses` | the arm settles the turn before reading a result in the same turn |
 | #1162 and #1065 | build | the busy-decode arm sizes its Blob without `LOKA_VERIFY` and decodes through a non-const context |
+
+## Ground pins (#1199 B2)
+
+`image-ground-transparent` reads local (110, 20) inside the ImageDamage
+surface's original sprite, below the ImageView placeholder label and inside
+its frame. It expects black after the full paint. The base and the temporary
+ImageView-self-erase mutant are expected to fail this arm. This is a rail
+regression pin, not a guarantee that nodes overlaying RectSurface compose
+portably. The original replay arm now searches the label area after the sprite
+moves away; searching it before the move would select exposed sprite ink.
+`image-overlap-shows-surface` reads surface-local (140, 20) after the move: the
+moved sprite under the transparent placeholder. A ZStack window holding an
+ImageView replays exact updates in composition order, so this pixel stays
+black; the kind-ordered fast path erased it to the window ground. The replay's
+render runs under a clip, so the overlap arm no longer requires
+`totalRenderCalls` to stay unchanged; `image_whole_window=0` still pins that no
+whole-window repaint happens.
+
+`image-vacated-setup` shows an ImageView alone in its own window (no ZStack,
+no other drawers), so its dirty repaint takes the controller's image path. The
+arm paints black inside the ImageView, where its next draw puts nothing, as a
+stand-in for what a larger earlier image left behind, and requests the
+ImageView's rectangle. `image-vacated-restores-window` requires that the
+sample at image-local (30, 40) is white again, with dirty flush/replay
+counters advancing and no full repaint. Removing the image path's erase leaves
+the sample black. The three new vacated phases also shift the six later
+`column_phase` audit values from 58–63 to 61–66.

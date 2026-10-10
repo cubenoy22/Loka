@@ -14,6 +14,7 @@ namespace toolbox_host
   std::vector<std::string> controlTitles, menuTitles, menuAppends, menuInserts, menuSets, disposedMenuItems;
   std::vector<Draw> draws;
   std::vector<std::string> pascalDraws, windowTitles, widthPayloads, measurePayloads;
+  std::vector<long> backgroundColors;
   int erases = 0, widths = 0, measures = 0, fonts = 0, metrics = 0;
   unsigned invalidations = 0;
   GrafPtr activationPort = 0, deactivationPort = 0;
@@ -180,6 +181,11 @@ bool RectInRgn(const Rect *r, RgnHandle region)
   const Rect both = Intersection(*r, (*region)->rgnBBox);
   return !EmptyRect(&both);
 }
+void BackColor(long color)
+{
+  toolbox_host::backgroundColors.push_back(color);
+}
+
 void EraseRect(const Rect *)
 {
   ++toolbox_host::erases;

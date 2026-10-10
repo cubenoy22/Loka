@@ -1,3 +1,4 @@
+#include "ToolboxPaintGround.hpp"
 #include "platform/ToolboxPascalText.hpp"
 #include "app/layout/ControlWidth.hpp"
 #include "ToolboxPropsRefresh.hpp"
@@ -107,7 +108,8 @@ void ToolboxCellContext::draw(ToolboxScenePlatformController *controller)
       this->presented_.isKnown() && current.equals(this->presented_.value()));
   this->presented_.invalidate();
   Rect drawRect = this->rect_;
-  EraseRect(&drawRect);
+  loka::toolbox::ToolboxPaintGround(
+      loka::app::GroundForKind(loka::app::scene::NODE_KIND_CELL), drawRect);
   FrameRect(&drawRect);
   Str255 text;
   if (!ToolboxEncodePascal(current, text))
