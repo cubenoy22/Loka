@@ -2,6 +2,7 @@
 #define LOKA_SIMPLE_TEXT_MAIN_NODE_HPP
 
 #include "app/scene/BorrowedKeys.hpp"
+#include "app/core/DocumentRoster.hpp"
 #include "app/nodes/boundary/StdComposition.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
 #include "app/nodes/controls/Ribbon.hpp"
@@ -22,6 +23,15 @@ class SimpleTextTestAccess;
 
 namespace simpletext
 {
+  /** Grows when Open takes a window of its own. */
+  struct Document
+  {
+  };
+  enum
+  {
+    kMaxDocuments = 8
+  };
+
   enum FileCommand
   {
     NEW_DOCUMENT,
@@ -55,6 +65,16 @@ namespace simpletext
     {
       return static_cast<PlatformContext *>(const_cast<void *>(this->keys_.get(PLATFORM)));
     }
+    MainProps &documents(loka::app::DocumentRoster<Document, kMaxDocuments> *value)
+    {
+      this->keys_.set(DOCUMENTS, value);
+      return *this;
+    }
+    loka::app::DocumentRoster<Document, kMaxDocuments> *documents() const
+    {
+      return static_cast<loka::app::DocumentRoster<Document, kMaxDocuments> *>(
+          const_cast<void *>(this->keys_.get(DOCUMENTS)));
+    }
     void assertInitialized() const
     {
       assert(this->keys_.complete());
@@ -68,6 +88,7 @@ namespace simpletext
     enum Key
     {
       PLATFORM,
+      DOCUMENTS,
       KEY_COUNT
     };
     loka::app::scene::BorrowedKeys<KEY_COUNT> keys_;
@@ -241,7 +262,11 @@ namespace simpletext
     void newDocument()
     {
       if (this->operation_.get() == NONE)
-        this->commitDocument(NEW_DOCUMENT, Choice());
+      {
+        loka::core::StateTrackerGuard guard(this->tracker());
+        if (this->props.documents()->open(Document()).isNone())
+          this->error_.set(loka::core::String::Literal("Cannot open another document window."));
+      }
     }
     void openDocument()
     {
@@ -324,6 +349,7 @@ namespace simpletext
       {
       case NEW_DOCUMENT:
       {
+        // Kept for attachNode's first fill; File > New opens a roster entry.
         EmptyDocument replacement(this->lines_);
         committed = this->lines_.apply(replacement) == loka::core::EDIT_OK;
         break;
