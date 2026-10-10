@@ -42,25 +42,6 @@ namespace loka
       template <class K, class NodeT, class Reservation = detail::UnreservedScope>
       class LazyScopeDefinition : public NodeDefinitionBase, public IBranchSeatDefinition
       {
-        /** The committed key belongs to the declaration it describes. */
-        class Declaration : public GenerationDeclaration
-        {
-        public:
-          explicit Declaration(loka::core::State<K> *key)
-              : key_(key),
-                value_(key->get())
-          {
-          }
-          virtual bool matchesCurrentKey() const
-          {
-            return this->value_ == this->key_->get();
-          }
-
-        private:
-          loka::core::State<K> *const key_;
-          const K value_;
-        };
-
       public:
         LazyScopeDefinition(loka::core::State<K> &key, const typename NodeT::Props &props,
                             const Reservation &reservation = Reservation())
@@ -190,7 +171,7 @@ namespace loka
             if (this->seatReservation()) this->seatReservation()->request().refuse();
             return 0;
           }
-          loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
+          loka::core::OwnedDef<scene::KeyedGenerationDeclaration<K> > candidate(new scene::KeyedGenerationDeclaration<K>(this->props_.state));
           if (!candidate.isSet())
             return 0;
           NodeT *node = candidate->template createRoot<NodeT>(this->nodeProps_, context);
