@@ -44,8 +44,10 @@ resource 'SIZE' (-1) {
 	576 * 1024,	/* preferred */
 	416 * 1024	/* minimum */
 #else
-	/* PPC partitions are unmeasured: keep the values they had before the
-	   68K measurement (#1103). */
+	/* PPC, measured on MAME pmac6100 / Mac OS 8.1 (2026-10-10, #1109):
+	   need 80K with virtual memory off, where the Process Manager adds
+	   the code fragment to this partition; with it on, the heap peak
+	   without the code section is 166K. Both fit, so the values stay. */
 	1024 * 1024,	/* preferred */
 	512 * 1024	/* minimum */
 #endif

@@ -509,6 +509,33 @@ partition's fixed part (stack, A5 world, zone header). It also prints the
 `Size.r` values that need gives: minimum = need × 1.1 rounded up to 32K,
 preferred = need × 1.5 rounded up to 64K.
 
+`--cpu ppc` measures the PPC Release examples on pmac6100 with Mac OS 8.1, a
+probe image rather than the scenario verdict machine. The default env file is
+`.env-mame-pmac6100` (untracked, like `.env-mame`; the fleet clone keeps it at
+`~/loka/.env-mame-pmac6100`, or set `MAME_ENV_FILE`). What differs from 68K:
+
+- The probe finds logical low memory by scanning physical RAM, and reads
+  32-bit zone block headers.
+- It launches with double-clicks, because Mac OS 8.1's Finder hands typed
+  letters to the Japanese input method part of the time.
+- The PPC bus is 64 bits wide, and the write tap on `zcbFree` cannot run
+  there, so the peak comes from the settled walks only.
+- `--catch-syserror` reports itself unsupported.
+
+The image runs with virtual memory off. There the Process Manager adds the
+code fragment (the data fork) to the `SIZE` partition, so the printed need is
+far below the 68K one. With virtual memory on, the code section is file-mapped
+instead and nothing is added, so the run also prints the heap peak without the
+code section as that case's bound. The PPC `Size.r` branches record both
+numbers and keep values above them (#1109); the formula sets the 68K values
+only.
+
+Runs with `--bin`, `--partition`, or `--catch-syserror` keep their work
+directories under `build/mame-measure/`, disk copies included (about 600 MB
+each on PPC). Delete them when done: on 2026-10-10 a WSL page cache holding
+about 27 GB of them coincided with a quarter of an hour in which no pmac6100
+run booted.
+
 The zone's free bytes are not the measure. The heap fills with purgeable
 blocks up to whatever partition it is given, so About This Macintosh shows
 a nearly full bar even when there is plenty of headroom. The 2026-10-03 run
