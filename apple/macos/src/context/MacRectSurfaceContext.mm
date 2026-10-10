@@ -198,11 +198,8 @@ void MacRectSurfaceContext::applyModel()
 void MacRectSurfaceContext::draw(void *viewBounds)
 {
   NSRect bounds = *(NSRect *)viewBounds;
-  if (node_ && node_->props.clearBackground_)
-  {
-    [MacRectSurfaceClearColor() setFill];
-    NSRectFill(bounds);
-  }
+  [MacRectSurfaceClearColor() setFill];
+  NSRectFill(bounds);
   if (!node_ || !node_->props.model_)
   {
     return;

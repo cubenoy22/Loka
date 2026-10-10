@@ -243,7 +243,7 @@ namespace
     virtual void composeNode(NodeComposition &composition)
     {
       composition.declare(RectSurface(this->model_.state()).size(150, 70)
-                          .clearBackground(true).TEST_ID("ImageDamage.Surface"));
+                          .TEST_ID("ImageDamage.Surface"));
     }
     void advance()
     {
@@ -369,7 +369,7 @@ namespace
                                   << EditText(this->text_).TEST_ID("PaintDamage.Edit")
                                   << Text("Sibling ink").TEST_ID("EditExact.Text")
                                   << RectSurface(this->model_.state()).size(150, 40)
-                                      .clearBackground(true).TEST_ID("EditExact.Surface"))));
+                                      .TEST_ID("EditExact.Surface"))));
     }
     void advance()
     {
@@ -404,7 +404,7 @@ namespace
                           << loka::app::Button(this->title_.state()).enabled(this->enabled_.state()).controlTag(911).TEST_ID("ButtonExact.Button")
                           << Text("Sibling ink").TEST_ID("ButtonExact.Text")
                           << RectSurface(this->model_.state()).size(150, 40)
-                              .clearBackground(true).TEST_ID("ButtonExact.Surface"));
+                              .TEST_ID("ButtonExact.Surface"));
     }
     void advance(bool label)
     {
@@ -503,7 +503,7 @@ namespace
                           << (Row() << Text(this->first_.state()).TEST_ID("TextWidth.First")
                                     << Text("Sibling").TEST_ID("TextWidth.Second")
                                     << RectSurface(this->model_.state()).size(40, 40)
-                                        .clearBackground(true).TEST_ID("TextWidth.Surface")));
+                                        .TEST_ID("TextWidth.Surface")));
     }
     void advance()
     {
@@ -593,7 +593,7 @@ namespace
                                           .TEST_ID("PopupExact.Popup"))
                                   << Text(this->text_.state())
                                   << RectSurface(this->model_.state()).size(150, 40)
-                                      .clearBackground(true).TEST_ID("PopupExact.Surface"))));
+                                      .TEST_ID("PopupExact.Surface"))));
     }
     void writeSibling()
     {
@@ -647,7 +647,7 @@ namespace
         drawers << Text(this->second_.state()).TEST_ID("History.B");
       drawers << Box().size(150, 24)
               << RectSurface(this->model_.state()).size(150, 24)
-                  .clearBackground(true).TEST_ID("History.Surface");
+                  .TEST_ID("History.Surface");
       composition.declare(ZStack() << drawers);
     }
     void writeFirst()
@@ -716,7 +716,7 @@ namespace
     {
       composition.declare(Column()
                           << (Box().size(180, 40)
-                              << RectSurface(this->model_.state()).clearBackground(true).size(60, 40))
+                              << RectSurface(this->model_.state()).size(60, 40))
                           << (Box().size(180, 54)
                               << (ScrollView()
                                   << (Column() << Box().size(150, 48)

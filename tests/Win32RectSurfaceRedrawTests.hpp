@@ -6,11 +6,11 @@ void testWin32PaintOnlyChangeUnderScrollViewKeepsSiblingPixels();
 
 void testWin32PaintOnlyChangeUnderScrollViewKeepsSiblingPixels();
 void testWin32RefusedAnswerKeepsBroadFallback();
-void testWin32NonClearingSurfaceKeepsBroadFallback();
+void testWin32RemovedSpritesRestoreGround();
 void testWin32PaintAnswerContracts();
 void testWin32EditTextPaintDelivery();
 void testWin32PopupMenuPaintDelivery();
 
-void testWin32ZStackTextShowsSiblingBeneath();
+void testWin32TextOverlapPinsSiblingRepaint();
 
 #endif

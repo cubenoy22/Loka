@@ -57,10 +57,6 @@ loka::app::scene::PaintAnswer Win32RectSurfaceContext::queryPaintDamage(const lo
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || !this->modelState_ || this->node_->props.model_ != this->modelState_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
-  // A non-clearing paint can preserve old sprites even after committing the
-  // new model. It cannot certify backing, including an empty EXACT answer.
-  if (!this->node_->props.clearBackground_)
-    return PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
   if (!this->presented_.isKnown())
     return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
   PaintDamage damage = {query.scope, rect.left, rect.top, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
@@ -285,26 +281,12 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
   const bool complete = GetClipBox(hdc, &clip) == SIMPLEREGION && EqualRect(&clip, &rect);
   const loka::app::RectSurfaceModel model =
       this->modelState_ ? this->modelState_->get() : loka::app::RectSurfaceModel();
-  const bool clear = this->node_ && this->node_->props.clearBackground_;
-  bool painted = true;
   HDC memoryDC = CreateCompatibleDC(hdc);
   HBITMAP bitmap = memoryDC ? CreateCompatibleBitmap(hdc, width, height) : NULL;
   HGDIOBJ previous = bitmap ? SelectObject(memoryDC, bitmap) : NULL;
   const bool buffered = previous && previous != HGDI_ERROR;
   HDC target = buffered ? memoryDC : hdc;
-  // Without clearing, preserve the existing pixels rather than blitting
-  // uninitialized bitmap storage. Allocation failure uses the original DC.
-  if (buffered && (!this->node_ || !this->node_->props.clearBackground_))
-  {
-    if (!BitBlt(memoryDC, 0, 0, width, height, hdc, 0, 0, SRCCOPY))
-    {
-      target = hdc;
-    }
-  }
-  if (this->node_ && this->node_->props.clearBackground_)
-  {
-    painted = FillRect(target, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))) != 0;
-  }
+  bool painted = FillRect(target, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))) != 0;
   if (this->node_ && this->modelState_)
   {
     HBRUSH blackBrush = static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
@@ -326,7 +308,7 @@ void Win32RectSurfaceContext::draw(HDC hdc, const RECT &rect)
     if (!BitBlt(hdc, 0, 0, width, height, memoryDC, 0, 0, SRCCOPY))
       painted = false;
   }
-  if (complete && painted && clear && this->node_ && this->modelState_)
+  if (complete && painted && this->node_ && this->modelState_)
   {
     this->presented_.commit(model, paintScope());
   }

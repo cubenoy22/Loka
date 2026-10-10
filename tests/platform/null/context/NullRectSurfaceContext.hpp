@@ -39,7 +39,6 @@ public:
   virtual loka::app::scene::PaintAnswer queryPaintDamage(const loka::app::scene::PaintQuery &query) const;
   using loka::app::scene::NativeNodeContext::commitPresented;
   bool commitPresented(const loka::app::RectSurfaceModel &value,
-                       bool clearBackground,
                        const loka::app::scene::PaintScope &scope);
   void invalidatePaintHistory()
   {
@@ -56,7 +55,6 @@ public:
 
 private:
   loka::app::scene::PaintFact<loka::app::RectSurfaceModel> presented_;
-  loka::app::scene::PaintFact<bool> presentedClearBackground_;
   NullPaintPlacement placement_;
   loka::app::RectSurfaceNode *node_;
   NullScenePlatformController *controller_;

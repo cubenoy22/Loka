@@ -914,6 +914,7 @@ LOKA_TEST(testPaintAnswerFirstWidenReasonSurvivesLaterAnswers)
 LOKA_TEST(testUnobservedCommitDoesNotDirtyBoundary)
 
 LOKA_TEST(testRailMetricsValueSemantics)
+LOKA_TEST(testSurfaceGroundForEveryNodeKind)
 
 LOKA_TEST(testAttributedTextMetrics)
 LOKA_TEST(testAttributedTextPropsIdentity)

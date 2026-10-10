@@ -41,8 +41,6 @@ loka::app::scene::PaintAnswer ToolboxRectSurfaceContext::queryPaintDamage(
     return PaintAnswer::refused(PAINT_REFUSED_PLACEMENT_UNSETTLED);
   if (!this->node_ || !this->node_->props.model_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
-  if (!this->node_->props.clearBackground_)
-    return PaintAnswer::refused(PAINT_REFUSED_UNSUPPORTED_KIND);
   if (!this->presented_.isKnown())
     return PaintAnswer::refused(PAINT_REFUSED_HISTORY_UNKNOWN);
   return ToolboxExactPaint(this->paintRect_, this->presented_.value() != this->node_->props.model_->get());
@@ -120,10 +118,7 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
   this->presented_.invalidate();
   if (!this->node_ || !this->node_->props.model_)
     return;
-  if (node_->props.clearBackground_)
-  {
-    EraseRect(&rect_);
-  }
+  EraseRect(&rect_);
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   for (short i = 0; i < model.rectCount; ++i)
   {
@@ -160,8 +155,7 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &requestedDirtyRect)
       loka::core::Frame(this->rect_.left, this->rect_.top,
                         this->rect_.right - this->rect_.left, this->rect_.bottom - this->rect_.top),
       loka::core::Frame(dirtyRect.left, dirtyRect.top,
-                        dirtyRect.right - dirtyRect.left, dirtyRect.bottom - dirtyRect.top),
-      this->node_->props.clearBackground_);
+                        dirtyRect.right - dirtyRect.left, dirtyRect.bottom - dirtyRect.top));
   for (short i = 0; i < plan.eraseCount(); ++i)
   {
     const loka::core::Frame &frame = plan.eraseRect(i);

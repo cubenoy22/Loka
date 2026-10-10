@@ -14,7 +14,7 @@ namespace loka
         current(i) minus previous(i); the part of current(i) it already
         painted last frame is repainted only when some erase in this plan
         crosses it (another sprite's trailing strip). A null previous model
-        clears the surface; clearBackground=false never erases. The caller
+        clears the surface. The caller
         retains responsibility for the native region clip. */
     class RectSurfaceRepaintPlan
     {
@@ -27,48 +27,44 @@ namespace loka
       RectSurfaceRepaintPlan(const app::RectSurfaceModel *previous,
                              const app::RectSurfaceModel &current,
                              const core::Frame &surface,
-                             const core::Frame &dirty,
-                             bool clearBackground)
+                             const core::Frame &dirty)
           : eraseCount_(0),
             paintCount_(0)
       {
         const short currentCount = app::RectSurfaceModel::clampRectCount(current.rectCount);
-        if (clearBackground)
+        if (!previous)
         {
-          if (!previous)
+          this->appendErase(surface, dirty);
+        }
+        else
+        {
+          const short previousCount = app::RectSurfaceModel::clampRectCount(previous->rectCount);
+          for (short i = 0; i < previousCount; ++i)
           {
-            this->appendErase(surface, dirty);
-          }
-          else
-          {
-            const short previousCount = app::RectSurfaceModel::clampRectCount(previous->rectCount);
-            for (short i = 0; i < previousCount; ++i)
+            const core::Frame oldRect = placed(previous->rects[i], surface);
+            if (i >= currentCount)
             {
-              const core::Frame oldRect = placed(previous->rects[i], surface);
-              if (i >= currentCount)
-              {
-                this->appendErase(oldRect, dirty);
-                continue;
-              }
-              const core::Frame overlap = intersection(oldRect, placed(current.rects[i], surface));
-              if (!overlap.hasSize())
-              {
-                this->appendErase(oldRect, dirty);
-                continue;
-              }
-              this->appendErase(core::Frame(oldRect.x, oldRect.y, oldRect.width, overlap.y - oldRect.y), dirty);
-              this->appendErase(core::Frame(oldRect.x,
-                                            overlap.y + overlap.height,
-                                            oldRect.width,
-                                            oldRect.y + oldRect.height - overlap.y - overlap.height),
-                                dirty);
-              this->appendErase(core::Frame(oldRect.x, overlap.y, overlap.x - oldRect.x, overlap.height), dirty);
-              this->appendErase(core::Frame(overlap.x + overlap.width,
-                                            overlap.y,
-                                            oldRect.x + oldRect.width - overlap.x - overlap.width,
-                                            overlap.height),
-                                dirty);
+              this->appendErase(oldRect, dirty);
+              continue;
             }
+            const core::Frame overlap = intersection(oldRect, placed(current.rects[i], surface));
+            if (!overlap.hasSize())
+            {
+              this->appendErase(oldRect, dirty);
+              continue;
+            }
+            this->appendErase(core::Frame(oldRect.x, oldRect.y, oldRect.width, overlap.y - oldRect.y), dirty);
+            this->appendErase(core::Frame(oldRect.x,
+                                          overlap.y + overlap.height,
+                                          oldRect.width,
+                                          oldRect.y + oldRect.height - overlap.y - overlap.height),
+                              dirty);
+            this->appendErase(core::Frame(oldRect.x, overlap.y, overlap.x - oldRect.x, overlap.height), dirty);
+            this->appendErase(core::Frame(overlap.x + overlap.width,
+                                          overlap.y,
+                                          oldRect.x + oldRect.width - overlap.x - overlap.width,
+                                          overlap.height),
+                              dirty);
           }
         }
         const short previousCount =

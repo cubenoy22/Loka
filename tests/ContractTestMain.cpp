@@ -22,6 +22,7 @@
 #include "TextEditorTests.hpp"
 #include "TextDocumentFileTests.hpp"
 #include "RailMetricsTests.hpp"
+#include "SurfaceGroundTests.hpp"
 #include "BorrowedKeysTests.hpp"
 #include "StrictNodeRouteTests.hpp"
 #include "SeatBuildRequestTests.hpp"

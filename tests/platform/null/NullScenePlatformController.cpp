@@ -319,7 +319,7 @@ public:
       {
         const loka::app::RectSurfaceModel value = surface->props.model_->get();
         committed = static_cast<NullRectSurfaceContext *>(context)->commitPresented(
-            value, surface->props.clearBackground_, this->controller_.paintScope());
+            value, this->controller_.paintScope());
       }
     }
     else if (loka::app::TextNode *text = node->asTextNode())

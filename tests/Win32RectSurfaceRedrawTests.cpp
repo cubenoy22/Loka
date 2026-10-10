@@ -102,7 +102,7 @@ void testWin32RectSurfaceTicksRepaintOnlySurface()
 }
 
 static void
-exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, bool paintBeforeApply = false)
+exercisePaintOnlyChangeUnderScrollView(bool refused, bool removeSprites = false, bool paintBeforeApply = false)
 {
   using namespace loka::app;
   using namespace loka::app::scene;
@@ -125,21 +125,20 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
   Win32ScenePlatformController controller(rootHwnd, loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
   RegisterWin32BuiltInSupport(controller);
 
-  // RectSurface's palette is white ground and black sprites. Start with two
-  // distinct solid surfaces, then change only A's model from white to black.
+  // RectSurface's palette is white ground and black sprites. Keep B black
+  // while adding or removing A's sprite.
   RectSurfaceModel black;
   black.rectCount = 1;
   black.rects[0] = RectSprite(0, 0, 100, 60);
-  loka::core::MutableState<RectSurfaceModel> a(clearSurface ? RectSurfaceModel() : black);
+  loka::core::MutableState<RectSurfaceModel> a(removeSprites ? black : RectSurfaceModel());
   loka::core::MutableState<RectSurfaceModel> b(black);
   loka::core::MutableState<loka::core::String> editText(loka::core::String::Literal("input"));
   loka::core::MutableState<int> selection(0);
   loka::core::MutableState<bool> enabled(true);
   const char *items[] = {"one", "two"};
   // Both native controls must be handled in the same Boundary as the surfaces.
-  // The fallback case uses a genuinely unsupported non-clearing B surface.
-  VStack content = VStack() << RectSurface(&a).size(100, 60).clearBackground(clearSurface) << Box().size(100, 20)
-                            << RectSurface(&b).size(100, 60).clearBackground(!refused)
+  VStack content = VStack() << RectSurface(&a).size(100, 60) << Box().size(100, 20)
+                            << RectSurface(&b).size(100, 60)
                             << PopupMenu(items, 2).selectedIndex(loka::app::scene::WriteSeat<int>(&selection)).enabled(&enabled) << EditText(loka::app::scene::WriteSeat<loka::core::String>(&editText));
   ScrollView declaration = ScrollView() << content;
   Scene scene((Boundary<Tree<ScrollView> >(Props<ScrollView>(&declaration))));
@@ -184,17 +183,24 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
       // Same RectSurfaceModel write as the no-LAYOUT PaintBaseline pin.
       {
         loka::core::StateTrackerGuard guard(boundary->tracker());
-        a.set(clearSurface ? black : RectSurfaceModel());
+        a.set(removeSprites ? RectSurfaceModel() : black);
       }
       // Submit the observer's HWND request without painting. The later queue
       // row must therefore come from the Boundary's answer translation.
       Access::flushPendingInvalidations(controller);
       if (paintBeforeApply)
       {
-        // Native expose may run before a deferred Boundary apply. A
-        // non-clearing draw still cannot certify that old sprites disappeared.
+        // Native expose before a deferred Boundary apply clears the removed
+        // sprite and certifies the model, so the later answer is empty EXACT.
         HWND surface = firstRect.top < secondRect.top ? first : second;
         RedrawWindow(surface, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+      }
+      if (refused)
+      {
+        // Invalidate B's presentation without changing its model or pixels.
+        // The missing history must force the Boundary's broad fallback.
+        HWND sibling = firstRect.top < secondRect.top ? second : first;
+        SendMessageW(sibling, WM_SIZE, 0, MAKELPARAM(100, 60));
       }
       settle(scene);
       const PlatformApplyPlan &plan = SceneAccess::lastApplyPlan(scene);
@@ -205,16 +211,16 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
       Access::PendingInvalidationSnapshot request;
       const bool hasRequest = Access::queryPendingInvalidation(controller, 0, request);
       Access::flushPendingInvalidations(controller);
-      if (refused || !clearSurface)
+      if (refused)
         LOKA_VERIFY(Access::queuedPaintInvalidates(controller) == 1);
       else
         LOKA_VERIFY(Access::queuedPaintInvalidates(controller) == 0);
-      LOKA_VERIFY(hasRequest);
-      if (refused || !clearSurface)
+      LOKA_VERIFY(hasRequest == (refused || !paintBeforeApply));
+      if (refused)
       {
         LOKA_VERIFY(request.hwnd == rootHwnd && request.includeChildren);
       }
-      else
+      else if (!paintBeforeApply)
       {
         LOKA_VERIFY(request.hwnd == (firstRect.top < secondRect.top ? first : second));
         LOKA_VERIFY(!request.fullWindow && !request.eraseBackground && !request.includeChildren);
@@ -226,7 +232,7 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
       UpdateWindow(rootHwnd);
       // The refused path must replay both surfaces after the root fills its
       // ground; the exact path must repaint A without requiring that replay.
-      LOKA_VERIFY(Access::redrawStats(controller).rectSurfacePaintCount >= (refused || !clearSurface ? 2 : 1));
+      LOKA_VERIFY(Access::redrawStats(controller).rectSurfacePaintCount >= (refused ? 2 : 1));
     }
     NullPlatformContext captureOwner;
     loka::core::resource::Image capture;
@@ -250,8 +256,8 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool clearSurface = true, b
                 stats.rectSurfacePaintCount);
     std::fflush(stdout);
     LOKA_VERIFY(bPixel == RGB(0, 0, 0) && "paint-only root delivery must preserve the sibling under ScrollView");
-    const COLORREF expectedA = clearSurface ? (phase == 0 ? RGB(255, 255, 255) : RGB(0, 0, 0))
-                                            : (phase == 0 ? RGB(0, 0, 0) : GetSysColor(COLOR_WINDOW));
+    const bool blackA = removeSprites ? phase == 0 : phase == 1;
+    const COLORREF expectedA = blackA ? RGB(0, 0, 0) : RGB(255, 255, 255);
     LOKA_VERIFY(aPixel == expectedA);
   }
   SceneAccess::unmount(scene);
@@ -268,10 +274,10 @@ void testWin32RefusedAnswerKeepsBroadFallback()
   exercisePaintOnlyChangeUnderScrollView(true);
 }
 
-void testWin32NonClearingSurfaceKeepsBroadFallback()
+void testWin32RemovedSpritesRestoreGround()
 {
-  exercisePaintOnlyChangeUnderScrollView(false, false);
-  exercisePaintOnlyChangeUnderScrollView(false, false, true);
+  exercisePaintOnlyChangeUnderScrollView(false, true);
+  exercisePaintOnlyChangeUnderScrollView(false, true, true);
 }
 
 void testWin32PaintAnswerContracts()
@@ -290,7 +296,7 @@ void testWin32PaintAnswerContracts()
     tracker.addState(&model);
     tracker.addState(&label);
     RectSurfaceProps props;
-    props.model(&model).size(100, 60).clearBackground(true);
+    props.model(&model).size(100, 60);
     RectSurfaceNode node(props);
     Win32RectSurfaceContext surface(&controller, root, 0, 0, 100, 60, &node);
     TextNode textNode((TextProps(&label)));
@@ -364,12 +370,9 @@ void testWin32PaintAnswerContracts()
     LOKA_VERIFY(surface.queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
     RedrawWindow(surface.paintHwnd(), NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
     LOKA_VERIFY(surface.queryPaintDamage(query).kind == PAINT_ANSWER_EXACT);
-    // Its WM_ERASEBKGND cannot restore ground: a non-clearing change refuses.
-    node.props.clearBackground(false);
-    answer = surface.queryPaintDamage(query);
-    LOKA_VERIFY(answer.kind == PAINT_ANSWER_REFUSED);
-    LOKA_VERIFY(answer.reason == PAINT_REFUSED_UNSUPPORTED_KIND);
-    node.props.clearBackground(true);
+    // A completed clearing paint certifies the current model; applying props
+    // still invalidates that presentation before the next native paint.
+    LOKA_VERIFY(surface.queryPaintDamage(query).damage.coverage == PAINT_COVERAGE_PAINT_ONLY);
     surface.onPropsApplied();
     LOKA_VERIFY(surface.queryPaintDamage(query).reason == PAINT_REFUSED_HISTORY_UNKNOWN);
     surface.relayout(0, 0, 90, 60);
@@ -517,7 +520,7 @@ void testWin32PopupMenuPaintDelivery()
   DestroyWindow(root);
 }
 
-void testWin32ZStackTextShowsSiblingBeneath()
+void testWin32TextOverlapPinsSiblingRepaint()
 {
   typedef loka::dsl::testing::Win32ScenePlatformTestAccess Access;
   BOOL fontSmoothing = FALSE;
@@ -548,7 +551,7 @@ void testWin32ZStackTextShowsSiblingBeneath()
     loka::core::MutableState<loka::app::RectSurfaceModel> model(initial);
     tracker.addState(&model);
     loka::app::RectSurfaceProps props;
-    props.model(&model).size(160, 80).clearBackground(true);
+    props.model(&model).size(160, 80);
     loka::app::RectSurfaceNode node(props);
     Win32RectSurfaceContext surface(&controller, root, 0, 0, 160, 80, &node);
     LOKA_VERIFY(surface.hasNativeSurface());
@@ -607,6 +610,7 @@ void testWin32ZStackTextShowsSiblingBeneath()
                   static_cast<int>(fontSmoothing), static_cast<unsigned int>(fontSmoothingType));
       std::fflush(stdout);
       LOKA_VERIFY(below == RGB(0, 0, 0));
+      // Win32 sibling-repaint path pin, not a cross-rail overlap promise.
       LOKA_VERIFY(overlap == RGB(255, 255, 255));
       LOKA_VERIFY(inkPixels > 0);
       LOKA_VERIFY(ground == GetSysColor(COLOR_WINDOW) && ground != RGB(0, 0, 0));

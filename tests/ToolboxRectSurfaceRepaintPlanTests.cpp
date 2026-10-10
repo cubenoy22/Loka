@@ -87,7 +87,7 @@ void testToolboxRepaintMovingSprite()
   previous.rects[0] = RectSprite(8, 8, 24, 24);
   RectSurfaceModel current = previous;
   current.rects[0].x += 4;
-  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface);
   LOKA_VERIFY(plan.eraseCount() == 1);
   LOKA_VERIFY(plan.eraseRect(0) == Frame(8, 8, 4, 24));
   // Only the leading strip is painted: the kept overlap was painted last
@@ -107,7 +107,7 @@ void testToolboxRepaintKeptOverlapRepaintsOnlyWhenErased()
   previous.rects[1] = RectSprite(8, 20, 24, 24);
   RectSurfaceModel current = previous;
   current.rects[1].x = 40;
-  const RectSurfaceRepaintPlan crossed(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan crossed(&previous, current, surface, surface);
   LOKA_VERIFY(crossed.eraseCount() == 1);
   LOKA_VERIFY(crossed.eraseRect(0) == Frame(8, 20, 24, 24));
   bool repaintedA = false;
@@ -123,7 +123,7 @@ void testToolboxRepaintKeptOverlapRepaintsOnlyWhenErased()
 
   RectSurfaceModel alone = previous;
   alone.rectCount = 1;
-  const RectSurfaceRepaintPlan untouched(&alone, alone, surface, surface, true);
+  const RectSurfaceRepaintPlan untouched(&alone, alone, surface, surface);
   LOKA_VERIFY(untouched.eraseCount() == 0);
   LOKA_VERIFY(untouched.paintCount() == 0);
   verifyCoverage(alone, alone, untouched);
@@ -138,7 +138,7 @@ void testToolboxRepaintOverlappingSprites()
   RectSurfaceModel current = previous;
   current.rects[0] = RectSprite(15, 14, 24, 24);
   current.rects[1] = RectSprite(11, 12, 24, 24);
-  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface);
   LOKA_VERIFY(plan.eraseCount() == 4);
   LOKA_VERIFY(plan.eraseRect(0) == Frame(12, 12, 24, 2));
   LOKA_VERIFY(plan.eraseRect(1) == Frame(12, 14, 3, 22));
@@ -155,12 +155,12 @@ void testToolboxRepaintRemovedSprite()
   previous.rects[1] = RectSprite(32, 32, 12, 12);
   RectSurfaceModel current = previous;
   current.rectCount = 1;
-  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan plan(&previous, current, surface, surface);
   LOKA_VERIFY(plan.eraseCount() == 1);
   LOKA_VERIFY(plan.eraseRect(0) == Frame(32, 32, 12, 12));
   verifyCoverage(previous, current, plan);
   current.rectCount = 0;
-  const RectSurfaceRepaintPlan empty(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan empty(&previous, current, surface, surface);
   LOKA_VERIFY(empty.eraseCount() == 2);
   LOKA_VERIFY(empty.paintCount() == 0);
   verifyCoverage(previous, current, empty);
@@ -171,7 +171,7 @@ void testToolboxRepaintWithoutPrevious()
   RectSurfaceModel current;
   current.rectCount = 1;
   current.rects[0] = RectSprite(0, 0, 24, 24);
-  const RectSurfaceRepaintPlan plan(0, current, Frame(8, 10, 40, 40), Frame(4, 12, 20, 20), true);
+  const RectSurfaceRepaintPlan plan(0, current, Frame(8, 10, 40, 40), Frame(4, 12, 20, 20));
   LOKA_VERIFY(plan.eraseCount() == 1);
   LOKA_VERIFY(plan.eraseRect(0) == Frame(8, 12, 16, 20));
   LOKA_VERIFY(plan.paintCount() == 1);
@@ -187,7 +187,7 @@ void testToolboxRepaintTwentyOverlappingSteps()
   {
     previous.rects[i] = RectSprite(static_cast<short>(8 + (i % 4) * 3), static_cast<short>(8 + (i / 4) * 2), 24, 24);
   }
-  const RectSurfaceRepaintPlan initial(0, previous, surface, surface, true);
+  const RectSurfaceRepaintPlan initial(0, previous, surface, surface);
   apply(grid, initial);
   for (int step = 0; step < 20; ++step)
   {
@@ -198,7 +198,7 @@ void testToolboxRepaintTwentyOverlappingSteps()
       current.rects[i].x += static_cast<short>(direction * 3);
       current.rects[i].y += static_cast<short>(direction * 2);
     }
-    const RectSurfaceRepaintPlan plan(&previous, current, surface, surface, true);
+    const RectSurfaceRepaintPlan plan(&previous, current, surface, surface);
     verifyCoverage(previous, current, plan);
     apply(grid, plan);
     for (int y = 0; y < 64; ++y)
@@ -222,11 +222,11 @@ void testToolboxRepaintClippingAndCapacity()
     previous.rects[i] = RectSprite(4, 4, 24, 24);
     current.rects[i] = RectSprite(8, 8, 8, 8);
   }
-  const RectSurfaceRepaintPlan full(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan full(&previous, current, surface, surface);
   LOKA_VERIFY(full.eraseCount() == 64);
   LOKA_VERIFY(full.paintCount() == 16);
   const Frame dirty(6, 6, 8, 8);
-  const RectSurfaceRepaintPlan clipped(&previous, current, surface, dirty, true);
+  const RectSurfaceRepaintPlan clipped(&previous, current, surface, dirty);
   for (int y = 0; y < 64; ++y)
   {
     for (int x = 0; x < 64; ++x)
@@ -236,14 +236,13 @@ void testToolboxRepaintClippingAndCapacity()
              == (contains(dirty, x, y) && covered(previous, x, y) && !covered(current, x, y)));
     }
   }
-  const RectSurfaceRepaintPlan noClear(&previous, current, surface, surface, false);
-  const RectSurfaceRepaintPlan firstNoClear(0, current, surface, surface, false);
-  LOKA_VERIFY(noClear.eraseCount() == 0 && noClear.paintCount() == 16);
-  LOKA_VERIFY(firstNoClear.eraseCount() == 0 && firstNoClear.paintCount() == 16);
-  const RectSurfaceRepaintPlan outside(&previous, current, surface, Frame(60, 60, 4, 4), true);
+  const RectSurfaceRepaintPlan first(0, current, surface, surface);
+  LOKA_VERIFY(first.eraseCount() == 1 && first.paintCount() == 16);
+  LOKA_VERIFY(first.eraseRect(0) == surface);
+  const RectSurfaceRepaintPlan outside(&previous, current, surface, Frame(60, 60, 4, 4));
   LOKA_VERIFY(outside.eraseCount() == 0 && outside.paintCount() == 0);
   previous.rectCount = 32767;
   current.rectCount = 32767;
-  const RectSurfaceRepaintPlan bounded(&previous, current, surface, surface, true);
+  const RectSurfaceRepaintPlan bounded(&previous, current, surface, surface);
   LOKA_VERIFY(bounded.eraseCount() == 64 && bounded.paintCount() == 16);
 }

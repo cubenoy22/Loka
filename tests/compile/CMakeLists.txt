@@ -557,3 +557,8 @@ loka_compile_pin(command-set-slot
   REFUSES pins/refuses_command_set_slot.cpp
   ACCEPTS pins/accepts_command_set_slot.cpp
 )
+
+loka_compile_pin(rect-surface-has-no-clear-background
+  REFUSES pins/refuses_rect_surface_clear_background.cpp
+  ACCEPTS pins/accepts_rect_surface_ground.cpp
+)
