@@ -18,6 +18,8 @@
 #include "Win32Window.hpp"
 #include "app/nodes/Text.hpp"
 #include "context/Win32TextContext.hpp"
+#include "context/Win32AttributedTextContext.hpp"
+#include "context/Win32ImageViewContext.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "app/RectSurface.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
@@ -629,4 +631,237 @@ void testWin32TextOverlapPinsSiblingRepaint()
     surface.onFactChanged(loka::app::scene::NODE_FACT_ATTACHED, loka::app::scene::NODE_FACT_RETIRED);
     controller.drainNativeRetirements();
   }
+}
+
+namespace
+{
+  typedef loka::dsl::testing::Win32ScenePlatformTestAccess RedrawAccess;
+
+  WindowProps transparentPaintWindowProps()
+  {
+    WindowProps props;
+    props.frame(40, 40, 320, 240).visible(false);
+    return props;
+  }
+
+  // Same production root and admission as testWin32TextOverlapPinsSiblingRepaint.
+  struct TransparentPaintWindow
+  {
+    NullPlatformContext platform;
+    Win32Window window;
+    WindowAdmissionTestApp admission;
+
+    TransparentPaintWindow()
+        : window(&this->platform, transparentPaintWindowProps()), admission(this->window)
+    {
+      {
+        loka::core::StateTrackerGuard guard(this->window.getTracker());
+        this->window.visibilityState().set(true);
+      }
+      this->admission.flush();
+      LOKA_VERIFY(this->window.hwnd() != NULL);
+      ShowWindow(this->window.hwnd(), SW_HIDE);
+    }
+  };
+
+  void flushTransparentPaint(Win32ScenePlatformController &controller, HWND root)
+  {
+    RedrawAccess::flushPendingInvalidations(controller);
+    pumpMessages();
+    UpdateWindow(root);
+  }
+
+  COLORREF windowPixel(HWND hwnd, int x, int y)
+  {
+    // Read existing pixels; do not issue PrintWindow or an extra invalidation
+    // that could hide a missing parent repaint in the change path.
+    HDC dc = GetDC(hwnd);
+    LOKA_VERIFY(dc != NULL);
+    const COLORREF pixel = GetPixel(dc, x, y);
+    ReleaseDC(hwnd, dc);
+    LOKA_VERIFY(pixel != CLR_INVALID);
+    return pixel;
+  }
+
+  void releaseTestBitmap(void *handle, void *)
+  {
+    DeleteObject(static_cast<HBITMAP>(handle));
+  }
+
+  loka::core::resource::Image blackTestImage(HWND root)
+  {
+    HDC windowDC = GetDC(root);
+    LOKA_VERIFY(windowDC != NULL);
+    HDC dc = CreateCompatibleDC(windowDC);
+    HBITMAP bitmap = CreateCompatibleBitmap(windowDC, 32, 16);
+    LOKA_VERIFY(dc != NULL && bitmap != NULL);
+    HGDIOBJ previous = SelectObject(dc, bitmap);
+    LOKA_VERIFY(previous != NULL && previous != HGDI_ERROR);
+    const RECT rect = {0, 0, 32, 16};
+    LOKA_VERIFY(FillRect(dc, &rect, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH))));
+    SelectObject(dc, previous);
+    DeleteDC(dc);
+    ReleaseDC(root, windowDC);
+    const loka::core::resource::Image image =
+        loka::core::resource::Image::FromNative(bitmap, 32, 16, &releaseTestBitmap, NULL);
+    LOKA_VERIFY(image.isValid());
+    return image;
+  }
+} // namespace
+
+void testWin32AttributedTextTransparentOverSprite()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  TransparentPaintWindow host;
+  HWND root = host.window.hwnd();
+  Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
+  RectSurfaceModel initial;
+  initial.rectCount = 1;
+  initial.rects[0] = RectSprite(0, 0, 160, 80);
+  loka::core::PushStateTracker tracker;
+  loka::core::MutableState<RectSurfaceModel> model(initial);
+  tracker.addState(&model);
+  RectSurfaceProps props;
+  props.model(&model).size(160, 80);
+  RectSurfaceNode node(props);
+  Win32RectSurfaceContext surface(&controller, root, 0, 0, 160, 80, &node);
+  LOKA_VERIFY(surface.hasNativeSurface());
+  AttributedTextNode textNode((AttributedTextProps(Styled("*", FontSize<12>()))));
+  Win32AttributedTextContext text(&controller, root, 0, 0, 160, 24, &textNode);
+  LOKA_VERIFY(text.paintHwnd() != NULL);
+  LayoutState state;
+  state.width = 160;
+  text.layout(&controller, state);
+  LOKA_VERIFY(state.height > 4);
+  ShowWindow(root, SW_SHOWNOACTIVATE);
+  flushTransparentPaint(controller, root);
+  // Native ZStack arrangement, just like the Text pin above. This is a Win32
+  // sibling-path pin, not a promise of cross-rail RectSurface overlays.
+  LOKA_VERIFY(windowPixel(text.paintHwnd(), 150, 2) == RGB(0, 0, 0));
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    model.set(RectSurfaceModel());
+  }
+  flushTransparentPaint(controller, root);
+  LOKA_VERIFY(windowPixel(text.paintHwnd(), 150, 2) == RGB(255, 255, 255));
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    model.set(initial);
+  }
+  flushTransparentPaint(controller, root);
+  LOKA_VERIFY(windowPixel(text.paintHwnd(), 150, 2) == RGB(0, 0, 0));
+  text.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+  surface.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+  controller.drainNativeRetirements();
+}
+
+void testWin32AttributedTextShrinkRestoresGround()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  TransparentPaintWindow host;
+  HWND root = host.window.hwnd();
+  Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
+  loka::core::PushStateTracker tracker;
+  loka::core::MutableState<AttributedString> value(Styled("MMMMMMMMMMMMMMMM", FontSize<12>()));
+  tracker.addState(&value);
+  AttributedTextNode node((AttributedTextProps(&value)));
+  Win32AttributedTextContext text(&controller, root, 0, 0, 240, 24, &node);
+  LOKA_VERIFY(text.paintHwnd() != NULL);
+  LayoutState state;
+  state.width = 240;
+  text.layout(&controller, state);
+  const short height = state.height;
+  LOKA_VERIFY(height > 0);
+  ShowWindow(root, SW_SHOWNOACTIVATE);
+  flushTransparentPaint(controller, root);
+  // Locate real glyph ink, so smoothing/font metrics cannot make the probe vacuous.
+  POINT oldInk = {-1, -1};
+  HDC dc = GetDC(text.paintHwnd());
+  LOKA_VERIFY(dc != NULL);
+  for (int y = 0; y < height && oldInk.x < 0; ++y)
+    for (int x = 80; x < 240 && oldInk.x < 0; ++x)
+    {
+      const COLORREF pixel = GetPixel(dc, x, y);
+      LOKA_VERIFY(pixel != CLR_INVALID);
+      if (pixel != GetSysColor(COLOR_WINDOW))
+      {
+        oldInk.x = x;
+        oldInk.y = y;
+      }
+    }
+  ReleaseDC(text.paintHwnd(), dc);
+  LOKA_VERIFY(oldInk.x >= 80);
+  {
+    loka::core::StateTrackerGuard guard(&tracker);
+    value.set(Styled(".", FontSize<12>()));
+  }
+  // Model the live-content layout input without a scene-wide repaint or a
+  // props replacement that collapses the HWND and accidentally erases old ink.
+  state.inputs = static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT);
+  text.layout(&controller, state);
+  LOKA_VERIFY(state.height == height);
+  flushTransparentPaint(controller, root);
+  LOKA_VERIFY(windowPixel(text.paintHwnd(), oldInk.x, oldInk.y) == GetSysColor(COLOR_WINDOW));
+  text.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+  controller.drainNativeRetirements();
+}
+
+namespace
+{
+  void exerciseImageTransparency(bool removeImage)
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    TransparentPaintWindow host;
+    HWND root = host.window.hwnd();
+    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
+    loka::core::PushStateTracker tracker;
+    loka::core::MutableState<loka::core::resource::Image> image(blackTestImage(root));
+    tracker.addState(&image);
+    ImageViewProps props;
+    props.image(&image).size(160, 80).attr(ImageViewAttr().fit(IMAGE_FIT_NONE));
+    ImageViewNode node(props);
+    Win32ImageViewContext context(&controller, root, 0, 0, 160, 80, &node);
+    HWND child = FindWindowExW(root, NULL, L"LOKA_IMAGE_VIEW", NULL);
+    LOKA_VERIFY(child != NULL);
+    ShowWindow(root, SW_SHOWNOACTIVATE);
+    flushTransparentPaint(controller, root);
+    LOKA_VERIFY(windowPixel(child, 16, 8) == RGB(0, 0, 0));
+    if (removeImage)
+    {
+      {
+        loka::core::StateTrackerGuard guard(&tracker);
+        image.set(loka::core::resource::Image::Empty());
+      }
+      flushTransparentPaint(controller, root);
+      LOKA_VERIFY(windowPixel(child, 16, 8) == GetSysColor(COLOR_WINDOW));
+    }
+    else
+    {
+      LOKA_VERIFY(windowPixel(child, 120, 60) == GetSysColor(COLOR_WINDOW));
+      // A fit change uses relayout, independently of the image observer.
+      node.props.attr_.fit(IMAGE_FIT_STRETCH);
+      context.relayout(0, 0, 160, 80);
+      flushTransparentPaint(controller, root);
+      LOKA_VERIFY(windowPixel(child, 120, 60) == RGB(0, 0, 0));
+      node.props.attr_.fit(IMAGE_FIT_NONE);
+      context.relayout(0, 0, 160, 80);
+      flushTransparentPaint(controller, root);
+      LOKA_VERIFY(windowPixel(child, 120, 60) == GetSysColor(COLOR_WINDOW));
+    }
+    context.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    controller.drainNativeRetirements();
+  }
+} // namespace
+
+void testWin32ImageViewTransparentLetterbox()
+{
+  exerciseImageTransparency(false);
+}
+
+void testWin32ImageViewRemovalRestoresGround()
+{
+  exerciseImageTransparency(true);
 }

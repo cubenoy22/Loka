@@ -666,8 +666,8 @@ void testWin32AttributedTextPerRunProjection()
     context->layout(&controller, state);
     LOKA_VERIFY(table.lines().lineCount() == 1);
 
-    // Rendering into a deterministic memory surface discriminates erase,
-    // partial history and saved GDI attributes without requiring a visible host.
+    // Supply the ground that a parent paint provides on a real window, then
+    // discriminate partial history and saved GDI attributes offscreen.
     HDC windowDC = GetDC(root);
     HDC dc = CreateCompatibleDC(windowDC);
     HBITMAP bitmap = CreateCompatibleBitmap(windowDC, 400, 200);
@@ -677,6 +677,7 @@ void testWin32AttributedTextPerRunProjection()
     IntersectClipRect(dc, 0, 0, 400, 200);
     SetTextAlign(dc, TA_RIGHT | TA_TOP);
     SetBkMode(dc, OPAQUE);
+    LOKA_VERIFY(FillRect(dc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))));
     AttributedAccess::draw(*context, dc, rect);
     LOKA_VERIFY(GetTextAlign(dc) == (TA_RIGHT | TA_TOP) && GetBkMode(dc) == OPAQUE);
     LOKA_VERIFY(AttributedAccess::known(*context));
@@ -697,6 +698,7 @@ void testWin32AttributedTextPerRunProjection()
       state = attributedSeat(width * 3);
       context->layout(&controller, state);
       LOKA_VERIFY(table.lines().lineCount() == 1 && table.lines().line(0).width < 400);
+      LOKA_VERIFY(FillRect(dc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))));
       AttributedAccess::draw(*context, dc, rect);
       int firstInk = 400;
       for (int y = 0; y < 80; ++y)
@@ -720,10 +722,13 @@ void testWin32AttributedTextPerRunProjection()
     context->onPropsApplied();
     state = attributedSeat(width);
     context->layout(&controller, state);
+    // Empty text preserves supplied ground, including nonwhite ground.
+    LOKA_VERIFY(FillRect(dc, &rect, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH))));
     AttributedAccess::draw(*context, dc, rect);
+    LOKA_VERIFY(AttributedAccess::known(*context));
     for (int y = 0; y < 80; ++y)
       for (int x = 0; x < 200; ++x)
-        LOKA_VERIFY(GetPixel(dc, x, y) == RGB(255, 255, 255));
+        LOKA_VERIFY(GetPixel(dc, x, y) == RGB(0, 0, 0));
     SelectObject(dc, previous);
     DeleteObject(bitmap);
     DeleteDC(dc);

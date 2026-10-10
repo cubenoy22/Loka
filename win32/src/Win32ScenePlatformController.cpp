@@ -459,6 +459,17 @@ void Win32ScenePlatformController::requestDirtySubtree(HWND targetHwnd, const RE
   it->second->queueDirtyRect(targetHwnd, rect ? &native : 0, eraseBackground, true);
 }
 
+bool Win32ScenePlatformController::requestTransparentChildRepaint(HWND child)
+{
+  HWND parent = child ? GetParent(child) : 0;
+  RECT rect;
+  if (!parent || !GetWindowRect(child, &rect))
+    return false;
+  MapWindowPoints(NULL, parent, reinterpret_cast<POINT *>(&rect), 2);
+  requestDirtySubtree(parent, &rect, FALSE);
+  return true;
+}
+
 void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
 {
   if (!targetHwnd)
