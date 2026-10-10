@@ -1,5 +1,6 @@
 #include "context/ToolboxCellContext.hpp"
 #include "context/ToolboxPaintSupport.hpp"
+#include "ToolboxGround.hpp"
 #include "app/nodes/AttributedText.hpp"
 #include "app/nodes/Text.hpp"
 #include "app/nodes/controls/TextEditor.hpp"
@@ -90,10 +91,19 @@ int main()
   LOKA_VERIFY(damage.x == 10 && damage.y == 20 && damage.width == 40 && damage.height == 24);
   const std::size_t drawsBefore = toolbox_host::draws.size();
   const int erasesBefore = toolbox_host::erases;
+  toolbox_host::backgroundColors.clear();
   cell.draw(&controller);
   LOKA_VERIFY(toolbox_host::draws.size() == drawsBefore + 1);
   LOKA_VERIFY(toolbox_host::draws.back().bytes == "longer");
   LOKA_VERIFY(toolbox_host::erases == erasesBefore + 1);
+  // The Cell paints its control ground, then restores the window ground
+  // (#1199 B2). Recording the calls discriminates even an all-white table.
+  loka::toolbox::ToolboxPlanarColor controlGround, windowGround;
+  LOKA_VERIFY(loka::toolbox::QueryToolboxGroundColor(SURFACE_GROUND_CONTROL, controlGround));
+  LOKA_VERIFY(loka::toolbox::QueryToolboxGroundColor(SURFACE_GROUND_WINDOW, windowGround));
+  LOKA_VERIFY(toolbox_host::backgroundColors.size() == 2);
+  LOKA_VERIFY(toolbox_host::backgroundColors[0] == static_cast<long>(controlGround));
+  LOKA_VERIFY(toolbox_host::backgroundColors[1] == static_cast<long>(windowGround));
   LOKA_VERIFY(cell.queryPaintDamage(query).damage.width == 0);
   // Same geometry in a clipped full render must not revoke disjoint history (#763).
   Rect disjoint = {100, 100, 120, 120};
