@@ -3,9 +3,13 @@
 
 #include <stdint.h>
 
-// Host-only substitute for the two Memory Manager calls used by the source.
+// Host-only Memory Manager seam used by the source.
 typedef char *Ptr;
 typedef int32_t Size;
+typedef long (*GrowZoneUPP)(Size);
+struct Zone { GrowZoneUPP gzProc; };
+Zone *GetZone();
+void SetGrowZone(GrowZoneUPP);
 Ptr NewPtr(Size size);
 void DisposePtr(Ptr storage);
 

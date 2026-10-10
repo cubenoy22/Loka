@@ -469,6 +469,7 @@ void ToolboxApp::run()
         }
       }
     }
+    loka::toolbox::QuitIfOutOfMemoryReserveSpent();
   }
 }
 
