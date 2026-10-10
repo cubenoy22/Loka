@@ -13,7 +13,8 @@ checks = [
     re.search(r"InitDialogs\(0\);\s*loka::toolbox::ArmOutOfMemoryReserve\(\);", app),
     re.search(r"toolboxWindow->ensureSceneMounted\(\);\s*"
               r"if \(toolboxWindow->scene\(\) && toolboxWindow->scene\(\)->composeRefusedForMemory\(\)\)\s*"
-              r"\{\s*loka::toolbox::QuitForOutOfMemory\(\);", app),
+              r"\{\s*loka::toolbox::QuitForOutOfMemory\(\);\s*\}\s*"
+              r"(?://[^\n]*\s*)*loka::toolbox::QuitIfOutOfMemoryReserveSpent\(\);", app),
 ]
 # Match the complete loop by braces, then require the check at its tail.
 loop_start = app.index("while (running_)")
