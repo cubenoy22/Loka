@@ -1,0 +1,29 @@
+#ifndef LOKA_KEY_SNAPSHOT_HPP
+#define LOKA_KEY_SNAPSHOT_HPP
+
+#include "core/State.hpp"
+
+namespace loka
+{
+  namespace app
+  {
+    namespace scene
+    {
+      /** One key value read at construction and compared against the live key
+          later. It lives inside the declaration it describes: a committed
+          declaration owns its key snapshot (KeyedSeatDesign.md). */
+      template <class K> class KeySnapshot
+      {
+      public:
+        explicit KeySnapshot(const loka::core::State<K> *key) : key_(key), value_(key->get()) {}
+        KeySnapshot(const loka::core::State<K> *key, const K &value) : key_(key), value_(value) {}
+        bool matches() const { return this->value_ == this->key_->get(); }
+
+      private:
+        const loka::core::State<K> *key_;
+        K value_;
+      };
+    } // namespace scene
+  } // namespace app
+} // namespace loka
+#endif

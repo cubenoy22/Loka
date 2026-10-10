@@ -6,6 +6,8 @@ Code truth: `src/SimpleTextScenarioDriver.cpp`, `run-scenario.sh`.
 Verification: Retro68 builds, runner pins, maciix structural runs, MAME
 mutations (below), and the complete golden bake.
 
+The scenario config keeps its static window and declares no roster seat, so these cells do not cover New.
+
 The production Main and menu run in a 480 by 320 content window at (16, 41).
 Like SimpleViewer, idle ticks advance only after Scene invalidation, controller
 sync and Toolbox window invalidation settle. Actions begin at tick 2, one per

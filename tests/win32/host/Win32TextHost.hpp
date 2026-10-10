@@ -63,6 +63,13 @@ public:
   void destroy() {}
   static void requestDirtyRect(HWND, const RECT *, BOOL) {}
   static void requestDirtySubtree(HWND, const RECT *, BOOL) {}
+  // Acceptance twin of the production controller door. This measurement host
+  // has no native repaint queue; pixel delivery is pinned on Win32.
+  static bool requestTransparentChildRepaint(HWND child)
+  {
+    RECT rect;
+    return child && GetParent(child) && GetWindowRect(child, &rect);
+  }
   enum
   {
     NATIVE_PAINT_RECT_SURFACE

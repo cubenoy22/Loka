@@ -101,13 +101,12 @@ void Win32AttributedTextContext::onFactChanged(loka::app::scene::NodeLifecycleFa
 }
 void Win32AttributedTextContext::onPropsApplied()
 {
+  // Restore the old rectangle before clearMeasurement collapses the child.
+  Win32ScenePlatformController::requestTransparentChildRepaint(this->hwnd_);
   // The #965 input mark also forces rebuild on retained props application.
   this->clearMeasurement();
   if (this->hwnd_)
-  {
-    Win32ScenePlatformController::requestDirtyRect(this->hwnd_, NULL, FALSE);
     this->controller()->requestRelayout();
-  }
 }
 void Win32AttributedTextContext::clearMeasurement()
 {
@@ -144,8 +143,7 @@ short Win32AttributedTextContext::layout(loka::app::scene::IPlatformController *
   const int width = state.width > 0 ? state.width : this->table_.width();
   state.height = Coordinate(height);
   this->relayout(state.x, state.y, Coordinate(width), state.height);
-  if (this->hwnd_)
-    Win32ScenePlatformController::requestDirtyRect(this->hwnd_, NULL, FALSE);
+  Win32ScenePlatformController::requestTransparentChildRepaint(this->hwnd_);
   return Coordinate(state.y + state.height + loka::app::layout::FallbackControlMetrics::kVerticalSpacing);
 }
 void Win32AttributedTextContext::relayout(int x, int y, int width, int height)
@@ -244,9 +242,9 @@ void Win32AttributedTextContext::draw(HDC dc, const RECT &rect)
     return;
   RECT clip;
   const bool complete = GetClipBox(dc, &clip) == SIMPLEREGION && EqualRect(&clip, &rect);
-  // Same clearing ground as RectSurface; GDI clips erasure to the update region.
-  const bool cleared = FillRect(dc, &rect, static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH))) != 0;
-  if (!cleared || !this->table_.valid() || !this->node_ || !this->node_->props.text_
+  // Transparent like Text: the parent repaint supplies ground. Only a complete,
+  // successful foreground paint certifies presentation; partial paints do not.
+  if (!this->table_.valid() || !this->node_ || !this->node_->props.text_
       || this->table_.value() != this->node_->props.text_->get())
     return;
   // Text's WM_CTLCOLORSTATIC path preserves the DC's default text colour.

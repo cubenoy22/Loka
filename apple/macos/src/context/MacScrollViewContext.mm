@@ -60,6 +60,7 @@ MacScrollViewContext::MacScrollViewContext(MacScenePlatformController *controlle
   {
     return;
   }
+  [scrollView setDrawsBackground:NO];
   [scrollView setBorderType:NSNoBorder];
   [scrollView setHasHorizontalScroller:NO];
   [scrollView setHasVerticalScroller:YES];

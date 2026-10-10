@@ -14,6 +14,7 @@ App::App(AppConfigurable *config)
       defaultMenuBar_(0),
       activeWindow_(0),
       idleAccumulatedSeconds_(0.0),
+      windowSeat_(0),
       pendingWindowClosures_(),
       flushingWindowWork_(false)
 {
@@ -46,6 +47,8 @@ void App::retireComponents()
   }
   delete group_;
   group_ = 0;
+  delete this->windowSeat_;
+  this->windowSeat_ = 0;
 }
 
 void App::run()
@@ -61,6 +64,7 @@ void App::run()
     menuComposition.finish();
     this->setDefaultMenuBar(bar.empty() ? 0 : &bar);
     group_ = new AppComponentGroup(composition.build());
+    this->windowSeat_ = composition.takeWindowSeat();
     const AppComponentGroup::Components components = this->group_->getComponents();
     for (size_t i = 0; i < components.size(); ++i)
     {
@@ -68,9 +72,46 @@ void App::run()
       if (window && !this->windowAdopted(window))
         this->bootstrapWindowRefused(window);
     }
+    this->admitDocumentWindows(ADOPT_AT_LAUNCH);
   }
   projectInitialVisibilityChunks();
   this->projectMenuSources();
+}
+
+void App::admitDocumentWindows(AdoptionPhase phase)
+{
+  // One revision compare per admission (twice per Win32 tail, every Toolbox
+  // pass). A changed revision walks desired x group rows owned by this App.
+  if (!this->windowSeat_ || this->windowSeat_->key().matches())
+    return;
+  loka::app::WindowSeat &seat = *this->windowSeat_;
+  loka::app::DocumentRosterBase &roster = seat.roster();
+  const loka::core::ListRevision start = roster.revision().get();
+  // Mount/factory callbacks can open documents. Keep this walk's identities
+  // stable and commit only its starting revision, leaving later edits pending.
+  const unsigned short n = seat.snapshotDesired();
+  this->group_->reserve(n);
+  for (unsigned short i = 0; i < n; ++i)
+  {
+    const loka::core::ItemId id = seat.desiredAt(i);
+    if (this->group_->find(id))
+      continue;
+    Window *window = seat.createWindow(id, this->config_->getPlatformContext());
+    if (!window)
+    {
+      roster.windowGone(id);
+      continue;
+    }
+    this->group_->adopt(window, id);
+    if (!this->windowAdopted(window))
+    {
+      if (phase == ADOPT_AT_LAUNCH)
+        this->bootstrapWindowRefused(window);
+      else
+        this->requestWindowClose(window);
+    }
+  }
+  seat.key_ = loka::app::scene::KeySnapshot<loka::core::ListRevision>(&roster.revision(), start);
 }
 
 bool App::windowAdopted(Window *)
@@ -281,6 +322,9 @@ void App::admitAndApplyWindows()
   }
   for (size_t i = 0; i < admitted.size(); ++i)
     this->pendingReclaim_.remember(admitted[i]);
+  // An open after the last admission (turn.close/reclaimWindows) is not
+  // counted by hasPendingWindowAdmission and waits for the next event.
+  this->admitDocumentWindows(ADOPT_RUNNING);
   // Detach is observable work and belongs before the turn closes. Reclaim
   // keeps the Window alive until then. Mirror drainWindowClosures' busy skip.
   const size_t closeCount = this->pendingWindowClosures_.size();
@@ -382,6 +426,7 @@ void App::requestWindowClose(Window *window)
   // a detached Window without a queue owner.
   pendingWindowClosures_.reserve(pendingWindowClosures_.size() + 1);
   window->closeDialogResults();
+  const loka::core::ItemId key = this->group_->keyOf(window);
   if (!group_->remove(window))
   {
     return;
@@ -396,6 +441,8 @@ void App::requestWindowClose(Window *window)
   {
     this->quit();
   }
+  if (!key.isNone() && this->windowSeat_)
+    this->windowSeat_->roster().windowGone(key);
 }
 
 void App::flushPendingWindowClosures()

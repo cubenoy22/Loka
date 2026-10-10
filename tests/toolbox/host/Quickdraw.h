@@ -5,6 +5,8 @@ typedef unsigned char Style;
 typedef unsigned char Str255[256];
 enum
 {
+  whiteColor = 30,
+  blackColor = 33,
   bold = 1,
   italic = 2
 };
@@ -53,6 +55,7 @@ void SectRgn(RgnHandle, RgnHandle, RgnHandle);
 void SetClip(RgnHandle);
 bool RectInRgn(const Rect *, RgnHandle);
 void EraseRect(const Rect *);
+void BackColor(long);
 void ClipRect(const Rect *);
 struct Picture
 {

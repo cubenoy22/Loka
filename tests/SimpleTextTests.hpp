@@ -1,6 +1,10 @@
 #ifndef LOKA_SIMPLE_TEXT_TESTS_HPP
 #define LOKA_SIMPLE_TEXT_TESTS_HPP
 #if !defined(_WIN32) && !defined(__APPLE__) && !defined(LOKA_RETRO68)
+void testSimpleTextNewOpensASecondWindow();
+void testSimpleTextNewAtCapacitySetsTheError();
+void testSimpleTextClosingAWindowDropsItsDocument();
+void testSimpleTextLaunchWindowTakesTheSeat();
 void testSimpleTextEditorReceivesRemainingWindow();
 void testSimpleTextOpenSaveAndSaveAs();
 void testSimpleTextNewAndSaveWithoutDestination();

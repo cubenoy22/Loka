@@ -2,6 +2,7 @@
 # included by both the repository root and standalone example projects.
 set(_LOKA_TEST_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
 set(LOKA_SHARED_TEST_SOURCES
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/DocumentWindowSetTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/AppComponentGroupTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NativeResourceRetirementTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/RibbonTests.cpp
@@ -52,6 +53,7 @@ set(LOKA_SHARED_TEST_SOURCES
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ScrollViewScopeTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxLayoutContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxRectSurfaceRepaintPlanTests.cpp
+  ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxGroundTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/ToolboxScenePlatformContractTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/NullTextLayoutTests.cpp
   ${_LOKA_TEST_SOURCE_ROOT}/tests/TextEditorTests.cpp

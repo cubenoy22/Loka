@@ -34,11 +34,13 @@ Win32ScrollViewContext::Win32ScrollViewContext(Win32ScenePlatformController *con
   // carrying this style (the root window sets it too, Win32Window.cpp) —
   // without it every control inside a ScrollView is skipped by keyboard
   // navigation.
+  // #1199: like the root, paint ground beneath transparent children. Native
+  // parentage still clips those children to this viewport's client area (#544).
   this->hwnd_ = this->createNativeChildWindow(
       WS_EX_CONTROLPARENT,
       kScrollViewClassName,
       L"",
-      WS_CHILD | WS_VISIBLE | WS_VSCROLL | WS_CLIPCHILDREN,
+      WS_CHILD | WS_VISIBLE | WS_VSCROLL,
       this->controller()->displayScale().projectFrame(loka::core::Frame(x, y, width, height)),
       parent,
       0,
@@ -322,7 +324,7 @@ void Win32ScrollViewContext::EnsureClassRegistered()
   wc.lpfnWndProc = Win32ScrollViewContext::WndProc;
   wc.hInstance = GetModuleHandleW(NULL);
   wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
-  wc.hbrBackground = static_cast<HBRUSH>(GetStockObject(WHITE_BRUSH));
+  wc.hbrBackground = NULL;
   wc.lpszClassName = kScrollViewClassName;
   RegisterClassW(&wc);
   registered = true;
@@ -340,6 +342,19 @@ LRESULT CALLBACK Win32ScrollViewContext::WndProc(HWND hwnd,
     CREATESTRUCTW *create = reinterpret_cast<CREATESTRUCTW *>(lParam);
     self = static_cast<Win32ScrollViewContext *>(create->lpCreateParams);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+  }
+
+  // Match Win32Window: paint-only subtree requests must restore the ground
+  // even without RDW_ERASE, and erasure must not be a separate clearing pass.
+  if (msg == WM_ERASEBKGND)
+    return 1;
+  if (msg == WM_PAINT)
+  {
+    PAINTSTRUCT paint;
+    HDC dc = BeginPaint(hwnd, &paint);
+    Win32ScenePlatformController::paintWindowGround(dc, paint.rcPaint);
+    EndPaint(hwnd, &paint);
+    return 0;
   }
 
   if (msg == WM_VSCROLL && self &&
