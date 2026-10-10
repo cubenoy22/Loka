@@ -188,6 +188,21 @@ end
 
 local ok, err = pcall(function()
     emu.wait(tonumber(os.getenv("LOKA_LAUNCH_WAIT") or "90"))
+    -- #1102 probe: catch the first SysError and save its stack and the
+    -- application zone, then clear the breakpoint and continue.
+    local dbg = manager.machine.debugger
+    if os.getenv("LOKA_CATCH_SYSERROR") ~= "1" then
+        say("SysError catch disabled")
+    elseif dbg then
+        local entry = mem:read_u32(0x0E00 + 0x1C9 * 4)
+        say("SysError trap entry %08x", entry)
+        dbg:command(string.format(
+            'bpset %x,1,{logerror "SYSERR pc=%%08X a7=%%08X a6=%%08X d0=%%08X d1=%%08X a0=%%08X a1=%%08X applzone=%%08X\\n",pc,a7,a6,d0,d1,a0,a1,d@2aa; save stack.bin,a7,d@908-a7; save heap.bin,d@2aa,d@(d@2aa)-d@2aa; save lowmem.bin,0,2000; bpclear; g}',
+            entry))
+        say("SysError breakpoint armed")
+    else
+        say("SysError catch requested but no debugger")
+    end
     local storedCouple = mem:read_u8(0x8CF)
     if storedCouple ~= 0 then
         couple = storedCouple
