@@ -1,3 +1,4 @@
+LOKA_TEST(testAppComponentGroupValueRows)
 LOKA_TEST(testNativeRetirementLastCopyAndReplacement)
 LOKA_TEST(testNativeRetirementFlowDrop)
 LOKA_TEST(testNativeRetirementBoundaryReclaim)

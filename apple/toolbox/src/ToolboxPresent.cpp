@@ -11,10 +11,10 @@ void ToolboxApp::present(ActivationPhase phase, loka::core::Operation &turn)
     this->reclaimWindows();
     return;
   }
-  const std::vector<AppComponent *> &comps = group_->getComponents();
-  for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+  const AppComponentGroup::Components comps = group_->getComponents();
+  for (std::size_t i = 0; i < comps.size(); ++i)
   {
-    Window *w = (*it)->asWindow();
+    Window *w = comps[i]->asWindow();
     ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
     if (toolboxWindow)
     {
@@ -24,13 +24,17 @@ void ToolboxApp::present(ActivationPhase phase, loka::core::Operation &turn)
   if (this->hasPendingDialogs())
   {
     // Delivery may remove windows from the group; App reclamation follows this pass.
-    const std::vector<AppComponent *> dialogs = this->group_->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = dialogs.begin(); it != dialogs.end(); ++it)
+    const AppComponentGroup::Components components = this->group_->getComponents();
+    std::vector<AppComponent *> dialogs;
+    dialogs.reserve(components.size());
+    for (std::size_t i = 0; i < components.size(); ++i)
+      dialogs.push_back(components[i]);
+    for (std::size_t i = 0; i < dialogs.size(); ++i)
     {
       // A delivery may quit the app; later windows then present nothing.
       if (!this->running_)
         break;
-      Window *window = *it ? (*it)->asWindow() : 0;
+      Window *window = dialogs[i] ? dialogs[i]->asWindow() : 0;
       if (!window || this->isWindowClosePending(window))
         continue;
       ToolboxWindow *toolboxWindow = window->asToolboxWindow();
@@ -56,10 +60,10 @@ bool ToolboxApp::hasPendingDialogs() const
 {
   if (!this->running_ || !this->group_)
     return false;
-  const std::vector<AppComponent *> &comps = this->group_->getComponents();
-  for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+  const AppComponentGroup::Components comps = this->group_->getComponents();
+  for (std::size_t i = 0; i < comps.size(); ++i)
   {
-    Window *window = *it ? (*it)->asWindow() : 0;
+    Window *window = comps[i] ? comps[i]->asWindow() : 0;
     ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
     ToolboxScenePlatformController *controller = toolboxWindow ? toolboxWindow->scenePlatformController() : 0;
     if (controller && !controller->pendingDialogs().empty())

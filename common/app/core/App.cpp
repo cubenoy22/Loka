@@ -32,7 +32,7 @@ void App::retireComponents()
     this->pendingWindowClosures_[i]->closeDialogResults();
   if (this->group_)
   {
-    const std::vector<AppComponent *> &components = this->group_->getComponents();
+    const AppComponentGroup::Components components = this->group_->getComponents();
     for (size_t i = 0; i < components.size(); ++i)
     {
       Window *window = components[i] ? components[i]->asWindow() : 0;
@@ -61,9 +61,25 @@ void App::run()
     menuComposition.finish();
     this->setDefaultMenuBar(bar.empty() ? 0 : &bar);
     group_ = new AppComponentGroup(composition.build());
+    const AppComponentGroup::Components components = this->group_->getComponents();
+    for (size_t i = 0; i < components.size(); ++i)
+    {
+      Window *window = components[i] ? components[i]->asWindow() : 0;
+      if (window && !this->windowAdopted(window))
+        this->bootstrapWindowRefused(window);
+    }
   }
   projectInitialVisibilityChunks();
   this->projectMenuSources();
+}
+
+bool App::windowAdopted(Window *)
+{
+  return true;
+}
+
+void App::bootstrapWindowRefused(Window *)
+{
 }
 
 loka::app::IdlePolicy App::idlePolicy() const
@@ -124,7 +140,7 @@ void App::projectInitialVisibilityChunks()
 {
   if (!group_)
     return;
-  const std::vector<AppComponent *> &comps = group_->getComponents();
+  const AppComponentGroup::Components comps = group_->getComponents();
   for (size_t i = 0; i < comps.size(); ++i)
   {
     AppComponent *comp = comps[i];
@@ -147,7 +163,7 @@ bool App::hasPendingWindowAdmission() const
     return true;
   if (!this->group_)
     return false;
-  const std::vector<AppComponent *> &components = this->group_->getComponents();
+  const AppComponentGroup::Components components = this->group_->getComponents();
   for (size_t i = 0; i < components.size(); ++i)
   {
     Window *window = components[i] ? components[i]->asWindow() : 0;
@@ -223,7 +239,7 @@ void App::admitAndApplyWindows()
   std::vector<AdmittedWindow> admitted;
   if (this->group_)
   {
-    const std::vector<AppComponent *> &comps = this->group_->getComponents();
+    const AppComponentGroup::Components comps = this->group_->getComponents();
     for (size_t i = 0; i < comps.size(); ++i)
     {
       Window *win = comps[i] ? comps[i]->asWindow() : 0;
@@ -316,10 +332,10 @@ void App::windowClosed(Window *window)
   }
   if (group_)
   {
-    const std::vector<AppComponent *> &comps = group_->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+    const AppComponentGroup::Components comps = group_->getComponents();
+    for (std::size_t i = 0; i < comps.size(); ++i)
     {
-      assert((!(*it) || (*it)->asWindow() != window) && "App::windowClosed requires requestWindowClose detach first");
+      assert((!comps[i] || comps[i]->asWindow() != window) && "App::windowClosed requires requestWindowClose detach first");
     }
   }
   assert(activeWindow_ != window && "A retired Window cannot remain active at reclaim");
@@ -341,12 +357,12 @@ void App::requestWindowClose(Window *window)
     }
   }
 
-  const std::vector<AppComponent *> &comps = group_->getComponents();
+  const AppComponentGroup::Components comps = group_->getComponents();
   bool found = false;
   Window *nextActive = 0;
-  for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+  for (std::size_t i = 0; i < comps.size(); ++i)
   {
-    Window *candidate = (*it) ? (*it)->asWindow() : 0;
+    Window *candidate = comps[i] ? comps[i]->asWindow() : 0;
     if (candidate == window)
     {
       found = true;
@@ -376,7 +392,7 @@ void App::requestWindowClose(Window *window)
   }
   pendingWindowClosures_.push_back(window);
 
-  if (quitWhenLastWindowClosed_ && group_->getComponents().empty())
+  if (quitWhenLastWindowClosed_ && group_->getComponents().size() == 0)
   {
     this->quit();
   }
@@ -449,7 +465,7 @@ void App::projectMenuSources()
   // App-owned rows; each offer owns one temporary merge, never a cached source.
   if (this->group_)
   {
-    const std::vector<AppComponent *> &rows = this->group_->getComponents();
+    const AppComponentGroup::Components rows = this->group_->getComponents();
     for (size_t i = 0; i < rows.size(); ++i)
     {
       Window *window = rows[i] ? rows[i]->asWindow() : 0;
@@ -508,7 +524,7 @@ void App::reconcileFocus()
   for (;;)
   {
     Window *next = 0;
-    const std::vector<AppComponent *> &components = this->group_->getComponents();
+    const AppComponentGroup::Components components = this->group_->getComponents();
     for (size_t i = 0; i < components.size(); ++i)
     {
       Window *window = components[i] ? components[i]->asWindow() : 0;

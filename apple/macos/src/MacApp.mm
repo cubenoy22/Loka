@@ -62,6 +62,14 @@ MacApp::~MacApp()
   this->stopInvalidationFlushTimer();
 }
 
+bool MacApp::windowAdopted(Window *window)
+{
+  MacWindow *macWindow = window ? window->asMacWindow() : 0;
+  if (macWindow)
+    macWindow->setApp(this);
+  return true;
+}
+
 void MacApp::run()
 {
   ProcessSerialNumber psn = {0, kCurrentProcess};
@@ -79,20 +87,6 @@ void MacApp::run()
   App::run();
   mach_timebase_info(&idleTimebase_);
   lastIdleTick_ = mach_absolute_time();
-
-  if (group_)
-  {
-    const std::vector<AppComponent *> &comps = group_->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
-    {
-      Window *w = (*it)->asWindow();
-      MacWindow *macWin = w ? w->asMacWindow() : 0;
-      if (macWin)
-      {
-        macWin->setApp(this);
-      }
-    }
-  }
 
   startInvalidationFlushTimer();
   [NSApp activateIgnoringOtherApps:YES];

@@ -22,6 +22,7 @@ public:
   MacMenuAttachment &menuAttachment() { return this->menuAttachment_; }
 
 protected:
+  virtual bool windowAdopted(Window *window);
   virtual void projectMenu(Window *window, const loka::app::MenuBarDefinition *bar,
                            const loka::app::scene::Scene *source);
 

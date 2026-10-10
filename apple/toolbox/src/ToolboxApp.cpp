@@ -46,12 +46,10 @@ namespace
     {
       return 0;
     }
-    const std::vector<AppComponent *> &components = group->getComponents();
-    for (std::vector<AppComponent *>::const_iterator it = components.begin();
-         it != components.end();
-         ++it)
+    const AppComponentGroup::Components components = group->getComponents();
+    for (std::size_t i = 0; i < components.size(); ++i)
     {
-      Window *window = (*it)->asWindow();
+      Window *window = components[i]->asWindow();
       ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
       if (toolboxWindow && toolboxWindow->window() == target)
       {
@@ -170,6 +168,27 @@ ToolboxApp::ToolboxApp(AppConfigurable *config)
 {
 }
 
+bool ToolboxApp::windowAdopted(Window *window)
+{
+  ToolboxWindow *toolboxWindow = window ? window->asToolboxWindow() : 0;
+  if (!toolboxWindow)
+    return true;
+  toolboxWindow->setApp(this);
+  toolboxWindow->open();
+  toolboxWindow->ensureSceneMounted();
+  if (toolboxWindow->scene() && toolboxWindow->scene()->composeRefusedForMemory())
+    return false;
+  // Startup has no turn boundary yet: report a reserve lent during this
+  // window's open and mount before the next window adds more work.
+  loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+  return true;
+}
+
+void ToolboxApp::bootstrapWindowRefused(Window *)
+{
+  loka::toolbox::QuitForOutOfMemory();
+}
+
 void ToolboxApp::run()
 {
   InitGraf(&qd.thePort);
@@ -188,28 +207,16 @@ void ToolboxApp::run()
   App::run();
   if (group_)
   {
-    const std::vector<AppComponent *> &comps = group_->getComponents();
+    const AppComponentGroup::Components comps = group_->getComponents();
     ToolboxWindow *firstWindow = 0;
-    for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+    for (std::size_t i = 0; i < comps.size(); ++i)
     {
-      Window *w = (*it)->asWindow();
+      Window *w = comps[i]->asWindow();
       ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
       if (toolboxWindow)
       {
-        if (!firstWindow)
-        {
-          firstWindow = toolboxWindow;
-        }
-        toolboxWindow->setApp(this);
-        toolboxWindow->open();
-        toolboxWindow->ensureSceneMounted();
-        if (toolboxWindow->scene() && toolboxWindow->scene()->composeRefusedForMemory())
-        {
-          loka::toolbox::QuitForOutOfMemory();
-        }
-        // Startup has no turn boundary yet: report a reserve lent during this
-        // window's open and mount before the next window adds more work.
-        loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+        firstWindow = toolboxWindow;
+        break;
       }
     }
     if (!activeWindow() && firstWindow)
@@ -240,10 +247,10 @@ void ToolboxApp::run()
     // TODO: Re-enable invalidation once Classic update flow is stable.
     if (group_)
     {
-      const std::vector<AppComponent *> &comps = group_->getComponents();
-      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      const AppComponentGroup::Components comps = group_->getComponents();
+      for (std::size_t i = 0; i < comps.size(); ++i)
       {
-        Window *w = (*it)->asWindow();
+        Window *w = comps[i]->asWindow();
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
@@ -263,10 +270,10 @@ void ToolboxApp::run()
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
       if (target && group_)
       {
-        const std::vector<AppComponent *> &comps = group_->getComponents();
-        for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+        const AppComponentGroup::Components comps = group_->getComponents();
+        for (std::size_t i = 0; i < comps.size(); ++i)
         {
-          Window *w = (*it)->asWindow();
+          Window *w = comps[i]->asWindow();
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
@@ -307,10 +314,10 @@ void ToolboxApp::run()
           ToolboxWindow *closing = 0;
           if (group_)
           {
-            const std::vector<AppComponent *> &comps = group_->getComponents();
-            for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+            const AppComponentGroup::Components comps = group_->getComponents();
+            for (std::size_t i = 0; i < comps.size(); ++i)
             {
-              Window *w = (*it)->asWindow();
+              Window *w = comps[i]->asWindow();
               ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
               if (toolboxWindow && toolboxWindow->window() == target)
               {
@@ -330,10 +337,10 @@ void ToolboxApp::run()
         ToolboxWindow *clicked = 0;
         if (group_)
         {
-          const std::vector<AppComponent *> &comps = group_->getComponents();
-          for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+          const AppComponentGroup::Components comps = group_->getComponents();
+          for (std::size_t i = 0; i < comps.size(); ++i)
           {
-            Window *w = (*it)->asWindow();
+            Window *w = comps[i]->asWindow();
             ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
             if (toolboxWindow && toolboxWindow->window() == target)
             {
@@ -376,10 +383,10 @@ void ToolboxApp::run()
       WindowPtr target = reinterpret_cast<WindowPtr>(event.message);
       if (group_)
       {
-        const std::vector<AppComponent *> &comps = group_->getComponents();
-        for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+        const AppComponentGroup::Components comps = group_->getComponents();
+        for (std::size_t i = 0; i < comps.size(); ++i)
         {
-          Window *w = (*it)->asWindow();
+          Window *w = comps[i]->asWindow();
           ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
           if (toolboxWindow && toolboxWindow->window() == target)
           {
@@ -461,10 +468,10 @@ void ToolboxApp::run()
     this->cursorOwner_.assertIdle();
     if (event.what == nullEvent && group_)
     {
-      const std::vector<AppComponent *> &comps = group_->getComponents();
-      for (std::vector<AppComponent *>::const_iterator it = comps.begin(); it != comps.end(); ++it)
+      const AppComponentGroup::Components comps = group_->getComponents();
+      for (std::size_t i = 0; i < comps.size(); ++i)
       {
-        Window *w = (*it)->asWindow();
+        Window *w = comps[i]->asWindow();
         ToolboxWindow *toolboxWindow = w ? w->asToolboxWindow() : 0;
         if (toolboxWindow)
         {
