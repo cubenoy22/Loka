@@ -45,8 +45,10 @@ resource 'SIZE' (-1) {
 	704 * 1024,	/* preferred */
 	480 * 1024	/* minimum */
 #else
-	/* PPC partitions are unmeasured; the code fragment also loads into the
-	   heap, so these follow SimpleViewer rather than the 68K measurement. */
+	/* PPC, measured on MAME pmac6100 / Mac OS 8.1 (2026-10-10, #1109):
+	   need 122K with virtual memory off, where the Process Manager adds
+	   the code fragment to this partition; with it on, the heap peak
+	   without the code section is 211K. Both fit, so the values stay. */
 	1024 * 1024,	/* preferred */
 	512 * 1024	/* minimum */
 #endif

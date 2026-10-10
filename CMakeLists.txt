@@ -64,8 +64,8 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "^Retro(PPC|Carbon)$")
   set(LOKA_CLASSIC_TARGET_SUFFIX "PPC")
 endif()
 
-# Size.r files keep the measured 68K partitions (#1103) apart from the
-# unmeasured PPC ones through this generated Rez include.
+# Size.r files keep the 68K partitions (#1103) apart from the PPC ones (#1109)
+# through this generated Rez include.
 if(LOKA_CLASSIC_MAC)
   set(LOKA_CLASSIC_68K 0)
   if(CMAKE_SYSTEM_NAME STREQUAL "Retro68")
