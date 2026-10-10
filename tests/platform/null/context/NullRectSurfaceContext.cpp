@@ -53,7 +53,6 @@ void NullRectSurfaceContext::onFactChanged(loka::app::scene::NodeLifecycleFact p
   if (next != loka::app::scene::NODE_FACT_ATTACHED)
   {
     this->presented_.invalidate();
-    this->presentedClearBackground_.invalidate();
     this->placement_.invalidate();
   }
   if (next != loka::app::scene::NODE_FACT_ATTACHED && this->controller_)
@@ -114,15 +113,9 @@ loka::app::scene::PaintAnswer NullRectSurfaceContext::queryPaintDamage(const lok
   if (!this->node_ || !this->node_->props.model_)
     return PaintAnswer::refused(PAINT_REFUSED_PROPS_UNRECONCILED);
   const loka::app::RectSurfaceModel &current = this->node_->props.model_->get();
-  const bool clear = this->node_->props.clearBackground_;
   PaintDamage damage = {
-      query.scope, seat.x, seat.y, 0, 0, clear ? PAINT_COVERAGE_PAINT_ONLY : PAINT_COVERAGE_ERASE_AND_PAINT};
-  if (this->presentedClearBackground_.value() != clear)
-  {
-    damage.width = seat.width;
-    damage.height = seat.height;
-  }
-  else if (!equalSprites(current, this->presented_.value()))
+      query.scope, seat.x, seat.y, 0, 0, PAINT_COVERAGE_PAINT_ONLY};
+  if (!equalSprites(current, this->presented_.value()))
   {
     int left = seat.width, top = seat.height, right = 0, bottom = 0;
     for (int pass = 0; pass < 2; ++pass)
@@ -162,14 +155,12 @@ loka::app::scene::PaintAnswer NullRectSurfaceContext::queryPaintDamage(const lok
   return PaintAnswer::exact(damage);
 }
 bool NullRectSurfaceContext::commitPresented(const loka::app::RectSurfaceModel &value,
-                                             bool clearBackground,
                                              const loka::app::scene::PaintScope &scope)
 {
   loka::core::Frame seat;
   if (!this->placement_.query(scope, seat))
     return false;
   this->presented_.commit(value, scope);
-  this->presentedClearBackground_.commit(clearBackground, scope);
   return true;
 }
 

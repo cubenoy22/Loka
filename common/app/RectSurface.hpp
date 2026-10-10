@@ -193,7 +193,6 @@ namespace loka
       scene::NodeState<loka::core::Frame> laidOutExtent_;
       short width_;
       short height_;
-      bool clearBackground_;
       bool useRegionClip_;
 
       RectSurfaceProps()
@@ -201,7 +200,6 @@ namespace loka
             laidOutExtent_(),
             width_(0),
             height_(0),
-            clearBackground_(true),
             useRegionClip_(false)
       {
       }
@@ -226,12 +224,6 @@ namespace loka
       RectSurfaceProps &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
       {
         this->laidOutExtent_ = state;
-        return *this;
-      }
-
-      RectSurfaceProps &clearBackground(bool value)
-      {
-        this->clearBackground_ = value;
         return *this;
       }
 
@@ -265,10 +257,6 @@ namespace loka
         if (height_ != other.height_)
         {
           return height_ < other.height_;
-        }
-        if (clearBackground_ != other.clearBackground_)
-        {
-          return clearBackground_ < other.clearBackground_;
         }
         return useRegionClip_ < other.useRegionClip_;
       }
@@ -475,12 +463,6 @@ namespace loka
       RectSurfaceDefinition &laidOutExtent(const scene::NodeState<loka::core::Frame> &state)
       {
         this->props.laidOutExtent(state);
-        return *this;
-      }
-
-      RectSurfaceDefinition &clearBackground(bool value)
-      {
-        this->props.clearBackground(value);
         return *this;
       }
 

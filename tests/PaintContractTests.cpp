@@ -706,13 +706,10 @@ void testPaintPolicyScopeAndLifecycleInvalidation()
   ++q.scope.ownerKey;
   LOKA_VERIFY(surfaceContext->queryPaintDamage(q).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
   LOKA_VERIFY(textContext->queryPaintDamage(q).reason == PAINT_REFUSED_PLACEMENT_UNSETTLED);
-  // Query-time pixel policy is intentionally exercised without a layout pass.
-  surface->props.clearBackground_ = false;
-  const PaintAnswer policy = surfaceContext->queryPaintDamage(query(platform));
-  LOKA_VERIFY(policy.kind == PAINT_ANSWER_EXACT && policy.damage.coverage == PAINT_COVERAGE_ERASE_AND_PAINT);
-  LOKA_VERIFY(policy.damage.width == loka_floppy_bird::kWindowWidth
-              && policy.damage.height == loka_floppy_bird::kWindowHeight);
-  surface->props.clearBackground_ = true;
+  const PaintAnswer ground = surfaceContext->queryPaintDamage(query(platform));
+  LOKA_VERIFY(ground.kind == PAINT_ANSWER_EXACT);
+  LOKA_VERIFY(ground.damage.coverage == PAINT_COVERAGE_PAINT_ONLY);
+  LOKA_VERIFY(ground.damage.width == 0 && ground.damage.height == 0);
   RectSurfaceModel hints = model.surfaceModel_.get();
   hints.dirtyRectCount = 1;
   hints.dirtyRects[0] = RectSurfaceModel::DirtyRect(0, 0, 100, 100);
