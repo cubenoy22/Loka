@@ -123,24 +123,6 @@ namespace loka
         void (N::*method_)(scene::NodeComposition &);
         const scene::detail::SeatReservation *reservation_;
       };
-      /** The committed key belongs to the declaration it describes. */
-      class Declaration : public scene::GenerationDeclaration
-      {
-      public:
-        explicit Declaration(loka::core::State<K> *key)
-            : key_(key),
-              value_(key->get())
-        {
-        }
-        virtual bool matchesCurrentKey() const
-        {
-          return this->value_ == this->key_->get();
-        }
-
-      private:
-        loka::core::State<K> *const key_;
-        const K value_;
-      };
 
     public:
       template <class N, class List>
@@ -284,7 +266,7 @@ namespace loka
         assert(valid && "Keyed declarer must be a member of the enclosing boundary");
         if (!valid || !this->declarer_->installReservation())
           return 0;
-        loka::core::OwnedDef<Declaration> candidate(new Declaration(this->props_.state));
+        loka::core::OwnedDef<scene::KeyedGenerationDeclaration<K> > candidate(new scene::KeyedGenerationDeclaration<K>(this->props_.state));
         if (!candidate.isSet())
           return 0;
         scene::KeyedGenerationRoot *root =

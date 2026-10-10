@@ -6,6 +6,7 @@
 #include "app/scene/boundary/BoundaryInnerStateOwner.hpp"
 #include "app/scene/node/ComposableNode.hpp"
 #include "app/scene/boundary/detail/BranchSeatDeclaration.hpp"
+#include "app/scene/detail/KeySnapshot.hpp"
 
 namespace loka
 {
@@ -174,6 +175,17 @@ namespace loka
 
       private:
         PendingSubtree pending_;
+      };
+      /** The generation declaration both Keyed and LazyScope commit: the
+          GenerationDeclaration plus the key snapshot it was declared from. */
+      template <class K> class KeyedGenerationDeclaration : public GenerationDeclaration
+      {
+      public:
+        explicit KeyedGenerationDeclaration(loka::core::State<K> *key) : key_(key) {}
+        virtual bool matchesCurrentKey() const { return this->key_.matches(); }
+
+      private:
+        detail::KeySnapshot<K> key_;
       };
     } // namespace scene
   } // namespace app
