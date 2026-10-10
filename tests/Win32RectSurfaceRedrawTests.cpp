@@ -20,6 +20,7 @@
 #include "context/Win32TextContext.hpp"
 #include "context/Win32AttributedTextContext.hpp"
 #include "context/Win32ImageViewContext.hpp"
+#include "context/Win32ScrollViewContext.hpp"
 #include "platform/null/NullPlatformContext.hpp"
 #include "app/RectSurface.hpp"
 #include "context/Win32RectSurfaceContext.hpp"
@@ -158,7 +159,9 @@ exercisePaintOnlyChangeUnderScrollView(bool refused, bool removeSprites = false,
 
   HWND viewport = FindWindowExW(rootHwnd, NULL, L"LOKA_SCROLL_VIEW", NULL);
   LOKA_VERIFY(viewport != NULL);
-  LOKA_VERIFY((GetWindowLongPtrW(viewport, GWL_STYLE) & WS_CLIPCHILDREN) != 0);
+  // #1199: the viewport paints beneath transparent children; native parentage
+  // still clips projected children to the viewport's client area.
+  LOKA_VERIFY((GetWindowLongPtrW(viewport, GWL_STYLE) & WS_CLIPCHILDREN) == 0);
   LOKA_VERIFY(FindWindowExW(viewport, NULL, L"COMBOBOX", NULL) != NULL);
   LOKA_VERIFY(FindWindowExW(viewport, NULL, L"EDIT", NULL) != NULL);
   HWND first = FindWindowExW(viewport, NULL, L"LOKA_RECT_SURFACE", NULL);
@@ -756,75 +759,72 @@ void testWin32AttributedTextTransparentOverSprite()
   controller.drainNativeRetirements();
 }
 
-void testWin32AttributedTextShrinkRestoresGround()
-{
-  using namespace loka::app;
-  using namespace loka::app::scene;
-  TransparentPaintWindow host;
-  HWND root = host.window.hwnd();
-  Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
-  loka::core::PushStateTracker tracker;
-  loka::core::MutableState<AttributedString> value(Styled("MMMMMMMMMMMMMMMM", FontSize<12>()));
-  tracker.addState(&value);
-  AttributedTextNode node((AttributedTextProps(&value)));
-  Win32AttributedTextContext text(&controller, root, 0, 0, 240, 24, &node);
-  LOKA_VERIFY(text.paintHwnd() != NULL);
-  LayoutState state;
-  state.width = 240;
-  text.layout(&controller, state);
-  const short height = state.height;
-  LOKA_VERIFY(height > 0);
-  ShowWindow(root, SW_SHOWNOACTIVATE);
-  flushTransparentPaint(controller, root);
-  // Locate real glyph ink, so smoothing/font metrics cannot make the probe vacuous.
-  POINT oldInk = {-1, -1};
-  HDC dc = GetDC(text.paintHwnd());
-  LOKA_VERIFY(dc != NULL);
-  for (int y = 0; y < height && oldInk.x < 0; ++y)
-    for (int x = 80; x < 240 && oldInk.x < 0; ++x)
-    {
-      const COLORREF pixel = GetPixel(dc, x, y);
-      LOKA_VERIFY(pixel != CLR_INVALID);
-      if (pixel != GetSysColor(COLOR_WINDOW))
-      {
-        oldInk.x = x;
-        oldInk.y = y;
-      }
-    }
-  ReleaseDC(text.paintHwnd(), dc);
-  LOKA_VERIFY(oldInk.x >= 80);
-  {
-    loka::core::StateTrackerGuard guard(&tracker);
-    value.set(Styled(".", FontSize<12>()));
-  }
-  // Model the live-content layout input without a scene-wide repaint or a
-  // props replacement that collapses the HWND and accidentally erases old ink.
-  state.inputs = static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT);
-  text.layout(&controller, state);
-  LOKA_VERIFY(state.height == height);
-  flushTransparentPaint(controller, root);
-  LOKA_VERIFY(windowPixel(text.paintHwnd(), oldInk.x, oldInk.y) == GetSysColor(COLOR_WINDOW));
-  text.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
-  controller.drainNativeRetirements();
-}
-
 namespace
 {
-  void exerciseImageTransparency(bool removeImage)
+  void exerciseAttributedTextShrink(Win32ScenePlatformController &controller, HWND parent)
   {
     using namespace loka::app;
     using namespace loka::app::scene;
-    TransparentPaintWindow host;
-    HWND root = host.window.hwnd();
-    Win32ScenePlatformController controller(root, loka::win32::Win32DisplayScale(96, RailMetrics()));
+    HWND root = controller.rootHwnd();
+    loka::core::PushStateTracker tracker;
+    loka::core::MutableState<AttributedString> value(Styled("MMMMMMMMMMMMMMMM", FontSize<12>()));
+    tracker.addState(&value);
+    AttributedTextNode node((AttributedTextProps(&value)));
+    Win32AttributedTextContext text(&controller, parent, 0, 0, 240, 24, &node);
+    LOKA_VERIFY(text.paintHwnd() != NULL);
+    LOKA_VERIFY(GetParent(text.paintHwnd()) == parent);
+    LayoutState state;
+    state.width = 240;
+    text.layout(&controller, state);
+    const short height = state.height;
+    LOKA_VERIFY(height > 0);
+    ShowWindow(root, SW_SHOWNOACTIVATE);
+    flushTransparentPaint(controller, root);
+    // Locate real glyph ink, so smoothing/font metrics cannot make the probe vacuous.
+    POINT oldInk = {-1, -1};
+    HDC dc = GetDC(text.paintHwnd());
+    LOKA_VERIFY(dc != NULL);
+    for (int y = 0; y < height && oldInk.x < 0; ++y)
+      for (int x = 80; x < 240 && oldInk.x < 0; ++x)
+      {
+        const COLORREF pixel = GetPixel(dc, x, y);
+        LOKA_VERIFY(pixel != CLR_INVALID);
+        if (pixel != GetSysColor(COLOR_WINDOW))
+        {
+          oldInk.x = x;
+          oldInk.y = y;
+        }
+      }
+    ReleaseDC(text.paintHwnd(), dc);
+    LOKA_VERIFY(oldInk.x >= 80);
+    {
+      loka::core::StateTrackerGuard guard(&tracker);
+      value.set(Styled(".", FontSize<12>()));
+    }
+    // Model the live-content layout input without a scene-wide repaint or a
+    // props replacement that collapses the HWND and accidentally erases old ink.
+    state.inputs = static_cast<NodeDirtyFlags>(NODE_DIRTY_PROPS | NODE_DIRTY_LAYOUT);
+    text.layout(&controller, state);
+    LOKA_VERIFY(state.height == height);
+    flushTransparentPaint(controller, root);
+    LOKA_VERIFY(windowPixel(text.paintHwnd(), oldInk.x, oldInk.y) == GetSysColor(COLOR_WINDOW));
+    text.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+    controller.drainNativeRetirements();
+  }
+
+  void exerciseImageTransparency(Win32ScenePlatformController &controller, HWND parent, bool removeImage)
+  {
+    using namespace loka::app;
+    using namespace loka::app::scene;
+    HWND root = controller.rootHwnd();
     loka::core::PushStateTracker tracker;
     loka::core::MutableState<loka::core::resource::Image> image(blackTestImage(root));
     tracker.addState(&image);
     ImageViewProps props;
     props.image(&image).size(160, 80).attr(ImageViewAttr().fit(IMAGE_FIT_NONE));
     ImageViewNode node(props);
-    Win32ImageViewContext context(&controller, root, 0, 0, 160, 80, &node);
-    HWND child = FindWindowExW(root, NULL, L"LOKA_IMAGE_VIEW", NULL);
+    Win32ImageViewContext context(&controller, parent, 0, 0, 160, 80, &node);
+    HWND child = FindWindowExW(parent, NULL, L"LOKA_IMAGE_VIEW", NULL);
     LOKA_VERIFY(child != NULL);
     ShowWindow(root, SW_SHOWNOACTIVATE);
     flushTransparentPaint(controller, root);
@@ -858,10 +858,52 @@ namespace
 
 void testWin32ImageViewTransparentLetterbox()
 {
-  exerciseImageTransparency(false);
+  TransparentPaintWindow host;
+  Win32ScenePlatformController controller(
+      host.window.hwnd(), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
+  exerciseImageTransparency(controller, host.window.hwnd(), false);
 }
 
 void testWin32ImageViewRemovalRestoresGround()
 {
-  exerciseImageTransparency(true);
+  TransparentPaintWindow host;
+  Win32ScenePlatformController controller(
+      host.window.hwnd(), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
+  exerciseImageTransparency(controller, host.window.hwnd(), true);
+}
+
+void testWin32AttributedTextShrinkRestoresGround()
+{
+  TransparentPaintWindow host;
+  Win32ScenePlatformController controller(
+      host.window.hwnd(), loka::win32::Win32DisplayScale(96, loka::app::RailMetrics()));
+  exerciseAttributedTextShrink(controller, host.window.hwnd());
+}
+
+void testWin32ScrollViewAttributedTextShrinkRestoresGround()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  TransparentPaintWindow host;
+  Win32ScenePlatformController controller(host.window.hwnd(), loka::win32::Win32DisplayScale(96, RailMetrics()));
+  ScrollViewNode node((ScrollViewProps()));
+  Win32ScrollViewContext viewport(&controller, host.window.hwnd(), 10, 10, 280, 120, &node);
+  LOKA_VERIFY(viewport.isValid());
+  exerciseAttributedTextShrink(controller, viewport.hwnd());
+  viewport.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+  controller.drainNativeRetirements();
+}
+
+void testWin32ScrollViewImageRemovalRestoresGround()
+{
+  using namespace loka::app;
+  using namespace loka::app::scene;
+  TransparentPaintWindow host;
+  Win32ScenePlatformController controller(host.window.hwnd(), loka::win32::Win32DisplayScale(96, RailMetrics()));
+  ScrollViewNode node((ScrollViewProps()));
+  Win32ScrollViewContext viewport(&controller, host.window.hwnd(), 10, 10, 280, 120, &node);
+  LOKA_VERIFY(viewport.isValid());
+  exerciseImageTransparency(controller, viewport.hwnd(), true);
+  viewport.onFactChanged(NODE_FACT_ATTACHED, NODE_FACT_RETIRED);
+  controller.drainNativeRetirements();
 }

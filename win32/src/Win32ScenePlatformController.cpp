@@ -470,6 +470,11 @@ bool Win32ScenePlatformController::requestTransparentChildRepaint(HWND child)
   return true;
 }
 
+void Win32ScenePlatformController::paintWindowGround(HDC dc, const RECT &rect)
+{
+  FillRect(dc, &rect, reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1));
+}
+
 void Win32ScenePlatformController::redrawDirtySubtreeNow(HWND targetHwnd, const RECT *rect, BOOL eraseBackground)
 {
   if (!targetHwnd)

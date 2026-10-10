@@ -18,4 +18,7 @@ void testWin32AttributedTextShrinkRestoresGround();
 void testWin32ImageViewTransparentLetterbox();
 void testWin32ImageViewRemovalRestoresGround();
 
+void testWin32ScrollViewAttributedTextShrinkRestoresGround();
+void testWin32ScrollViewImageRemovalRestoresGround();
+
 #endif

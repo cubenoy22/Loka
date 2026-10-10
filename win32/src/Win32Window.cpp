@@ -467,7 +467,7 @@ LRESULT CALLBACK Win32Window::WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
       PAINTSTRUCT ps;
       HDC hdc = BeginPaint(hwnd, &ps);
       // Clear the background with the native window color.
-      FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
+      Win32ScenePlatformController::paintWindowGround(hdc, ps.rcPaint);
       EndPaint(hwnd, &ps);
       break;
     }
