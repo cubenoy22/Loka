@@ -2,6 +2,9 @@
 #define LOKA_TOOLBOX_OUT_OF_MEMORY_HPP
 
 namespace loka { namespace toolbox {
+/** At turn end, report and quit if a Toolbox request spent the reserve.
+    One phase compare per event-loop turn; walks nothing. */
+void QuitIfOutOfMemoryReserveSpent();
 /** Reserve process memory once after InitDialogs for the fatal OOM dialog. */
 void ArmOutOfMemoryReserve();
 /** Release the reserve, report memory exhaustion if armed, then ExitToShell.

@@ -1,7 +1,7 @@
 #ifndef LOKA_TOOLBOX_MEMORY_SOURCE_HPP
 #define LOKA_TOOLBOX_MEMORY_SOURCE_HPP
 
-#include <MacMemory.h>
+#include "ToolboxReserveGrowZone.hpp"
 #include <cstddef>
 #include <limits>
 #include <stdint.h>
@@ -30,11 +30,13 @@ namespace loka
       static void *acquire(std::size_t size)
       {
 #if defined(__ppc__) || defined(__POWERPC__)
+        RefusingAllocationScope refusing;
         return NewPtr(size);
 #else
         // Size is signed: refuse before either addition or native conversion.
         if (size > static_cast<std::size_t>((std::numeric_limits<Size>::max)()) - kAlignment)
           return 0;
+        RefusingAllocationScope refusing;
         Ptr original = NewPtr(static_cast<Size>(size + kAlignment));
         if (!original) return 0;
         const unsigned char distance = static_cast<unsigned char>(

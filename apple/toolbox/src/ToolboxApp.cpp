@@ -207,6 +207,9 @@ void ToolboxApp::run()
         {
           loka::toolbox::QuitForOutOfMemory();
         }
+        // Startup has no turn boundary yet: report a reserve lent during this
+        // window's open and mount before the next window adds more work.
+        loka::toolbox::QuitIfOutOfMemoryReserveSpent();
       }
     }
     if (!activeWindow() && firstWindow)
@@ -469,6 +472,7 @@ void ToolboxApp::run()
         }
       }
     }
+    loka::toolbox::QuitIfOutOfMemoryReserveSpent();
   }
 }
 

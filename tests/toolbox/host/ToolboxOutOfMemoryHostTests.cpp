@@ -1,10 +1,30 @@
 #include "ToolboxOutOfMemory.hpp"
+#include "ToolboxReserveGrowZone.hpp"
 #include <Dialogs.h>
 #include "support/TestVerify.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <string>
 static std::string events;
+static long processManagerWrapper(Size) { return 0; }
+static Zone zone = {processManagerWrapper};
+static GrowZoneUPP applicationProcedure;
+static int installs, uppCreations;
+static bool refuseReserve, refuseItems, reenterReporting;
+Zone *GetZone() { return &zone; }
+void SetGrowZone(GrowZoneUPP procedure)
+{
+  LOKA_VERIFY(events == "A");
+  applicationProcedure = procedure;
+  LOKA_VERIFY(zone.gzProc != procedure);
+  ++installs;
+}
+GrowZoneUPP NewGrowZoneUPP(GrowZoneUPP procedure)
+{
+  LOKA_VERIFY(events == "A");
+  ++uppCreations;
+  return procedure;
+}
 static Handle items;
 static Port port;
 static int modalCalls;
@@ -15,9 +35,22 @@ short GetMBarHeight() { return 20; }
 static Rect dialogBounds;
 static unsigned short word(const unsigned char *p) { return (p[0] << 8) | p[1]; }
 void BlockMoveData(const void *src, void *dst, Size n) { std::memcpy(dst, src, n); }
-Ptr NewPtr(Size n) { LOKA_VERIFY(n == 8192); events += 'A'; return static_cast<Ptr>(std::malloc(n)); }
+Ptr NewPtr(Size n) { LOKA_VERIFY(n == 8192); events += 'A'; return refuseReserve ? 0 : static_cast<Ptr>(std::malloc(n)); }
 void DisposePtr(Ptr p) { LOKA_VERIFY(p); events += 'R'; std::free(p); }
-Handle NewHandle(Size n) { Handle h = new Ptr; *h = static_cast<Ptr>(std::malloc(n)); return h; }
+Handle NewHandle(Size n)
+{
+  if (reenterReporting)
+  {
+    const std::string before = events;
+    loka::toolbox::QuitForOutOfMemory();
+    LOKA_VERIFY(events == before + "Q");
+    return 0; // The real nested ExitToShell never returns.
+  }
+  if (refuseItems) return 0;
+  Handle h = new Ptr;
+  *h = static_cast<Ptr>(std::malloc(n));
+  return h;
+}
 void DisposeHandle(Handle h) { std::free(*h); delete h; }
 unsigned char *LMGetCurApName() { return appName; }
 DialogPtr NewDialog(void *, const Rect *bounds, const unsigned char *, Boolean, short, WindowPtr, Boolean, long, Handle h)
@@ -71,9 +104,29 @@ void ModalDialog(ModalFilterUPP filter, short *hit)
 }
 int main()
 {
+  loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+  LOKA_VERIFY(events.empty());
   loka::toolbox::QuitForOutOfMemory();
   LOKA_VERIFY(events == "Q"); events.clear();
+  refuseReserve = true;
   loka::toolbox::ArmOutOfMemoryReserve();
+  LOKA_VERIFY(events == "A" && installs == 0 && uppCreations == 0 && !applicationProcedure);
+  loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+  LOKA_VERIFY(events == "A");
+  loka::toolbox::QuitForOutOfMemory();
+  LOKA_VERIFY(events == "AQ");
+  events.clear(); refuseReserve = false;
+  loka::toolbox::ArmOutOfMemoryReserve();
+  LOKA_VERIFY(installs == 1 && uppCreations == 1 && applicationProcedure);
+  const GrowZoneUPP installed = applicationProcedure;
+  {
+    loka::toolbox::RefusingAllocationScope refusing;
+    LOKA_VERIFY(applicationProcedure == 0);
+  }
+  LOKA_VERIFY(applicationProcedure == installed && installs == 3);
+  loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+  LOKA_VERIFY(events == "A");
+  LOKA_VERIFY(applicationProcedure(8193) == 0 && events == "A");
   loka::toolbox::QuitForOutOfMemory();
   LOKA_VERIFY(events == "ARDBMMXQ");
   LOKA_VERIFY(outlines == 3);
@@ -91,4 +144,33 @@ int main()
   LOKA_VERIFY(events == "ARDBMMXQ");
   LOKA_VERIFY(dialogBounds.left == 80 && dialogBounds.right == 432);
   LOKA_VERIFY(dialogBounds.top == 80 && dialogBounds.bottom == 220);
+  // Each rearm below simulates another process after the host exit recorder.
+  for (int mode = 0; mode < 2; ++mode)
+  {
+    events.clear(); modalCalls = 0;
+    const int previousInstalls = installs;
+    const int previousCreations = uppCreations;
+    loka::toolbox::ArmOutOfMemoryReserve();
+    LOKA_VERIFY(installs == previousInstalls + 1 && uppCreations == previousCreations + 1);
+    LOKA_VERIFY(applicationProcedure(mode == 0 ? 10 : 8192) == 8192);
+    LOKA_VERIFY(events == "AR");
+    LOKA_VERIFY(applicationProcedure(10) == 0 && events == "AR");
+    if (mode == 0) loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+    else loka::toolbox::QuitForOutOfMemory();
+    LOKA_VERIFY(events == "ARDBMMXQ");
+    events.clear();
+    loka::toolbox::QuitIfOutOfMemoryReserveSpent();
+    LOKA_VERIFY(events.empty());
+  }
+  events.clear();
+  loka::toolbox::ArmOutOfMemoryReserve();
+  reenterReporting = true;
+  loka::toolbox::QuitForOutOfMemory();
+  LOKA_VERIFY(events == "ARQQ");
+  reenterReporting = false;
+  events.clear();
+  loka::toolbox::ArmOutOfMemoryReserve();
+  refuseItems = true;
+  loka::toolbox::QuitForOutOfMemory();
+  LOKA_VERIFY(events == "ARQ");
 }

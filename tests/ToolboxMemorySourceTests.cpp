@@ -5,6 +5,13 @@
 #include <climits>
 #include <cstring>
 
+static long growZone(Size) { return 0; }
+static long processManagerWrapper(Size) { return 0; }
+static Zone zone = {processManagerWrapper};
+static GrowZoneUPP applicationProcedure;
+Zone *GetZone() { return &zone; }
+void SetGrowZone(GrowZoneUPP procedure) { applicationProcedure = procedure; }
+
 namespace
 {
   /** Retains fake Memory Manager blocks, including process-lifetime pool chunks. */
@@ -126,6 +133,7 @@ namespace
 
 Ptr NewPtr(Size size)
 {
+  LOKA_VERIFY(applicationProcedure == 0);
   FakeMemoryManager &memory = *FakeMemoryManager::active;
   ++memory.calls;
   if (size > memory.ceiling || memory.refuseAll || (memory.refuseChunks && size == 2052)) return 0;
@@ -188,8 +196,15 @@ namespace
 
 int main()
 {
-  testPoolPaths();
   testSourceEdges();
+  LOKA_VERIFY(applicationProcedure == 0);
+  loka::toolbox::InstallReserveGrowZone(growZone);
+  LOKA_VERIFY(applicationProcedure == growZone && zone.gzProc != growZone);
+  testPoolPaths();
+  LOKA_VERIFY(applicationProcedure == growZone);
+  testSourceEdges();
+  LOKA_VERIFY(applicationProcedure == growZone);
   testBlobReadRefusesAlignmentOverhead();
+  LOKA_VERIFY(applicationProcedure == growZone);
   std::puts("Classic memory source alignment and recovery pins passed");
 }

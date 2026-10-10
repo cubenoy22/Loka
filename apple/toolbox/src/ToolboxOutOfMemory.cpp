@@ -1,4 +1,5 @@
 #include "ToolboxOutOfMemory.hpp"
+#include "ToolboxReserveGrowZone.hpp"
 #include <Dialogs.h>
 #include <Events.h>
 #include <LowMem.h>
@@ -10,8 +11,62 @@
 
 namespace {
 const long kOutOfMemoryReserveBytes = 8 * 1024;
-// Process-owned BSS: absence also guards reporting before initialization/reentry.
-Ptr gOutOfMemoryReserve;
+/** Process-owned reserve and its one-way release/reporting phases. */
+class OutOfMemoryReserve
+{
+public:
+  OutOfMemoryReserve() : block_(0), phase_(UNARMED) {}
+
+  void arm()
+  {
+    this->block_ = NewPtr(kOutOfMemoryReserveBytes);
+    this->phase_ = this->block_ ? HELD : UNARMED;
+  }
+  bool held() const { return this->phase_ == HELD; }
+  bool spentForSystem() const { return this->phase_ == RELEASED_FOR_SYSTEM; }
+  long releaseForSystem(Size cbNeeded)
+  {
+    if (!this->held() || cbNeeded > kOutOfMemoryReserveBytes) return 0;
+    this->release();
+    this->phase_ = RELEASED_FOR_SYSTEM;
+    return kOutOfMemoryReserveBytes;
+  }
+  bool beginReporting()
+  {
+    switch (this->phase_)
+    {
+      case HELD:
+        this->release();
+        break;
+      case RELEASED_FOR_SYSTEM:
+        break;
+      case UNARMED:
+      case REPORTING:
+        return false;
+    }
+    this->phase_ = REPORTING;
+    return true;
+  }
+private:
+  enum Phase { UNARMED, HELD, RELEASED_FOR_SYSTEM, REPORTING };
+  Ptr block_;
+  Phase phase_;
+  void release()
+  {
+    DisposePtr(this->block_);
+    this->block_ = 0;
+  }
+  OutOfMemoryReserve(const OutOfMemoryReserve &);
+  OutOfMemoryReserve &operator=(const OutOfMemoryReserve &);
+};
+OutOfMemoryReserve gOutOfMemoryReserve;
+
+pascal long ReleaseReserveForSystem(Size cbNeeded)
+{
+  // Retro68 68K globals use absolute addresses, not A5-relative storage.
+  // No SetCurrentA5 is needed; the UPP also supplies the PPC CFM entry.
+  return gOutOfMemoryReserve.releaseForSystem(cbNeeded);
+}
 const Rect kQuitBounds = {100, 264, 120, 332};
 
 void PutWord(unsigned char *&out, unsigned short value)
@@ -133,23 +188,22 @@ void ShowOutOfMemoryDialog()
 namespace loka { namespace toolbox {
 void ArmOutOfMemoryReserve()
 {
-  gOutOfMemoryReserve = NewPtr(kOutOfMemoryReserveBytes);
+  gOutOfMemoryReserve.arm();
+  if (gOutOfMemoryReserve.held())
+  {
+    InstallReserveGrowZone(NewGrowZoneUPP(ReleaseReserveForSystem));
+  }
+}
+
+void QuitIfOutOfMemoryReserveSpent()
+{
+  if (gOutOfMemoryReserve.spentForSystem()) QuitForOutOfMemory();
 }
 
 void QuitForOutOfMemory()
 {
-  if (!gOutOfMemoryReserve)
-  {
-    ExitToShell();
-#if defined(LOKA_RETRO68)
-    __builtin_unreachable();
-#else
-    return; // Host ExitToShell recorder returns.
-#endif
-  }
-  DisposePtr(gOutOfMemoryReserve);
-  gOutOfMemoryReserve = 0;
-  ShowOutOfMemoryDialog();
+  if (gOutOfMemoryReserve.beginReporting())
+    ShowOutOfMemoryDialog();
   ExitToShell();
 #if defined(LOKA_RETRO68)
   __builtin_unreachable();
