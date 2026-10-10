@@ -162,7 +162,7 @@ namespace loka
           {
             return;
           }
-          const std::vector<AppComponent *> &components =
+          const AppComponentGroup::Components components =
               app.group_->getComponents();
           for (size_t i = 0; i < components.size(); ++i)
           {
@@ -230,7 +230,7 @@ namespace loka
           {
             return;
           }
-          const std::vector<AppComponent *> &components =
+          const AppComponentGroup::Components components =
               app.group_->getComponents();
           size_t windowIndex = 0;
           for (size_t i = 0; i < components.size(); ++i)
