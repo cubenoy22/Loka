@@ -1,3 +1,4 @@
+#include "ToolboxPaintGround.hpp"
 #include "context/ToolboxTextEditorContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
@@ -738,7 +739,8 @@ void ToolboxTextEditorContext::repaint(TEHandle te)
     TEUpdate(&(**te).viewRect, te);
   else
   {
-    EraseRect(&this->rect_);
+    // This fallback stands in for the native editor's document ground.
+    loka::toolbox::ToolboxPaintGround(loka::app::SURFACE_GROUND_DOCUMENT, this->rect_);
     FrameRect(&this->rect_);
     MoveTo(this->rect_.left + 3, this->rect_.top + 14);
     const char label[] = "Editor unavailable";

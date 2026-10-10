@@ -1192,3 +1192,6 @@ LOKA_TEST(testCommandSetWithdrawsOnDetach)
 LOKA_TEST(testCommandSetRuntimeBounds)
 LOKA_TEST(testCommandSetCallbackFamilies)
 LOKA_TEST(testCommandSetCallbackFamilyCollision)
+
+LOKA_TEST(testToolboxGroundRoles)
+LOKA_TEST(testToolboxGroundLegibility)

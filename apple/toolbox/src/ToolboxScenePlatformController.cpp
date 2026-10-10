@@ -259,6 +259,9 @@ namespace
       Rect intersection;
       if (ctx && SectRect(&ctx->rect(), &dirtyRect, &intersection))
       {
+        // Same erase-before-render ritual as composition replay. ZStack takes
+        // that replay; disjoint ImageViews have only window ground beneath.
+        EraseRect(&intersection);
         ctx->render(controller);
       }
       return;

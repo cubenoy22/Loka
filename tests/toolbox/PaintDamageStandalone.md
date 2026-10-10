@@ -1,8 +1,10 @@
 # PaintDamage standalone
 
-Status: 135 PASS / 0 FAIL on the `toolbox-maciix` rig (MAME maciix, 8 MB,
+Status: the pre-B2 baseline is runtime-verified at 135 PASS / 0 FAIL on the `toolbox-maciix` rig (MAME maciix, 8 MB,
 the rig descriptor's boot template), with a byte-identical `LOG.TXT` across
 runs and across the Universal Interfaces and Multiversal builds (#1126).
+B2 (#1199) adds three expected PASS lines (138 total); the updated log is
+an acceptance expectation pending the delegator's MAME run, not new runtime evidence.
 Owns: Toolbox native paint-damage pins that need real QuickDraw and the
 Control Manager: exact versus whole-window delivery, presentation history,
 control and popup geometry, and busy-cursor borrows.
@@ -48,3 +50,30 @@ contract of the change that moved it:
 | #1027 (an unchanged partial repaint keeps its history) | `popup-partial-unchanged-keeps-history`, `button-partial-unchanged-keeps-history` | exact instead of refused |
 | #1080 (StateTrackerGuard joins the turn's clock) | `unknown-history`, `popup-detached-refuses`, `offscreen-detached-refuses` | the arm settles the turn before reading a result in the same turn |
 | #1162 and #1065 | build | the busy-decode arm sizes its Blob without `LOKA_VERIFY` and decodes through a non-const context |
+
+## Ground pins (#1199 B2)
+
+`image-ground-transparent` reads local (110, 20) inside the ImageDamage
+surface's original sprite, below the ImageView placeholder label and inside
+its frame. It expects black after the full paint. The base and the temporary
+ImageView-self-erase mutant are expected to fail this arm. This is a rail
+regression pin, not a guarantee that nodes overlaying RectSurface compose
+portably. The original replay arm now searches the label area after the sprite
+moves away; searching it before the move would select exposed sprite ink.
+
+`image-vacated-setup` paints an original, embedded PICT v1 black rectangle in a
+separate window without a ZStack. The fixture removes the ImageView's source
+prop directly and explicitly requests its dirty rectangle, isolating the
+existing dirty replay path from State's broad invalidation. No production
+state or repaint API is added. The three new phases also shift the six later
+`column_phase` audit values from 58–63 to 61–66.
+`image-vacated-restores-window` requires that
+the sample at image-local (30, 40) becomes white, with dirty flush/replay
+counters advancing and no full repaint. Removing the helper's erase is
+expected to leave this sample black. Both pixel claims require MAME to confirm;
+compilation alone does not establish red or green.
+
+The PICT byte array is padded to 64 bytes because the streaming drawer seeds
+its Picture header plus eight longs before streaming; its EndPic opcode ends
+the drawing before the padding. The fixture owns its image through Boundary
+state and the image retains the sealed Blob through the existing producer.

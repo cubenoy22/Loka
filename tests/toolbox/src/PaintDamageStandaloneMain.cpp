@@ -6,6 +6,8 @@
 #include "ObservedMainDefinition.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "ToolboxWindow.hpp"
+#include "ToolboxNativeImage.hpp"
+#include "context/ToolboxImageViewContext.hpp"
 #include "ToolboxApp.hpp"
 #include "ToolboxLayoutMetrics.hpp"
 #include "context/ToolboxLayoutUtil.hpp"
@@ -287,6 +289,40 @@ namespace
                                   << loka::app::scene::Boundary<ImageSurfaceNode>()
                                   << loka::app::scene::Boundary<ImagePlaceholderNode>())));
     }
+  };
+
+  class ImageVacatedNode;
+  typedef BoundaryPropsFor<ImageVacatedNode> ImageVacatedProps;
+  /** Owns an original PICT v1 fixture: a solid black 40 by 40 rectangle. */
+  class ImageVacatedNode : public StdCompositionBoundaryNodeBase<ImageVacatedProps>
+  {
+  public:
+    typedef ImageVacatedProps::TypeTag TypeTag;
+    explicit ImageVacatedNode(const ImageVacatedProps &props)
+        : StdCompositionBoundaryNodeBase<ImageVacatedProps>(props)
+    {
+      const unsigned char pict[64] = {
+        0, 64, 0, 0, 0, 0, 0, 40, 0, 40,
+        0x11, 1, 0x31, 0, 0, 0, 0, 0, 40, 0, 40, 0xff
+      };
+      loka::core::resource::Blob blob = loka::core::resource::Blob::Create();
+      const bool sized = blob.tryResize(sizeof(pict));
+      if (sized)
+      {
+        std::memcpy(blob.mutableData(), pict, sizeof(pict));
+        blob.sealBytes();
+      }
+      this->state(this->image_, sized
+          ? loka::toolbox::MakeImageFromPictBlob(blob, 0, sizeof(pict), 40, 40)
+          : loka::core::resource::Image::Empty());
+    }
+    virtual void composeNode(NodeComposition &composition)
+    {
+      composition.declare(ImageView().image(this->image_.state()).size(150, 70)
+                          .TEST_ID("ImageVacated.Image"));
+    }
+  private:
+    NodeState<loka::core::resource::Image> image_;
   };
 
   class EditDamageNode;
@@ -846,7 +882,7 @@ namespace
   public:
     explicit PaintDamageConfig(PlatformContext *context)
         : AppConfigurable(context), app_(0), node_(0), composited_(0), edit_(0), log_(0), phase_(SETTLE), result_(0),
-          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), textWidth_(0), textWidthWindow_(0), textStyleChange_(0), textStyleChangeWindow_(0), textStyleBefore_(), offscreen_(0), offscreenWindow_(0)
+          initial_(), marker_(), scrollTextMarker_(), gate_(false), editGeometry_(), paintWindow_(0), compositedWindow_(0), editWindow_(0), plain_(0), plainWindow_(0), boundsWindow_(0), cellWindow_(0), popupWindow_(0), overflowWindow_(0), imageWindow_(0), imageVacatedWindow_(0), popupRow_(), editExact_(0), editExactWindow_(0), editZStack_(0), editZStackWindow_(0), popupExact_(0), popupExactWindow_(0), popupFaceRows_(), history_(0), historyWindow_(0), popupHistory_(0), popupHistoryWindow_(0), buttonEnabled_(0), buttonEnabledWindow_(0), buttonLabel_(0), buttonLabelWindow_(0), buttonTitlePixels_(), textWidth_(0), textWidthWindow_(0), textStyleChange_(0), textStyleChangeWindow_(0), textStyleBefore_(), offscreen_(0), offscreenWindow_(0)
     {
       if (loka::platform::file::ResolveApplicationSidecar(
               loka::file::File::Application() << loka::file::File("LOG.TXT"), this->file_))
@@ -906,6 +942,11 @@ namespace
                                    DrawerDamageNode<CELL_OVERFLOW>::Props(), 0))
                                .visible(false).idlePolicy(IdlePolicy::everyTick())
                                .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->overflowWindow_);
+      composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Image vacated")
+                               .scene(loka::scenario_tests::ObservedMainDefinition<ImageVacatedProps, ImageVacatedNode>(
+                                   ImageVacatedProps(), 0))
+                               .visible(false).idlePolicy(IdlePolicy::everyTick())
+                               .onIdle(&PaintDamageConfig::DispatchIdle, this), &this->imageVacatedWindow_);
       composition << ObservedWindowDefinition(WindowProps().frame(350, 250, 220, 160).title("Image replay")
                                .scene(loka::scenario_tests::ObservedMainDefinition<ImageOverlapProps, ImageOverlapNode>(
                                    ImageOverlapProps(), 0))
@@ -966,7 +1007,7 @@ namespace
   private:
     enum Phase { SETTLE, WRITE, CHECK, PLAIN_WRITE, PLAIN_CHECK, INVALIDATED_WRITE, INVALIDATED_CHECK,
                  COMPOSITED_WRITE, COMPOSITED_CHECK, EDIT_WRITE, EDIT_CHECK, BOUNDS_SHOW, BOUNDS_CHECK, CELL_SHOW, CELL_REPLAY, CELL_CHECK,
-                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
+                 POPUP_SHOW, POPUP_REPLAY, POPUP_CHECK, OVERFLOW_SHOW, OVERFLOW_REPLAY, OVERFLOW_CHECK, IMAGE_SHOW, IMAGE_WRITE, IMAGE_CHECK, IMAGE_VACATED_SHOW, IMAGE_VACATED_WRITE, IMAGE_VACATED_CHECK, EDIT_EXACT_SHOW, EDIT_EXACT_WRITE, EDIT_EXACT_CHECK, EDIT_ZSTACK_SHOW, EDIT_ZSTACK_WRITE, EDIT_ZSTACK_CHECK, POPUP_EXACT_SHOW, POPUP_SIBLING_WRITE, POPUP_SIBLING_CHECK, POPUP_SELECTION_CHECK, HISTORY_SHOW, HISTORY_FIRST, HISTORY_SECOND, HISTORY_CHECK,
                  POPUP_HISTORY_SHOW, POPUP_HISTORY_FIRST, POPUP_HISTORY_SECOND, POPUP_HISTORY_CHECK, BUTTON_ENABLED_SHOW, BUTTON_ENABLED_WRITE, BUTTON_ENABLED_CHECK,
                  BUTTON_LABEL_SHOW, BUTTON_LABEL_WRITE, BUTTON_LABEL_CHECK,
                  TEXT_WIDTH_SHOW, TEXT_WIDTH_WRITE, TEXT_WIDTH_CHECK, TEXT_WIDTH_RELAYOUT,
@@ -996,6 +1037,7 @@ namespace
     Window *popupWindow_;
     Window *overflowWindow_;
     Window *imageWindow_;
+    Window *imageVacatedWindow_;
     PopupRow popupRow_;
     EditExactNode *editExact_;
     Window *editExactWindow_;
@@ -1062,6 +1104,9 @@ namespace
         break;
       case OVERFLOW_SHOW: case OVERFLOW_REPLAY: case OVERFLOW_CHECK:
         target = self->overflowWindow_;
+        break;
+      case IMAGE_VACATED_SHOW: case IMAGE_VACATED_WRITE: case IMAGE_VACATED_CHECK:
+        target = self->imageVacatedWindow_;
         break;
       case IMAGE_SHOW: case IMAGE_WRITE: case IMAGE_CHECK:
         target = self->imageWindow_;
@@ -1148,6 +1193,8 @@ namespace
         OnTextWidthIdle(target, self->textWidth_, self);
       else if (target == self->textStyleChangeWindow_)
         OnTextStyleIdle(target, self->textStyleChange_, self);
+      else if (target == self->imageVacatedWindow_)
+        OnImageVacatedIdle(target, self);
       else if (target == self->imageWindow_)
         OnImageIdle(target, self);
       else
@@ -1657,6 +1704,17 @@ namespace
         const PaintAnswer answer = surface && surface->getContext()
             ? static_cast<NativeNodeContext *>(surface->getContext())->queryPaintDamage(query)
             : PaintAnswer::refused(PAINT_REFUSED_NO_CONTEXT);
+        // (110,20) is inside the sprite, below the label baseline (+14),
+        // and away from the frame. It must survive the placeholder draw.
+        const bool spriteVisible = owner && answer.kind == PAINT_ANSWER_EXACT
+            && GetPixel(answer.damage.x + 110, answer.damage.y + 20) != 0;
+        self->recordArm("image-ground-transparent", spriteVisible, IMAGE_WRITE);
+        if (!spriteVisible)
+        {
+          SetPort(previousPort);
+          self->finish(false);
+          return;
+        }
         bool foundInk = false;
         if (owner && answer.kind == PAINT_ANSWER_EXACT)
         {
@@ -1670,8 +1728,8 @@ namespace
             for (int x = left; x < right && !foundInk; ++x)
               if (GetPixel(static_cast<short>(x), static_cast<short>(y)))
               {
-                self->marker_.h = static_cast<short>(x);
-                self->marker_.v = static_cast<short>(y);
+                self->marker_.h = static_cast<short>(left);
+                self->marker_.v = static_cast<short>(top);
                 foundInk = true;
               }
         }
@@ -1690,14 +1748,74 @@ namespace
       const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
       const int whole = stats.windowFullRequestCount - self->initial_.windowFullRequestCount;
       const int rects = stats.windowRectRequestCount - self->initial_.windowRectRequestCount;
-      const bool ink = GetPixel(self->marker_.h, self->marker_.v) != 0;
+      bool ink = false;
+      // After the sprite moves away, only the replayed label can supply ink.
+      for (short y = self->marker_.v; y < self->marker_.v + 12; ++y)
+        for (short x = self->marker_.h; x < self->marker_.h + 94; ++x)
+          ink = GetPixel(x, y) != 0 || ink;
       const bool replayed = stats.totalRenderCalls == self->initial_.totalRenderCalls
                             && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
                             && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount;
       SetPort(previousPort);
       std::fprintf(self->log_, "image_whole_window=%d rect_requests=%d placeholder_ink=%d dirty_replayed=%d\r",
                    whole, rects, ink ? 1 : 0, replayed ? 1 : 0);
-      self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, EDIT_EXACT_SHOW);
+      self->recordArm("image-overlap-replay", whole == 0 && rects >= 1 && ink && replayed, IMAGE_VACATED_SHOW);
+    }
+    static void OnImageVacatedIdle(Window *window, PaintDamageConfig *self)
+    {
+      ToolboxWindow *native = window->asToolboxWindow();
+      if (self->phase_ == IMAGE_VACATED_SHOW)
+      {
+        ShowWindow(native->window());
+        SelectWindow(native->window());
+        native->requestInvalidate();
+        self->phase_ = IMAGE_VACATED_WRITE;
+        return;
+      }
+      ToolboxScenePlatformController *controller = window->scene()
+          ? static_cast<ToolboxScenePlatformController *>(
+              loka::dsl::testing::SceneTestAccess::platformController(*window->scene())) : 0;
+      Node *node = 0;
+      loka::dsl::FlowError error;
+      loka::dsl::testing::LookupNodeById<Node>(window->scene(), "ImageVacated.Image", node, error);
+      ImageViewNode *image = node ? node->asImageViewNode() : 0;
+      ToolboxImageViewContext *context = image
+          ? static_cast<ToolboxImageViewContext *>(image->getContext()) : 0;
+      if (!controller || !context)
+      {
+        self->recordArm("image-vacated-setup", false, EDIT_EXACT_SHOW);
+        self->finish(false);
+        return;
+      }
+      GrafPtr previousPort;
+      GetPort(&previousPort);
+      SetPort(native->window());
+      const Rect rect = context->rect();
+      // Interior of the stretched black PICT, below the empty label and away
+      // from its frame; after source removal these pixels belong to the window.
+      const bool black = GetPixel(rect.left + 30, rect.top + 40) != 0;
+      SetPort(previousPort);
+      if (self->phase_ == IMAGE_VACATED_WRITE)
+      {
+        self->recordArm("image-vacated-setup", black, IMAGE_VACATED_CHECK);
+        if (!black)
+        {
+          self->finish(false);
+          return;
+        }
+        self->initial_ = controller->debugStatsForTesting();
+        // Fixture-only props change and explicit dirty delivery isolate the
+        // existing non-ZStack image replay from State's broad invalidation.
+        image->props.image_ = 0;
+        native->requestInvalidateRect(rect);
+        return;
+      }
+      const ToolboxSceneDebugStats &stats = controller->debugStatsForTesting();
+      const bool dirtyOnly = stats.totalRenderCalls == self->initial_.totalRenderCalls
+          && stats.totalRenderDirtyCalls > self->initial_.totalRenderDirtyCalls
+          && stats.windowFlushDirtyCount > self->initial_.windowFlushDirtyCount
+          && stats.windowFullRequestCount == self->initial_.windowFullRequestCount;
+      self->recordArm("image-vacated-restores-window", !black && dirtyOnly, EDIT_EXACT_SHOW);
     }
     static void OnEditExactIdle(Window *window, PaintDamageConfig *self)
     {

@@ -1,3 +1,4 @@
+#include "ToolboxPaintGround.hpp"
 #include "context/ToolboxRectSurfaceContext.hpp"
 #include "ToolboxScenePlatformController.hpp"
 #include "context/RectSurfaceRepaintPlan.hpp"
@@ -118,7 +119,8 @@ void ToolboxRectSurfaceContext::render(loka::app::scene::IPlatformController *)
   this->presented_.invalidate();
   if (!this->node_ || !this->node_->props.model_)
     return;
-  EraseRect(&rect_);
+  loka::toolbox::ToolboxPaintGround(
+      loka::app::GroundForKind(loka::app::scene::NODE_KIND_RECT_SURFACE), rect_);
   const loka::app::RectSurfaceModel model = node_->props.model_->get();
   for (short i = 0; i < model.rectCount; ++i)
   {
@@ -161,7 +163,8 @@ void ToolboxRectSurfaceContext::renderDirty(const Rect &requestedDirtyRect)
     const loka::core::Frame &frame = plan.eraseRect(i);
     Rect rect;
     SetRect(&rect, frame.x, frame.y, frame.x + frame.width, frame.y + frame.height);
-    EraseRect(&rect);
+    loka::toolbox::ToolboxPaintGround(
+        loka::app::GroundForKind(loka::app::scene::NODE_KIND_RECT_SURFACE), rect);
   }
   for (short i = 0; i < plan.paintCount(); ++i)
   {

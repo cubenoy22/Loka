@@ -139,6 +139,7 @@
 #include "ScrollViewScopeTests.hpp"
 #include "ToolboxLayoutContractTests.hpp"
 #include "ToolboxRectSurfaceRepaintPlanTests.hpp"
+#include "ToolboxGroundTests.hpp"
 #include "ToolboxScenePlatformContractTests.hpp"
 #include "ToolboxScrollViewContractTests.hpp"
 #include "NullTextLayoutTests.hpp"
